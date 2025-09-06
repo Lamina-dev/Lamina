@@ -278,7 +278,7 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 return Value(result);
             }
 
-            double result = l.as_number() + r.as_number();// Return int if both operands are int and result is whole
+            double result = l.as_number() + r.as_number();// Return int if both operands are int and result is the whole
             if (l.is_int() && r.is_int()) {
                 // check overflow and underflow
                 if (static_cast<int>(result) == INT_MAX ||
@@ -400,7 +400,7 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 } else {
                     rightExpr = from_number_to_symbolic(r);
                 }
-                return Value(SymbolicExpr::multiply(leftExpr, rightExpr)->simplify());
+                return Value(SymbolicExpr::add(leftExpr, SymbolicExpr::multiply(SymbolicExpr::number(-1), rightExpr)->simplify())->simplify());
             }
             // Regular multiplication (both must be numeric)
             if (l.is_numeric() && r.is_numeric()) {
@@ -483,6 +483,7 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 }
             }
             // If either operand is irrational, use irrational arithmetic
+			// TODO:这部分代码存在问题
             if (l.is_irrational() || r.is_irrational()) {
                 ::Irrational lr = l.as_irrational();
                 ::Irrational rr = r.as_irrational();
@@ -547,8 +548,20 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 // 如果底数为整数，指数为整数，结果为BigInt
                 ::BigInt lb = l.is_bigint() ? std::get<::BigInt>(l.data) : ::BigInt(l.as_number());
                 ::BigInt rb = r.is_bigint() ? std::get<::BigInt>(r.data) : ::BigInt(r.as_number());
-                return Value(lb.power(rb));
+				if (rb < ::BigInt(0)) {
+					return Value(l.as_rational().reciprocal().power(::BigInt(0) - rb));
+				} else {
+					return Value(lb.power(rb));
+				}
             }
+			if ((l.is_int() || l.is_bigint() || l.is_rational()) && r.is_rational()) {
+				// 底数和指数均为Rational，考虑符号表达式
+				::Rational lb;
+				if (l.is_int()) lb = ::Rational(l.as_number());
+				else if (l.is_bigint()) lb = ::Rational(std::get<::BigInt>(l.data));
+				else lb = std::get<::Rational>(l.data);
+				return Value(SymbolicExpr::power(SymbolicExpr::number(lb), SymbolicExpr::number(std::get<::Rational>(r.data)))->simplify());
+			}
             // 有小数，采用小数幂
             double ld = l.as_number();
             double rd = r.as_number();
