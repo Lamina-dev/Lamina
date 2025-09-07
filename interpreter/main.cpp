@@ -3,6 +3,7 @@
 
 int main(const int argc, const char* const argv[]) {
     int a = 1;// JUST A TEST
+    long long* b = nullptr;
     try {
         enable_ansi_escape();           // 设置编码
         return argv_parser(argc, argv); // 主要执行这里
