@@ -34,6 +34,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_sqrt() const {
     if (operands.empty()) return std::make_shared<SymbolicExpr>(*this);
     
     auto simplified_operand = operands[0]->simplify();
+	if (simplified_operand->type == SymbolicExpr::Type::Infinity) return simplified_operand;
     
     if (simplified_operand->is_number()) {
 		
@@ -208,6 +209,13 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
     
     auto left = operands[0]->simplify();
     auto right = operands[1]->simplify();
+	
+	// TODO: 理论上为未定式
+	if (left->type == SymbolicExpr::Type::Number && left->convert_rational() == ::Rational(0)) return left;
+	if (right->type == SymbolicExpr::Type::Number && right->convert_rational() == ::Rational(0)) return right;
+	
+	if (left->type == SymbolicExpr::Type::Infinity) return left;
+	if (right->type == SymbolicExpr::Type::Infinity) return right;
 	
 	// TODO: Debug output:
 	std::cerr << "[Debug output] Init: Processing l:" << left->to_string() << ", r:" << right->to_string() << std::endl;
@@ -670,6 +678,9 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_add() const {
 
     auto left = operands[0]->simplify();
     auto right = operands[1]->simplify();
+	
+	if (left->type == SymbolicExpr::Type::Infinity) return left;
+	if (right->type == SymbolicExpr::Type::Infinity) return right;
 
     // 解析根号
 	// 如果为根号，其中 coeff 为根式的系数，radicand 为根号下的值
@@ -787,6 +798,13 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_power() const {
     // 如果底数是数字，且指数是整数，用数字储存
     auto base = operands[0]->simplify();
     auto exponent = operands[1]->simplify();
+	
+	// TODO: 理论上有未定式
+	if (exponent->type == SymbolicExpr::Type::Number && exponent->convert_rational() == ::Rational(0)) return SymbolicExpr::number(1);
+	if (base->type == SymbolicExpr::Type::Number && base->convert_rational() == ::Rational(0)) return SymbolicExpr::number(0);
+	
+	if (base->type == SymbolicExpr::Type::Infinity) return base;
+	if (exponent->type == SymbolicExpr::Type::Infinity) return exponent;
 	
 	// TODO: Debug output:
 	std::cerr << "[Debug output] Simplifying power: base = " << base->to_string() << "; exponent = " << exponent->to_string()
@@ -993,6 +1011,10 @@ std::string SymbolicExpr::to_string() const {
             
         case Type::Variable:
             return identifier;
+			
+		case Type::Infinity:
+			if (std::get<int>(number_value) > 0) return "inf";
+			else return "-inf";
             
         case Type::Sqrt:
             if (operands.empty()) return "√()";
@@ -1073,6 +1095,10 @@ double SymbolicExpr::to_double() const {
             }
             // 其他变量仍抛异常
             throw std::runtime_error("Symbolic variable cannot be converted to double");
+
+		case Type::Infinity:
+			if (std::get<int>(number_value) > 0) return std::numeric_limits<double>::infinity();
+			else return -std::numeric_limits<double>::infinity();
 
         case Type::Sqrt:
             if (!operands.empty()) {

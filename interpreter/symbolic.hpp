@@ -5,6 +5,7 @@
 #include <string>
 #include <variant>
 #include <cmath>
+#include <limits>
 #include "bigint.hpp"
 #include "rational.hpp"
 
@@ -22,7 +23,7 @@ public:
         Multiply,    // 乘法 *
         Add,         // 加法 +
         Subtract,    // 减法 -，未使用
-        Divide,      // 除法 /，未使用
+        Infinity,      // 无限大（number_value 中的 int 决定是正或负）
         Variable     // 变量 (如 π, e)
 
     };
@@ -59,6 +60,12 @@ public:
         expr->number_value = r;
         return expr;
     }
+
+	static std::shared_ptr<SymbolicExpr> infinity(int k = 1) {
+		auto expr = std::make_shared<SymbolicExpr>(Type::Infinity);
+		expr->number_value = k;
+		return expr;
+	}
 
     // 平方根构造函数
     static std::shared_ptr<SymbolicExpr> sqrt(std::shared_ptr<SymbolicExpr> operand) {
