@@ -46,7 +46,7 @@
 #include <link.h>  // ELF 动态库遍历接口（dl_iterate_phdr）
 #elif defined(__APPLE__)
 // 修复1：恢复 macOS 必需的 Mach-O 头文件（缺一不可）
-#include <mach-o/dyld.h>    // 定义 _dyld_iterate_imagees 函数
+#include <mach-o/dyld.h>    // 定义 _dyld_iterate_images 函数
 #include <mach-o/nlist.h>   // 定义 nlist_64/nlist 符号表结构
 #include <mach-o/loader.h>  // 定义 mach_header_64/symtab_command 等结构
 #endif
@@ -339,7 +339,7 @@ std::vector<std::string> get_dylib_symbols(const std::string& lib_path) {
     s_macho_symbols = &symbols;
 
     // 遍历 macOS 进程中已加载的 Mach-O 镜像，触发回调
-    _dyld_iterate_imagees(macho_image_callback, nullptr);
+    _dyld_iterate_images(macho_image_callback, nullptr);
 
     // 清空全局变量，避免污染后续调用
     s_target_lib_path.clear();

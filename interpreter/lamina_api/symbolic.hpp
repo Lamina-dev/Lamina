@@ -177,7 +177,7 @@ public:
 					break;
 				default:
 					// 如果某个 hash 不能用就调过来
-					defs: this->hash = EMPTY;
+					this->hash = EMPTY;
 					for (auto &i : obj->operands) {
 						if (obj->type == Type::Add) {
 							this->hash += HashData(i).to_single_hash();	// 令其自然溢出，同时避免异或消除
