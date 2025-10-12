@@ -72,7 +72,7 @@ public:
         PI,    // π 的倍数
         E,     // e 的倍数
         LOG,   // log(n) 形式
-        COMPLEX// 复合形式 (a*√b + c*π + d*e + ...)
+        COMPLEX// 复合形式 (a*√b + c*π + d*e + ...)（暂时不适用，用 SymbolicExpr 代替）
     };
 
 private:

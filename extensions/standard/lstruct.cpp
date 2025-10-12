@@ -2,6 +2,11 @@
 #include "lamina.hpp"
 #include <algorithm>
 
+lStruct::lStruct() {
+	size_t init_size = 16;
+	buckets_.resize(init_size, nullptr);
+}
+
 // 初始化lStruct
 lStruct::lStruct(const std::vector<std::pair<std::string, Value>>& vec) {
     // 初始化桶数组
@@ -103,10 +108,8 @@ Value new_lstruct(const std::vector<std::pair<std::string, Value>>& vec) {
     return Value(lstruct_ptr);
 }
 
-Value getattr(const std::vector<Value>& args) {
-    const auto& lstruct_ = std::get<std::shared_ptr<lStruct>>(args[0].data);
-    const auto& attr_name = std::get<std::string>(args[1].data);
-    auto res = lstruct_->find(attr_name);
+Value getattr_raw(const std::shared_ptr<lStruct>& lstruct_, const std::string& attr_name) {
+	auto res = lstruct_->find(attr_name);
     if (res == nullptr) {
         L_ERR("AttrError: struct hasn't attribute named " + attr_name);
         return LAMINA_NULL;
@@ -114,11 +117,21 @@ Value getattr(const std::vector<Value>& args) {
     return res->value;
 }
 
+Value getattr(const std::vector<Value>& args) {
+    const auto& lstruct_ = std::get<std::shared_ptr<lStruct>>(args[0].data);
+    const auto& attr_name = std::get<std::string>(args[1].data);
+    return getattr_raw(lstruct_, attr_name);
+}
+
+void setattr_raw(std::shared_ptr<lStruct> lstruct_, const std::string& attr_name, Value value) {
+	lstruct_->insert(attr_name, value);
+}
+
 Value setattr(const std::vector<Value>& args) {
     std::shared_ptr<lStruct> lstruct_ = std::get<std::shared_ptr<lStruct>>(args[0].data);
     const auto& attr_name = std::get<std::string>(args[1].data);
     Value value = args[2];
-    lstruct_->insert(attr_name, value);
+	setattr_raw(lstruct_, attr_name, value);
     return LAMINA_NULL;
 }
 

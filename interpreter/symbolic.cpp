@@ -1,33 +1,46 @@
 #include "symbolic.hpp"
-#include <algorithm>
-#include <cmath>
-#include <map>
-#include <functional>
-#include <iostream>
+
 
 // 符号表达式的化简实现
 std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify() const {
-	// !! TODO: !! 添加“化简”标记，避免 simplify 重复调用导致效率降低
-    switch (type) {
-        case Type::Number:
-        case Type::Variable:
-            return std::make_shared<SymbolicExpr>(*this);
-            
-        case Type::Sqrt:
-            return simplify_sqrt();
-            
-        case Type::Multiply:
-            return simplify_multiply();
-            
-        case Type::Add:
-            return simplify_add();
+	// 添加“化简”标记，避免 simplify 重复调用导致效率降低（似乎暂时不可用？）
+	//if (already_simplified) return std::make_shared<SymbolicExpr>(*this);
+	
+	static int current_simplify_level = 0;
+	const int max_simplify_level = 30;
+	if (current_simplify_level > max_simplify_level) {
+		// 不用 err_stream
+		std::cerr << "[Warning] SymbolicExpr: reaching maximum simplifying depth\n";
+	}
+	current_simplify_level++;
+	
+    auto intcall = [&]() {
+		switch (type) {
+			case Type::Number:
+			case Type::Variable:
+				return std::make_shared<SymbolicExpr>(*this);
+				
+			case Type::Sqrt:
+				return simplify_sqrt();
+				
+			case Type::Multiply:
+				return simplify_multiply();
+				
+			case Type::Add:
+				return simplify_add();
 
-        case Type::Power:
-            return simplify_power();
-        
-        default:
-            return std::make_shared<SymbolicExpr>(*this);
-    }
+			case Type::Power:
+				return simplify_power();
+			
+			default:
+				return std::make_shared<SymbolicExpr>(*this);
+		}
+	};
+	
+	auto res = intcall();
+	current_simplify_level--;
+	res->already_simplified = true;
+	return res;
 }
 
 std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_sqrt() const {
@@ -43,7 +56,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_sqrt() const {
 		if (simplified_operand->is_rational() && scvrs.get_denominator() == ::BigInt(1)) {
 			
 			// TODO: Debug output:
-			std::cerr << "[Debug output] x/1 simplifier\n";
+			err_stream << "[Debug output] x/1 simplifier\n";
 			
 			::BigInt actual = scvrs.get_numerator();
 			simplified_operand->number_value = actual;
@@ -78,7 +91,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_sqrt() const {
         auto num_val = simplified_operand->get_number();
         if (std::holds_alternative<int>(num_val)) {
 			// TODO: Debug output:
-			//std::cerr << "[Debug output] numeric simplifier\n";
+			//err_stream << "[Debug output] numeric simplifier\n";
             int n = std::get<int>(num_val);
 			auto res = num_process(n);
 			if (res.second == 1) return SymbolicExpr::number(res.first);
@@ -89,10 +102,10 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_sqrt() const {
             const auto& bi = std::get<::BigInt>(num_val);
             if (bi.negative) throw std::runtime_error("Square root of negative number");
             if (bi.is_zero() || bi == BigInt(1)) return SymbolicExpr::number(bi);
-			//std::cerr << "[Debug output] bigint simplifier init\n";
+			//err_stream << "[Debug output] bigint simplifier init\n";
             if (bi.is_perfect_square()) return SymbolicExpr::number(bi.sqrt());
 			// TODO: Debug output:
-			//std::cerr << "[Debug output] bigint simplifier\n";
+			//err_stream << "[Debug output] bigint simplifier\n";
             // TODO: 这个等BigInt效率高点再说，或者换个算法
             /*BigInt factor(1), remaining(bi);
             for (BigInt i(2); i * i <= remaining; i = i + BigInt(1)) {
@@ -123,7 +136,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_sqrt() const {
 				::Rational sqarea = ::Rational(numsimp.second, demsimp.second);
 				
 				// TODO: Debug output:
-				std::cerr << "[Debug output] numa = " << numarea.to_string() << "; sqa = " << sqarea.to_string() << std::endl;
+				err_stream << "[Debug output] numa = " << numarea.to_string() << "; sqa = " << sqarea.to_string() << std::endl;
 				
 				if (sqarea == ::Rational(1)) return SymbolicExpr::number(numarea);
 				else if (numarea == ::Rational(1)) return SymbolicExpr::sqrt(SymbolicExpr::number(sqarea));
@@ -131,7 +144,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_sqrt() const {
 			}
 		}
     }
-	std::cerr << "[Debug output] end numeric sqrt simplifier\n";
+	err_stream << "[Debug output] end numeric sqrt simplifier\n";
     // sqrt(x*x) 或 sqrt(π*π) 直接返回 x 或 π
     if (simplified_operand->type == SymbolicExpr::Type::Multiply && simplified_operand->operands.size() == 2) {
         const auto& a = simplified_operand->operands[0];
@@ -179,7 +192,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_sqrt() const {
     }
     // sqrt(x^2) 或 sqrt(π^2) 直接返回 x 或 π
     if (simplified_operand->type == SymbolicExpr::Type::Power && simplified_operand->operands.size() == 2) {
-		std::cerr << "[Debug output] power simplifier\n";
+		err_stream << "[Debug output] power simplifier\n";
         const auto& base = simplified_operand->operands[0];
         const auto& exp = simplified_operand->operands[1];
         if (exp->is_number()) {
@@ -218,7 +231,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 	if (right->type == SymbolicExpr::Type::Infinity) return right;
 	
 	// TODO: Debug output:
-	std::cerr << "[Debug output] Init: Processing l:" << left->to_string() << ", r:" << right->to_string() << std::endl;
+	err_stream << "[Debug output] Init: Processing l:" << left->to_string() << ", r:" << right->to_string() << std::endl;
 	
 	// TODO: 1 或 -1 乘以某个内容，直接返回另一边
 	// TODO: 加快运算速度，数字和 Multiply 相乘时，直接处理 Multiply 内的数字，不进入指数环节
@@ -226,27 +239,27 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 		return (obj->is_number() && obj->convert_rational() == ::Rational(1));
 	};
 	if (has_no_multiply_effect(left)) {
-		std::cerr << "[Debug output] left has no effect\n";
+		err_stream << "[Debug output] left has no effect\n";
 		return right;
 	}
 	if (has_no_multiply_effect(right)) {
-		std::cerr << "[Debug output] right has no effect\n";
+		err_stream << "[Debug output] right has no effect\n";
 		return left;
 	}
 	
     // 如果两个操作数都是数字，直接相乘
     if (left->is_number() && right->is_number()) {
-		std::cerr << "[Debug output] numeric calling in multiplier: ";
+		err_stream << "[Debug output] numeric calling in multiplier: ";
         auto left_num = left->get_number();
         auto right_num = right->get_number();
         
         if (std::holds_alternative<int>(left_num) && std::holds_alternative<int>(right_num)) {
             int result = std::get<int>(left_num) * std::get<int>(right_num);
-			std::cerr << result << std::endl;
+			err_stream << result << std::endl;
             return SymbolicExpr::number(result);
         } else {
 			::Rational result = left->convert_rational() * right->convert_rational();
-			std::cerr << result.to_string() << std::endl;
+			err_stream << result.to_string() << std::endl;
 			return SymbolicExpr::number(result);
 		}
     }
@@ -256,7 +269,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 	
 	// 如果右侧只有 variable，认为化简完成
 	// TODO: 确定如果有 power 项目，要不要同样判断
-	
+	/*
 	std::function<bool(std::shared_ptr<SymbolicExpr>,bool)> check_simp_1;
 	check_simp_1 = [&check_simp_1](std::shared_ptr<SymbolicExpr> obj, bool allow_num) -> bool {
 		return (obj->type == SymbolicExpr::Type::Number && allow_num) || obj->type == SymbolicExpr::Type::Variable || (
@@ -266,6 +279,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 			);
 	};
 	if (check_simp_1(right, false)) return std::make_shared<SymbolicExpr>(*this);	// 已经化简完成
+	*/
 	
 	// 加法运算特殊化简
 	if ((left->type == SymbolicExpr::Type::Add) || (right->type == SymbolicExpr::Type::Add)) {
@@ -277,7 +291,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 			for (auto &i : left->operands) {
 				for (auto &j : right->operands) {
 					auto adt = SymbolicExpr::multiply(i, j)->simplify();
-					std::cerr << "[Debug output] [1] --- Adding term: " << adt->to_string() << std::endl;
+					err_stream << "[Debug output] [1] --- Adding term: " << adt->to_string() << std::endl;
 					res = SymbolicExpr::add(res, adt);
 				}
 			}
@@ -287,12 +301,12 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 			
 			for (auto &i : left->operands) {
 				auto adt = SymbolicExpr::multiply(i, right)->simplify();
-				std::cerr << "[Debug output] [2] --- Adding term: " << adt->to_string() << std::endl;
+				err_stream << "[Debug output] [2] --- Adding term: " << adt->to_string() << std::endl;
 				res = SymbolicExpr::add(res, adt);
 			}
 		}
 
-		std::cerr << "[Debug output] === Begin adder simplifier ===\n";
+		err_stream << "[Debug output] === Begin adder simplifier ===\n";
 		return res->simplify();
 		
 	}
@@ -312,7 +326,8 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 		} else if (expr->type == SymbolicExpr::Type::Sqrt) {
 			ret = SymbolicExpr::power(power_compatible(expr->operands[0])->simplify(), SymbolicExpr::number(::Rational(1, 2)));
 		} else if (expr->type == SymbolicExpr::Type::Power) {
-			ret = SymbolicExpr::power(power_compatible(expr->operands[0]), power_compatible(expr->operands[1]))->simplify();
+			auto pcp = power_compatible(expr->operands[1]);
+			ret = SymbolicExpr::power(power_compatible(expr->operands[0]), pcp)->simplify();
 		} else {
 			return expr;
 		}
@@ -342,14 +357,14 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 		(const std::shared_ptr<SymbolicExpr> &obj, bool no_simplify = false) -> std::shared_ptr<SymbolicExpr> {
 		
 		// TODO: Debug output:
-		std::cerr << "[Debug output] Starting sqrt-and-aux process" << std::endl;
+		err_stream << "[Debug output] Starting sqrt-and-aux process" << std::endl;
 		
 		// 此处可以考虑优化
 		auto left = no_simplify ? obj->operands[0] : obj->operands[0]->simplify();
 		auto right = no_simplify ? obj->operands[1] : obj->operands[1]->simplify();
 		
 		// TODO: Debug output:
-		std::cerr << "[Debug output] Processing l:" << left->to_string() << ", r:" << right->to_string() << std::endl;
+		err_stream << "[Debug output] Processing l:" << left->to_string() << ", r:" << right->to_string() << std::endl;
 		
 		if (is_for_auxiliary(left) && is_for_auxiliary(right)) {
 			// 根式相乘的一般处理
@@ -362,7 +377,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 						std::swap(left, right);
 					
 					// TODO: Debug output:
-					std::cerr << "[Debug output] [4] Starting sqrt-and-aux process" << std::endl;
+					err_stream << "[Debug output] [4] Starting sqrt-and-aux process" << std::endl;
 					
 					bool negative = false;
 					if (left->type == SymbolicExpr::Type::Number && left->convert_rational() < ::Rational(0, 1))
@@ -396,7 +411,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 						std::swap(left, right);
 					
 					// TODO: Debug output:
-					std::cerr << "[Debug output] [5] Starting sqrt-and-aux process" << std::endl;
+					err_stream << "[Debug output] [5] Starting sqrt-and-aux process" << std::endl;
 					
 					bool negative = false;
 					
@@ -410,21 +425,21 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 					};
 					
 					if (right->type == SymbolicExpr::Type::Number) {
-						std::cerr << "[Debug output] [5a] res: " << res->to_string() << std::endl;
+						err_stream << "[Debug output] [5a] res: " << res->to_string() << std::endl;
 						res->operands[0] = SymbolicExpr::multiply(res->operands[0], right)->simplify();
 					} else if (right->type == SymbolicExpr::Type::Sqrt) {
-						std::cerr << "[Debug output] [5b] res: " << res->to_string() << std::endl;
+						err_stream << "[Debug output] [5b] res: " << res->to_string() << std::endl;
 						res->operands[1] = SymbolicExpr::multiply(res->operands[1], right)->simplify();
 						simplify_res();
 					} else if (is_compounded_sqrt(right)) {
-						std::cerr << "[Debug output] [5c] res: " << res->to_string() << std::endl;
+						err_stream << "[Debug output] [5c] res: " << res->to_string() << std::endl;
 						res->operands[0] = SymbolicExpr::multiply(res->operands[0], right->operands[0])->simplify();
 						res->operands[1] = SymbolicExpr::multiply(res->operands[1], right->operands[1])->simplify();
 						simplify_res();
 					}
 					
 					if (negative) {
-						std::cerr << "[Debug output] [5] Negative processor. res: " << res->to_string() << std::endl;
+						err_stream << "[Debug output] [5] Negative processor. res: " << res->to_string() << std::endl;
 						if (res->type == SymbolicExpr::Type::Multiply) {
 							// 这个需要化简
 							res->operands[0] = SymbolicExpr::multiply(SymbolicExpr::number(-1), res->operands[0])->simplify();
@@ -433,7 +448,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 							res = SymbolicExpr::multiply(SymbolicExpr::number(-1), res);
 						}
 					}
-					//std::cerr << "[Debug output] [5] Finalize. res: " << res->to_string() << std::endl;
+					//err_stream << "[Debug output] [5] Finalize. res: " << res->to_string() << std::endl;
 					return res;
 					
 				}
@@ -477,7 +492,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 			};
 			
 			// TODO: Debug output:
-			std::cerr << "[Debug output] [1] preparing to merge exponents" << std::endl;
+			err_stream << "[Debug output] [1] preparing to merge exponents" << std::endl;
 			
 			// TODO: 这边可能还需要测试
 			if (lcom->operands[1]->is_number() && rcom->operands[1]->is_number()) {
@@ -490,22 +505,23 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 				
 				if (is_power_equiv(lcom->operands[0], rcom->operands[0])) {
 					// TODO: Debug output:
-					std::cerr << "[Debug output] [1] Merging bases" << std::endl;
+					err_stream << "[Debug output] [1] Merging bases" << std::endl;
 					return SymbolicExpr::power(lcom->operands[0], SymbolicExpr::add(lcom->operands[1], rcom->operands[1]))->simplify();
 				}
 				
 				if (ldr == rdr) {
 					if (lcr == rcr) {
 						// TODO: Debug output:
-						std::cerr << "[Debug output] [1a] Merging exponents in a simplified way" << std::endl;
+						err_stream << "[Debug output] [1a] Merging exponents in a simplified way" << std::endl;
 						
 						if (lcom->operands[0]->type == SymbolicExpr::Type::Variable || rcom->operands[0]->type == SymbolicExpr::Type::Variable) {
-							std::cerr << "[Debug output] [1a] Entering special reservation\n";
+							// !!! TODO: 这里好像是万恶之源
+							err_stream << "[Debug output] [1a] Entering special reservation\n";
 							auto mt = SymbolicExpr::multiply(lcom->operands[0]->simplify(), rcom->operands[0]->simplify());
 							if (lcr == ::Rational(1)) return mt;
 							else return SymbolicExpr::power(mt, SymbolicExpr::number(lcr)); // 不要化简整体！
 						} else {
-							std::cerr << "[Debug output] [1a] No variable, normalizing\n";
+							err_stream << "[Debug output] [1a] No variable, normalizing\n";
 							auto tmp = SymbolicExpr::power(SymbolicExpr::multiply(lcom->operands[0], rcom->operands[0]),
 								SymbolicExpr::number(lcr));
 							return tmp->simplify();
@@ -515,11 +531,11 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 						// 此处不应再对整体进行 multiply 的化简调用。
 						// 留给以后实现。
 						// TODO: Debug output:
-						std::cerr << "[Debug output] [1b] Give up merging" << std::endl;
+						err_stream << "[Debug output] [1b] Give up merging" << std::endl;
 					} else {
 						// 注意这里的 multiply 不化简（power 的处理要跟上）
 						// TODO: Debug output:
-						std::cerr << "[Debug output] [1c] Merging exponents" << std::endl;
+						err_stream << "[Debug output] [1c] Merging exponents" << std::endl;
 						auto new_base = SymbolicExpr::multiply(
 								SymbolicExpr::power(lcom->operands[0], SymbolicExpr::number(lcr.get_numerator())),
 								SymbolicExpr::power(rcom->operands[0], SymbolicExpr::number(rcr.get_numerator())));
@@ -532,7 +548,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 			}
 			
 			// TODO: Debug output:
-			std::cerr << "[Debug output] End of power-compatible process" << std::endl;
+			err_stream << "[Debug output] End of power-compatible process" << std::endl;
 			
 		} else {
 			
@@ -542,6 +558,9 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 			// 键为底数的值，值为指数的值
 			// TODO: 这样可能需要额外判断双层根号问题，以及分母有理化问题
 			std::map<::Rational, ::Rational> base_ref;
+			std::map<SymbolicExpr::HashData::HashType, std::shared_ptr<SymbolicExpr> > base_special;
+			std::map<SymbolicExpr::HashData::HashType, std::shared_ptr<SymbolicExpr> > base_special_ref;
+			std::shared_ptr<SymbolicExpr> split_special_base = SymbolicExpr::number(1);	// 还是不要空指针为好
 			std::map<::Rational, std::shared_ptr<SymbolicExpr>> exponent_ref;
 			std::vector<std::shared_ptr<SymbolicExpr>> result;
 			flatten_multiply = [&](const std::shared_ptr<SymbolicExpr>& expr, std::shared_ptr<SymbolicExpr> pre_timing) -> bool {
@@ -560,7 +579,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 						}
 					} else {
 						// TODO: Debug output:
-						std::cerr << "Converting " << expr->to_string() << " to " << current->to_string() << std::endl;
+						err_stream << "Converting " << expr->to_string() << " to " << current->to_string() << std::endl;
 						result.push_back(current);
 						return true;
 					}
@@ -569,30 +588,32 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 			};
 			// 这样传递可能有性能问题
 			// TODO: Debug output:
-			std::cerr << "[Debug output] [2] Begin flat operation" << std::endl;
+			err_stream << "[Debug output] [2] Begin flat operation" << std::endl;
 			bool able = flatten_multiply(std::make_shared<SymbolicExpr>(*this), SymbolicExpr::number(1));
 			// TODO: Debug output:
-			std::cerr << "[Debug output] [2] End flat operation with " << able << std::endl;
+			err_stream << "[Debug output] [2] End flat operation with " << able << std::endl;
 			if (able) {
 				// 尝试合并指数
 				bool exponent_merger = true, base_merger = true;
-				std::cerr << "[Debug output] [2] Preloading" << std::endl;
+				err_stream << "[Debug output] [2] Preloading" << std::endl;
 				for (auto &cvt : result) {
 					if (cvt->is_number()) continue;
 					if (cvt->operands.size() < 2) {
-						std::cerr << "[Debug output] [2] WARNING: Format error at " << cvt->to_string() << std::endl;
+						err_stream << "[Debug output] [2] WARNING: Format error at " << cvt->to_string() << std::endl;
 						continue;
 					}
 					if (!cvt->operands[0]->is_number()) {
+						// 底数不是 number，TODO: 上哈希（仅对非 number 项上哈希！！）
 						// TODO: Debug output:
-						std::cerr << "[Debug output] [2] Flat: exponent fails at " << cvt->operands[0]->to_string() << std::endl;
-						std::cerr << "[Debug output] [2] Flat: (of " << cvt->to_string() << ")\n";
-						exponent_merger = false;
+						err_stream << "[Debug output] [2] Flat: exponent fails at " << cvt->operands[0]->to_string() << std::endl;
+						err_stream << "[Debug output] [2] Flat: (of " << cvt->to_string() << ")\n";
+						//exponent_merger = false;
 					}
 					if (!cvt->operands[1]->is_number()) {
+						// 指数不是 number，真没办法
 						// TODO: Debug output:
-						std::cerr << "[Debug output] [2] Flat: fails at " << cvt->operands[1]->to_string() << std::endl;
-						std::cerr << "[Debug output] [2] Flat: (of " << cvt->to_string() << ")\n";
+						err_stream << "[Debug output] [2] Flat: fails at " << cvt->operands[1]->to_string() << std::endl;
+						err_stream << "[Debug output] [2] Flat: (of " << cvt->to_string() << ")\n";
 						base_merger = false;
 						exponent_merger = false;
 					}
@@ -601,16 +622,38 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 				int exponent_merger_cnt = 0, base_merger_cnt = 0;
 				
 				if (exponent_merger) {
-					std::cerr << "[Debug output] [2m] Ready for exp merger" << std::endl;
+					err_stream << "[Debug output] [2m] Ready for exp merger" << std::endl;
 					// 同底数合并
 					for (auto &cvt : result) {
-						// 已经检查过了
+						if (!(cvt->operands[0]->is_number() && cvt->operands[1]->is_number())) {
+							auto hd = SymbolicExpr::HashData(cvt->operands[0]);
+							auto hds = hd.hash;
+							auto hdo = hd.hash_obj;
+							auto exps = cvt->operands[1];
+							// 如果指数是有理数，根号之类的东西分离出来 -- 理论上不应该用
+							if (!cvt->operands[1]->is_number()) {
+								hds = hd.to_single_hash();
+								hdo = cvt->operands[0];
+								exps = SymbolicExpr::number(1);
+							} else {
+								if (split_special_base == nullptr) split_special_base = SymbolicExpr::number(1);
+								split_special_base = SymbolicExpr::multiply(split_special_base, SymbolicExpr::power(hd.get_combined_k(), exps));
+							}
+							if (base_special.count(hd.hash)) {
+								base_special[hd.hash] = SymbolicExpr::add(base_special[hd.hash], exps);
+							} else {
+								base_special[hd.hash] = exps;
+							}
+							base_special_ref[hds] = cvt->operands[0];
+							exponent_merger_cnt++;	// 只算一半权重
+							continue;
+						}
 						::Rational base = cvt->operands[0]->convert_rational();
 						::Rational exponent = cvt->operands[1]->convert_rational();
 						auto finder = base_ref.find(base);
 						if (finder != base_ref.end()) {
 							finder->second = finder->second + exponent;
-							exponent_merger_cnt++;
+							exponent_merger_cnt += 2;
 						} else {
 							base_ref[base] = exponent;
 						}
@@ -618,17 +661,24 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 				}
 				
 				if (base_merger) {
-					std::cerr << "[Debug output] [2n] Ready for base merger" << std::endl;
+					err_stream << "[Debug output] [2n] Ready for base merger" << std::endl;
 					// 同指数合并
 					for (auto &cvt : result) {
 						auto cvt_rational = cvt->operands[1]->convert_rational();
 						auto finder = exponent_ref.find(cvt_rational);
 						if (finder != exponent_ref.end()) {
-							finder->second = SymbolicExpr::multiply(finder->second, cvt->operands[0])->simplify();
+							// 问题是这里会导致继续循环调用
+							finder->second = SymbolicExpr::multiply(finder->second, cvt->operands[0]);
+							// 为 1 不允许继续合并，否则死循环
+							if (cvt_rational != ::Rational(1)) {
+								finder->second = finder->second->simplify();
+								base_merger_cnt++;
+							}
 							base_merger_cnt++;
 						} else {
 							exponent_ref[cvt_rational] = cvt->operands[0];
 						}
+						if (cvt_rational == ::Rational(0)) exponent_ref[cvt_rational] = SymbolicExpr::number(1);
 					}
 				}
 				
@@ -642,28 +692,42 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 						if (i.second == ::Rational(0)) continue;
 						if (i.first == ::Rational(1)) continue;
 						// TODO: Debug output:
-						std::cerr << "[Debug output] [2] exponent referring (" << i.first.to_string() << ")^(" << i.second.to_string() << ")\n";
+						err_stream << "[Debug output] [2] exponent referring (" << i.first.to_string() << ")^(" << i.second.to_string() << ")\n";
 						auto cres = SymbolicExpr::power(SymbolicExpr::number(i.first), SymbolicExpr::number(i.second))->simplify();
+						if (cres->is_number() && cres->convert_rational() == ::Rational(1)) continue;
 						if (inits) {
 							res = cres;
 							inits = false;
 						}
 						else res = SymbolicExpr::multiply(cres, res);
 					}
+					for (auto &i : base_special) {
+						if (i.second->is_number()) {
+							if (i.second->convert_rational() == ::Rational(0)) continue;
+							if (i.second->convert_rational() == ::Rational(1)) {
+								res = inits ? base_special_ref[i.first] : SymbolicExpr::multiply(res, base_special_ref[i.first]);
+								inits = false;
+								continue;
+							}
+						}
+						// TODO: Debug output:
+						err_stream << "[Debug output] [2] extra exponent referring (" << base_special_ref[i.first]->to_string() << ")^(" << i.second->to_string() << ")\n";
+						res = inits ? SymbolicExpr::power(base_special_ref[i.first], i.second) 
+								: SymbolicExpr::multiply(res, SymbolicExpr::power(base_special_ref[i.first], i.second->simplify()));
+					}
 					return res;
 				} else if (base_merger && (base_merger_cnt >= exponent_merger_cnt)) {
-					// 先这么复制下来，万一以后逻辑不同
 					auto res = SymbolicExpr::number(1);
 					bool inits = true;
 					
 					// TODO: Debug output:
-					std::cerr << "[Debug output] [2] base merging\n";
+					err_stream << "[Debug output] [2] base merging\n";
 					
 					for (auto &i : exponent_ref) {
 						// 不要化简
 						
 						// TODO: Debug output:
-						std::cerr << "[Debug output] [2] base merging: {" << i.second->to_string() << "}^(" << i.first.to_string() << ")\n";
+						err_stream << "[Debug output] [2] base merging: {" << i.second->to_string() << "}^(" << i.first.to_string() << ")\n";
 						
 						if (i.first == ::Rational(0)) continue;
 						std::shared_ptr<SymbolicExpr> cres;
@@ -676,6 +740,82 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 						else res = SymbolicExpr::multiply(cres, res);
 					}
 					return res;
+				} else {
+					// 至少把数值（数字和根号）化简到一起
+					err_stream << "[Debug output] fallback to alternative simplifier\n";
+					::Rational number_collection = ::Rational(1);
+					std::shared_ptr<SymbolicExpr> large_numbers = nullptr;
+					std::shared_ptr<SymbolicExpr> sqrt_collection = SymbolicExpr::number(1);
+					std::shared_ptr<SymbolicExpr> auxiliary = nullptr;
+					for (auto &i : result) {
+						err_stream << "[Debug output] dealing with " << i->to_string() << std::endl;
+						switch (i->type) {
+							case SymbolicExpr::Type::Number:
+								number_collection = number_collection * i->convert_rational();
+								break;
+							case SymbolicExpr::Type::Sqrt:
+								sqrt_collection = SymbolicExpr::multiply(sqrt_collection, i);
+								break;
+							case SymbolicExpr::Type::Power:
+								if (i->operands[1]->is_number()) {
+									bool failed = true;
+									::Rational eval_res;
+									auto icrt = i->operands[1]->convert_rational();
+									auto inum = icrt.get_numerator();
+									auto idem = icrt.get_denominator();
+									if (idem == ::BigInt(1)) {
+										switch (i->operands[0]->type) {
+											case SymbolicExpr::Type::Number:
+												// 尝试计算
+												eval_res = i->operands[0]->convert_rational().power(inum);
+												number_collection = number_collection * eval_res;
+												failed = false;
+												break;
+											case SymbolicExpr::Type::Sqrt:
+												// 理论上不应该这样，先不处理
+												err_stream << "[Debug output] unreachable sqrt processor!\n";
+											default:
+												break;
+										}
+									} else if (idem == ::BigInt(2)) {
+										// 按根号处理
+										sqrt_collection = SymbolicExpr::multiply(sqrt_collection, SymbolicExpr::power(i->operands[0], SymbolicExpr::number(inum)));
+										failed = false;
+									}
+									if (!failed) break;
+								}
+								// 这里没有 break，是故意的
+							default:
+								if (auxiliary == nullptr) auxiliary = i;
+								else auxiliary = SymbolicExpr::multiply(auxiliary, i);
+						}
+					}
+					sqrt_collection = SymbolicExpr::sqrt(sqrt_collection)->simplify();
+					err_stream << "[Debug output] end of Sqrt-collection simplifier\n";
+					err_stream << "[Debug output] number collection: " << number_collection.to_string() << std::endl;
+					err_stream << "[Debug output] sqrt collection: " << sqrt_collection->to_string() << std::endl;
+					err_stream << "[Debug output] large number: " << (large_numbers != nullptr ? large_numbers->to_string() : std::string("null")) << std::endl;
+					
+					auto lalt = (number_collection == ::Rational(1)) ? large_numbers
+							: (
+								large_numbers == nullptr ? SymbolicExpr::number(number_collection)
+								: SymbolicExpr::multiply(SymbolicExpr::number(number_collection), large_numbers)
+							);
+					std::shared_ptr<SymbolicExpr> ralt;
+					
+					if (sqrt_collection->is_number()) {
+						number_collection = number_collection * sqrt_collection->convert_rational();
+						ralt = auxiliary;
+					} else {
+						ralt = SymbolicExpr::multiply(sqrt_collection, auxiliary);
+					}
+					err_stream << "[Debug output] determined: &lalt = " << (unsigned long long)(lalt != nullptr) << "; &ralt = " << (unsigned long long)(ralt != nullptr) << std::endl;
+					err_stream << "[Debug output] lalt = " << (lalt == nullptr ? std::string("null") : lalt->to_string()) << "; ralt = " << (ralt == nullptr ? std::string("null") : ralt->to_string()) << std::endl;
+					if (lalt == nullptr && ralt == nullptr) return SymbolicExpr::number(1);
+					else if (lalt == nullptr) return ralt;
+					else if (ralt == nullptr) return lalt;
+					else return SymbolicExpr::multiply(lalt, ralt);
+					// TODO: 考虑是否允许向后化简
 				}
 				
 				
@@ -684,7 +824,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 		}
 		
 		// 到此处：未能化简，（以后这里可能引入欧拉公式等等）
-		// TODO: 分母有理化
+		// TODO: 考虑是否需要配合分母有理化（很可能不用）
 		
 	}
 
@@ -764,31 +904,43 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_add() const {
     std::map<::Rational, ::Rational> sqrt_terms;// radicand -> sum of coeffs
     // std::map<std::string, ::Rational> variable_terms;// TODO
     Rational number_term(0);// 数字部分
-    std::vector<std::shared_ptr<SymbolicExpr>> others;// other things
+    std::vector<std::shared_ptr<SymbolicExpr>> others;// other things (now reserved for others)
 	
-	std::cerr << "[Debug output] adder: end flatten add\n";
+	err_stream << "[Debug output] adder: end flatten add\n";
+	// 键：其余项目，值：系数
+	std::map<SymbolicExpr::HashData::HashType, std::shared_ptr<SymbolicExpr> > undealt_items; 
+	std::map<SymbolicExpr::HashData::HashType, std::shared_ptr<SymbolicExpr> > hash_ref;
 	
     for (const auto& term : terms) {
         ::Rational coeff;
         ::Rational radicand;
         if (extract_sqrt(term, coeff, radicand)) {
             sqrt_terms[radicand] = sqrt_terms[radicand] + coeff;
-			std::cerr << "[Debug output] adder: got sqrt term " << coeff.to_string() << " at sqrt:" << radicand.to_string() << std::endl;
+			err_stream << "[Debug output] adder: got sqrt term " << coeff.to_string() << " at sqrt:" << radicand.to_string() << std::endl;
         } else if (extract_number(term, number_term)) {
             // Do nothing yet
         } else {
-			std::cerr << "[Debug output] adder: undealt item " << term->to_string() << std::endl;
-            others.push_back(term);
+			// TODO: 这边上哈希
+			err_stream << "[Debug output] adder: special item " << term->to_string() << std::endl;
+            //others.push_back(term);
+			SymbolicExpr::HashData hd(term);
+			auto cb = hd.get_combined_k();
+			hash_ref[hd.hash] = hd.hash_obj;
+			if (undealt_items.count(hd.hash)) {
+				undealt_items[hd.hash] = SymbolicExpr::add(undealt_items[hd.hash], cb);
+			} else {
+				undealt_items[hd.hash] = cb;
+			}
         }
     }
 	
-	std::cerr << "[Debug output] adder: number term = " << number_term.to_string() << std::endl;
+	err_stream << "[Debug output] adder: number term = " << number_term.to_string() << std::endl;
 	
     std::vector<std::shared_ptr<SymbolicExpr>> result_terms;
     for (const auto& [radicand, coeff] : sqrt_terms) {
         if (coeff.is_integer() && coeff.get_numerator().to_int() == 0) continue;
 		
-		std::cerr << "[Debug output] adder: sqrt term coeff:" << coeff.to_string() << "; radicand:" << radicand.to_string() << std::endl;
+		err_stream << "[Debug output] adder: sqrt term coeff:" << coeff.to_string() << "; radicand:" << radicand.to_string() << std::endl;
 		
         if (radicand == ::Rational(1)) {
 			result_terms.push_back(SymbolicExpr::number(coeff));
@@ -799,6 +951,20 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_add() const {
         }
     }
     result_terms.insert(result_terms.end(), others.begin(), others.end());
+	for (const auto& i : undealt_items) {
+		// TODO: 可能此处有化简 hash_ref[i.first] 项的需求？（千万不要化简整个 multiply）
+		auto isv = i.second->simplify();
+		if (isv->is_number()) {
+			auto icr = isv->convert_rational();
+			if (icr == ::Rational(0)) continue;
+			if (icr == ::Rational(1)) {
+				result_terms.push_back(hash_ref[i.first]->simplify());
+				continue;
+			}
+		}
+		result_terms.push_back(SymbolicExpr::multiply(isv, hash_ref[i.first]->simplify()));
+	}
+	
     if (number_term != 0) {// 非0时才添加数字
         result_terms.push_back(SymbolicExpr::number(number_term));
     }
@@ -820,15 +986,15 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_power() const {
 	// TODO: 理论上有未定式
 	if (exponent->type == SymbolicExpr::Type::Number && exponent->convert_rational() == ::Rational(0)) return SymbolicExpr::number(1);
 	if (base->type == SymbolicExpr::Type::Number && base->convert_rational() == ::Rational(0)) return SymbolicExpr::number(0);
+	if (exponent->is_number() && exponent->convert_rational() == ::Rational(1)) return base;
+	if (base->is_number() && base->convert_rational() == ::Rational(1)) return base;
 	
 	if (base->type == SymbolicExpr::Type::Infinity) return base;
 	if (exponent->type == SymbolicExpr::Type::Infinity) return exponent;
 	
 	// TODO: Debug output:
-	std::cerr << "[Debug output] Simplifying power: base = " << base->to_string() << "; exponent = " << exponent->to_string()
+	err_stream << "[Debug output] Simplifying power: base = " << base->to_string() << "; exponent = " << exponent->to_string()
 		<< std::endl;
-		
-	if (exponent->is_number() && exponent->convert_rational() == ::Rational(1)) return base;
 	
     if (base->is_number() && (exponent->is_int() || exponent->is_big_int())) {
 		auto banum = base->convert_rational();
@@ -840,7 +1006,10 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_power() const {
 		
         auto expr = std::make_shared<SymbolicExpr>(Type::Number);
         // 底数是分数，结果为分数
+		err_stream << "[Debug output] now simplifying power by literal\n";
+		
         if (base->is_rational() || exponent->is_rational()) {
+			err_stream << "[Debug output] simplifying with rational power value\n";
             if (exponent->is_int()) {
 				expr->number_value = (base->get_rational()).power(BigInt(exponent->get_int()));
             } else if (exponent->is_big_int()) {
@@ -871,7 +1040,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_power() const {
     } else if (base->is_number() && exponent->is_rational()) {
         // 底数是数字，指数是分数
         // 用符号储存
-		// TODO:某些必要的化简如 8^(1/3)
+		// 必要的化简如 8^(1/3)
 		auto bsr = base->convert_rational();
 		auto expr = exponent->convert_rational();
 		
@@ -883,50 +1052,83 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_power() const {
 		
 		if (in_range(bsr) && in_range(expr)) {
 			// TODO: Debug output:
-			std::cerr << "[Debug output] Power simplifying (rational ^ rational) expressions" << std::endl;
+			err_stream << "[Debug output] Power simplifying (rational ^ rational) expressions" << std::endl;
 			
 			if (expr == ::Rational(1)) return SymbolicExpr::number(bsr);
 			
 			int bs_n = bsr.get_numerator().to_int(), bs_d = bsr.get_denominator().to_int();
 			int es_n = expr.get_numerator().to_int(), es_d = expr.get_denominator().to_int();
 			// TODO: Debug output:
-			std::cerr << "[Debug output] bs = " << bs_n << "/" << bs_d << "; es = " << es_n << "/" << es_d << std::endl;
+			err_stream << "[Debug output] bs = " << bs_n << "/" << bs_d << "; es = " << es_n << "/" << es_d << std::endl;
 			
-			// 如果成功，返回 true，origin 为修改后的值，保证 origin 不增大
-			// 如果失败，返回 false，origin 不做修改
+			// 如果成功，返回非 0，origin 为修改后的值，保证 origin 不增大
+			// 如果失败，返回 0，origin 不做修改
 			// 注意，要保证既约分数（gcd(num, denom) = 1）
-			auto simplify_inner = [](int& origin, const int& denom) -> bool {
-				// 可以优化
-				int answer = 1, target = origin;
+			// TODO: 考虑是否特判 1
+			// 返回：0: 无法化简，否则返回 es_d 应当被除以多少
+			
+			std::function<int(int,int)> __int_gcd;
+			__int_gcd = [&__int_gcd](int a, int b) -> int {
+				if (b == 0) return a;
+				else return __int_gcd(b, a%b);
+			};
+			
+			auto simplify_inner = [&__int_gcd](int& origin, const int& denom) -> int {
+				if (denom == 1) return 1;	// 无条件成功
+				int ediv = denom, target = origin;
 				for (int i = 2; 1ll * i * i <= target; i++) {
 					int exphere = 0;
 					while (target % i == 0) {
 						exphere++;
 						target /= i;
 					}
-					if (exphere && (exphere % denom == 0)) {
-						int contb = exphere / denom;
+					if (exphere) {
+						ediv = __int_gcd(ediv, exphere);
+					}
+				}
+				if (ediv <= 1) return 0;
+				// 可以优化
+				int answer = 1;
+				target = origin;
+				for (int i = 2; 1ll * i * i <= target; i++) {
+					int exphere = 0;
+					while (target % i == 0) {
+						exphere++;
+						target /= i;
+					}
+					if (exphere && (exphere % ediv == 0)) {
+						int contb = exphere / ediv;
 						for (int j = 0; j < contb; j++) answer *= i;
 					} else return false;
 				}
 				if (target != 1) {
-					if (denom != 1) return false;
+					if (ediv != 1) {
+						// TODO: Debug output:
+						err_stream << "[Debug output] warning: target != 1\n";
+						return 0;
+					}
 					answer *= target;
 				}
 				// TODO: Debug output:
-				std::cerr << "[Debug output] Denom = " << denom << ", Simplifying " << target << " to " << answer << std::endl;
+				err_stream << "[Debug output] Denom = " << denom << ", Simplifying " << target << " to " << answer << std::endl;
 				origin = answer;
-				return true;
+				return ediv;
 			};
 			
-			if (simplify_inner(bs_n, es_d) && simplify_inner(bs_d, es_d)) {
-				// 化简成功
-				// TODO: Debug output:
-				std::cerr << "[Debug output] Post-operation bs = " << bs_n << "/" << bs_d << "; es = " << es_n << "/" << es_d << std::endl;
-				std::cerr << "[Debug output] Power simplifying (rational ^ rational) - success" << std::endl;
-				auto current_new_base = SymbolicExpr::number((::Rational(bs_n, bs_d)).power(::BigInt(es_n)));
-				if (es_d == 1) return current_new_base;
-				return SymbolicExpr::power(current_new_base, SymbolicExpr::number(::Rational(::BigInt(1), ::BigInt(es_d))));
+			int simp1 = 1, simp2 = 1;
+			if ((simp1 = simplify_inner(bs_n, es_d)) >= 1 && (simp2 = simplify_inner(bs_d, es_d)) >= 1) {
+				int simps = __int_gcd(simp1, simp2);
+				if (simps >= 1) {
+					// 化简成功
+					// TODO: Debug output:
+					es_d /= simps;
+					err_stream << "[Debug output] Post-operation bs = " << bs_n << "/" << bs_d << "; es = " << es_n << "/" << es_d << std::endl;
+					err_stream << "[Debug output] Power simplifying (rational ^ rational) - success" << std::endl;
+					auto current_new_base = SymbolicExpr::number((::Rational(bs_n, bs_d)).power(::BigInt(es_n)));
+					if (es_d == 1) return current_new_base;
+					return SymbolicExpr::power(current_new_base, SymbolicExpr::number(::Rational(::BigInt(1), ::BigInt(es_d))));
+				}
+				
 			}
 			// 否则化简失败，注意 bs_n 和 bs_d 可能需要重新获取
 			
@@ -937,7 +1139,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_power() const {
 		
 		if (rconv.get_denominator() == ::BigInt(2) && rconv.get_numerator() >= ::BigInt(-3) 
 			&& rconv.get_numerator() <= ::BigInt(3)) {
-			std::cerr << "[Debug output] call of sqrt simplifier\n";
+			err_stream << "[Debug output] call of sqrt simplifier\n";
 			return SymbolicExpr::sqrt(SymbolicExpr::power(base, SymbolicExpr::number(rconv.get_numerator())))->simplify();
 		}
     } else if (base->type == SymbolicExpr::Type::Power || base->type == SymbolicExpr::Type::Sqrt) {
@@ -945,7 +1147,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_power() const {
 			base = SymbolicExpr::power(base->operands[0], SymbolicExpr::number(::Rational(1, 2)));
 		}
 		// TODO: Debug output:
-		std::cerr << "[Debug output] Power simplifying embedded power / sqrt" << std::endl;
+		err_stream << "[Debug output] Power simplifying embedded power / sqrt" << std::endl;
 		auto pwr = SymbolicExpr::multiply(base->operands[1], exponent)->simplify();
 		if (pwr->type == SymbolicExpr::Type::Number && pwr->convert_rational() == ::Rational(1))
 			return base->operands[0]->simplify();
@@ -966,25 +1168,25 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_power() const {
 						&& processable(obj->operands[0]) && processable(obj->operands[1]));
 			};
 			
-			std::cerr << "[Debug output] begin rationalizing attempt\n";
+			err_stream << "[Debug output] begin rationalizing attempt\n";
 			
 			if (base->type == SymbolicExpr::Type::Add && base->operands.size() == 2 &&
 				processable(base->operands[0]) && processable(base->operands[1])) {
 				auto new_term = SymbolicExpr::multiply(SymbolicExpr::number(-1), base->operands[1])->simplify();
 				// TODO: Debug output:
-				std::cerr << "[Debug output] term processor ended\n";
+				err_stream << "[Debug output] term processor ended\n";
 				auto new_nume = SymbolicExpr::add(base->operands[0], new_term);
-				std::cerr << "[Debug output] nume processor ended\n";
+				err_stream << "[Debug output] nume processor ended\n";
 				auto new_denom = SymbolicExpr::multiply(base, new_nume)->simplify();
-				std::cerr << "[Debug output] denom processor ended\n";
+				err_stream << "[Debug output] denom processor ended\n";
 				if (new_denom->type == SymbolicExpr::Type::Number) {
-					std::cerr << "[Debug output] term = " << new_term->to_string() << "; denom = " << new_denom->to_string() << std::endl;
+					err_stream << "[Debug output] term = " << new_term->to_string() << "; denom = " << new_denom->to_string() << std::endl;
 					return SymbolicExpr::multiply(SymbolicExpr::number(new_denom->convert_rational().reciprocal()), 
 							new_nume)->simplify();
 				} else {
 					// 有理化失败
 					// TODO: Debug output
-					std::cerr << "[Debug output] Pow: rationalize failed!\n";
+					err_stream << "[Debug output] Pow: rationalize failed!\n";
 				}
 				
 			}
@@ -1104,6 +1306,9 @@ double SymbolicExpr::to_double() const {
                 return 3.14159265358979323846;
                 #endif
             }
+			if (identifier == "e") {
+				return 2.718281828459045;
+			}
             // 其他变量仍抛异常
             throw std::runtime_error("Symbolic variable cannot be converted to double");
 
@@ -1136,3 +1341,8 @@ double SymbolicExpr::to_double() const {
             return 0.0;
     }
 }
+
+#ifdef _SYMBOLIC_DEBUG_CERR_OVERRIDDEN
+#undef _SYMBOLIC_DEBUG_CERR_OVERRIDDEN
+#undef cerr
+#endif
