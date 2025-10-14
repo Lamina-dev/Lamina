@@ -2,7 +2,7 @@
 // Lamina One-Stop Test - 测试README.md中提到的所有功能
 // ============================================================================
 
-@vulkan {
+@cuda {
 
 print("=== Lamina One-Stop 综合测试开始 ===");
 print();

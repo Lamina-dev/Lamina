@@ -10,6 +10,9 @@
 #ifdef ENABLE_VULKAN
 #include "compute_backend/vulkan/vulkan_backend.hpp"
 #endif
+#ifdef ENABLE_CUDA
+#include "compute_backend/cuda/cuda_backend.hpp"
+#endif
 
 #include <cmath>
 #include <cstdlib>// For std::exit
@@ -517,6 +520,14 @@ void Interpreter::register_builtin_functions() {
         auto vulkan_backend = std::make_shared<VulkanBackend>();
         if (vulkan_backend->is_available()) {
             backend_mgr.register_backend(vulkan_backend);
+        }
+#endif
+
+#ifdef ENABLE_CUDA
+        // Register CUDA backend if compiled with support
+        auto cuda_backend = std::make_shared<CudaBackend>();
+        if (cuda_backend->is_available()) {
+            backend_mgr.register_backend(cuda_backend);
         }
 #endif
     } catch (const std::exception& e) {

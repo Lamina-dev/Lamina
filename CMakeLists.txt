@@ -1,11 +1,20 @@
 cmake_minimum_required(VERSION 3.16.3)
-project(lamina VERSION 1.1.1 LANGUAGES CXX)
-
-include(GNUInstallDirs)
-set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/lamina)
 
 # Optional: Enable Vulkan compute backend support
 option(ENABLE_VULKAN "Enable Vulkan GPU compute backend" OFF)
+
+# Optional: Enable CUDA compute backend support
+option(ENABLE_CUDA "Enable CUDA GPU compute backend" OFF)
+
+# Conditionally enable CUDA language if requested
+if(ENABLE_CUDA)
+    project(lamina VERSION 1.1.1 LANGUAGES CXX CUDA)
+else()
+    project(lamina VERSION 1.1.1 LANGUAGES CXX)
+endif()
+
+include(GNUInstallDirs)
+set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/lamina)
 
 # add sub directory
 add_subdirectory(interpreter)
@@ -125,6 +134,62 @@ if(ENABLE_VULKAN)
     message(STATUS "Vulkan GPU compute backend enabled")
 else()
     message(STATUS "Vulkan GPU compute backend disabled (use -DENABLE_VULKAN=ON to enable)")
+endif()
+
+# Add CUDA support if enabled
+if(ENABLE_CUDA)
+    # Set CUDA architectures BEFORE finding CUDA toolkit
+    # RTX 4060 Laptop is Ampere architecture (compute capability 8.6)
+    set(CMAKE_CUDA_ARCHITECTURES 86)
+
+    # Disable automatic CUDA runtime linking to avoid conflicts
+    set(CMAKE_CUDA_RUNTIME_LIBRARY None)
+
+    # Find CUDA toolkit
+    find_package(CUDAToolkit REQUIRED)
+
+    # Add CUDA kernel source files
+    set(CUDA_KERNEL_SOURCES
+        interpreter/compute_backend/cuda/kernels/vector_add.cu
+        interpreter/compute_backend/cuda/kernels/vector_sub.cu
+        interpreter/compute_backend/cuda/kernels/scalar_mul.cu
+        interpreter/compute_backend/cuda/kernels/matrix_multiply.cu
+        interpreter/compute_backend/cuda/kernels/vector_dot.cu
+        interpreter/compute_backend/cuda/kernels/matrix_transpose.cu
+    )
+
+    # Create a static library for CUDA kernels
+    add_library(cuda_kernels STATIC ${CUDA_KERNEL_SOURCES})
+    set_target_properties(cuda_kernels PROPERTIES
+        CUDA_SEPARABLE_COMPILATION OFF
+        CUDA_RESOLVE_DEVICE_SYMBOLS ON
+        POSITION_INDEPENDENT_CODE ON
+        CUDA_ARCHITECTURES 86
+        CUDA_RUNTIME_LIBRARY None
+    )
+
+    # Tell nvcc to not link the static runtime automatically
+    target_compile_options(cuda_kernels PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:--cudart=none>
+    )
+
+    # Manually link only the shared CUDA runtime (no static version)
+    target_link_libraries(cuda_kernels PRIVATE CUDA::cudart)
+
+    # Add CUDA backend C++ sources
+    target_sources(lamina_core PRIVATE
+        interpreter/compute_backend/cuda/cuda_backend.hpp
+        interpreter/compute_backend/cuda/cuda_backend.cpp
+    )
+
+    # Link CUDA runtime and kernels to lamina_core
+    target_link_libraries(lamina_core PRIVATE cuda_kernels CUDA::cudart)
+    target_compile_definitions(lamina_core PRIVATE ENABLE_CUDA)
+
+    message(STATUS "CUDA GPU compute backend enabled (CUDA ${CUDAToolkit_VERSION})")
+    message(STATUS "Using shared CUDA runtime library")
+else()
+    message(STATUS "CUDA GPU compute backend disabled (use -DENABLE_CUDA=ON to enable)")
 endif()
 
 # Add version header

@@ -185,11 +185,11 @@ print("decimal(3/4) =", decimal(3/4));
 print("decimal(1/8) =", decimal(1/8));
 print("decimal(1/3) =", decimal(1/3));
 
-print("精确计算示例:");
-var exact_calc = fraction(0.1) + fraction(0.2);
-print("fraction(0.1) + fraction(0.2) =", exact_calc);
-print("转为小数:", decimal(exact_calc));
-print();
+// print("精确计算示例:");
+// var exact_calc = fraction(0.1) + fraction(0.2);
+// print("fraction(0.1) + fraction(0.2) =", exact_calc);
+// print("转为小数:", decimal(exact_calc));
+// print();
 
 // ============================================================================
 // 12. 向量/矩阵函数测试
