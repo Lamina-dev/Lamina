@@ -125,6 +125,14 @@ struct ArrayExpr : public Expression {
         : elements(std::move(elems)) {}
 };
 
+// 数组索引访问 (array[index])
+struct IndexExpr : public Expression {
+    std::unique_ptr<Expression> array;
+    std::unique_ptr<Expression> index;
+    IndexExpr(std::unique_ptr<Expression> arr, std::unique_ptr<Expression> idx)
+        : array(std::move(arr)), index(std::move(idx)) {}
+};
+
 // return 语句
 struct ReturnStmt : public Statement {
     std::unique_ptr<Expression> expr;

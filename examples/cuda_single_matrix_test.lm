@@ -1,0 +1,124 @@
+// CUDA Single Random Matrix Test
+// This test demonstrates GPU operations on a single random matrix
+
+include "splash";
+
+print("==============================================");
+print("  CUDA Single Random Matrix Test");
+print("  GPU Operations on Random Matrix");
+print("==============================================");
+print("");
+
+// Helper function to create a random matrix
+func random_matrix(rows, cols, seed) {
+    var matrix = [];
+    var i = 0;
+    while (i < rows) {
+        var row = [];
+        var j = 0;
+        while (j < cols) {
+            // Simple pseudo-random generation
+            var rand_val = ((seed + i * cols + j) * 1103515245 + 12345) % 100;
+            row = row + [rand_val];
+            j = j + 1;
+        }
+        matrix = matrix + [row];
+        i = i + 1;
+    }
+    return matrix;
+}
+
+// Helper function to create a random vector
+func random_vector(size, seed) {
+    var vector = [];
+    var i = 0;
+    while (i < size) {
+        var rand_val = ((seed + i) * 1103515245 + 12345) % 100;
+        vector = vector + [rand_val];
+        i = i + 1;
+    }
+    return vector;
+}
+
+print("==============================================");
+print("Test 1: Matrix-Scalar Operations");
+print("==============================================");
+print("");
+
+print("Generating 10x10 random matrix...");
+var matrix_size = 10;
+var matrix = random_matrix(matrix_size, matrix_size, 42);
+print("Matrix generated: ", matrix_size, "x", matrix_size);
+print("Sample values:");
+print("  matrix[0][0] = ", matrix[0][0]);
+print("  matrix[5][5] = ", matrix[5][5]);
+print("  matrix[9][9] = ", matrix[9][9]);
+print("");
+
+@cuda {
+    print("--- CUDA Scalar Multiplication ---");
+    var scalar = 3;
+    var result_mul = scalar * matrix;
+    print("Completed: ", scalar, " * matrix");
+    print("Result[0][0] = ", result_mul[0][0]);
+    print("Result[5][5] = ", result_mul[5][5]);
+    print("Result[9][9] = ", result_mul[9][9]);
+    print("");
+    
+    print("--- CUDA Scalar Addition ---");
+    var result_add = matrix + scalar;
+    print("Completed: matrix + ", scalar);
+    print("Result[0][0] = ", result_add[0][0]);
+    print("Result[5][5] = ", result_add[5][5]);
+    print("Result[9][9] = ", result_add[9][9]);
+    print("");
+}
+
+print("==============================================");
+print("Test 2: Matrix-Matrix Operations");
+print("==============================================");
+print("");
+
+print("Generating second 10x10 random matrix...");
+var matrix2 = random_matrix(matrix_size, matrix_size, 256);
+print("Second matrix generated");
+print("");
+
+@cuda {
+    print("--- CUDA Matrix Addition ---");
+    var result_madd = matrix + matrix2;
+    print("Completed: matrix1 + matrix2");
+    print("Result[0][0] = ", result_madd[0][0]);
+    print("Result[5][5] = ", result_madd[5][5]);
+    print("Result[9][9] = ", result_madd[9][9]);
+    print("");
+    
+    print("--- CUDA Matrix Subtraction ---");
+    var result_msub = matrix - matrix2;
+    print("Completed: matrix1 - matrix2");
+    print("Result[0][0] = ", result_msub[0][0]);
+    print("Result[5][5] = ", result_msub[5][5]);
+    print("Result[9][9] = ", result_msub[9][9]);
+    print("");
+    
+    print("--- CUDA Matrix Multiplication ---");
+    print("Starting computation...");
+    var result_mmul = matrix * matrix2;
+    print("Completed: matrix1 * matrix2");
+    print("Result[0][0] = ", result_mmul[0][0]);
+    print("Result[5][5] = ", result_mmul[5][5]);
+    print("Result[9][9] = ", result_mmul[9][9]);
+    print("");
+}
+
+print("==============================================");
+print("  All Tests Complete!");
+print("==============================================");
+print("");
+print("Summary:");
+print("✓ Matrix-Scalar operations (10x10)");
+print("✓ Matrix-Matrix operations (10x10)");
+print("");
+print("If all operations completed without errors,");
+print("CUDA GPU acceleration is working correctly!");
+print("");

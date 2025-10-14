@@ -87,10 +87,28 @@ std::unique_ptr<Expression> Parser::parse_unary(const std::vector<Token>& tokens
     // Parse primary expression first
     auto expr = parse_primary(tokens, i);
 
-    // Handle postfix unary operators (like factorial)
-    while (i < tokens.size() && tokens[i].type == TokenType::Bang) {
-        ++i;// consume '!'
-        expr = std::make_unique<UnaryExpr>("!", std::move(expr));
+    // Handle postfix operators (factorial, array indexing)
+    while (i < tokens.size()) {
+        if (tokens[i].type == TokenType::Bang) {
+            ++i;// consume '!'
+            expr = std::make_unique<UnaryExpr>("!", std::move(expr));
+        } else if (tokens[i].type == TokenType::LBracket) {
+            // Array indexing: array[index]
+            ++i;// consume '['
+            auto index = parse_expression(tokens, i);
+            if (!index) {
+                std::cerr << "Error: Expected expression in array index" << std::endl;
+                return nullptr;
+            }
+            if (i >= tokens.size() || tokens[i].type != TokenType::RBracket) {
+                std::cerr << "Error: Expected ']' after array index" << std::endl;
+                return nullptr;
+            }
+            ++i;// consume ']'
+            expr = std::make_unique<IndexExpr>(std::move(expr), std::move(index));
+        } else {
+            break;// No more postfix operators
+        }
     }
 
     return expr;

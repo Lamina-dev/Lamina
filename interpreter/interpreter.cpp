@@ -266,13 +266,21 @@ void Interpreter::execute(const std::unique_ptr<Statement>& node) {
     } else if (auto* backend_block = dynamic_cast<BackendBlockStmt*>(node.get())) {
         // Handle @backend { } blocks
         auto& backend_mgr = BackendManager::instance();
+
+        // Debug output
+        std::cerr << "DEBUG: Entering @" << backend_block->backend_name << " block" << std::endl;
+        std::cerr << "  Current default backend before: " << backend_mgr.current_default_backend() << std::endl;
+
         backend_mgr.push_default_backend(backend_block->backend_name);
+
+        std::cerr << "  Current default backend after push: " << backend_mgr.current_default_backend() << std::endl;
 
         try {
             for (auto& stmt: backend_block->body->statements) {
                 execute(stmt);
             }
             backend_mgr.pop_default_backend();
+            std::cerr << "DEBUG: Exiting @" << backend_block->backend_name << " block" << std::endl;
         } catch (...) {
             backend_mgr.pop_default_backend();
             throw;
@@ -314,6 +322,45 @@ Value Interpreter::eval(const ASTNode* node) {
             }
         }
         return Value(elements);
+    }
+    if (auto* idx = dynamic_cast<const IndexExpr*>(node)) {
+        // Evaluate the array expression
+        Value array_val = eval(idx->array.get());
+        // Evaluate the index expression
+        Value index_val = eval(idx->index.get());
+
+        // Index must be an integer
+        if (!index_val.is_int()) {
+            RuntimeError error("Array index must be an integer, got " + index_val.to_string());
+            error.stack_trace = get_stack_trace();
+            throw error;
+        }
+
+        int index = std::get<int>(index_val.data);
+
+        // Handle array indexing
+        if (array_val.is_array()) {
+            const auto& arr = std::get<std::vector<Value>>(array_val.data);
+            if (index < 0 || index >= static_cast<int>(arr.size())) {
+                RuntimeError error("Array index " + std::to_string(index) + " out of bounds (size: " + std::to_string(arr.size()) + ")");
+                error.stack_trace = get_stack_trace();
+                throw error;
+            }
+            return arr[index];
+        } else if (array_val.is_matrix()) {
+            // Handle matrix indexing - returns a row (as array)
+            const auto& mat = std::get<std::vector<std::vector<Value>>>(array_val.data);
+            if (index < 0 || index >= static_cast<int>(mat.size())) {
+                RuntimeError error("Matrix row index " + std::to_string(index) + " out of bounds (rows: " + std::to_string(mat.size()) + ")");
+                error.stack_trace = get_stack_trace();
+                throw error;
+            }
+            return Value(mat[index]);
+        } else {
+            RuntimeError error("Cannot index non-array/non-matrix value: " + array_val.to_string());
+            error.stack_trace = get_stack_trace();
+            throw error;
+        }
     }
     std::cerr << "Error: Unsupported expression type" << std::endl;
     return Value("<type error>");

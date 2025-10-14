@@ -247,6 +247,8 @@ Value CudaBackend::float_array_to_value(const std::vector<float>& data, const Va
 
 Value CudaBackend::add(const std::vector<Value>& args) {
 #ifdef ENABLE_CUDA
+    std::cerr << "CUDA Backend: add() function called" << std::endl;
+
     if (args.size() != 2) {
         throw RuntimeError("add requires exactly 2 arguments");
     }
@@ -256,6 +258,7 @@ Value CudaBackend::add(const std::vector<Value>& args) {
 
     // GPU-accelerated vector addition
     if (a.is_array() && b.is_array()) {
+        std::cerr << "CUDA Backend: Processing array addition" << std::endl;
         std::vector<float> data_a = value_to_float_array(a);
         std::vector<float> data_b = value_to_float_array(b);
 
@@ -264,6 +267,7 @@ Value CudaBackend::add(const std::vector<Value>& args) {
         }
 
         int count = data_a.size();
+        std::cerr << "CUDA Backend: Array size = " << count << std::endl;
         size_t buffer_size = count * sizeof(float);
 
         // Allocate device memory
@@ -315,12 +319,81 @@ Value CudaBackend::add(const std::vector<Value>& args) {
         return float_array_to_value(result_data, a);
     }
 
+    // GPU-accelerated matrix addition (element-wise)
+    if (a.is_matrix() && b.is_matrix()) {
+        const auto& mat_a = std::get<std::vector<std::vector<Value>>>(a.data);
+        const auto& mat_b = std::get<std::vector<std::vector<Value>>>(b.data);
+
+        if (mat_a.empty() || mat_b.empty()) {
+            throw RuntimeError("add: empty matrices");
+        }
+
+        if (mat_a.size() != mat_b.size() || mat_a[0].size() != mat_b[0].size()) {
+            throw RuntimeError("add: matrices must have same dimensions");
+        }
+
+        // Flatten matrices to 1D arrays
+        std::vector<float> data_a = value_to_float_array(a);
+        std::vector<float> data_b = value_to_float_array(b);
+
+        int count = data_a.size();
+        size_t buffer_size = count * sizeof(float);
+
+        // Allocate device memory
+        float *d_a = nullptr, *d_b = nullptr, *d_out = nullptr;
+
+        if (!allocate_device_memory(buffer_size, (void**)&d_a)) {
+            throw RuntimeError("Failed to allocate device memory for matrix A");
+        }
+
+        if (!allocate_device_memory(buffer_size, (void**)&d_b)) {
+            free_device_memory(d_a);
+            throw RuntimeError("Failed to allocate device memory for matrix B");
+        }
+
+        if (!allocate_device_memory(buffer_size, (void**)&d_out)) {
+            free_device_memory(d_a);
+            free_device_memory(d_b);
+            throw RuntimeError("Failed to allocate device memory for output");
+        }
+
+        // Copy data to device
+        copy_to_device(d_a, data_a.data(), buffer_size);
+        copy_to_device(d_b, data_b.data(), buffer_size);
+
+        // Launch kernel (same as vector addition)
+        launch_vector_add_kernel(d_a, d_b, d_out, count);
+
+        // Check for errors
+        cudaError_t error = cudaGetLastError();
+        if (error != cudaSuccess) {
+            free_device_memory(d_a);
+            free_device_memory(d_b);
+            free_device_memory(d_out);
+            throw RuntimeError(std::string("CUDA kernel launch failed: ") + cudaGetErrorString(error));
+        }
+
+        // Wait for completion
+        cudaDeviceSynchronize();
+
+        // Copy result back
+        std::vector<float> result_data(count);
+        copy_from_device(result_data.data(), d_out, buffer_size);
+
+        // Cleanup
+        free_device_memory(d_a);
+        free_device_memory(d_b);
+        free_device_memory(d_out);
+
+        return float_array_to_value(result_data, a);
+    }
+
     // Fallback to CPU for scalars
     if (a.is_numeric() && b.is_numeric()) {
         return Value(a.as_number() + b.as_number());
     }
 
-    throw RuntimeError("add requires numeric or array arguments");
+    throw RuntimeError("add requires numeric, array, or matrix arguments");
 #else
     throw RuntimeError("CUDA support not compiled");
 #endif
@@ -396,12 +469,81 @@ Value CudaBackend::sub(const std::vector<Value>& args) {
         return float_array_to_value(result_data, a);
     }
 
+    // GPU-accelerated matrix subtraction (element-wise)
+    if (a.is_matrix() && b.is_matrix()) {
+        const auto& mat_a = std::get<std::vector<std::vector<Value>>>(a.data);
+        const auto& mat_b = std::get<std::vector<std::vector<Value>>>(b.data);
+
+        if (mat_a.empty() || mat_b.empty()) {
+            throw RuntimeError("sub: empty matrices");
+        }
+
+        if (mat_a.size() != mat_b.size() || mat_a[0].size() != mat_b[0].size()) {
+            throw RuntimeError("sub: matrices must have same dimensions");
+        }
+
+        // Flatten matrices to 1D arrays
+        std::vector<float> data_a = value_to_float_array(a);
+        std::vector<float> data_b = value_to_float_array(b);
+
+        int count = data_a.size();
+        size_t buffer_size = count * sizeof(float);
+
+        // Allocate device memory
+        float *d_a = nullptr, *d_b = nullptr, *d_out = nullptr;
+
+        if (!allocate_device_memory(buffer_size, (void**)&d_a)) {
+            throw RuntimeError("Failed to allocate device memory for matrix A");
+        }
+
+        if (!allocate_device_memory(buffer_size, (void**)&d_b)) {
+            free_device_memory(d_a);
+            throw RuntimeError("Failed to allocate device memory for matrix B");
+        }
+
+        if (!allocate_device_memory(buffer_size, (void**)&d_out)) {
+            free_device_memory(d_a);
+            free_device_memory(d_b);
+            throw RuntimeError("Failed to allocate device memory for output");
+        }
+
+        // Copy data to device
+        copy_to_device(d_a, data_a.data(), buffer_size);
+        copy_to_device(d_b, data_b.data(), buffer_size);
+
+        // Launch kernel (same as vector subtraction)
+        launch_vector_sub_kernel(d_a, d_b, d_out, count);
+
+        // Check for errors
+        cudaError_t error = cudaGetLastError();
+        if (error != cudaSuccess) {
+            free_device_memory(d_a);
+            free_device_memory(d_b);
+            free_device_memory(d_out);
+            throw RuntimeError(std::string("CUDA kernel launch failed: ") + cudaGetErrorString(error));
+        }
+
+        // Wait for completion
+        cudaDeviceSynchronize();
+
+        // Copy result back
+        std::vector<float> result_data(count);
+        copy_from_device(result_data.data(), d_out, buffer_size);
+
+        // Cleanup
+        free_device_memory(d_a);
+        free_device_memory(d_b);
+        free_device_memory(d_out);
+
+        return float_array_to_value(result_data, a);
+    }
+
     // Fallback to CPU for scalars
     if (a.is_numeric() && b.is_numeric()) {
         return Value(a.as_number() - b.as_number());
     }
 
-    throw RuntimeError("sub requires numeric or array arguments");
+    throw RuntimeError("sub requires numeric, array, or matrix arguments");
 #else
     throw RuntimeError("CUDA support not compiled");
 #endif
@@ -463,6 +605,55 @@ Value CudaBackend::mul(const std::vector<Value>& args) {
         free_device_memory(d_out);
 
         return float_array_to_value(result_data, vec);
+    }
+
+    // GPU-accelerated scalar * matrix multiplication
+    if ((a.is_numeric() && b.is_matrix()) || (a.is_matrix() && b.is_numeric())) {
+        const Value& mat = a.is_matrix() ? a : b;
+        float scalar = a.is_numeric() ? static_cast<float>(a.as_number()) : static_cast<float>(b.as_number());
+
+        std::vector<float> data_mat = value_to_float_array(mat);
+        int count = data_mat.size();
+        size_t buffer_size = count * sizeof(float);
+
+        // Allocate device memory
+        float *d_in = nullptr, *d_out = nullptr;
+
+        if (!allocate_device_memory(buffer_size, (void**)&d_in)) {
+            throw RuntimeError("Failed to allocate device memory for input");
+        }
+
+        if (!allocate_device_memory(buffer_size, (void**)&d_out)) {
+            free_device_memory(d_in);
+            throw RuntimeError("Failed to allocate device memory for output");
+        }
+
+        // Copy data to device
+        copy_to_device(d_in, data_mat.data(), buffer_size);
+
+        // Launch kernel
+        launch_scalar_mul_kernel(d_in, d_out, scalar, count);
+
+        // Check for errors
+        cudaError_t error = cudaGetLastError();
+        if (error != cudaSuccess) {
+            free_device_memory(d_in);
+            free_device_memory(d_out);
+            throw RuntimeError(std::string("CUDA kernel launch failed: ") + cudaGetErrorString(error));
+        }
+
+        // Wait for completion
+        cudaDeviceSynchronize();
+
+        // Copy result back
+        std::vector<float> result_data(count);
+        copy_from_device(result_data.data(), d_out, buffer_size);
+
+        // Cleanup
+        free_device_memory(d_in);
+        free_device_memory(d_out);
+
+        return float_array_to_value(result_data, mat);
     }
 
     // Scalar * Scalar

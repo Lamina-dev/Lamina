@@ -270,7 +270,8 @@ public:
         return "<unknown>";
     }
 
-    // Vector operations
+    // Vector operations - array concatenation (NOT element-wise addition)
+    // Element-wise addition should be done through GPU backends
     Value vector_add(const Value& other) const {
         if (!is_array() || !other.is_array()) {
             std::cerr << "Error: Vector addition requires two arrays" << std::endl;
@@ -280,19 +281,34 @@ public:
         const auto& a = std::get<std::vector<Value>>(data);
         const auto& b = std::get<std::vector<Value>>(other.data);
 
+        // Always concatenate arrays (element-wise addition is for GPU backends only)
+        std::vector<Value> result = a;
+        result.insert(result.end(), b.begin(), b.end());
+        return Value(result);
+    }
+
+    // Element-wise addition for GPU backends
+    Value vector_add_elementwise(const Value& other) const {
+        if (!is_array() || !other.is_array()) {
+            std::cerr << "Error: Element-wise vector addition requires two arrays" << std::endl;
+            return Value();
+        }
+
+        const auto& a = std::get<std::vector<Value>>(data);
+        const auto& b = std::get<std::vector<Value>>(other.data);
+
         if (a.size() != b.size()) {
-            std::cerr << "Error: Vector addition requires same dimensions" << std::endl;
+            std::cerr << "Error: Element-wise addition requires arrays of same size" << std::endl;
             return Value();
         }
 
         std::vector<Value> result;
         for (size_t i = 0; i < a.size(); ++i) {
-            if (a[i].is_numeric() && b[i].is_numeric()) {
-                result.push_back(Value(a[i].as_number() + b[i].as_number()));
-            } else {
-                std::cerr << "Error: Vector elements must be numeric" << std::endl;
+            if (!a[i].is_numeric() || !b[i].is_numeric()) {
+                std::cerr << "Error: Element-wise addition requires numeric elements" << std::endl;
                 return Value();
             }
+            result.push_back(Value(a[i].as_number() + b[i].as_number()));
         }
         return Value(result);
     }
