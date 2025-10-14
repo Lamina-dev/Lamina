@@ -114,7 +114,9 @@ void CudaBackend::cleanup() {
 
 Value CudaBackend::call_function(const std::string& func_name, const std::vector<Value>& args) {
     if (!initialized_) {
-        throw RuntimeError("CUDA backend not initialized");
+        if (!initialize()) {
+            throw RuntimeError("CUDA backend not initialized and auto-initialization failed");
+        }
     }
 
     auto it = functions_.find(func_name);
@@ -247,8 +249,6 @@ Value CudaBackend::float_array_to_value(const std::vector<float>& data, const Va
 
 Value CudaBackend::add(const std::vector<Value>& args) {
 #ifdef ENABLE_CUDA
-    std::cerr << "CUDA Backend: add() function called" << std::endl;
-
     if (args.size() != 2) {
         throw RuntimeError("add requires exactly 2 arguments");
     }
@@ -258,7 +258,6 @@ Value CudaBackend::add(const std::vector<Value>& args) {
 
     // GPU-accelerated vector addition
     if (a.is_array() && b.is_array()) {
-        std::cerr << "CUDA Backend: Processing array addition" << std::endl;
         std::vector<float> data_a = value_to_float_array(a);
         std::vector<float> data_b = value_to_float_array(b);
 
@@ -267,7 +266,6 @@ Value CudaBackend::add(const std::vector<Value>& args) {
         }
 
         int count = data_a.size();
-        std::cerr << "CUDA Backend: Array size = " << count << std::endl;
         size_t buffer_size = count * sizeof(float);
 
         // Allocate device memory

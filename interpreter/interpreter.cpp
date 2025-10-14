@@ -267,20 +267,13 @@ void Interpreter::execute(const std::unique_ptr<Statement>& node) {
         // Handle @backend { } blocks
         auto& backend_mgr = BackendManager::instance();
 
-        // Debug output
-        std::cerr << "DEBUG: Entering @" << backend_block->backend_name << " block" << std::endl;
-        std::cerr << "  Current default backend before: " << backend_mgr.current_default_backend() << std::endl;
-
         backend_mgr.push_default_backend(backend_block->backend_name);
-
-        std::cerr << "  Current default backend after push: " << backend_mgr.current_default_backend() << std::endl;
 
         try {
             for (auto& stmt: backend_block->body->statements) {
                 execute(stmt);
             }
             backend_mgr.pop_default_backend();
-            std::cerr << "DEBUG: Exiting @" << backend_block->backend_name << " block" << std::endl;
         } catch (...) {
             backend_mgr.pop_default_backend();
             throw;

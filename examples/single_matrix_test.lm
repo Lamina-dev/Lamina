@@ -1,10 +1,7 @@
-// CUDA Single Random Matrix Test
-// This test demonstrates GPU operations on a single random matrix
-
 include "splash";
 
 print("==============================================");
-print("  CUDA Single Random Matrix Test");
+print("  Single Random Matrix Test");
 print("  GPU Operations on Random Matrix");
 print("==============================================");
 print("");
@@ -55,8 +52,8 @@ print("  matrix[5][5] = ", matrix[5][5]);
 print("  matrix[9][9] = ", matrix[9][9]);
 print("");
 
-@cuda {
-    print("--- CUDA Scalar Multiplication ---");
+@vulkan {
+    print("--- Scalar Multiplication ---");
     var scalar = 3;
     var result_mul = scalar * matrix;
     print("Completed: ", scalar, " * matrix");
@@ -64,8 +61,8 @@ print("");
     print("Result[5][5] = ", result_mul[5][5]);
     print("Result[9][9] = ", result_mul[9][9]);
     print("");
-    
-    print("--- CUDA Scalar Addition ---");
+
+    print("--- Scalar Addition ---");
     var result_add = matrix + scalar;
     print("Completed: matrix + ", scalar);
     print("Result[0][0] = ", result_add[0][0]);
@@ -84,24 +81,24 @@ var matrix2 = random_matrix(matrix_size, matrix_size, 256);
 print("Second matrix generated");
 print("");
 
-@cuda {
-    print("--- CUDA Matrix Addition ---");
+@vulkan {
+    print("--- Matrix Addition ---");
     var result_madd = matrix + matrix2;
     print("Completed: matrix1 + matrix2");
     print("Result[0][0] = ", result_madd[0][0]);
     print("Result[5][5] = ", result_madd[5][5]);
     print("Result[9][9] = ", result_madd[9][9]);
     print("");
-    
-    print("--- CUDA Matrix Subtraction ---");
+
+    print("--- Matrix Subtraction ---");
     var result_msub = matrix - matrix2;
     print("Completed: matrix1 - matrix2");
     print("Result[0][0] = ", result_msub[0][0]);
     print("Result[5][5] = ", result_msub[5][5]);
     print("Result[9][9] = ", result_msub[9][9]);
     print("");
-    
-    print("--- CUDA Matrix Multiplication ---");
+
+    print("--- Matrix Multiplication ---");
     print("Starting computation...");
     var result_mmul = matrix * matrix2;
     print("Completed: matrix1 * matrix2");

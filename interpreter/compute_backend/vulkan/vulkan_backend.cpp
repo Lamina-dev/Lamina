@@ -622,6 +622,92 @@ Value VulkanBackend::add(const std::vector<Value>& args) {
     const Value& a = args[0];
     const Value& b = args[1];
 
+    // GPU-accelerated matrix addition (element-wise)
+    if (a.is_matrix() && b.is_matrix()) {
+        const auto& mat_a = std::get<std::vector<std::vector<Value>>>(a.data);
+        const auto& mat_b = std::get<std::vector<std::vector<Value>>>(b.data);
+
+        if (mat_a.empty() || mat_b.empty()) {
+            throw RuntimeError("add: empty matrices");
+        }
+
+        if (mat_a.size() != mat_b.size() || mat_a[0].size() != mat_b[0].size()) {
+            throw RuntimeError("add: matrices must have same dimensions");
+        }
+
+        // Create pipeline on first use
+        if (pipeline_vector_add_.pipeline == VK_NULL_HANDLE) {
+            if (!create_compute_pipeline("vector_add", 3, pipeline_vector_add_)) {
+                std::cerr << "Warning: Failed to create vector_add pipeline, using CPU fallback" << std::endl;
+                // CPU fallback for matrix addition
+                std::vector<std::vector<Value>> result(mat_a.size(), std::vector<Value>(mat_a[0].size()));
+                for (size_t i = 0; i < mat_a.size(); i++) {
+                    for (size_t j = 0; j < mat_a[0].size(); j++) {
+                        result[i][j] = Value(mat_a[i][j].as_number() + mat_b[i][j].as_number());
+                    }
+                }
+                return Value(result);
+            }
+        }
+
+        // Flatten matrices to 1D arrays for GPU processing
+        std::vector<float> data_a = value_to_float_array(a);
+        std::vector<float> data_b = value_to_float_array(b);
+
+        uint32_t count = data_a.size();
+        size_t buffer_size = count * sizeof(float);
+
+        // Create GPU buffers
+        VulkanBuffer buffer_a, buffer_b, buffer_out;
+
+        if (!create_buffer(buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          buffer_a)) {
+            throw RuntimeError("Failed to create input buffer A");
+        }
+
+        if (!create_buffer(buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          buffer_b)) {
+            destroy_buffer(buffer_a);
+            throw RuntimeError("Failed to create input buffer B");
+        }
+
+        if (!create_buffer(buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          buffer_out)) {
+            destroy_buffer(buffer_a);
+            destroy_buffer(buffer_b);
+            throw RuntimeError("Failed to create output buffer");
+        }
+
+        // Upload data to GPU
+        copy_to_buffer(buffer_a, data_a.data(), buffer_size);
+        copy_to_buffer(buffer_b, data_b.data(), buffer_size);
+
+        // Execute compute shader
+        std::vector<VulkanBuffer*> buffers = {&buffer_a, &buffer_b, &buffer_out};
+        if (!execute_compute(pipeline_vector_add_, buffers, sizeof(uint32_t), &count,
+                            (count + 255) / 256, 1, 1)) {
+            destroy_buffer(buffer_a);
+            destroy_buffer(buffer_b);
+            destroy_buffer(buffer_out);
+            throw RuntimeError("Failed to execute compute shader");
+        }
+
+        // Download results
+        std::vector<float> result_data(count);
+        copy_from_buffer(buffer_out, result_data.data(), buffer_size);
+
+        // Cleanup buffers
+        destroy_buffer(buffer_a);
+        destroy_buffer(buffer_b);
+        destroy_buffer(buffer_out);
+
+        // Convert back to matrix format
+        return float_array_to_value(result_data, a);
+    }
+
     // Only accelerate vector/array operations
     if (a.is_array() && b.is_array()) {
         // Create pipeline on first use
@@ -829,6 +915,92 @@ Value VulkanBackend::sub(const std::vector<Value>& args) {
     const Value& a = args[0];
     const Value& b = args[1];
 
+    // GPU-accelerated matrix subtraction (element-wise)
+    if (a.is_matrix() && b.is_matrix()) {
+        const auto& mat_a = std::get<std::vector<std::vector<Value>>>(a.data);
+        const auto& mat_b = std::get<std::vector<std::vector<Value>>>(b.data);
+
+        if (mat_a.empty() || mat_b.empty()) {
+            throw RuntimeError("sub: empty matrices");
+        }
+
+        if (mat_a.size() != mat_b.size() || mat_a[0].size() != mat_b[0].size()) {
+            throw RuntimeError("sub: matrices must have same dimensions");
+        }
+
+        // Create pipeline on first use
+        if (pipeline_vector_sub_.pipeline == VK_NULL_HANDLE) {
+            if (!create_compute_pipeline("vector_sub", 3, pipeline_vector_sub_)) {
+                std::cerr << "Warning: Failed to create vector_sub pipeline, using CPU fallback" << std::endl;
+                // CPU fallback for matrix subtraction
+                std::vector<std::vector<Value>> result(mat_a.size(), std::vector<Value>(mat_a[0].size()));
+                for (size_t i = 0; i < mat_a.size(); i++) {
+                    for (size_t j = 0; j < mat_a[0].size(); j++) {
+                        result[i][j] = Value(mat_a[i][j].as_number() - mat_b[i][j].as_number());
+                    }
+                }
+                return Value(result);
+            }
+        }
+
+        // Flatten matrices to 1D arrays for GPU processing
+        std::vector<float> data_a = value_to_float_array(a);
+        std::vector<float> data_b = value_to_float_array(b);
+
+        uint32_t count = data_a.size();
+        size_t buffer_size = count * sizeof(float);
+
+        // Create GPU buffers
+        VulkanBuffer buffer_a, buffer_b, buffer_out;
+
+        if (!create_buffer(buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          buffer_a)) {
+            throw RuntimeError("Failed to create input buffer A");
+        }
+
+        if (!create_buffer(buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          buffer_b)) {
+            destroy_buffer(buffer_a);
+            throw RuntimeError("Failed to create input buffer B");
+        }
+
+        if (!create_buffer(buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          buffer_out)) {
+            destroy_buffer(buffer_a);
+            destroy_buffer(buffer_b);
+            throw RuntimeError("Failed to create output buffer");
+        }
+
+        // Upload data to GPU
+        copy_to_buffer(buffer_a, data_a.data(), buffer_size);
+        copy_to_buffer(buffer_b, data_b.data(), buffer_size);
+
+        // Execute compute shader
+        std::vector<VulkanBuffer*> buffers = {&buffer_a, &buffer_b, &buffer_out};
+        if (!execute_compute(pipeline_vector_sub_, buffers, sizeof(uint32_t), &count,
+                            (count + 255) / 256, 1, 1)) {
+            destroy_buffer(buffer_a);
+            destroy_buffer(buffer_b);
+            destroy_buffer(buffer_out);
+            throw RuntimeError("Failed to execute compute shader");
+        }
+
+        // Download results
+        std::vector<float> result_data(count);
+        copy_from_buffer(buffer_out, result_data.data(), buffer_size);
+
+        // Cleanup buffers
+        destroy_buffer(buffer_a);
+        destroy_buffer(buffer_b);
+        destroy_buffer(buffer_out);
+
+        // Convert back to matrix format
+        return float_array_to_value(result_data, a);
+    }
+
     // GPU-accelerated vector subtraction
     if (a.is_array() && b.is_array()) {
         // Create pipeline on first use
@@ -921,25 +1093,52 @@ Value VulkanBackend::mul(const std::vector<Value>& args) {
     const Value& a = args[0];
     const Value& b = args[1];
 
-    // GPU-accelerated scalar * vector multiplication
-    if ((a.is_numeric() && b.is_array()) || (a.is_array() && b.is_numeric())) {
+    // GPU-accelerated scalar * vector/matrix multiplication
+    if ((a.is_numeric() && b.is_array()) || (a.is_array() && b.is_numeric()) ||
+        (a.is_numeric() && b.is_matrix()) || (a.is_matrix() && b.is_numeric())) {
         // Create pipeline on first use
         if (pipeline_scalar_mul_.pipeline == VK_NULL_HANDLE) {
             if (!create_compute_pipeline("scalar_mul", 2, pipeline_scalar_mul_)) {
                 std::cerr << "Warning: Failed to create scalar_mul pipeline, using CPU fallback" << std::endl;
                 if (a.is_numeric()) {
-                    return b.scalar_multiply(a.as_number());
+                    double scalar = a.as_number();
+                    if (b.is_array()) {
+                        return b.scalar_multiply(scalar);
+                    } else if (b.is_matrix()) {
+                        // CPU fallback for scalar * matrix
+                        const auto& mat = std::get<std::vector<std::vector<Value>>>(b.data);
+                        std::vector<std::vector<Value>> result(mat.size(), std::vector<Value>(mat[0].size()));
+                        for (size_t i = 0; i < mat.size(); i++) {
+                            for (size_t j = 0; j < mat[0].size(); j++) {
+                                result[i][j] = Value(scalar * mat[i][j].as_number());
+                            }
+                        }
+                        return Value(result);
+                    }
                 } else {
-                    return a.scalar_multiply(b.as_number());
+                    double scalar = b.as_number();
+                    if (a.is_array()) {
+                        return a.scalar_multiply(scalar);
+                    } else if (a.is_matrix()) {
+                        // CPU fallback for matrix * scalar
+                        const auto& mat = std::get<std::vector<std::vector<Value>>>(a.data);
+                        std::vector<std::vector<Value>> result(mat.size(), std::vector<Value>(mat[0].size()));
+                        for (size_t i = 0; i < mat.size(); i++) {
+                            for (size_t j = 0; j < mat[0].size(); j++) {
+                                result[i][j] = Value(mat[i][j].as_number() * scalar);
+                            }
+                        }
+                        return Value(result);
+                    }
                 }
             }
         }
 
-        const Value& vec = a.is_array() ? a : b;
+        const Value& vec_or_mat = a.is_array() || a.is_matrix() ? a : b;
         float scalar = a.is_numeric() ? static_cast<float>(a.as_number()) : static_cast<float>(b.as_number());
 
-        // Convert to float array
-        std::vector<float> data_vec = value_to_float_array(vec);
+        // Convert to flat float array (works for both arrays and matrices)
+        std::vector<float> data_vec = value_to_float_array(vec_or_mat);
         uint32_t count = data_vec.size();
         size_t buffer_size = count * sizeof(float);
 
@@ -985,8 +1184,8 @@ Value VulkanBackend::mul(const std::vector<Value>& args) {
         destroy_buffer(buffer_in);
         destroy_buffer(buffer_out);
 
-        // Convert back to Value
-        return float_array_to_value(result_data, vec);
+        // Convert back to Value (preserves original shape - array or matrix)
+        return float_array_to_value(result_data, vec_or_mat);
     }
 
     // Scalar * Scalar

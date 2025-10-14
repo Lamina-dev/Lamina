@@ -82,43 +82,26 @@ Value HANDLE_BINARYEXPR_ADD(Value *l, Value *r)
             const auto& ra = std::get<std::vector<Value>>(r->data);
             bool same_size = (la.size() == ra.size());
 
-            // Debug output
-            std::cerr << "DEBUG: Array + Array operation" << std::endl;
-            std::cerr << "  Current backend: " << default_backend << std::endl;
-            std::cerr << "  Left array size: " << la.size() << std::endl;
-            std::cerr << "  Right array size: " << ra.size() << std::endl;
-            std::cerr << "  Same size: " << (same_size ? "yes" : "no") << std::endl;
-
             // If we're in a non-CPU backend context, try to use it
             if (default_backend != "cpu" && backend_mgr.has_backend(default_backend)) {
                 auto backend = backend_mgr.get_backend(default_backend);
                 if (backend && backend->has_function("add")) {
-                    std::cerr << "  Attempting GPU backend call..." << std::endl;
                     try {
                         Value result = backend->call_function("add", {*l, *r});
-                        std::cerr << "  GPU backend call succeeded!" << std::endl;
                         return result;
                     } catch (const std::exception& e) {
-                        std::cerr << "  GPU backend call failed: " << e.what() << std::endl;
                         // Fall back to CPU if backend fails
                     } catch (...) {
-                        std::cerr << "  GPU backend call failed with unknown error" << std::endl;
                         // Fall back to CPU if backend fails
                     }
-                } else {
-                    std::cerr << "  Backend doesn't have 'add' function" << std::endl;
                 }
-            } else {
-                std::cerr << "  Using CPU (backend is '" << default_backend << "')" << std::endl;
             }
 
             // CPU fallback: if in a non-CPU backend context and arrays are same size, do element-wise
             // Otherwise do concatenation (default behavior)
             if (default_backend != "cpu" && same_size) {
-                std::cerr << "  Falling back to CPU element-wise addition" << std::endl;
                 return l->vector_add_elementwise(*r);
             } else {
-                std::cerr << "  Falling back to CPU vector_add (concatenation)" << std::endl;
                 return l->vector_add(*r);
             }
         } else if (ltype == VALUE_IS_ARRAY && r->is_matrix()) {
@@ -154,39 +137,26 @@ Value HANDLE_BINARYEXPR_ADD(Value *l, Value *r)
             const auto& lm = std::get<std::vector<std::vector<Value>>>(l->data);
             const auto& rm = std::get<std::vector<std::vector<Value>>>(r->data);
 
-            std::cerr << "DEBUG: Matrix + Matrix operation, backend=" << default_backend << std::endl;
-            std::cerr << "  Left matrix: " << lm.size() << "x" << (lm.empty() ? 0 : lm[0].size()) << std::endl;
-            std::cerr << "  Right matrix: " << rm.size() << "x" << (rm.empty() ? 0 : rm[0].size()) << std::endl;
-
             // If in GPU backend context and matrices have same dimensions, do element-wise addition
             bool same_dims = (lm.size() == rm.size() &&
                              !lm.empty() && !rm.empty() &&
                              lm[0].size() == rm[0].size());
 
             if (default_backend != "cpu" && same_dims) {
-                std::cerr << "  Same dimensions, attempting element-wise addition" << std::endl;
-
                 // Try GPU backend first
                 if (backend_mgr.has_backend(default_backend)) {
                     auto backend = backend_mgr.get_backend(default_backend);
                     if (backend && backend->has_function("add")) {
-                        std::cerr << "  Attempting GPU backend 'add' call..." << std::endl;
                         try {
                             Value result = backend->call_function("add", {*l, *r});
-                            std::cerr << "  GPU backend call succeeded!" << std::endl;
                             return result;
                         } catch (const std::exception& e) {
-                            std::cerr << "  GPU backend call failed: " << e.what() << std::endl;
                         } catch (...) {
-                            std::cerr << "  GPU backend call failed with unknown error" << std::endl;
                         }
-                    } else {
-                        std::cerr << "  Backend doesn't have 'add' function" << std::endl;
                     }
                 }
 
                 // CPU fallback for element-wise matrix addition
-                std::cerr << "  Falling back to CPU element-wise addition" << std::endl;
                 std::vector<std::vector<Value>> result(lm.size(), std::vector<Value>(lm[0].size()));
                 for (size_t i = 0; i < lm.size(); i++) {
                     for (size_t j = 0; j < lm[0].size(); j++) {
@@ -198,7 +168,6 @@ Value HANDLE_BINARYEXPR_ADD(Value *l, Value *r)
                 }
                 return Value(result);
             } else {
-                std::cerr << "  Row concatenation (different dimensions or CPU mode)" << std::endl;
                 // Concatenate rows (default behavior)
                 std::vector<std::vector<Value>> result = lm;
                 for (const auto& row : rm) {
@@ -213,8 +182,6 @@ Value HANDLE_BINARYEXPR_ADD(Value *l, Value *r)
 
             const Value& mat = l->is_matrix() ? *l : *r;
             double scalar = l->is_numeric() ? l->as_number() : r->as_number();
-
-            std::cerr << "DEBUG: Matrix + Scalar (element-wise), backend=" << default_backend << std::endl;
 
             // For now, use CPU fallback (GPU backend doesn't have scalar+matrix addition)
             const auto& matrix_data = std::get<std::vector<std::vector<Value>>>(mat.data);
@@ -238,8 +205,6 @@ Value HANDLE_BINARYEXPR_ADD(Value *l, Value *r)
             if (default_backend != "cpu") {
                 const Value& arr = l->is_array() ? *l : *r;
                 double scalar = l->is_numeric() ? l->as_number() : r->as_number();
-
-                std::cerr << "DEBUG: Array + Scalar (element-wise), backend=" << default_backend << std::endl;
 
                 // CPU fallback for element-wise scalar addition
                 const auto& array_data = std::get<std::vector<Value>>(arr.data);
@@ -710,26 +675,18 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 const auto& la = std::get<std::vector<Value>>(l.data);
                 const auto& ra = std::get<std::vector<Value>>(r.data);
                 if (la.size() == ra.size()) {
-                    std::cerr << "DEBUG: Array * Array (dot product), size=" << la.size() << ", backend=" << default_backend << std::endl;
                     // Try backend dot product first
                     if (use_backend) {
                         auto backend = backend_mgr.get_backend(default_backend);
                         if (backend && backend->has_function("dot")) {
-                            std::cerr << "  Attempting GPU backend 'dot' call..." << std::endl;
                             try {
                                 Value result = backend->call_function("dot", {l, r});
-                                std::cerr << "  GPU backend call succeeded!" << std::endl;
                                 return result;
                             } catch (const std::exception& e) {
-                                std::cerr << "  GPU backend call failed: " << e.what() << std::endl;
                             } catch (...) {
-                                std::cerr << "  GPU backend call failed with unknown error" << std::endl;
                             }
-                        } else {
-                            std::cerr << "  Backend doesn't have 'dot' function" << std::endl;
                         }
                     }
-                    std::cerr << "  Falling back to CPU dot_product" << std::endl;
                     return l.dot_product(r);
                 }
             }
@@ -737,80 +694,53 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
             if (l.is_matrix() && r.is_matrix()) {
                 const auto& lm = std::get<std::vector<std::vector<Value>>>(l.data);
                 const auto& rm = std::get<std::vector<std::vector<Value>>>(r.data);
-                std::cerr << "DEBUG: Matrix * Matrix, size=" << lm.size() << "x" << (lm.empty() ? 0 : lm[0].size())
-                          << " * " << rm.size() << "x" << (rm.empty() ? 0 : rm[0].size())
-                          << ", backend=" << default_backend << std::endl;
                 // Try backend matrix multiply first
                 if (use_backend) {
                     auto backend = backend_mgr.get_backend(default_backend);
                     if (backend && backend->has_function("matmul")) {
-                        std::cerr << "  Attempting GPU backend 'matmul' call..." << std::endl;
                         try {
                             Value result = backend->call_function("matmul", {l, r});
-                            std::cerr << "  GPU backend call succeeded!" << std::endl;
                             return result;
                         } catch (const std::exception& e) {
-                            std::cerr << "  GPU backend call failed: " << e.what() << std::endl;
                         } catch (...) {
-                            std::cerr << "  GPU backend call failed with unknown error" << std::endl;
                         }
-                    } else {
-                        std::cerr << "  Backend doesn't have 'matmul' function" << std::endl;
                     }
                 }
-                std::cerr << "  Falling back to CPU matrix_multiply" << std::endl;
                 return l.matrix_multiply(r);
             }
             // Scalar multiplication for vectors
             if (l.is_array() && r.is_numeric()) {
-                std::cerr << "DEBUG: Array * Scalar, backend=" << default_backend << std::endl;
                 // Try backend scalar multiply first
                 if (use_backend) {
                     auto backend = backend_mgr.get_backend(default_backend);
                     if (backend && backend->has_function("mul")) {
-                        std::cerr << "  Attempting GPU backend 'mul' call..." << std::endl;
                         try {
                             Value result = backend->call_function("mul", {r, l});
-                            std::cerr << "  GPU backend call succeeded!" << std::endl;
                             return result;
                         } catch (const std::exception& e) {
-                            std::cerr << "  GPU backend call failed: " << e.what() << std::endl;
                         } catch (...) {
-                            std::cerr << "  GPU backend call failed with unknown error" << std::endl;
                         }
-                    } else {
-                        std::cerr << "  Backend doesn't have 'mul' function" << std::endl;
                     }
                 }
-                std::cerr << "  Falling back to CPU scalar_multiply" << std::endl;
                 return l.scalar_multiply(r.as_number());
             }
             if (l.is_numeric() && r.is_array()) {
-                std::cerr << "DEBUG: Scalar * Array, backend=" << default_backend << std::endl;
                 // Try backend scalar multiply first
                 if (use_backend) {
                     auto backend = backend_mgr.get_backend(default_backend);
                     if (backend && backend->has_function("mul")) {
-                        std::cerr << "  Attempting GPU backend 'mul' call..." << std::endl;
                         try {
                             Value result = backend->call_function("mul", {l, r});
-                            std::cerr << "  GPU backend call succeeded!" << std::endl;
                             return result;
                         } catch (const std::exception& e) {
-                            std::cerr << "  GPU backend call failed: " << e.what() << std::endl;
                         } catch (...) {
-                            std::cerr << "  GPU backend call failed with unknown error" << std::endl;
                         }
-                    } else {
-                        std::cerr << "  Backend doesn't have 'mul' function" << std::endl;
                     }
                 }
-                std::cerr << "  Falling back to CPU scalar_multiply" << std::endl;
                 return r.scalar_multiply(l.as_number());
             }
             // Scalar multiplication for matrices
             if (l.is_matrix() && r.is_numeric()) {
-                std::cerr << "DEBUG: Matrix * Scalar, backend=" << default_backend << std::endl;
                 double scalar = r.as_number();
                 const auto& mat = std::get<std::vector<std::vector<Value>>>(l.data);
                 std::vector<std::vector<Value>> result;
@@ -827,7 +757,6 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 return Value(result);
             }
             if (l.is_numeric() && r.is_matrix()) {
-                std::cerr << "DEBUG: Scalar * Matrix, backend=" << default_backend << std::endl;
                 double scalar = l.as_number();
                 const auto& mat = std::get<std::vector<std::vector<Value>>>(r.data);
                 std::vector<std::vector<Value>> result;
@@ -902,26 +831,16 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 auto& backend_mgr = BackendManager::instance();
                 std::string default_backend = backend_mgr.current_default_backend();
 
-                // Debug output
-                std::cerr << "DEBUG: Array - Array operation" << std::endl;
-                std::cerr << "  Current backend: " << default_backend << std::endl;
-
                 // Try backend subtraction first
                 if (default_backend != "cpu" && backend_mgr.has_backend(default_backend)) {
                     auto backend = backend_mgr.get_backend(default_backend);
                     if (backend && backend->has_function("sub")) {
-                        std::cerr << "  Attempting GPU backend 'sub' call..." << std::endl;
                         try {
                             Value result = backend->call_function("sub", {l, r});
-                            std::cerr << "  GPU backend call succeeded!" << std::endl;
                             return result;
                         } catch (const std::exception& e) {
-                            std::cerr << "  GPU backend call failed: " << e.what() << std::endl;
                         } catch (...) {
-                            std::cerr << "  GPU backend call failed with unknown error" << std::endl;
                         }
-                    } else {
-                        std::cerr << "  Backend doesn't have 'sub' function" << std::endl;
                     }
                 }
 
@@ -937,10 +856,6 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 const auto& lm = std::get<std::vector<std::vector<Value>>>(l.data);
                 const auto& rm = std::get<std::vector<std::vector<Value>>>(r.data);
 
-                std::cerr << "DEBUG: Matrix - Matrix operation, backend=" << default_backend << std::endl;
-                std::cerr << "  Left matrix: " << lm.size() << "x" << (lm.empty() ? 0 : lm[0].size()) << std::endl;
-                std::cerr << "  Right matrix: " << rm.size() << "x" << (rm.empty() ? 0 : rm[0].size()) << std::endl;
-
                 // Check dimensions
                 if (lm.size() != rm.size() || lm.empty() || rm.empty() || lm[0].size() != rm[0].size()) {
                     error_and_exit("Matrix subtraction requires matrices of same dimensions");
@@ -950,22 +865,15 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 if (default_backend != "cpu" && backend_mgr.has_backend(default_backend)) {
                     auto backend = backend_mgr.get_backend(default_backend);
                     if (backend && backend->has_function("sub")) {
-                        std::cerr << "  Attempting GPU backend 'sub' call..." << std::endl;
                         try {
                             Value result = backend->call_function("sub", {l, r});
-                            std::cerr << "  GPU backend call succeeded!" << std::endl;
                             return result;
                         } catch (const std::exception& e) {
-                            std::cerr << "  GPU backend call failed: " << e.what() << std::endl;
                         } catch (...) {
-                            std::cerr << "  GPU backend call failed with unknown error" << std::endl;
                         }
-                    } else {
-                        std::cerr << "  Backend doesn't have 'sub' function" << std::endl;
                     }
                 }
 
-                std::cerr << "  Falling back to CPU element-wise subtraction" << std::endl;
                 // CPU fallback: Element-wise matrix subtraction
                 std::vector<std::vector<Value>> result(lm.size(), std::vector<Value>(lm[0].size()));
                 for (size_t i = 0; i < lm.size(); i++) {
