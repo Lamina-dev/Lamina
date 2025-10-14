@@ -183,3 +183,11 @@ struct BigIntDeclStmt : public Statement {
     explicit BigIntDeclStmt(const std::string& n, std::unique_ptr<Expression> v = nullptr)
         : name(n), init_value(std::move(v)) {}
 };
+
+// Backend block statement: @backend { ... }
+struct BackendBlockStmt : public Statement {
+    std::string backend_name;
+    std::unique_ptr<BlockStmt> body;
+    BackendBlockStmt(const std::string& name, std::unique_ptr<BlockStmt> b)
+        : backend_name(name), body(std::move(b)) {}
+};

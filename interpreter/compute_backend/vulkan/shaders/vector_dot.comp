@@ -1,0 +1,49 @@
+#version 450
+
+// Vector dot product compute shader
+layout(local_size_x = 256) in;
+
+layout(binding = 0) buffer InputBuffer1 {
+    float data[];
+} input1;
+
+layout(binding = 1) buffer InputBuffer2 {
+    float data[];
+} input2;
+
+layout(binding = 2) buffer PartialSums {
+    float data[];
+} partial_sums;
+
+layout(push_constant) uniform PushConstants {
+    uint count;
+} constants;
+
+shared float shared_data[256];
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    uint local_idx = gl_LocalInvocationID.x;
+
+    // Load and multiply
+    float value = 0.0;
+    if (idx < constants.count) {
+        value = input1.data[idx] * input2.data[idx];
+    }
+    shared_data[local_idx] = value;
+
+    barrier();
+
+    // Reduction in shared memory
+    for (uint stride = 128; stride > 0; stride >>= 1) {
+        if (local_idx < stride) {
+            shared_data[local_idx] += shared_data[local_idx + stride];
+        }
+        barrier();
+    }
+
+    // Write result
+    if (local_idx == 0) {
+        partial_sums.data[gl_WorkGroupID.x] = shared_data[0];
+    }
+}

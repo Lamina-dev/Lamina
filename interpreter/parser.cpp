@@ -561,6 +561,33 @@ std::unique_ptr<Statement> Parser::parse_while(const std::vector<Token>& tokens,
 
 std::unique_ptr<Statement> Parser::parse_statement(const std::vector<Token>& tokens, size_t& i) {
     // std::cerr << "DEBUG: parse_statement starting at token " << i << std::endl;
+
+    // Handle @backend { } statements first
+    if (tokens[i].type == TokenType::At && i + 1 < tokens.size()) {
+        ++i; // Skip '@'
+        if (tokens[i].type != TokenType::Identifier) {
+            std::cerr << "Error: Expected backend name after '@'" << std::endl;
+            return nullptr;
+        }
+        std::string backend_name = tokens[i].text;
+        ++i;
+
+        if (i >= tokens.size() || tokens[i].type != TokenType::LBrace) {
+            std::cerr << "Error: Expected '{' after backend name '@" << backend_name << "'" << std::endl;
+            return nullptr;
+        }
+        ++i; // Skip '{'
+
+        // Parse block content
+        auto body = parse_block(tokens, i, false);
+        if (!body) {
+            std::cerr << "Error: Failed to parse backend block body" << std::endl;
+            return nullptr;
+        }
+
+        return std::make_unique<BackendBlockStmt>(backend_name, std::move(body));
+    }
+
     // Handle include statements first - only support quoted strings
     if (tokens[i].type == TokenType::Include && i + 1 < tokens.size()) {
         if (tokens[i + 1].type != TokenType::String) {

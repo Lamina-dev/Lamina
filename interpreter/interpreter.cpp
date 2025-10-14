@@ -5,6 +5,11 @@
 #include "lexer.hpp"
 #include "module_loader.hpp"
 #include "parser.hpp"
+#include "compute_backend/backend_interface.hpp"
+#include "compute_backend/cpu/cpu_backend.hpp"
+#ifdef ENABLE_VULKAN
+#include "compute_backend/vulkan/vulkan_backend.hpp"
+#endif
 
 #include <cmath>
 #include <cstdlib>// For std::exit
@@ -255,6 +260,20 @@ void Interpreter::execute(const std::unique_ptr<Statement>& node) {
         }
     } else if (auto* nullstmt = dynamic_cast<NullStmt*>(node.get())) {
         (void) nullstmt;
+    } else if (auto* backend_block = dynamic_cast<BackendBlockStmt*>(node.get())) {
+        // Handle @backend { } blocks
+        auto& backend_mgr = BackendManager::instance();
+        backend_mgr.push_default_backend(backend_block->backend_name);
+
+        try {
+            for (auto& stmt: backend_block->body->statements) {
+                execute(stmt);
+            }
+            backend_mgr.pop_default_backend();
+        } catch (...) {
+            backend_mgr.pop_default_backend();
+            throw;
+        }
     }
 }
 
@@ -483,6 +502,25 @@ void Interpreter::register_entry(EntryFunction func) {
 void Interpreter::register_builtin_functions() {
     for (auto entry: get_entry_functions()) {
         entry(*this);
+    }
+
+    // Register compute backends
+    try {
+        auto& backend_mgr = BackendManager::instance();
+
+        // Register CPU backend (always available)
+        auto cpu_backend = std::make_shared<CPUBackend>();
+        backend_mgr.register_backend(cpu_backend);
+
+#ifdef ENABLE_VULKAN
+        // Register Vulkan backend if compiled with support
+        auto vulkan_backend = std::make_shared<VulkanBackend>();
+        if (vulkan_backend->is_available()) {
+            backend_mgr.register_backend(vulkan_backend);
+        }
+#endif
+    } catch (const std::exception& e) {
+        std::cerr << "Warning: Failed to register compute backends: " << e.what() << std::endl;
     }
 }
 

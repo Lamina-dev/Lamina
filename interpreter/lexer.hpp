@@ -56,6 +56,7 @@ enum class TokenType {
     LessEqual,   // <=
     Greater,     // >
     GreaterEqual,// >=
+    At,          // @
     EndOfFile,
     Unknown
 };

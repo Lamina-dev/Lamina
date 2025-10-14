@@ -4,6 +4,9 @@ project(lamina VERSION 1.1.1 LANGUAGES CXX)
 include(GNUInstallDirs)
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/lamina)
 
+# Optional: Enable Vulkan compute backend support
+option(ENABLE_VULKAN "Enable Vulkan GPU compute backend" OFF)
+
 # add sub directory
 add_subdirectory(interpreter)
 
@@ -17,14 +20,14 @@ if(WIN32)
         # Set MSVC compile options - add exception handling, calling convention and parallel PDB write support
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /MD /Gz /FS /utf-8")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MD /Gz /FS")
-        
+
         # Set to multi-threaded dynamic link library
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
-        
+
         # Add additional definitions to ensure consistent calling convention
         add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE)
         add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-        
+
         message(STATUS "Using MSVC compiler (${CMAKE_CXX_COMPILER_VERSION})")
     else()
         # Settings for MinGW or other compilers
@@ -68,6 +71,10 @@ add_library(lamina_core SHARED
         interpreter/module_api.hpp
         interpreter/symbolic.hpp
         interpreter/symbolic.cpp
+        interpreter/compute_backend/backend_interface.hpp
+        interpreter/compute_backend/backend_manager.cpp
+        interpreter/compute_backend/cpu/cpu_backend.hpp
+        interpreter/compute_backend/cpu/cpu_backend.cpp
         extensions/standard/math.cpp
         extensions/standard/stdio.cpp
         extensions/standard/random.cpp
@@ -87,11 +94,44 @@ add_library(lamina_core SHARED
         interpreter/eval.cpp
 )
 
+# Add Vulkan support if enabled
+if(ENABLE_VULKAN)
+    find_package(Vulkan REQUIRED)
+    target_sources(lamina_core PRIVATE
+        interpreter/compute_backend/vulkan/vulkan_backend.hpp
+        interpreter/compute_backend/vulkan/vulkan_backend.cpp
+    )
+    target_link_libraries(lamina_core PRIVATE Vulkan::Vulkan)
+    target_compile_definitions(lamina_core PRIVATE ENABLE_VULKAN)
+
+    # Add custom command to compile shaders
+    if(WIN32)
+        add_custom_target(compile_shaders ALL
+            COMMAND ${CMAKE_COMMAND} -E echo "Compiling Vulkan shaders..."
+            COMMAND cmd /c ${CMAKE_CURRENT_SOURCE_DIR}/interpreter/compute_backend/vulkan/compile_shaders.bat
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Compiling Vulkan compute shaders to SPIR-V"
+        )
+    else()
+        add_custom_target(compile_shaders ALL
+            COMMAND ${CMAKE_COMMAND} -E echo "Compiling Vulkan shaders..."
+            COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/interpreter/compute_backend/vulkan/compile_shaders.sh
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Compiling Vulkan compute shaders to SPIR-V"
+        )
+    endif()
+    add_dependencies(lamina_core compile_shaders)
+
+    message(STATUS "Vulkan GPU compute backend enabled")
+else()
+    message(STATUS "Vulkan GPU compute backend disabled (use -DENABLE_VULKAN=ON to enable)")
+endif()
+
 # Add version header
 target_sources(lamina_core PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
 
 # Set lamina_core properties
-set_target_properties(lamina_core PROPERTIES 
+set_target_properties(lamina_core PROPERTIES
     # 关键修改：禁用自动导出所有符号
     WINDOWS_EXPORT_ALL_SYMBOLS OFF  # ← 改为 OFF！
     VERSION ${PROJECT_VERSION}
@@ -103,15 +143,15 @@ set_target_properties(lamina_core PROPERTIES
 # 针对 x86 架构的特殊处理
 if(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 4)
     message(STATUS "Detected x86 (32-bit) build, applying compatibility fixes")
-    
+
     # 添加链接器选项，忽略特定警告
-    target_link_options(lamina_core PRIVATE 
+    target_link_options(lamina_core PRIVATE
         /IGNORE:4197  # 忽略多次导出警告
     )
-    
+
     # 可选：如果仍有问题，取消下面的注释使用 .def 文件
     # if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lamina_core_x86.def")
-    #     target_sources(lamina_core PRIVATE 
+    #     target_sources(lamina_core PRIVATE
     #         "${CMAKE_CURRENT_SOURCE_DIR}/lamina_core_x86.def"
     #     )
     # endif()
@@ -149,7 +189,7 @@ if(MSVC)
         /wd4701  # potentially uninitialized local variable used
     )
 else()
-    target_compile_options(lamina_core PRIVATE 
+    target_compile_options(lamina_core PRIVATE
         -Wall -Wextra -Wpedantic
         -Wno-unused-parameter
         -Wno-unused-variable
@@ -194,22 +234,22 @@ message(STATUS "Building extensions for ${CMAKE_SYSTEM_NAME}")
 function(build_extension EXTENSION_PATH)
     get_filename_component(EXTENSION_NAME ${EXTENSION_PATH} NAME)
     get_filename_component(EXTENSION_DIR ${EXTENSION_PATH} DIRECTORY)
-    
+
     # 检查是否有对应的 .cpp 文件
     set(EXTENSION_SOURCE "${EXTENSION_PATH}/${EXTENSION_NAME}.cpp")
     if(EXISTS ${EXTENSION_SOURCE})
         message(STATUS "Building extension: ${EXTENSION_NAME}")
-        
+
         # 创建共享库
         add_library(${EXTENSION_NAME} SHARED ${EXTENSION_SOURCE})
-        
+
         # 设置包含目录
-        target_include_directories(${EXTENSION_NAME} PRIVATE 
+        target_include_directories(${EXTENSION_NAME} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/interpreter
             ${CMAKE_CURRENT_SOURCE_DIR}/extensions
             ${EXTENSION_PATH}
         )
-        
+
         # 设置输出目录和属性
         set_target_properties(${EXTENSION_NAME} PROPERTIES
             LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/Debug
@@ -221,10 +261,10 @@ function(build_extension EXTENSION_PATH)
             POSITION_INDEPENDENT_CODE ON
             PREFIX ""  # 去掉 lib 前缀
         )
-        
+
         # 设置扩展的编译选项（抑制常见警告）
         if(MSVC)
-            target_compile_options(${EXTENSION_NAME} PRIVATE 
+            target_compile_options(${EXTENSION_NAME} PRIVATE
                 /W4
                 /wd4251  # 'class' needs to have dll-interface
                 /wd4267  # conversion from 'size_t' to 'type', possible loss of data
@@ -237,13 +277,13 @@ function(build_extension EXTENSION_PATH)
                 /wd4005  # macro redefinition
             )
         else()
-            target_compile_options(${EXTENSION_NAME} PRIVATE 
+            target_compile_options(${EXTENSION_NAME} PRIVATE
                 -Wall -Wextra -Wpedantic
                 -Wno-unused-parameter
                 -Wno-unused-variable
             )
         endif()
-        
+
         # Windows 下自动复制 DLL，支持 MSVC 和 MinGW
         if(WIN32)
             if(MSVC)

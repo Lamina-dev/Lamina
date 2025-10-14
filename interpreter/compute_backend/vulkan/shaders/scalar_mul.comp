@@ -1,0 +1,25 @@
+#version 450
+
+// Scalar multiplication compute shader (scalar * vector)
+layout(local_size_x = 256) in;
+
+layout(binding = 0) buffer InputBuffer {
+    float data[];
+} input_vec;
+
+layout(binding = 1) buffer OutputBuffer {
+    float data[];
+} output_data;
+
+layout(push_constant) uniform PushConstants {
+    uint count;
+    float scalar;
+} constants;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+
+    if (idx < constants.count) {
+        output_data.data[idx] = input_vec.data[idx] * constants.scalar;
+    }
+}

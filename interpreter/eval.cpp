@@ -1,5 +1,6 @@
 #include "interpreter.hpp"
 #include "../extensions/standard/cas.hpp"
+#include "compute_backend/backend_interface.hpp"
 #include <optional>
 #include "lamina.hpp"
 
@@ -294,6 +295,34 @@ Value Interpreter::eval_LiteralExpr(const LiteralExpr* node) {
 Value Interpreter::eval_CallExpr(const CallExpr* call) {
     std::string actual_callee = call->callee;
     //        std::cout << "DEBUG: Call expression with callee: '" << actual_callee << "'" << std::endl;
+
+    // Check if this is a backend call (backend.function format)
+    size_t dot_pos = actual_callee.find(".");
+    if (dot_pos != std::string::npos) {
+        std::string backend_name = actual_callee.substr(0, dot_pos);
+        std::string func_name = actual_callee.substr(dot_pos + 1);
+
+        auto& backend_mgr = BackendManager::instance();
+        if (backend_mgr.has_backend(backend_name)) {
+            auto backend = backend_mgr.get_backend(backend_name);
+            if (backend) {
+                // Evaluate arguments
+                std::vector<Value> args;
+                for (const auto& arg: call->args) {
+                    if (!arg) {
+                        throw RuntimeError("Null argument in backend call");
+                    }
+                    args.push_back(eval(arg.get()));
+                }
+
+                try {
+                    return backend->call_function(func_name, args);
+                } catch (const std::exception& e) {
+                    throw RuntimeError("Backend call error: " + std::string(e.what()));
+                }
+            }
+        }
+    }
 
     // 检查调用的名称是否是一个参数，如果是，获取其实际值
     try {

@@ -51,3 +51,5 @@ test_*.lm
 .cache
 
 .xmake
+
+**/shaders/compiled

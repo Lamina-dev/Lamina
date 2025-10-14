@@ -1,0 +1,37 @@
+#version 450
+
+// Matrix multiplication compute shader
+// C = A * B
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(binding = 0) buffer MatrixA {
+    float data[];
+} matrix_a;
+
+layout(binding = 1) buffer MatrixB {
+    float data[];
+} matrix_b;
+
+layout(binding = 2) buffer MatrixC {
+    float data[];
+} matrix_c;
+
+layout(push_constant) uniform PushConstants {
+    uint M;  // rows of A
+    uint N;  // cols of A / rows of B
+    uint P;  // cols of B
+} constants;
+
+void main() {
+    uint row = gl_GlobalInvocationID.y;
+    uint col = gl_GlobalInvocationID.x;
+
+    if (row < constants.M && col < constants.P) {
+        float sum = 0.0;
+        for (uint k = 0; k < constants.N; k++) {
+            sum += matrix_a.data[row * constants.N + k] *
+                   matrix_b.data[k * constants.P + col];
+        }
+        matrix_c.data[row * constants.P + col] = sum;
+    }
+}

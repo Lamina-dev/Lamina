@@ -1,0 +1,28 @@
+#version 450
+
+// Vector subtraction compute shader
+layout(local_size_x = 256) in;
+
+layout(binding = 0) buffer InputBuffer1 {
+    float data[];
+} input1;
+
+layout(binding = 1) buffer InputBuffer2 {
+    float data[];
+} input2;
+
+layout(binding = 2) buffer OutputBuffer {
+    float data[];
+} output_data;
+
+layout(push_constant) uniform PushConstants {
+    uint count;
+} constants;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+
+    if (idx < constants.count) {
+        output_data.data[idx] = input1.data[idx] - input2.data[idx];
+    }
+}
