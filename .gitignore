@@ -53,3 +53,4 @@ test_*.lm
 .xmake
 
 **/shaders/compiled
+/*.spv
