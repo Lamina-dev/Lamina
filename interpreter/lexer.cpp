@@ -287,6 +287,10 @@ std::vector<Token> Lexer::tokenize(const std::string& src) {
             tokens.emplace_back(TokenType::Dot, ".", line, start_col);
             ++i;
             ++col;
+        } else if (src[i] == '@') {
+            tokens.emplace_back(TokenType::At, "@", line, start_col);
+            ++i;
+            ++col;
         } else {
             tokens.emplace_back(TokenType::Unknown, std::string(1, src[i]), line, start_col);
             ++i;

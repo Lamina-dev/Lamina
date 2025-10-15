@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test -d interpreter/compute_backend)",
+      "Bash(./compile_shaders.sh)",
+      "Bash(bash interpreter/compute_backend/vulkan/compile_shaders.sh)",
+      "Bash(test -d build)",
+      "Bash(find examples -name \"*.lm\" -exec grep -l \"assert\" {} ;)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

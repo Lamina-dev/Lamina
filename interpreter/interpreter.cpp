@@ -5,6 +5,14 @@
 #include "lexer.hpp"
 #include "module_loader.hpp"
 #include "parser.hpp"
+#include "compute_backend/backend_interface.hpp"
+#include "compute_backend/cpu/cpu_backend.hpp"
+#ifdef ENABLE_VULKAN
+#include "compute_backend/vulkan/vulkan_backend.hpp"
+#endif
+#ifdef ENABLE_CUDA
+#include "compute_backend/cuda/cuda_backend.hpp"
+#endif
 
 #include <cmath>
 #include <cstdlib>// For std::exit
@@ -255,6 +263,21 @@ void Interpreter::execute(const std::unique_ptr<Statement>& node) {
         }
     } else if (auto* nullstmt = dynamic_cast<NullStmt*>(node.get())) {
         (void) nullstmt;
+    } else if (auto* backend_block = dynamic_cast<BackendBlockStmt*>(node.get())) {
+        // Handle @backend { } blocks
+        auto& backend_mgr = BackendManager::instance();
+
+        backend_mgr.push_default_backend(backend_block->backend_name);
+
+        try {
+            for (auto& stmt: backend_block->body->statements) {
+                execute(stmt);
+            }
+            backend_mgr.pop_default_backend();
+        } catch (...) {
+            backend_mgr.pop_default_backend();
+            throw;
+        }
     }
 }
 
@@ -292,6 +315,45 @@ Value Interpreter::eval(const ASTNode* node) {
             }
         }
         return Value(elements);
+    }
+    if (auto* idx = dynamic_cast<const IndexExpr*>(node)) {
+        // Evaluate the array expression
+        Value array_val = eval(idx->array.get());
+        // Evaluate the index expression
+        Value index_val = eval(idx->index.get());
+
+        // Index must be an integer
+        if (!index_val.is_int()) {
+            RuntimeError error("Array index must be an integer, got " + index_val.to_string());
+            error.stack_trace = get_stack_trace();
+            throw error;
+        }
+
+        int index = std::get<int>(index_val.data);
+
+        // Handle array indexing
+        if (array_val.is_array()) {
+            const auto& arr = std::get<std::vector<Value>>(array_val.data);
+            if (index < 0 || index >= static_cast<int>(arr.size())) {
+                RuntimeError error("Array index " + std::to_string(index) + " out of bounds (size: " + std::to_string(arr.size()) + ")");
+                error.stack_trace = get_stack_trace();
+                throw error;
+            }
+            return arr[index];
+        } else if (array_val.is_matrix()) {
+            // Handle matrix indexing - returns a row (as array)
+            const auto& mat = std::get<std::vector<std::vector<Value>>>(array_val.data);
+            if (index < 0 || index >= static_cast<int>(mat.size())) {
+                RuntimeError error("Matrix row index " + std::to_string(index) + " out of bounds (rows: " + std::to_string(mat.size()) + ")");
+                error.stack_trace = get_stack_trace();
+                throw error;
+            }
+            return Value(mat[index]);
+        } else {
+            RuntimeError error("Cannot index non-array/non-matrix value: " + array_val.to_string());
+            error.stack_trace = get_stack_trace();
+            throw error;
+        }
     }
     std::cerr << "Error: Unsupported expression type" << std::endl;
     return Value("<type error>");
@@ -483,6 +545,33 @@ void Interpreter::register_entry(EntryFunction func) {
 void Interpreter::register_builtin_functions() {
     for (auto entry: get_entry_functions()) {
         entry(*this);
+    }
+
+    // Register compute backends
+    try {
+        auto& backend_mgr = BackendManager::instance();
+
+        // Register CPU backend (always available)
+        auto cpu_backend = std::make_shared<CPUBackend>();
+        backend_mgr.register_backend(cpu_backend);
+
+#ifdef ENABLE_VULKAN
+        // Register Vulkan backend if compiled with support
+        auto vulkan_backend = std::make_shared<VulkanBackend>();
+        if (vulkan_backend->is_available()) {
+            backend_mgr.register_backend(vulkan_backend);
+        }
+#endif
+
+#ifdef ENABLE_CUDA
+        // Register CUDA backend if compiled with support
+        auto cuda_backend = std::make_shared<CudaBackend>();
+        if (cuda_backend->is_available()) {
+            backend_mgr.register_backend(cuda_backend);
+        }
+#endif
+    } catch (const std::exception& e) {
+        std::cerr << "Warning: Failed to register compute backends: " << e.what() << std::endl;
     }
 }
 

@@ -1,0 +1,29 @@
+#version 450
+
+// Matrix transpose compute shader
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(binding = 0) buffer InputMatrix {
+    float data[];
+} input_mat;
+
+layout(binding = 1) buffer OutputMatrix {
+    float data[];
+} output_mat;
+
+layout(push_constant) uniform PushConstants {
+    uint rows;    // rows of input matrix
+    uint cols;    // cols of input matrix
+} constants;
+
+void main() {
+    uint row = gl_GlobalInvocationID.y;
+    uint col = gl_GlobalInvocationID.x;
+
+    if (row < constants.rows && col < constants.cols) {
+        // input[row][col] -> output[col][row]
+        uint input_idx = row * constants.cols + col;
+        uint output_idx = col * constants.rows + row;
+        output_mat.data[output_idx] = input_mat.data[input_idx];
+    }
+}

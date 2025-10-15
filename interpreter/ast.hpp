@@ -125,6 +125,14 @@ struct ArrayExpr : public Expression {
         : elements(std::move(elems)) {}
 };
 
+// 数组索引访问 (array[index])
+struct IndexExpr : public Expression {
+    std::unique_ptr<Expression> array;
+    std::unique_ptr<Expression> index;
+    IndexExpr(std::unique_ptr<Expression> arr, std::unique_ptr<Expression> idx)
+        : array(std::move(arr)), index(std::move(idx)) {}
+};
+
 // return 语句
 struct ReturnStmt : public Statement {
     std::unique_ptr<Expression> expr;
@@ -182,4 +190,12 @@ struct BigIntDeclStmt : public Statement {
     std::unique_ptr<Expression> init_value;
     explicit BigIntDeclStmt(const std::string& n, std::unique_ptr<Expression> v = nullptr)
         : name(n), init_value(std::move(v)) {}
+};
+
+// Backend block statement: @backend { ... }
+struct BackendBlockStmt : public Statement {
+    std::string backend_name;
+    std::unique_ptr<BlockStmt> body;
+    BackendBlockStmt(const std::string& name, std::unique_ptr<BlockStmt> b)
+        : backend_name(name), body(std::move(b)) {}
 };
