@@ -44,7 +44,10 @@ void Parser::skip_end_of_ln() {
         return;
     }
     if (tok.type == LexerTokenType::EndOfLine) {
-        skip_token("\n");
+        skip_token();
+        if (curr_token().type == LexerTokenType::EndOfFile) {
+            skip_token();
+        }
         return;
     }
     if (tok.type == LexerTokenType::EndOfFile) {
