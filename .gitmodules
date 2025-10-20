@@ -1,1 +1,4 @@
 
+[submodule "BigNumCore"]
+	path = BigNumCore
+	url = https://github.com/Lamina-dev/Lamina_BigNum.git
