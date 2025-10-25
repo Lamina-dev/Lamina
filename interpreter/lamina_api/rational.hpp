@@ -185,7 +185,7 @@ private:
                     }
                 }
                 if (ok) {//如果保持循环返回
-                    return {i1, i2 - 1};
+                    return {i1 + 1, i2 - 1};
                 }
             }
             h2[n[i]]++;
@@ -252,6 +252,51 @@ public:
             return numerator.to_string();
         }
         return numerator.to_string() + "/" + denominator.to_string();
+    }
+
+    //向下舍入，n为保留几位小数（负数则忽略整数位）
+    inline void floor(const BigInt& n) {
+        if (n == BigInt(0)) return;
+        if (n > BigInt(0)) {
+            BigInt pow10n(10);
+            pow10n = pow10n.power(n);
+            numerator *= pow10n;
+            numerator /= denominator;
+            denominator = pow10n;
+        } else {
+            BigInt pow10n(10);
+            pow10n = pow10n.power(n.abs());
+            denominator *= pow10n;
+            numerator /= denominator;
+            numerator *= pow10n;
+            denominator = BigInt(1);
+        }
+        simplify();
+    }
+
+    //将自己开根，n为保留几位小数（负数则忽略整数位）
+    inline void sqrt_self(const BigInt& n) {
+        if (numerator < BigInt(0)) throw std::runtime_error("Sqrt negative number");
+        Rational t(numerator * denominator);
+        
+        //求解t的根，二分法
+        BigInt ci = BigInt(t.numerator.digits.size() * 2+3) + n;
+        const BigInt one(1);
+        const BigInt nadd1(n + BigInt(1));
+        Rational ans(t / 2);
+        for (; !ci.is_zero(); ci -= one) {
+            ans = (ans + t / ans) / 2;
+            ans.floor(nadd1);
+        }
+        numerator = ans.numerator;
+        denominator *= ans.denominator;
+        floor(n);
+    }
+
+    inline Rational sqrt(const BigInt& n) {
+        Rational re = *this;
+        re.sqrt_self(n);
+        return re;
     }
 
     // 转换为 BigInt（如果是整数）
