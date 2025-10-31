@@ -12,10 +12,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(APPLE)
-    # 指定 macOS 最低部署版本（10.15+ 支持 _dyld_iterate_imagees 且兼容 ARM64）
+    # 指定 macOS 最低部署版本（10.15+ 支持 _dyld_iterate_images 且兼容 ARM64）
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS version" FORCE)
     # 确保架构正确（ARM64 或 X86_64）
     set(CMAKE_OSX_ARCHITECTURES "${ARCH}" CACHE STRING "macOS architecture" FORCE)
+    
+    # 添加编译器和链接器标志
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_DARWIN_C_SOURCE")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-undefined,dynamic_lookup")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-undefined,dynamic_lookup")
 endif()
 
 # Prioritize MSVC on Windows
@@ -97,9 +102,21 @@ add_library(lamina_core SHARED
     interpreter/utils/src_manger.hpp
 )
 if (APPLE)
-  target_link_libraries(lamina_core PRIVATE "-framework CoreFoundation")
-  # 同时确保包含 dyld 头文件
-  target_include_directories(lamina_core PRIVATE /usr/include/mach-o)
+    # 添加必要的框架和系统库
+    target_link_libraries(lamina_core PRIVATE 
+        "-framework CoreFoundation"
+        "-framework CoreServices"
+    )
+    # 确保包含系统头文件
+    target_include_directories(lamina_core PRIVATE 
+        /usr/include
+        /usr/include/mach-o
+    )
+    # 设置特定的编译选项
+    target_compile_options(lamina_core PRIVATE
+        -fPIC
+        -D_DARWIN_C_SOURCE
+    )
 endif()
 
 # Add version header
