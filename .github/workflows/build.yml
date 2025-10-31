@@ -459,6 +459,7 @@ jobs:
       - name: Submit signing request (Windows only)
         if: runner.os == 'Windows'
         id: signpath
+        continue-on-error: true
         uses: signpath/github-action-submit-signing-request@v1
         env:
           SIGNING_API_TOKEN: "${{ secrets.SIGNING_API_TOKEN }}"
