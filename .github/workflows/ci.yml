@@ -39,44 +39,47 @@ jobs:
           echo "✅ Build successful!"
 
       - name: Basic functionality test
-        working-directory: build
+        working-directory: build/bin
         env:
           LD_LIBRARY_PATH: .  
         run: |
           echo "Running basic tests..."
+          
+          # Ensure Lamina is executable
+          chmod +x ./lamina
 
           # Test 1: Hello World
           echo 'print("Hello, Lamina!");' > test1.lm
-          ./Lamina test1.lm
+          ./lamina test1.lm
 
           # Test 2: Basic arithmetic
           echo 'var x = 2 + 3 * 4;' > test2.lm
           echo 'print("2 + 3 * 4 =", x);' >> test2.lm
-          ./Lamina test2.lm
+          ./lamina test2.lm
 
           # Test 3: Precise fractions
           echo 'var fraction = 16 / 9;' > test3.lm
           echo 'print("16/9 =", fraction);' >> test3.lm
-          ./Lamina test3.lm
+          ./lamina test3.lm
 
           # Test 4: Functions
           echo 'func add(a, b) { return a + b; }' > test4.lm
           echo 'var result = add(10, 20);' >> test4.lm
           echo 'print("add(10, 20) =", result);' >> test4.lm
-          ./Lamina test4.lm
+          ./lamina test4.lm
 
           echo "✅ All basic tests passed!"
 
       - name: Test example programs
-        working-directory: build
+        working-directory: build/bin
         run: |
           echo "Testing example programs..."
 
-          if [ -d "../examples" ]; then
-            for example in ../examples/*.lm; do
+          if [ -d "../../examples" ]; then
+            for example in ../../examples/*.lm; do
               if [ -f "$example" ]; then
                 echo "Testing $(basename "$example")..."
-                ./Lamina "$example" || echo "⚠️  Warning: $example execution failed"
+                ./lamina "$example" || echo "⚠️  Warning: $example execution failed"
               fi
             done
           else
@@ -84,7 +87,7 @@ jobs:
           fi
 
       - name: Check for memory leaks (with valgrind)
-        working-directory: build
+        working-directory: build/bin
         run: |
           echo "Installing valgrind for memory leak detection..."
           sudo apt-get install -y valgrind
@@ -92,7 +95,7 @@ jobs:
           echo "Running memory leak test..."
           echo 'var x = 42; print("x =", x);' > memtest.lm
 
-          if valgrind --leak-check=full --error-exitcode=1 ./Lamina memtest.lm 2>&1; then
+          if valgrind --leak-check=full --error-exitcode=1 ./lamina memtest.lm 2>&1; then
             echo "✅ No memory leaks detected"
           else
             echo "⚠️  Memory leaks detected, but continuing..."
