@@ -243,30 +243,38 @@ else()
 endif()
 
 # Post-build actions: place the shared library and executable in stable, non-versioned locations
-add_custom_command(TARGET lamina_core POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}
-    # On macOS, ensure the dylib has a stable install name (id) so executables can reference
-    # a non-versioned filename. Then copy it to the stable location without version suffix.
-    COMMAND ${CMAKE_COMMAND} -E echo "Post-build: preparing lamina_core for runtime"
-    COMMAND ${CMAKE_COMMAND} -E env sh -c "if [ \"${CMAKE_SYSTEM_NAME}\" = \"Darwin\" ]; then \
-        install_name_tool -id \"@rpath/lamina_core.dylib\" \"$<TARGET_FILE:lamina_core>\" || true; \
-      fi"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:lamina_core> ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lamina_core.dylib
-    COMMENT "Copying lamina_core to ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lamina_core.dylib"
-)
+if(APPLE)
+    add_custom_command(TARGET lamina_core POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}
+        # Copy the produced dylib (which may include version suffix) to a stable non-versioned name first
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:lamina_core>" ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lamina_core.dylib
+        # Then set the dylib id on the copied file to @rpath/lamina_core.dylib so executables can use @rpath
+        COMMAND install_name_tool -id "@rpath/lamina_core.dylib" "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lamina_core.dylib"
+        COMMENT "Copying lamina_core to ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lamina_core.dylib and setting install_name"
+    )
 
-add_custom_command(TARGET lamina POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:lamina> ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina
-        # On macOS, update the executable to point to the stable @rpath/lamina_core.dylib
-        COMMAND ${CMAKE_COMMAND} -E env sh -c "if [ \"${CMAKE_SYSTEM_NAME}\" = \"Darwin\" ]; then \
-                if [ -f \"${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina\" ]; then \
-                    install_name_tool -change \"$<TARGET_FILE_NAME:lamina_core>\" \"@rpath/lamina_core.dylib\" \"${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina\" || true; \
-                    install_name_tool -add_rpath \"@executable_path/../${CMAKE_INSTALL_LIBDIR}\" \"${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina\" || true; \
-                fi; \
-            fi"
+    add_custom_command(TARGET lamina POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:lamina>" ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina
+        # Update the executable to reference @rpath/lamina_core.dylib (replace original soname)
+        COMMAND install_name_tool -change "$<TARGET_FILE_NAME:lamina_core>" "@rpath/lamina_core.dylib" "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina"
+        # Ensure the executable has an rpath pointing at ../lib/lamina
+        COMMAND install_name_tool -add_rpath "@executable_path/../${CMAKE_INSTALL_LIBDIR}" "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina"
         COMMENT "Copying lamina executable to ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina and fixing rpath"
-)
+    )
+else()
+    add_custom_command(TARGET lamina_core POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:lamina_core>" ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lamina_core.so
+        COMMENT "Copying lamina_core to ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lamina_core.so"
+    )
+
+    add_custom_command(TARGET lamina POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:lamina>" ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina
+        COMMENT "Copying lamina executable to ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina"
+    )
+endif()
 
 # Copy lamina_core.dll on Windows
 if(WIN32)
