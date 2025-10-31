@@ -53,6 +53,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
 
+# 设置 RPATH 相关选项
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+if(APPLE)
+    set(CMAKE_INSTALL_RPATH "@executable_path/../${CMAKE_INSTALL_LIBDIR}")
+else()
+    set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+endif()
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/interpreter
     ${CMAKE_CURRENT_BINARY_DIR} # version.hpp
@@ -125,12 +135,19 @@ target_sources(lamina_core PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
 # Set lamina_core properties
 set_target_properties(lamina_core PROPERTIES 
     # 关键修改：禁用自动导出所有符号
-    WINDOWS_EXPORT_ALL_SYMBOLS OFF  # ← 改为 OFF！
+    WINDOWS_EXPORT_ALL_SYMBOLS OFF
+    # 不使用版本号作为文件名，保持稳定的库名
     VERSION ${PROJECT_VERSION}
     SOVERSION 1
     ENABLE_EXPORTS ON
     PREFIX ""  # Remove lib prefix on all platforms
+    OUTPUT_NAME "lamina_core"  # 固定输出名称（无版本号）
+    # macOS 安装名设置为 @rpath/lamina_core.dylib
+    INSTALL_NAME_DIR "@rpath"
+    MACOSX_RPATH TRUE
 )
+
+
 
 # 针对 x86 架构的特殊处理
 if(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -210,6 +227,33 @@ target_link_libraries(lamina PRIVATE lamina_core)
 if(UNIX)
     target_link_libraries(lamina PRIVATE dl)
 endif()
+
+# Ensure `lamina` executable can find `lamina_core` at runtime (set rpath)
+if(APPLE)
+    set_target_properties(lamina PROPERTIES
+        INSTALL_RPATH "@executable_path/../${CMAKE_INSTALL_LIBDIR}"
+        BUILD_WITH_INSTALL_RPATH TRUE
+        MACOSX_RPATH TRUE
+    )
+else()
+    set_target_properties(lamina PROPERTIES
+        INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}"
+        BUILD_WITH_INSTALL_RPATH TRUE
+    )
+endif()
+
+# Post-build actions: place the shared library and executable in stable, non-versioned locations
+add_custom_command(TARGET lamina_core POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:lamina_core> ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lamina_core.dylib
+    COMMENT "Copying lamina_core to ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lamina_core.dylib"
+)
+
+add_custom_command(TARGET lamina POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:lamina> ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina
+    COMMENT "Copying lamina executable to ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/lamina"
+)
 
 # Copy lamina_core.dll on Windows
 if(WIN32)

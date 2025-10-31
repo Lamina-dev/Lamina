@@ -403,29 +403,49 @@ jobs:
           mkdir -p artifacts/lib/lamina/doc
           mkdir -p artifacts/lib/lamina/examples
           
-          EXE_PATH="build/bin/lamina"
-          LIB_PATTERN="build/lib"
-
           # 复制可执行文件
-          if [ -f "$EXE_PATH" ]; then
-            cp -R "$EXE_PATH" "artifacts/bin"
+          if [ -f "build/bin/lamina" ]; then
+            cp -R build/bin/lamina artifacts/bin/
             echo "✅ Binary copied: artifacts/bin/"
           else
-            echo "❌ Binary not found at: $EXE_PATH"
+            echo "❌ Binary not found at: build/bin/lamina"
             exit 1
           fi
 
-          cp -R "$LIB_PATTERN" artifacts/
-          echo "📦 Library copied:"
-          ls -laR --color artifacts/lib/lamina
+          # 复制动态库文件
+          if [ -d "build/lib/lamina" ]; then
+            cp -R build/lib/lamina/* artifacts/lib/lamina/
+            
+            # 确保动态库有正确的权限
+            if [ -f "artifacts/lib/lamina/lamina_core.1.dylib" ] || [ -f "artifacts/lib/lamina/lamina_core.so.1" ]; then
+              chmod 755 artifacts/lib/lamina/*
+              echo "✅ Libraries copied and permissions set"
+            else
+              echo "⚠️ Warning: Core library not found in expected location"
+            fi
+          else
+            echo "❌ Library directory not found"
+            exit 1
+          fi
+
+          # 验证动态库链接（仅在 macOS 上）
+          if [ "$(uname)" = "Darwin" ]; then
+            echo "� Checking dynamic library dependencies:"
+            otool -L artifacts/bin/lamina
+          fi
 
           # 拷贝文档和示例
           cp -R examples/* artifacts/lib/lamina/examples/
           cp -R docs/* artifacts/lib/lamina/doc/
 
-          # 显示最终产物
+          # 显示最终产物和权限
           echo "📦 Final artifacts:"
-          ls -laR --color artifacts/
+          ls -la artifacts/bin/
+          ls -la artifacts/lib/lamina/
+          
+          # 验证文件结构
+          echo "📂 Directory structure:"
+          find artifacts -type f
     
       - name: Upload artifact
         id: upload-artifact
