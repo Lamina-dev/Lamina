@@ -59,7 +59,7 @@ Value system_(const std::vector<Value>& args) {
     return Value(result);
 }
 
-Value assert(const std::vector<Value>& args) {
+Value lm_assert(const std::vector<Value>& args) {
     const bool cond = !args.empty()
                               ? args[0].as_bool()
                               : false;

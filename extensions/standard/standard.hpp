@@ -115,7 +115,7 @@ Value print(const std::vector<Value>& args);
 Value system_(const std::vector<Value>& args);
 
 // 断言函数：需1个或2个参数（断言条件；可选断言失败提示信息），条件为假则触发断言失败
-Value assert(const std::vector<Value>& args);
+Value lm_assert(const std::vector<Value>& args);
 
 // 类型判断：需1个参数（待判断类型的变量/值），返回其类型标识（如"int"、"string"、"array"）
 Value typeof_(const std::vector<Value>& args);
@@ -276,7 +276,7 @@ inline std::unordered_map<std::string, Value> register_builtins =
         LAMINA_FUNC("input", input),
         LAMINA_FUNC("print", print),
         LAMINA_FUNC("system", system_),
-        LAMINA_FUNC("assert", assert),
+        LAMINA_FUNC("assert", lm_assert),
 
         // 操作模块：一级函数
         LAMINA_FUNC("typeof", typeof_),

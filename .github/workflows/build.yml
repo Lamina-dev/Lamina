@@ -309,7 +309,7 @@ jobs:
             Darwin*)
               PLATFORM="MacOS"
               # macOS：添加架构指定 + CoreFoundation框架链接
-              CMAKE_EXTRA_FLAGS="-DCMAKE_OSX_ARCHITECTURES=$ARCH -DCMAKE_EXE_LINKER_FLAGS='-framework CoreFoundation' -DCMAKE_SHARED_LINKER_FLAGS='-framework CoreFoundation'"
+              CMAKE_EXTRA_FLAGS="-DCMAKE_OSX_ARCHITECTURES=$ARCH -DCMAKE_EXE_LINKER_FLAGS=\"-framework CoreFoundation\" -DCMAKE_SHARED_LINKER_FLAGS=\"-framework CoreFoundation\""
             ;;
           esac
 
