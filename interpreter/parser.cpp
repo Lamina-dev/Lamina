@@ -186,11 +186,8 @@ std::unique_ptr<Statement> Parser::parse_stmt() {
         return std::make_unique<ExprStmt>(std::move(expr));
     }
 
-    while (curr_tok_idx_ < tokens_.size() && curr_token().type != LexerTokenType::EndOfLine) {
+    while (curr_tok_idx_ < tokens_.size() && curr_token().type == LexerTokenType::EndOfLine) {
         skip_token(); 
-    }
-    if (curr_tok_idx_ < tokens_.size()) {
-        skip_token(); // 跳过 EndOfLine
     }
     return nullptr;
 }
