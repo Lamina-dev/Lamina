@@ -96,7 +96,6 @@ void Interpreter::set_global_variable(const std::string& name, const Value& val)
 
 Value Interpreter::execute(const std::unique_ptr<Statement>& node) {
     if (!node) {
-        std::cout << "[Nothing to execute]" << std::endl;
         return LAMINA_NULL;
     }
 
