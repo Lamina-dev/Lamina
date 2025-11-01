@@ -42,7 +42,7 @@ std::vector<Token> Lexer::tokenize(const std::string& src) {
     // Debug: std::cerr << "Starting tokenization of " << src.length() << " characters" << std::endl;
     while (i < src.size()) {
         if (src[i] == '\n') {
-            if ( !tokens.empty() ) {
+            if (!tokens.empty()) {
                 if (tokens.back().type == LexerTokenType::Backslash) {
                     tokens.pop_back();
                 }
@@ -73,8 +73,7 @@ std::vector<Token> Lexer::tokenize(const std::string& src) {
             tokens.emplace_back(LexerTokenType::FatArrow, "=>", line, start_col);
             i += 2;
             col += 2;
-        }
-        else if (src[i] == '-' && i + 1 < src.size() && src[i + 1] == '>') {
+        } else if (src[i] == '-' && i + 1 < src.size() && src[i + 1] == '>') {
             tokens.emplace_back(LexerTokenType::ThinArrow, "->", line, start_col);
             i += 2;
             col += 2;
@@ -132,11 +131,11 @@ std::vector<Token> Lexer::tokenize(const std::string& src) {
             while (j < src.size()) {
                 // 允许数字、单个小数点（仅一次）和下划线（作为分隔符）
                 if (isdigit(src[j])) {
-                    has_underscore = false; // 重置下划线标志
+                    has_underscore = false;// 重置下划线标志
                     ++j;
                 } else if (src[j] == '.' && !has_dot) {
                     has_dot = true;
-                    has_underscore = false; // 重置下划线标志
+                    has_underscore = false;// 重置下划线标志
                     ++j;
                 } else if (src[j] == '_' && !has_underscore && j > i && j + 1 < src.size() && isdigit(src[j + 1])) {
                     has_underscore = true;
@@ -149,15 +148,15 @@ std::vector<Token> Lexer::tokenize(const std::string& src) {
             // 检查科学计数法（e或E）
             if (j < src.size() && (src[j] == 'e' || src[j] == 'E')) {
                 size_t e_pos = j;
-                ++j;    // 跳过'e'或'E'
+                ++j;// 跳过'e'或'E'
 
                 // 检查指数部分的可选正负号
                 if (j < src.size() && (src[j] == '+' || src[j] == '-')) {
-                    ++j;    // 跳过符号
+                    ++j;// 跳过符号
                 }
 
                 // 解析指数部分的数字（允许下划线）
-                has_underscore = false; // 重置下划线标志
+                has_underscore = false;// 重置下划线标志
                 if (j < src.size() && isdigit(src[j])) {
                     while (j < src.size()) {
                         if (isdigit(src[j])) {
@@ -174,7 +173,11 @@ std::vector<Token> Lexer::tokenize(const std::string& src) {
                     // 无效的科学计数法 - 回退到'e'之前的位置
                     j = e_pos;
                 }
+            }//小数末尾.提取（循环小数支持）
+            else if (isdigit(src[j - 1]) && j < src.size() && src[j] == '.') {
+                while (j < src.size() && src[j] == '.') j++;
             }
+
 
             // 提取数字字符串并移除所有下划线
             std::string num_str = src.substr(i, j - i);
@@ -305,9 +308,7 @@ std::vector<Token> Lexer::tokenize(const std::string& src) {
             ++col;
         } else if (src[i] == '}') {
             if (
-                tokens.back().type != LexerTokenType::Semicolon
-                and tokens.back().type != LexerTokenType::Comma
-            ) {
+                    tokens.back().type != LexerTokenType::Semicolon and tokens.back().type != LexerTokenType::Comma) {
                 tokens.emplace_back(LexerTokenType::Semicolon, ";", line, start_col);
             }
             tokens.emplace_back(LexerTokenType::RBrace, "}", line, start_col);
@@ -338,13 +339,12 @@ std::vector<Token> Lexer::tokenize(const std::string& src) {
                 ++i;
                 ++col;
                 tokens.emplace_back(LexerTokenType::TripleDot, "...", line, start_col);
-            }
-            else {
+            } else {
                 tokens.emplace_back(LexerTokenType::Dot, ".", line, start_col);
             }
         } else {
             // tokens.emplace_back(LexerTokenType::Unknown, std::string(1, src[i]), line, start_col);
-            throw StdLibException("Unknown token '"+std::string(1, src[i]) + "'");
+            throw StdLibException("Unknown token '" + std::string(1, src[i]) + "'");
             // ++i;
             // ++col;
         }

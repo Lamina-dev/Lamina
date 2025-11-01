@@ -1,10 +1,10 @@
+#include "../extensions/standard/cas.hpp"
+#include "../extensions/standard/lmStruct.hpp"
 #include "interpreter.hpp"
 #include "lamina_api/lamina.hpp"
-#include "../extensions/standard/lmStruct.hpp"
-#include "../extensions/standard/cas.hpp"
 #include "lamina_api/symbolic.hpp"
-#include <optional>
 #include <iostream>
+#include <optional>
 
 enum VALUE_TYPE : int {
     VALUE_IS_STRING = 1,
@@ -19,251 +19,245 @@ enum VALUE_TYPE : int {
     VALUE_IS_NOTSURE = 0
 };
 
-static std::shared_ptr<SymbolicExpr> GET_SYMBOLICEXPR(const Value *val, enum VALUE_TYPE type);
-static int GET_VALUE_TYPE(const Value *val);
-static Value HANDLE_BINARYEXPR_ADD(Value *l, Value *r);
-static Value HANDLE_BINARYEXPR_STR_ADD_STR(Value *l, Value *r);
+static std::shared_ptr<SymbolicExpr> GET_SYMBOLICEXPR(const Value* val, enum VALUE_TYPE type);
+static int GET_VALUE_TYPE(const Value* val);
+static Value HANDLE_BINARYEXPR_ADD(Value* l, Value* r);
+static Value HANDLE_BINARYEXPR_STR_ADD_STR(Value* l, Value* r);
 
-std::shared_ptr<SymbolicExpr> GET_SYMBOLICEXPR(const Value *val, int type)
-    {
-        switch (type & (~int(VALUE_IS_NUMERIC))) {
-            case VALUE_IS_SYMBOLIC:
-                return std::get<std::shared_ptr<SymbolicExpr>>(val->data);
-            case VALUE_IS_IRRATIONAL:
-                return std::get<::Irrational>(val->data).to_symbolic();
-            case VALUE_IS_RATIONAL:
-                return SymbolicExpr::number(std::get<::Rational>(val->data));
-            case VALUE_IS_BIGINT:
-                return SymbolicExpr::number(std::get<::BigInt>(val->data));
-            case VALUE_IS_INT:
-                return SymbolicExpr::number(std::get<int>(val->data));
-            case VALUE_IS_FLOAT:
-                return SymbolicExpr::number(::Rational::from_double(std::get<double>(val->data)));
-            default:
-                return SymbolicExpr::number(0);
-        }
+std::shared_ptr<SymbolicExpr> GET_SYMBOLICEXPR(const Value* val, int type) {
+    switch (type & (~int(VALUE_IS_NUMERIC))) {
+        case VALUE_IS_SYMBOLIC:
+            return std::get<std::shared_ptr<SymbolicExpr>>(val->data);
+        case VALUE_IS_IRRATIONAL:
+            return std::get<::Irrational>(val->data).to_symbolic();
+        case VALUE_IS_RATIONAL:
+            return SymbolicExpr::number(std::get<::Rational>(val->data));
+        case VALUE_IS_BIGINT:
+            return SymbolicExpr::number(std::get<::BigInt>(val->data));
+        case VALUE_IS_INT:
+            return SymbolicExpr::number(std::get<int>(val->data));
+        case VALUE_IS_FLOAT:
+            return SymbolicExpr::number(::Rational::from_double(std::get<double>(val->data)));
+        default:
+            return SymbolicExpr::number(0);
     }
+}
 
-int GET_VALUE_TYPE(const Value *val)
-    {
-        if (val->is_string())
-            return VALUE_IS_STRING;
-        if (val->is_array())
-            return VALUE_IS_ARRAY;
-        if (val->is_irrational())
-            return VALUE_IS_IRRATIONAL | VALUE_IS_NUMERIC;
-        if (val->is_rational())
-            return VALUE_IS_RATIONAL | VALUE_IS_NUMERIC;
-        if (val->is_symbolic())
-            return VALUE_IS_SYMBOLIC | VALUE_IS_NUMERIC;
-        if (val->is_bigint())
-            return VALUE_IS_BIGINT | VALUE_IS_NUMERIC;
-        if (val->is_int())
-            return VALUE_IS_INT | VALUE_IS_NUMERIC;
-        if (val->is_float())
-            return VALUE_IS_FLOAT | VALUE_IS_NUMERIC;
-		if (val->is_numeric())
-            return VALUE_IS_NUMERIC;	// Quite strange. Why do we need this?
-        return VALUE_IS_NOTSURE;
-    }
+int GET_VALUE_TYPE(const Value* val) {
+    if (val->is_string())
+        return VALUE_IS_STRING;
+    if (val->is_array())
+        return VALUE_IS_ARRAY;
+    if (val->is_irrational())
+        return VALUE_IS_IRRATIONAL | VALUE_IS_NUMERIC;
+    if (val->is_rational())
+        return VALUE_IS_RATIONAL | VALUE_IS_NUMERIC;
+    if (val->is_symbolic())
+        return VALUE_IS_SYMBOLIC | VALUE_IS_NUMERIC;
+    if (val->is_bigint())
+        return VALUE_IS_BIGINT | VALUE_IS_NUMERIC;
+    if (val->is_int())
+        return VALUE_IS_INT | VALUE_IS_NUMERIC;
+    if (val->is_float())
+        return VALUE_IS_FLOAT | VALUE_IS_NUMERIC;
+    if (val->is_numeric())
+        return VALUE_IS_NUMERIC;// Quite strange. Why do we need this?
+    return VALUE_IS_NOTSURE;
+}
 
-Value HANDLE_BINARYEXPR_ADD(Value *l, Value *r)
-    {
-        auto ltype = GET_VALUE_TYPE(l);
-        auto rtype = GET_VALUE_TYPE(r);
-        if (ltype & VALUE_IS_STRING && rtype & VALUE_IS_STRING) {
-            return HANDLE_BINARYEXPR_STR_ADD_STR(l, r);
-        } else if (ltype & VALUE_IS_STRING || rtype & VALUE_IS_STRING) {
-            return Value(l->to_string() + r->to_string());
-        } else if (ltype & VALUE_IS_ARRAY && rtype & VALUE_IS_ARRAY) {
-            // Vector addition
-            return l->vector_add(r);
+Value HANDLE_BINARYEXPR_ADD(Value* l, Value* r) {
+    auto ltype = GET_VALUE_TYPE(l);
+    auto rtype = GET_VALUE_TYPE(r);
+    if (ltype & VALUE_IS_STRING && rtype & VALUE_IS_STRING) {
+        return HANDLE_BINARYEXPR_STR_ADD_STR(l, r);
+    } else if (ltype & VALUE_IS_STRING || rtype & VALUE_IS_STRING) {
+        return Value(l->to_string() + r->to_string());
+    } else if (ltype & VALUE_IS_ARRAY && rtype & VALUE_IS_ARRAY) {
+        // Vector addition
+        return l->vector_add(r);
         // 只要有一方是 Irrational 或 Symbolic，优先生成符号表达式
-        } else if (((ltype & VALUE_IS_IRRATIONAL)
-                    || (ltype & VALUE_IS_SYMBOLIC)
-                    || (rtype & VALUE_IS_IRRATIONAL)
-                    || (rtype & VALUE_IS_SYMBOLIC))
-                && (ltype & VALUE_IS_NUMERIC)
-                && (rtype & VALUE_IS_NUMERIC)) {
-            std::shared_ptr<SymbolicExpr> leftExpr = GET_SYMBOLICEXPR(l, ltype);
-            std::shared_ptr<SymbolicExpr> rightExpr = GET_SYMBOLICEXPR(r, rtype);
-            return Value(SymbolicExpr::add(leftExpr, rightExpr)->simplify());
-        } else if (ltype & VALUE_IS_NUMERIC && rtype & VALUE_IS_NUMERIC) {
-            // BigInt 优先：如果任一为 BigInt，结果为 BigInt
-            if (l->is_bigint() || r->is_bigint()) {
-                ::BigInt lb = l->is_bigint() ? std::get<::BigInt>(l->data) : ::BigInt(l->as_number());
-                ::BigInt rb = r->is_bigint() ? std::get<::BigInt>(r->data) : ::BigInt(r->as_number());
-                return Value(lb + rb);
-            }
-            // If either operand is rational, use rational arithmetic
-            if (l->is_rational() || r->is_rational()) {
-                ::Rational result = l->as_rational() + r->as_rational();
-                return Value(result);
-            }
-
-            double result = l->as_number() + r->as_number();// Return int if both operands are int and result is the whole
-            if (l->is_int() && r->is_int()) {
-                // check overflow and underflow
-                if (static_cast<int>(result) == INT_MAX ||
-                    static_cast<int>(result) == INT_MIN) {
-                    return Value(BigInt(l->as_number()) + BigInt(r->as_number()));
-                }
-                return Value(static_cast<int>(result));
-            }
-            return Value(result);
-        } else {
-            L_ERR("Cannot add " + l->to_string() + " and " + r->to_string());
+    } else if (((ltype & VALUE_IS_IRRATIONAL) || (ltype & VALUE_IS_SYMBOLIC) || (rtype & VALUE_IS_IRRATIONAL) || (rtype & VALUE_IS_SYMBOLIC)) && (ltype & VALUE_IS_NUMERIC) && (rtype & VALUE_IS_NUMERIC)) {
+        std::shared_ptr<SymbolicExpr> leftExpr = GET_SYMBOLICEXPR(l, ltype);
+        std::shared_ptr<SymbolicExpr> rightExpr = GET_SYMBOLICEXPR(r, rtype);
+        return Value(SymbolicExpr::add(leftExpr, rightExpr)->simplify());
+    } else if (ltype & VALUE_IS_NUMERIC && rtype & VALUE_IS_NUMERIC) {
+        // BigInt 优先：如果任一为 BigInt，结果为 BigInt
+        if (l->is_bigint() || r->is_bigint()) {
+            ::BigInt lb = l->is_bigint() ? std::get<::BigInt>(l->data) : ::BigInt(l->as_number());
+            ::BigInt rb = r->is_bigint() ? std::get<::BigInt>(r->data) : ::BigInt(r->as_number());
+            return Value(lb + rb);
         }
+        // If either operand is rational, use rational arithmetic
+        if (l->is_rational() || r->is_rational()) {
+            ::Rational result = l->as_rational() + r->as_rational();
+            return Value(result);
+        }
+
+        double result = l->as_number() + r->as_number();// Return int if both operands are int and result is the whole
+        if (l->is_int() && r->is_int()) {
+            // check overflow and underflow
+            if (static_cast<int>(result) == INT_MAX ||
+                static_cast<int>(result) == INT_MIN) {
+                return Value(BigInt(l->as_number()) + BigInt(r->as_number()));
+            }
+            return Value(static_cast<int>(result));
+        }
+        return Value(result);
+    } else {
+        L_ERR("Cannot add " + l->to_string() + " and " + r->to_string());
     }
+}
 
-Value HANDLE_BINARYEXPR_STR_ADD_STR(Value *l, Value *r)
-    {
-        std::string ls = l->to_string();
-        std::string rs = r->to_string();
-        try {
-            // Try to parse both strings as CAS expressions and combine them symbolically
-            LaminaCAS::Parser pl(ls);
-            auto e1 = pl.parse();
-            LaminaCAS::Parser pr(rs);
-            auto e2 = pr.parse();
-            // attempt structural merge: if e1 and e2 are Multiply(Number, Variable) or vice versa,
-            // then combine coefficients
-            auto try_extract_coeff_var = [](const LaminaCAS::Expr* ex) -> std::optional<std::pair<double, std::string>> {
-                // Multiply(Number, Variable)
-                if (auto mul = dynamic_cast<const LaminaCAS::Multiply*>(ex)) {
-                    const LaminaCAS::Expr* left = mul->clone().release();
-                    const LaminaCAS::Expr* right = nullptr; // will be set below
-                                                            // We can't easily access internals (unique_ptr ownership), so inspect via toString heuristic
-                    std::string s = mul->toString();
-                    // fallback to string parsing
-                    // very simple: look for pattern like "<num> * <var>"
-                    size_t star = s.find('*');
-                    if (star != std::string::npos) {
-                        std::string a = s.substr(0, star);
-                        std::string b = s.substr(star+1);
-                        auto trim = [](std::string &str) {
-                            while (!str.empty() && std::isspace((unsigned char)str.front())) str.erase(str.begin());
-                            while (!str.empty() && std::isspace((unsigned char)str.back())) str.pop_back();
-                        };
-                        trim(a); trim(b);
-                        try {
-                            double va = std::stod(a);
-                            // b is var
-                            return std::make_pair(va, b);
-                        } catch (...) {}
-                        try {
-                            double vb = std::stod(b);
-                            return std::make_pair(vb, a);
-                        } catch (...) {}
-                    }
+Value HANDLE_BINARYEXPR_STR_ADD_STR(Value* l, Value* r) {
+    std::string ls = l->to_string();
+    std::string rs = r->to_string();
+    try {
+        // Try to parse both strings as CAS expressions and combine them symbolically
+        LaminaCAS::Parser pl(ls);
+        auto e1 = pl.parse();
+        LaminaCAS::Parser pr(rs);
+        auto e2 = pr.parse();
+        // attempt structural merge: if e1 and e2 are Multiply(Number, Variable) or vice versa,
+        // then combine coefficients
+        auto try_extract_coeff_var = [](const LaminaCAS::Expr* ex) -> std::optional<std::pair<double, std::string>> {
+            // Multiply(Number, Variable)
+            if (auto mul = dynamic_cast<const LaminaCAS::Multiply*>(ex)) {
+                const LaminaCAS::Expr* left = mul->clone().release();
+                const LaminaCAS::Expr* right = nullptr;// will be set below
+                                                       // We can't easily access internals (unique_ptr ownership), so inspect via toString heuristic
+                std::string s = mul->toString();
+                // fallback to string parsing
+                // very simple: look for pattern like "<num> * <var>"
+                size_t star = s.find('*');
+                if (star != std::string::npos) {
+                    std::string a = s.substr(0, star);
+                    std::string b = s.substr(star + 1);
+                    auto trim = [](std::string& str) {
+                        while (!str.empty() && std::isspace((unsigned char) str.front())) str.erase(str.begin());
+                        while (!str.empty() && std::isspace((unsigned char) str.back())) str.pop_back();
+                    };
+                    trim(a);
+                    trim(b);
+                    try {
+                        double va = std::stod(a);
+                        // b is var
+                        return std::make_pair(va, b);
+                    } catch (...) {}
+                    try {
+                        double vb = std::stod(b);
+                        return std::make_pair(vb, a);
+                    } catch (...) {}
                 }
-                // Number alone
-                if (auto num = dynamic_cast<const LaminaCAS::Number*>(ex)) {
-                    return std::make_pair(num->getValue(), std::string());
-                }
-                // Variable alone
-                if (auto var = dynamic_cast<const LaminaCAS::Variable*>(ex)) {
-                    return std::make_pair(1.0, var->toString());
-                }
-                return std::nullopt;
+            }
+            // Number alone
+            if (auto num = dynamic_cast<const LaminaCAS::Number*>(ex)) {
+                return std::make_pair(num->getValue(), std::string());
+            }
+            // Variable alone
+            if (auto var = dynamic_cast<const LaminaCAS::Variable*>(ex)) {
+                return std::make_pair(1.0, var->toString());
+            }
+            return std::nullopt;
+        };
+
+        auto e1ptr = e1.get();
+        auto e2ptr = e2.get();
+        auto p1 = try_extract_coeff_var(e1ptr);
+        auto p2 = try_extract_coeff_var(e2ptr);
+        if (p1 && p2 && !p1->second.empty() && p1->second == p2->second) {
+            double sum = p1->first + p2->first;
+            std::string coeff = (std::floor(sum) == sum) ? std::to_string((int) sum) : std::to_string(sum);
+            return Value(std::string("(" + coeff + " * " + p1->second + ")"));
+        }
+
+        auto combined = std::make_unique<LaminaCAS::Add>(std::move(e1), std::move(e2));
+        auto simplified = combined->simplify();
+
+        // Attempt a lightweight combine for simple like-terms of form a*x
+        auto try_parse_coeff_var = [](const std::string& s) -> std::optional<std::pair<double, std::string>> {
+            std::string t = s;
+            // trim
+            auto trim = [](std::string& str) {
+                while (!str.empty() && std::isspace((unsigned char) str.front())) str.erase(str.begin());
+                while (!str.empty() && std::isspace((unsigned char) str.back())) str.pop_back();
             };
+            trim(t);
+            // remove surrounding parentheses
+            if (!t.empty() && t.front() == '(' && t.back() == ')') {
+                t = t.substr(1, t.size() - 2);
+                trim(t);
+            }
+            // find '*'
+            size_t star = t.find('*');
+            if (star == std::string::npos) {
+                // maybe it's just a variable or a number
+                try {
+                    double v = std::stod(t);
+                    return std::make_pair(v, std::string());
+                } catch (...) {
+                    // not a number -> treat as var with coeff 1
+                    if (!t.empty() && std::isalpha((unsigned char) t[0])) return std::make_pair(1.0, t);
+                    return std::nullopt;
+                }
+            }
+            std::string a = t.substr(0, star);
+            std::string b = t.substr(star + 1);
+            trim(a);
+            trim(b);
+            // Try number*var or var*number
+            try {
+                double va = std::stod(a);
+                // b should be variable
+                if (!b.empty() && std::isalpha((unsigned char) b[0])) return std::make_pair(va, b);
+            } catch (...) {}
+            try {
+                double vb = std::stod(b);
+                if (!a.empty() && std::isalpha((unsigned char) a[0])) return std::make_pair(vb, a);
+            } catch (...) {}
+            return std::nullopt;
+        };
 
-            auto e1ptr = e1.get();
-            auto e2ptr = e2.get();
-            auto p1 = try_extract_coeff_var(e1ptr);
-            auto p2 = try_extract_coeff_var(e2ptr);
+        auto lhs = try_parse_coeff_var(simplified->toString());
+        // Also try parsing original operands when combined simplifier didn't flatten
+        if (!lhs) {
+            // fallback: try parse e1 and e2 original strings
+            auto p1 = try_parse_coeff_var(ls);
+            auto p2 = try_parse_coeff_var(rs);
             if (p1 && p2 && !p1->second.empty() && p1->second == p2->second) {
                 double sum = p1->first + p2->first;
-                std::string coeff = (std::floor(sum) == sum) ? std::to_string((int)sum) : std::to_string(sum);
+                // format int if whole
+                std::string coeff;
+                if (std::floor(sum) == sum) coeff = std::to_string((int) sum);
+                else
+                    coeff = std::to_string(sum);
                 return Value(std::string("(" + coeff + " * " + p1->second + ")"));
             }
-
-            auto combined = std::make_unique<LaminaCAS::Add>(std::move(e1), std::move(e2));
-            auto simplified = combined->simplify();
-
-            // Attempt a lightweight combine for simple like-terms of form a*x
-            auto try_parse_coeff_var = [](const std::string &s) -> std::optional<std::pair<double,std::string>> {
-                std::string t = s;
-                // trim
-                auto trim = [](std::string &str) {
-                    while (!str.empty() && std::isspace((unsigned char)str.front())) str.erase(str.begin());
-                    while (!str.empty() && std::isspace((unsigned char)str.back())) str.pop_back();
-                };
-                trim(t);
-                // remove surrounding parentheses
-                if (!t.empty() && t.front() == '(' && t.back() == ')') {
-                    t = t.substr(1, t.size()-2);
-                    trim(t);
-                }
-                // find '*'
-                size_t star = t.find('*');
-                if (star == std::string::npos) {
-                    // maybe it's just a variable or a number
-                    try {
-                        double v = std::stod(t);
-                        return std::make_pair(v, std::string());
-                    } catch (...) {
-                        // not a number -> treat as var with coeff 1
-                        if (!t.empty() && std::isalpha((unsigned char)t[0])) return std::make_pair(1.0, t);
-                        return std::nullopt;
-                    }
-                }
-                std::string a = t.substr(0, star);
-                std::string b = t.substr(star+1);
-                trim(a); trim(b);
-                // Try number*var or var*number
-                try {
-                    double va = std::stod(a);
-                    // b should be variable
-                    if (!b.empty() && std::isalpha((unsigned char)b[0])) return std::make_pair(va, b);
-                } catch (...) {}
-                try {
-                    double vb = std::stod(b);
-                    if (!a.empty() && std::isalpha((unsigned char)a[0])) return std::make_pair(vb, a);
-                } catch (...) {}
-                return std::nullopt;
-            };
-
-            auto lhs = try_parse_coeff_var(simplified->toString());
-            // Also try parsing original operands when combined simplifier didn't flatten
-            if (!lhs) {
-                // fallback: try parse e1 and e2 original strings
-                auto p1 = try_parse_coeff_var(ls);
-                auto p2 = try_parse_coeff_var(rs);
+        } else {
+            // lhs is present, but we need to ensure it is of form a and var
+            // Try to decompose simplified string as a sum
+            std::string sstr = simplified->toString();
+            // if simplified is (a + b) attempt to extract parts
+            size_t plus = sstr.find('+');
+            if (plus != std::string::npos) {
+                // try to parse left and right parts
+                size_t pos = sstr.find('+');
+                std::string leftpart = sstr.substr(0, pos);
+                std::string rightpart = sstr.substr(pos + 1);
+                auto p1 = try_parse_coeff_var(leftpart);
+                auto p2 = try_parse_coeff_var(rightpart);
                 if (p1 && p2 && !p1->second.empty() && p1->second == p2->second) {
                     double sum = p1->first + p2->first;
-                    // format int if whole
-                    std::string coeff;
-                    if (std::floor(sum) == sum) coeff = std::to_string((int)sum);
-                    else coeff = std::to_string(sum);
+                    std::string coeff = (std::floor(sum) == sum) ? std::to_string((int) sum) : std::to_string(sum);
                     return Value(std::string("(" + coeff + " * " + p1->second + ")"));
                 }
-            } else {
-                // lhs is present, but we need to ensure it is of form a and var
-                // Try to decompose simplified string as a sum
-                std::string sstr = simplified->toString();
-                // if simplified is (a + b) attempt to extract parts
-                size_t plus = sstr.find('+');
-                if (plus != std::string::npos) {
-                    // try to parse left and right parts
-                    size_t pos = sstr.find('+');
-                    std::string leftpart = sstr.substr(0,pos);
-                    std::string rightpart = sstr.substr(pos+1);
-                    auto p1 = try_parse_coeff_var(leftpart);
-                    auto p2 = try_parse_coeff_var(rightpart);
-                    if (p1 && p2 && !p1->second.empty() && p1->second == p2->second) {
-                        double sum = p1->first + p2->first;
-                        std::string coeff = (std::floor(sum) == sum) ? std::to_string((int)sum) : std::to_string(sum);
-                        return Value(std::string("(" + coeff + " * " + p1->second + ")"));
-                    }
-                }
             }
-
-            return Value(simplified->toString());
-        } catch (...) {
-            // parsing failed for one or both strings; fall back to normal concatenation
         }
+
+        return Value(simplified->toString());
+    } catch (...) {
+        // parsing failed for one or both strings; fall back to normal concatenation
     }
+}
 
 Value Interpreter::eval_LiteralExpr(const LiteralExpr* node) {
     if (node->type == Value::Type::Int) {
@@ -321,12 +315,10 @@ Value Interpreter::eval_CallExpr(const CallExpr* call) {
                 return LAMINA_NULL;
             }
             left = res->value;
-        }
-        else {
+        } else {
             L_ERR("Type of left can't get it member");
         }
-    }
-    else {
+    } else {
         left = eval(call->callee.get());
     }
     if (!left.is_lambda() and !left.is_lmCppFunction()) {
@@ -341,8 +333,7 @@ Value Interpreter::eval_CallExpr(const CallExpr* call) {
 
         // get arguments
         if (call->args.size() != func->params.size()) {
-            std::cerr << "function " << func->name << " required " <<
-                func->params.size() << " , got "  << call->args.size() << std::endl;
+            std::cerr << "function " << func->name << " required " << func->params.size() << " , got " << call->args.size() << std::endl;
             return {};
         }
         // User function
@@ -355,8 +346,9 @@ Value Interpreter::eval_CallExpr(const CallExpr* call) {
         Value result;
         std::shared_ptr<LmCppFunction> func;
         func = std::get<std::shared_ptr<LmCppFunction>>(left.data);
-        try { result = func->function(args); }
-        catch (...) {
+        try {
+            result = func->function(args);
+        } catch (...) {
             pop_frame();
             throw;
         }
@@ -369,19 +361,19 @@ Value Interpreter::eval_CallExpr(const CallExpr* call) {
 }
 
 Value Interpreter::call_function(const LambdaDeclExpr* func, const std::vector<Value>& args, Value self) {
-    if (func == nullptr ) {
+    if (func == nullptr) {
         std::cerr << "Error: Function at '" << func << "' is null" << std::endl;
         return Value("<func error>");
     }
 
-    Interpreter::push_frame(func->name, "<script>", 0);   // Add to call stack
+    Interpreter::push_frame(func->name, "<script>", 0);// Add to call stack
 
     Interpreter::push_scope();// Create scope here
     // Pass arguments
     for (size_t j = 0; j < func->params.size(); ++j) {
         set_variable(func->params[j], args[j]);
     }
-    if (!self.is_null()){
+    if (!self.is_null()) {
         set_variable("self", self);
     }
     // Execute function body, capture return
@@ -400,7 +392,7 @@ Value Interpreter::call_function(const LambdaDeclExpr* func, const std::vector<V
                 if (re.stack_trace.empty()) {
                     enriched.stack_trace = get_stack_trace();
                 } else {
-                    enriched.stack_trace = re.stack_trace;  // Preserve existing trace
+                    enriched.stack_trace = re.stack_trace;// Preserve existing trace
                 }
                 Interpreter::pop_frame();
                 Interpreter::pop_scope();
@@ -408,7 +400,7 @@ Value Interpreter::call_function(const LambdaDeclExpr* func, const std::vector<V
             } catch (const std::exception& e) {
                 // Wrap standard exception as RuntimeError
                 RuntimeError enriched("In function '" + func->name + "': " + std::string(e.what()));
-                enriched.stack_trace = get_stack_trace();   // Get stack trace before cleanup
+                enriched.stack_trace = get_stack_trace();// Get stack trace before cleanup
                 Interpreter::pop_frame();
                 Interpreter::pop_scope();
                 throw enriched;
@@ -422,7 +414,7 @@ Value Interpreter::call_function(const LambdaDeclExpr* func, const std::vector<V
     }
     Interpreter::pop_frame();
     Interpreter::pop_scope();
-    return Value(); // Default value when no return
+    return Value();// Default value when no return
 }
 
 Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
@@ -625,7 +617,7 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 }
             }
             // If either operand is irrational, use irrational arithmetic
-			// TODO:这部分代码存在问题
+            // TODO:这部分代码存在问题
             if (l.is_irrational() || r.is_irrational()) {
                 ::Irrational lr = l.as_irrational();
                 ::Irrational rr = r.as_irrational();
@@ -651,7 +643,7 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 if (rd == 0.0) {
                     L_ERR("Modulo by zero");
                 }
-                return Value(ld - rd * std::floor(ld / rd));    // 保持结果非负
+                return Value(ld - rd * std::floor(ld / rd));// 保持结果非负
             }
             if (l.is_bigint() || r.is_bigint()) {
                 // 有BigInt，使用BigInt内置方法
@@ -690,20 +682,22 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                 // 如果底数为整数，指数为整数，结果为BigInt
                 ::BigInt lb = l.is_bigint() ? std::get<::BigInt>(l.data) : ::BigInt(l.as_number());
                 ::BigInt rb = r.is_bigint() ? std::get<::BigInt>(r.data) : ::BigInt(r.as_number());
-				if (rb < ::BigInt(0)) {
-					return Value(l.as_rational().reciprocal().power(::BigInt(0) - rb));
-				} else {
-					return Value(lb.power(rb));
-				}
+                if (rb < ::BigInt(0)) {
+                    return Value(l.as_rational().reciprocal().power(::BigInt(0) - rb));
+                } else {
+                    return Value(lb.power(rb));
+                }
             }
-			if ((l.is_int() || l.is_bigint() || l.is_rational()) && r.is_rational()) {
-				// 底数和指数均为Rational，考虑符号表达式
-				::Rational lb;
-				if (l.is_int()) lb = ::Rational(l.as_number());
-				else if (l.is_bigint()) lb = ::Rational(std::get<::BigInt>(l.data));
-				else lb = std::get<::Rational>(l.data);
-				return Value(SymbolicExpr::power(SymbolicExpr::number(lb), SymbolicExpr::number(std::get<::Rational>(r.data)))->simplify());
-			}
+            if ((l.is_int() || l.is_bigint() || l.is_rational()) && r.is_rational()) {
+                // 底数和指数均为Rational，考虑符号表达式
+                ::Rational lb;
+                if (l.is_int()) lb = ::Rational(l.as_number());
+                else if (l.is_bigint())
+                    lb = ::Rational(std::get<::BigInt>(l.data));
+                else
+                    lb = std::get<::Rational>(l.data);
+                return Value(SymbolicExpr::power(SymbolicExpr::number(lb), SymbolicExpr::number(std::get<::Rational>(r.data)))->simplify());
+            }
             // 有小数，采用小数幂
             double ld = l.as_number();
             double rd = r.as_number();
@@ -803,8 +797,8 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
             return Value(false);
         } else {
             // Type mismatch - only equality/inequality make sense
-            if (bin->op == "==") return Value(false);   // Different types are never equal
-            if (bin->op == "!=") return Value(true);    // Different types are always not equal
+            if (bin->op == "==") return Value(false);// Different types are never equal
+            if (bin->op == "!=") return Value(true); // Different types are always not equal
 
             L_ERR("Cannot compare different types with operator '" + bin->op + "'");
             return Value();
@@ -819,7 +813,7 @@ Value Interpreter::eval_UnaryExpr(const UnaryExpr* unary) {
     Value v = eval(unary->operand.get());
 
     if (unary->op == "-") {
-        if (v.type != Value::Type::Int && v.type != Value::Type::BigInt && v.type != Value::Type::Float) {
+        if (v.type != Value::Type::Int && v.type != Value::Type::BigInt && v.type != Value::Type::Float && v.type != Value::Type::Rational) {
             RuntimeError error("Unary operator '-' requires integer, float or big integer operand");
             error.stack_trace = get_stack_trace();
             throw error;
@@ -831,6 +825,10 @@ Value Interpreter::eval_UnaryExpr(const UnaryExpr* unary) {
         if (v.type == Value::Type::Float) {
             float vf = std::get<double>(v.data);
             return Value(-vf);
+        }
+        if (v.type == Value::Type::Rational) {
+            Rational vr = std::get<Rational>(v.data);
+            return Value(-vr);
         }
         // For BigInt, negate directly
         ::BigInt big_val = std::get<::BigInt>(v.data);

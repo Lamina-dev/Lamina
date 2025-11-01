@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+//#include "../BigNumCore/src/BigInt.cpp"
 
 class BigInt {
 public:
@@ -462,6 +463,12 @@ public:
         *this = *this - other;
     }
 
+    inline BigInt operator-() const {
+        BigInt t = *this;
+        t.negative = !t.negative;
+        return t;
+    }
+
     //此函数并无优化功能，只是编写充数
     inline void operator*=(const BigInt& other) {
         *this = *this * other;
@@ -587,4 +594,10 @@ public:
 
         return negative ? -result : result;
     }
+
+    inline operator bool() const { return !is_zero(); }
+    inline bool IsNegative() const { return negative; }
+    inline std::string ToString() const{ return to_string(); }
+    inline BigInt Abs() const{ return abs(); }
+
 };

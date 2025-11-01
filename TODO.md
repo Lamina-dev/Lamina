@@ -86,12 +86,13 @@
      📍 该更新能解决到大部分有理数和无理数的精度问题
 
 
-- [ ] ⚠️ 分数转小数
+- [x] ⚠️ 分数转小数（已完成）<br>
 
      用户要从有理数转到安全小数，
 
      需要设置小数位数(以防止无限循环小数和不循环小数）
 
+     备注：已添加有理数函数用于转化成小数字符串
 
 - [ ] ⚠️ LmComplex（未完成）<br>
      备注：复数类型
@@ -103,9 +104,9 @@
 
      无具体引用，欢迎后人补充，文件位置
 
-     底层模板类：`interpreter/base_list.hpp`
+     底层模板类：`interpreter/lamina_api/base_list.hpp`
 
-     继承套用：`interpreter/list.hpp`
+     继承套用：`interpreter/lamina_api/list.hpp`
 
 ## 其他
 - [ ] ⚠️ 添加检查循环导入的功能（未完成）<br>

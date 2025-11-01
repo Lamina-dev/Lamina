@@ -26,6 +26,7 @@ bigint big_var_name = expression;
 
 ```lamina
 var pi = 3.1415; // 声明浮点数变量pi
+var cycle = 13.14545...; // 声明循环小数变量（自动变为分数）
 var score = 95; // 声明整数变量score
 var half = 1/2; // 声明有理数变量half（自动以分数形式存储）
 bigint fact_25 = 25!; // 声明大整数变量，存储25的阶乘
