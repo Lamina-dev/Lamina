@@ -1,5 +1,63 @@
 #include "symbolic.hpp"
+// 局部调试开关（仅影响本文件的调试输出）
+namespace {
+	// 当需要大量调试信息时，可在编译时或者运行时修改此值
+	static bool SYMBOLIC_DEBUG = false;
+}
 
+// 表达式结构等价比较（尽量保守）：
+// - 数字使用有理数比较
+// - 变量按名字比较
+// - 幂、根、加、乘等以结构递归比较（对乘法/加法采用字符串回退以避免复杂置换）
+static bool symbolic_equal(const std::shared_ptr<SymbolicExpr>& a, const std::shared_ptr<SymbolicExpr>& b) {
+	if (a == b) return true;
+	if (!a || !b) return false;
+	if (a->type != b->type) return false;
+	switch (a->type) {
+		case SymbolicExpr::Type::Number:
+			return a->convert_rational() == b->convert_rational();
+		case SymbolicExpr::Type::Variable:
+			return a->identifier == b->identifier;
+		case SymbolicExpr::Type::Sqrt:
+			if (a->operands.empty() || b->operands.empty()) return false;
+			return symbolic_equal(a->operands[0], b->operands[0]);
+		case SymbolicExpr::Type::Power:
+			if (a->operands.size() < 2 || b->operands.size() < 2) return false;
+			return symbolic_equal(a->operands[0], b->operands[0]) && symbolic_equal(a->operands[1], b->operands[1]);
+		case SymbolicExpr::Type::Multiply:
+		case SymbolicExpr::Type::Add: {
+			// 支持交换律：把同类项扁平化为项列表，比较多重集合（顺序无关）
+			std::function<void(const std::shared_ptr<SymbolicExpr>&, std::vector<std::shared_ptr<SymbolicExpr>> &)> collect;
+			collect = [&](const std::shared_ptr<SymbolicExpr>& obj, std::vector<std::shared_ptr<SymbolicExpr>> &out) {
+				if (!obj) return;
+				if (obj->type == a->type && obj->operands.size() == 2) {
+					collect(obj->operands[0], out);
+					collect(obj->operands[1], out);
+				} else {
+					out.push_back(obj->simplify());
+				}
+			};
+			std::vector<std::shared_ptr<SymbolicExpr>> la, lb;
+			collect(a, la);
+			collect(b, lb);
+			if (la.size() != lb.size()) return false;
+			std::vector<char> used(lb.size(), 0);
+			for (size_t i = 0; i < la.size(); ++i) {
+				bool matched = false;
+				for (size_t j = 0; j < lb.size(); ++j) {
+					if (used[j]) continue;
+					if (symbolic_equal(la[i], lb[j])) { used[j] = 1; matched = true; break; }
+				}
+				if (!matched) return false;
+			}
+			return true;
+		}
+		case SymbolicExpr::Type::Infinity:
+			return a->number_value == b->number_value;
+		default:
+			return a->to_string() == b->to_string();
+	}
+}
 
 // 符号表达式的化简实现
 std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify() const {
@@ -106,19 +164,25 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_sqrt() const {
             if (bi.is_perfect_square()) return SymbolicExpr::number(bi.sqrt());
 			// TODO: Debug output:
 			//err_stream << "[Debug output] bigint simplifier\n";
-            // TODO: 这个等BigInt效率高点再说，或者换个算法
-            /*BigInt factor(1), remaining(bi);
-            for (BigInt i(2); i * i <= remaining; i = i + BigInt(1)) {
-                while ((remaining % (i * i)).is_zero()) {
-                    factor = factor * i;
-                    remaining = remaining / (i * i);
-                }
-            }
-            if (factor > BigInt(1)) {
-                if (remaining == BigInt(1)) return SymbolicExpr::number(factor);
-                else return SymbolicExpr::multiply(SymbolicExpr::number(factor), SymbolicExpr::sqrt(SymbolicExpr::number(remaining)));
-            }*/
-            // 暂时只判断可以转成int的
+			// 尝试对大整数进行轻量级的平方因子提取：仅用一组小素数的平方因子来加速常见情形
+			// 这是保守的优化，若无法提取不会改变原行为
+			{
+				BigInt factor(1), remaining(bi);
+				const int small_primes[] = {2,3,5,7,11,13,17,19,23,29};
+				for (int p : small_primes) {
+					BigInt bp(p);
+					BigInt psq = bp * bp;
+					while ((remaining % psq).is_zero()) {
+						factor = factor * bp;
+						remaining = remaining / psq;
+					}
+				}
+				if (factor > BigInt(1)) {
+					if (remaining == BigInt(1)) return SymbolicExpr::number(factor);
+					else return SymbolicExpr::multiply(SymbolicExpr::number(factor), SymbolicExpr::sqrt(SymbolicExpr::number(remaining)));
+				}
+			}
+			// 暂时只判断可以转成int的
             if (in_simplify_range(bi)) {
                 return SymbolicExpr::sqrt(SymbolicExpr::number(bi.to_int()))->simplify();
             }
@@ -222,11 +286,24 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
     
     auto left = operands[0]->simplify();
     auto right = operands[1]->simplify();
-	
+    
+	// 检测未定式（例如 Inf * 0）并保留原始表达式以避免错误化简
+	auto is_zero = [](const std::shared_ptr<SymbolicExpr>& e)->bool {
+		return e->is_number() && e->convert_rational() == ::Rational(0);
+	};
+	auto is_infty = [](const std::shared_ptr<SymbolicExpr>& e)->bool {
+		return e->type == SymbolicExpr::Type::Infinity;
+	};
+
+	if ((is_infty(left) && is_zero(right)) || (is_infty(right) && is_zero(left))) {
+		// indeterminate form: leave as multiply(base, exponent)
+		return SymbolicExpr::multiply(left, right);
+	}
+
 	// TODO: 理论上为未定式
 	if (left->type == SymbolicExpr::Type::Number && left->convert_rational() == ::Rational(0)) return left;
 	if (right->type == SymbolicExpr::Type::Number && right->convert_rational() == ::Rational(0)) return right;
-	
+    
 	if (left->type == SymbolicExpr::Type::Infinity) return left;
 	if (right->type == SymbolicExpr::Type::Infinity) return right;
 	
@@ -234,7 +311,167 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 	err_stream << "[Debug output] Init: Processing l:" << left->to_string() << ", r:" << right->to_string() << std::endl;
 	
 	// TODO: 1 或 -1 乘以某个内容，直接返回另一边
-	// TODO: 加快运算速度，数字和 Multiply 相乘时，直接处理 Multiply 内的数字，不进入指数环节
+	// 加快运算速度：先把乘法扁平化并收集数值系数，减少不必要的树构造与递归
+	// 收集策略：把所有乘法因子展开，合并数值因子为一个系数，保留其它非数值因子到列表
+
+	// Helper: collect factors and multiply numeric coefficient
+	std::vector<std::shared_ptr<SymbolicExpr>> factors;
+    ::Rational collected_coeff = ::Rational(1);
+    std::function<void(const std::shared_ptr<SymbolicExpr>&)> collect_factors;
+    collect_factors = [&](const std::shared_ptr<SymbolicExpr>& node) {
+        if (!node) return;
+        if (node->is_number()) {
+            collected_coeff = collected_coeff * node->convert_rational();
+            return;
+        }
+        if (node->type == SymbolicExpr::Type::Multiply && node->operands.size() == 2) {
+            collect_factors(node->operands[0]);
+            collect_factors(node->operands[1]);
+            return;
+        }
+        factors.push_back(node);
+    };
+
+    collect_factors(left);
+    collect_factors(right);
+
+    // Shortcut: if coeff is zero
+    if (collected_coeff == ::Rational(0)) return SymbolicExpr::number(0);
+
+    // If no non-number factors, just return coefficient
+    if (factors.empty()) return SymbolicExpr::number(collected_coeff);
+
+    // Place coeff as first factor when not 1
+    if (collected_coeff == ::Rational(1)) {
+        // nothing
+    } else if (collected_coeff == ::Rational(-1)) {
+        factors.insert(factors.begin(), SymbolicExpr::number(::Rational(-1)));
+    } else {
+        factors.insert(factors.begin(), SymbolicExpr::number(collected_coeff));
+    }
+
+    // Fast-path for 1 and -1
+    auto is_one = [](const std::shared_ptr<SymbolicExpr>& x)->bool { return x->is_number() && x->convert_rational() == ::Rational(1); };
+    auto is_minus_one = [](const std::shared_ptr<SymbolicExpr>& x)->bool { return x->is_number() && x->convert_rational() == ::Rational(-1); };
+    if (factors.size() == 1) {
+        if (is_one(factors[0])) return SymbolicExpr::number(1);
+        if (is_minus_one(factors[0])) return SymbolicExpr::number(-1);
+    }
+
+    // Attempt simple pairwise power merges among factors when bases are provably equal
+    auto try_merge_pair = [&](size_t i, size_t j) -> bool {
+        auto L = factors[i];
+        auto R = factors[j];
+        std::shared_ptr<SymbolicExpr> base_l, base_r, exp_l, exp_r;
+        auto extract_coeff_power = [&](const std::shared_ptr<SymbolicExpr>& expr,
+                                       std::shared_ptr<SymbolicExpr> &out_base,
+                                       std::shared_ptr<SymbolicExpr> &out_exp) -> bool {
+            if (!expr) return false;
+            if (expr->type == SymbolicExpr::Type::Power && expr->operands.size() == 2) {
+                out_base = expr->operands[0];
+                out_exp = expr->operands[1];
+                return true;
+            }
+            if (expr->type == SymbolicExpr::Type::Variable) {
+                out_base = expr;
+                out_exp = SymbolicExpr::number(::Rational(1));
+                return true;
+            }
+            return false;
+        };
+        if (!extract_coeff_power(L, base_l, exp_l) || !extract_coeff_power(R, base_r, exp_r)) return false;
+        if (!symbolic_equal(base_l, base_r)) return false;
+        if (exp_l->is_number() && exp_r->is_number()) {
+            auto sum = exp_l->convert_rational() + exp_r->convert_rational();
+            factors[i] = SymbolicExpr::power(base_l, SymbolicExpr::number(sum))->simplify();
+            factors.erase(factors.begin() + j);
+            return true;
+        }
+        return false;
+    };
+
+    for (size_t i = 0; i < factors.size(); ++i) {
+        for (size_t j = i + 1; j < factors.size();) {
+            if (try_merge_pair(i, j)) {
+                // merged, do not increment j to re-evaluate new factors[i]
+            } else ++j;
+        }
+    }
+
+    // Rebuild minimal multiply tree from factors
+    std::shared_ptr<SymbolicExpr> acc = factors.front();
+    for (size_t k = 1; k < factors.size(); ++k) acc = SymbolicExpr::multiply(acc, factors[k]);
+    return acc->simplify();
+
+	{
+		::Rational c1, c2;
+		std::shared_ptr<SymbolicExpr> b1, b2, e1, e2;
+		if (extract_coeff_power(left, c1, b1, e1) && extract_coeff_power(right, c2, b2, e2)) {
+			if (b1 && b2 && symbolic_equal(b1, b2)) {
+				// coefficients multiplied, exponents added
+				auto new_coeff = c1 * c2;
+				// if exponents are numbers, add them as rationals
+				if (e1->is_number() && e2->is_number()) {
+					auto sum = e1->convert_rational() + e2->convert_rational();
+					auto res = SymbolicExpr::multiply(SymbolicExpr::number(new_coeff), SymbolicExpr::power(b1, SymbolicExpr::number(sum)))->simplify();
+					return res;
+				} else {
+					// fallback to symbolic add of exponents
+					auto res = SymbolicExpr::multiply(SymbolicExpr::number(new_coeff), SymbolicExpr::power(b1, SymbolicExpr::add(e1, e2)))->simplify();
+					return res;
+				}
+			}
+		}
+	}
+
+	// Extra safety: if both are powers with equal bases, merge exponents (handles rational denominators)
+	if (left->type == SymbolicExpr::Type::Power && right->type == SymbolicExpr::Type::Power) {
+		if (symbolic_equal(left->operands[0], right->operands[0])) {
+			// compute exponent sum conservatively
+			auto aexp = left->operands[1]->simplify();
+			auto bexp = right->operands[1]->simplify();
+			if (aexp->is_number() && bexp->is_number()) {
+				auto sum = aexp->convert_rational() + bexp->convert_rational();
+				return SymbolicExpr::power(left->operands[0], SymbolicExpr::number(sum))->simplify();
+			}
+			// fallback: try structural add
+			return SymbolicExpr::power(left->operands[0], SymbolicExpr::add(left->operands[1], right->operands[1]))->simplify();
+		}
+	}
+
+	// If both are sqrt of the same operand, sqrt(a)*sqrt(a) = a
+	if (left->type == SymbolicExpr::Type::Sqrt && right->type == SymbolicExpr::Type::Sqrt) {
+		if (left->operands.size() == 1 && right->operands.size() == 1 && symbolic_equal(left->operands[0], right->operands[0])) {
+			return left->operands[0]->simplify();
+		}
+	}
+
+	// Fast exponent/variable merging:
+	// x * x -> x^2
+	if (left->type == SymbolicExpr::Type::Variable && right->type == SymbolicExpr::Type::Variable
+		&& left->identifier == right->identifier) {
+		return SymbolicExpr::power(SymbolicExpr::variable(left->identifier), SymbolicExpr::number(2));
+	}
+	// variable * power(variable, n) -> power(variable, n+1)
+	if (left->type == SymbolicExpr::Type::Variable && right->type == SymbolicExpr::Type::Power) {
+		if (symbolic_equal(right->operands[0], left)) {
+			return SymbolicExpr::power(right->operands[0], SymbolicExpr::add(right->operands[1], SymbolicExpr::number(1)))->simplify();
+		}
+	}
+	if (right->type == SymbolicExpr::Type::Variable && left->type == SymbolicExpr::Type::Power) {
+		if (symbolic_equal(left->operands[0], right)) {
+			return SymbolicExpr::power(left->operands[0], SymbolicExpr::add(left->operands[1], SymbolicExpr::number(1)))->simplify();
+		}
+	}
+	// power(a, m) * power(a, n) -> power(a, m+n) when bases are equal
+	if (left->type == SymbolicExpr::Type::Power && right->type == SymbolicExpr::Type::Power) {
+		if (symbolic_equal(left->operands[0], right->operands[0])) {
+			// prefer rational addition when possible
+			auto aexp = left->operands[1];
+			auto bexp = right->operands[1];
+			return SymbolicExpr::power(left->operands[0], SymbolicExpr::add(aexp, bexp))->simplify();
+		}
+	}
 	auto has_no_multiply_effect = [](const std::shared_ptr<SymbolicExpr>& obj) -> bool {
 		return (obj->is_number() && obj->convert_rational() == ::Rational(1));
 	};
@@ -477,18 +714,10 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
 			auto rcom = power_compatible(right);
 			
 			// TODO: 提升为成员函数，判断相等
+			// 使用文件级别的 conservative 相等比较函数
 			std::function<bool(std::shared_ptr<SymbolicExpr>,std::shared_ptr<SymbolicExpr>)> is_power_equiv;
 			is_power_equiv = [&](std::shared_ptr<SymbolicExpr> a, std::shared_ptr<SymbolicExpr> b) -> bool {
-				if (a->type != b->type) 
-					return false;
-				if (a->type == SymbolicExpr::Type::Number)
-					return a->convert_rational() == b->convert_rational();
-				else if (a->type == SymbolicExpr::Type::Sqrt)
-					return is_power_equiv(a->operands[0], b->operands[0]);
-				else if (a->type == SymbolicExpr::Type::Variable)
-					return a->identifier == b->identifier;
-				else
-					return false;
+				return symbolic_equal(a, b);
 			};
 			
 			// TODO: Debug output:
@@ -840,38 +1069,60 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_add() const {
 	if (left->type == SymbolicExpr::Type::Infinity) return left;
 	if (right->type == SymbolicExpr::Type::Infinity) return right;
 
-    // 解析根号
+	// 解析变量 - 补全 TODO：用于将类项（如 3*x + 2*x）合并为 (3+2)*x
+	auto extract_variable = [](const std::shared_ptr<SymbolicExpr>& expr, ::Rational& coeff, std::string& varname) -> bool {
+		coeff = ::Rational(1);
+		varname.clear();
+		if (expr->type == SymbolicExpr::Type::Variable) {
+			varname = expr->identifier;
+			coeff = ::Rational(1);
+			return true;
+		}
+		if (expr->type == SymbolicExpr::Type::Multiply && expr->operands.size() == 2) {
+			// 支持 number * variable 或 variable * number
+			if (expr->operands[0]->is_number() && expr->operands[1]->type == SymbolicExpr::Type::Variable) {
+				coeff = expr->operands[0]->convert_rational();
+				varname = expr->operands[1]->identifier;
+				return true;
+			}
+			if (expr->operands[1]->is_number() && expr->operands[0]->type == SymbolicExpr::Type::Variable) {
+				coeff = expr->operands[1]->convert_rational();
+				varname = expr->operands[0]->identifier;
+				return true;
+			}
+		}
+		return false;
+	};
+	// 解析根号
 	// 如果为根号，其中 coeff 为根式的系数，radicand 为根号下的值
 	std::function<bool(const std::shared_ptr<SymbolicExpr>&,::Rational&,::Rational&)> extract_sqrt;
-    extract_sqrt = [&extract_sqrt](const std::shared_ptr<SymbolicExpr>& expr, ::Rational& coeff, ::Rational& radicand) -> bool {
+	extract_sqrt = [&extract_sqrt](const std::shared_ptr<SymbolicExpr>& expr, ::Rational& coeff, ::Rational& radicand) -> bool {
 		if (expr->type == SymbolicExpr::Type::Number) {
 			coeff = expr->convert_rational();
 			radicand = ::Rational(1);
 			return true;
 		}
-        if (expr->type == SymbolicExpr::Type::Sqrt && expr->operands.size() == 1 && expr->operands[0]->is_number()) {
-            coeff = ::Rational(1);
-            radicand = expr->operands[0]->convert_rational();
-            return true;
-        }
-        if (expr->type == SymbolicExpr::Type::Multiply && expr->operands.size() == 2) {
+		if (expr->type == SymbolicExpr::Type::Sqrt && expr->operands.size() == 1 && expr->operands[0]->is_number()) {
+			coeff = ::Rational(1);
+			radicand = expr->operands[0]->convert_rational();
+			return true;
+		}
+		if (expr->type == SymbolicExpr::Type::Multiply && expr->operands.size() == 2) {
 			// 先特殊判断两项的情况
-            if (expr->operands[0]->is_number() && expr->operands[1]->type == SymbolicExpr::Type::Sqrt && expr->operands[1]->operands.size() == 1 && expr->operands[1]->operands[0]->is_number()) {
-                coeff = expr->operands[0]->convert_rational();
-				//std::holds_alternative<::Rational>(expr->operands[0]->get_number()) ? std::get<::Rational>(expr->operands[0]->get_number()) : ::Rational(std::get<int>(expr->operands[0]->get_number()));
-				
-                radicand = expr->operands[1]->operands[0]->convert_rational();
-                return true;
-            }
+			if (expr->operands[0]->is_number() && expr->operands[1]->type == SymbolicExpr::Type::Sqrt && expr->operands[1]->operands.size() == 1 && expr->operands[1]->operands[0]->is_number()) {
+				coeff = expr->operands[0]->convert_rational();
+				radicand = expr->operands[1]->operands[0]->convert_rational();
+				return true;
+			}
 			::Rational coeff1, radicand1, coeff2, radicand2;
 			if (extract_sqrt(expr->operands[0], coeff1, radicand1) && extract_sqrt(expr->operands[1], coeff2, radicand2)) {
 				coeff = coeff1 * coeff2;
 				radicand = radicand1 * radicand2;
 				return true;
 			}
-        }
-        return false;
-    };
+		}
+		return false;
+	};
 
     // TODO: 解析变量
     /*auto extract_variable = [](const std::shared_ptr<SymbolicExpr>& expr, ::Rational& coeff) -> bool {
@@ -911,18 +1162,32 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_add() const {
 	std::map<SymbolicExpr::HashData::HashType, std::shared_ptr<SymbolicExpr> > undealt_items; 
 	std::map<SymbolicExpr::HashData::HashType, std::shared_ptr<SymbolicExpr> > hash_ref;
 	
-    for (const auto& term : terms) {
+	for (const auto& term : terms) {
         ::Rational coeff;
         ::Rational radicand;
+		std::string varname;
         if (extract_sqrt(term, coeff, radicand)) {
             sqrt_terms[radicand] = sqrt_terms[radicand] + coeff;
 			err_stream << "[Debug output] adder: got sqrt term " << coeff.to_string() << " at sqrt:" << radicand.to_string() << std::endl;
         } else if (extract_number(term, number_term)) {
             // Do nothing yet
-        } else {
+		} else if (extract_variable(term, coeff, varname)) {
+			// 合并变量项
+			// 将变量名作为 key（仅同名变量可合并）
+			// 这里把变量项表示为 radicand==0 的特殊处理，使用 undealt_items 来存储
+			// 我们使用 HashData 的简单表示：用变量名的哈希值
+			SymbolicExpr::HashData hd(SymbolicExpr::variable(varname));
+			auto cb = SymbolicExpr::number(coeff);
+			hash_ref[hd.hash] = hd.hash_obj;
+			if (undealt_items.count(hd.hash)) {
+				undealt_items[hd.hash] = SymbolicExpr::add(undealt_items[hd.hash], cb);
+			} else {
+				undealt_items[hd.hash] = cb;
+			}
+		} else {
 			// TODO: 这边上哈希
 			err_stream << "[Debug output] adder: special item " << term->to_string() << std::endl;
-            //others.push_back(term);
+			//others.push_back(term);
 			SymbolicExpr::HashData hd(term);
 			auto cb = hd.get_combined_k();
 			hash_ref[hd.hash] = hd.hash_obj;
@@ -952,7 +1217,7 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_add() const {
     }
     result_terms.insert(result_terms.end(), others.begin(), others.end());
 	for (const auto& i : undealt_items) {
-		// TODO: 可能此处有化简 hash_ref[i.first] 项的需求？（千万不要化简整个 multiply）
+		// 这里根据系数判断是否添加变量项
 		auto isv = i.second->simplify();
 		if (isv->is_number()) {
 			auto icr = isv->convert_rational();
@@ -984,8 +1249,28 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_power() const {
     auto exponent = operands[1]->simplify();
 	
 	// TODO: 理论上有未定式
-	if (exponent->type == SymbolicExpr::Type::Number && exponent->convert_rational() == ::Rational(0)) return SymbolicExpr::number(1);
-	if (base->type == SymbolicExpr::Type::Number && base->convert_rational() == ::Rational(0)) return SymbolicExpr::number(0);
+	// 处理指数为 0 的情况，但避免将 0^0 或 inf^0 错误化简
+	if (exponent->type == SymbolicExpr::Type::Number && exponent->convert_rational() == ::Rational(0)) {
+		if (base->is_number() && base->convert_rational() == ::Rational(0)) {
+			// 0^0 未定，保留原表达式
+			return SymbolicExpr::power(base, exponent);
+		}
+		if (base->type == SymbolicExpr::Type::Infinity) {
+			// inf^0 未定，保留原表达式
+			return SymbolicExpr::power(base, exponent);
+		}
+		return SymbolicExpr::number(1);
+	}
+
+	// 处理底数为 0 的情况，避免 0^负数 被错误化简
+	if (base->type == SymbolicExpr::Type::Number && base->convert_rational() == ::Rational(0)) {
+		if (exponent->is_number() && exponent->convert_rational() < ::Rational(0)) {
+			// 0^(-n) 为未定/无穷，保留原式以避免错误
+			return SymbolicExpr::power(base, exponent);
+		}
+		// 非负指数则为 0
+		return SymbolicExpr::number(0);
+	}
 	if (exponent->is_number() && exponent->convert_rational() == ::Rational(1)) return base;
 	if (base->is_number() && base->convert_rational() == ::Rational(1)) return base;
 	

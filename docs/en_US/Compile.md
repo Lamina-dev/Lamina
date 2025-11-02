@@ -39,3 +39,17 @@ xmake
 ```
 
 # WARNING: If you cannot compile it with cmake in MacOS, try to use Unix makefiles rather than Xcode
+## Debug logging
+
+When building in Debug configuration, the symbolic simplifier enables additional debug output by defining `_SYMBOLIC_DEBUG` for the targets. You can also control runtime debug logging with the environment variable `LAMINA_SYMBOLIC_DEBUG`:
+
+- `LAMINA_SYMBOLIC_DEBUG=1` — force-enable debug output at runtime
+- `LAMINA_SYMBOLIC_DEBUG=0` — force-disable debug output at runtime
+
+Example (Windows PowerShell):
+```powershell
+cmake -B build -DCMAKE_BUILD_TYPE=Debug .
+cmake --build build --config Debug --target lamina --parallel
+$env:LAMINA_SYMBOLIC_DEBUG = '1'
+.\build\bin\lamina.exe
+```

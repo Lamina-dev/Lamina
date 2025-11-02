@@ -39,3 +39,18 @@ xmake
 ```
 
 # 警告：如果在MacOS下使用cmake无法构建，尝试使用Unix Makefiles而不是Xcode
+
+## 调试输出
+
+在 Debug 配置构建时，符号化简器会输出额外调试信息，CMake 会在 Debug 模式下为目标定义 `_SYMBOLIC_DEBUG=1`。运行时也可以用环境变量 `LAMINA_SYMBOLIC_DEBUG` 覆盖：
+
+- `LAMINA_SYMBOLIC_DEBUG=1` — 强制在运行时开启调试输出
+- `LAMINA_SYMBOLIC_DEBUG=0` — 强制在运行时关闭调试输出
+
+示例（PowerShell）：
+```powershell
+cmake -B build -DCMAKE_BUILD_TYPE=Debug .
+cmake --build build --config Debug --target lamina --parallel
+$env:LAMINA_SYMBOLIC_DEBUG = '1'
+.\build\bin\lamina.exe
+```

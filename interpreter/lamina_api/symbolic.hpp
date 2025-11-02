@@ -10,9 +10,18 @@
 #include <map>
 #include <functional>
 #include <iostream>
+#include <cstdlib>
 
+#ifndef _SYMBOLIC_DEBUG
+// If not set by the build system, enable debug when compiler debug macros are present
+// Allow CMake to set -D_SYMBOLIC_DEBUG=1 for Debug builds. If CMake doesn't set it,
+// fall back to checking common debug macros.
+#if defined(_DEBUG) || !defined(NDEBUG)
+#define _SYMBOLIC_DEBUG 1
+#else
 #define _SYMBOLIC_DEBUG 0
-
+#endif
+#endif
 #ifdef _WIN32
 #ifdef LAMINA_CORE_EXPORTS
 #define LAMINA_API __declspec(dllexport)
@@ -23,22 +32,45 @@
 #define LAMINA_API
 #endif
 
-#if _SYMBOLIC_DEBUG
-#define err_stream std::cerr
-#else
-#define err_stream if (0) std::cerr
-/*
+// Unified debug stream: controlled at compile-time by _SYMBOLIC_DEBUG and at
+// runtime by the environment variable `LAMINA_SYMBOLIC_DEBUG` (0 or 1).
+// Usage in source remains the same: `err_stream << "msg" << std::endl;`
+
 class _NullBuffer : public std::streambuf {
-	public:
-		virtual int overflow(int c) {
-			return c;
-		}
+public:
+	int overflow(int c) override { return c; }
 };
-_NullBuffer nbf;
-std::ostream nullstream(&nbf);
-#define err_stream nullstream
-*/
+
+static _NullBuffer _null_buffer;
+static std::ostream _null_stream(&_null_buffer);
+
+inline bool symbolic_debug_default_enabled() {
+#if _SYMBOLIC_DEBUG
+	return true;
+#else
+	return false;
 #endif
+}
+
+inline bool symbolic_debug_runtime_enabled() {
+	static int state = -1;
+	if (state != -1) return state == 1;
+	// If environment variable LAMINA_SYMBOLIC_DEBUG is set, it overrides default.
+	const char *ev = std::getenv("LAMINA_SYMBOLIC_DEBUG");
+	if (ev) {
+		if (ev[0] == '1') state = 1;
+		else state = 0;
+	} else {
+		state = symbolic_debug_default_enabled() ? 1 : 0;
+	}
+	return state == 1;
+}
+
+inline std::ostream &debug_stream() {
+	return symbolic_debug_runtime_enabled() ? std::cerr : _null_stream;
+}
+
+#define err_stream debug_stream()
 
 // 符号表达式系统
 // 支持精确的数学表达式，不进行数值近似
