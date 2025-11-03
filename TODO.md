@@ -1,123 +1,43 @@
-# Lamina ToDo List
+# Lamina ToDo
 
-## 符号含义
-⚠️(在第二个RC发布前一定要完成)
+本文件按优先级分组：P0（紧急/正确性） -> P1（重要） -> P2（常规改进） -> P3（低优先） -> P4（长期/可选）。
 
-🟡建议早日完成(以完备基本的语法特性)
+每项使用任务复选框标注当前状态：- [ ] 未开始  - [~] 进行中  - [x] 已完成
 
-🟢实现时间较不重要
+> 说明：请尽量把需要代码改动的项拆成小任务并在 PR/Issue 中追踪。
 
-🟧 已经实现但功能不完善
+---
 
-◻ 延缓实现
+## P0 — 紧急 / 正确性
+- [x] impl-extract-variable — 合并同类项（例如 3*x + 2*x -> 5*x）
+- [x] impl-multiply-identity — 处理乘以 0/1/-1 的快速路径并避免冗余循环
+- [x] impl-power-equality — 安全的底相等判断，避免错误合并指数
+- [x] fix-undefined-forms — 保护未定式（例如 0^0、inf*0）
+- [~] tests-symbolic-simplify — 为 simplify_add/multiply/power/sqrt 增加单元测试（进行中）
+ - [ ] #126 Fix composite-root multiplication with constants — 复合根式中带常数因子的乘法结果不正确（可能导致崩溃） (Issue #126)
 
+## P1 — 重要（表达能力提升）
+- [x] impl-exponent-merge — 安全的幂合并：同底或可约分的有理指数合并（保守实现已添加）
+- [x] flatten-multiply-improve — 乘法扁平化并提前合并数值系数，减少中间树构造
+- [x] bigint-sqrt-optimization — BigInt 下的轻量级平方因子提取（小素数优先策略）
+ - [ ] #117 Support real cube root of negative integers (e.g. -8) — 处理负数的三次根（Issue #117)
 
-<b> 注意 ToDo list 的每一项需要标注状态 (已完成) (未完成) (正在做)
-</b>
+## P2 — 常规改进 / 工具
+- [~] debug-logging-switch — 用编译时宏与运行时环境变量控制符号化简调试输出（已完成，运行时 env 支持）
+- [ ] hash-and-eq-improvements — 改进 `HashData` 的规范化与相等/哈希策略以支持线性合并
+- [ ] ci-and-build-checks — 在 CI 中添加轻量构建/测试检查，保证变更不会回退
+ - [ ] #35 Add installation instructions to docs — 在文档中补充 Lamina 安装/构建指南 (Issue #35)
 
-## 库方面
-- [ ] IO库（正在做）<br>
-     备注：`已在extensions/standard/io.cpp`有预留
+## P3 — 次要/性能优化
+- [ ] 更好的 BigInt 因式/平方提取算法（如 Pollard、改进试除策略）
+- [ ] 将两两 O(n^2) 合并替换为基于哈希/多重集合的一次合并
 
-- [ ] bit库（正在做）<br>
+## P4 — 长期/愿望清单
+- [ ] 引入更完整的数学化简规则（例如三角恒等式、对数幂合并等）
+- [ ] 更成熟的自动演绎/化简策略（可配置的化简级别、成本模型）
 
-- [ ] 🟡 Lamina draw库（未完成）<br>     备注：诸如展示函数图像等功能 在LMPI就绪后即刻开始
+---
 
-- [ ] ⚠️ 集合库（正在做）<br>
+贡献者说明：请在提交 PR 前把对应 TODO 的子任务列在 PR 描述中，关联 Issue（若有）并在此处打勾或移动到正确优先级段。
 
-- [ ] ⚠️线程库（未完成）<br>
-
-- [ ] ⚠️console库（未完成）<br>
-     备注：`已在extensions/standard/io.cpp`有预留
-
-## 语法方面
-
-- [ ] ◻ 列表项赋值语句 a[i] = v（未完成）<br>
-     备注：需要让Value类储存shared_ptr<std::vector<Value>> 
-     而不是 std::vector<Value>
-
-- [ ] ◻ 三元表达式（未完成）<br>
-     备注：
-    方案一: `if cond : expr else expr`
-
-    方案二: `cond if expr else expr`
-
-    方案三:  `cond ? expr ! expr`
-
-- [ ] ◻ 类型注释及类型系统（未完成）<br>
-     备注：没有对应的LSR，
-
-- [ ] ◻ match语句（未完成）<br>
-     备注：
-
-- [ ] ◻ is not or in not int 运算符（未完成）<br>
-     备注：完成interpreter/parse_expr.cpp的todo注释
-
-- [ ] ◻ 管道运算符（未完成）<br>
-     备注：
-
-## 内置函数方面
-- [ ] eval(code)（未完成）<br>
-     备注：
-
-- [ ] 🟡 help(key)（未完成）<br>
-     备注：
-
-- [ ] 🟡 open(name, pattern, encoding)（未完成）<br>
-     备注：
-
-- [ ] 🟧 ⚠️find(arr, lambda, times)（未完成）<br>
-    备注：目前只能找到第一个符合条件的值, 希望有人能完成对times参数的处理
-
-- [ ] 🟧 ⚠️replace(arr, lambda)（未完成）<br>
-     备注：需要让Value类储存shared_ptr<std::vector<Value>> 
-     而不是 std::vector<Value>
-
-## 类型方面
-- [ ] ⚠️ LmInt（未完成）<br>
-     备注：
-
-     优化现在Bigint效率(LmBigNum库在做了)，
-
-     把Bigint改名为LmInt, 
-
-     成为lamina唯一整数类型
-
-     让Rational, Irrtional, Complex类型的整数部分都使用LmInt
-
-     📍 该更新能解决到大部分有理数和无理数的精度问题
-
-
-- [x] ⚠️ 分数转小数（已完成）<br>
-
-     用户要从有理数转到安全小数，
-
-     需要设置小数位数(以防止无限循环小数和不循环小数）
-
-     备注：已添加有理数函数用于转化成小数字符串
-
-- [ ] ⚠️ LmComplex（未完成）<br>
-     备注：复数类型
-
-- [ ] ⚠️ LmList（正在做）<br>
-     备注：链表类型
-
-     已完成基本实现，正在debug及完善
-
-     无具体引用，欢迎后人补充，文件位置
-
-     底层模板类：`interpreter/lamina_api/base_list.hpp`
-
-     继承套用：`interpreter/lamina_api/list.hpp`
-
-## 其他
-- [ ] ⚠️ 添加检查循环导入的功能（未完成）<br>
-
-- [ ] ⚠️ 测试新的c++ module loader（未完成）<br>
-     备注：
-
-- [ ] ⚠️ 修复repl input 的 bug（未完成）<br>
-     备注：
-
-- [ ] ⚠️ 报错系统使用 err_reporter 和 src_manger（未完成）<br>
-     备注：
+```
