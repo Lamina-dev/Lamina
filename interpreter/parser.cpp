@@ -38,20 +38,28 @@ Token Parser::curr_token() const {
 }
 
 void Parser::skip_end_of_ln() {
-    const Token tok = curr_token();
-    if (tok.type == LexerTokenType::Semicolon) {
-        skip_token(";");
-        return;
-    }
-    if (tok.type == LexerTokenType::EndOfLine) {
+    // 跳过所有连续的换行符
+    while (curr_token().type == LexerTokenType::EndOfLine) {
         skip_token("\n");
+    }
+
+    // 若存在显式分号
+    if (curr_token().type == LexerTokenType::Semicolon) {
+        skip_token(";");
+        // 跳过分号后的换行（如 ";\n" 场景）
+        while (curr_token().type == LexerTokenType::EndOfLine) {
+            skip_token("\n");
+        }
         return;
     }
-    if (tok.type == LexerTokenType::EndOfFile) {
-        return;
+
+    // 仅在“非文件结尾”时报错
+    if (curr_token().type != LexerTokenType::EndOfFile) {
+        std::cerr << ConClr::RED 
+                  << "Statement must end with ';' or newline, got '" << curr_token().text << "'" 
+                  << ConClr::RESET << std::endl;
+        throw StdLibException("invalid statement terminator");
     }
-    std::cerr << ConClr::RED << "End of line must be ';', got '" << tok.text << "'" << ConClr::RESET << std::endl;
-    throw StdLibException("");
 }
 
 void Parser::must_token(const std::string& text, const std::string& waring) const {
