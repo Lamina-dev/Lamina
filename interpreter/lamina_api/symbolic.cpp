@@ -350,13 +350,34 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
         factors.insert(factors.begin(), SymbolicExpr::number(collected_coeff));
     }
 
-    // Fast-path for 1 and -1
+	// Fast-path for 1 and -1
     auto is_one = [](const std::shared_ptr<SymbolicExpr>& x)->bool { return x->is_number() && x->convert_rational() == ::Rational(1); };
     auto is_minus_one = [](const std::shared_ptr<SymbolicExpr>& x)->bool { return x->is_number() && x->convert_rational() == ::Rational(-1); };
     if (factors.size() == 1) {
         if (is_one(factors[0])) return SymbolicExpr::number(1);
         if (is_minus_one(factors[0])) return SymbolicExpr::number(-1);
     }
+
+	// Fast-path: sqrt(a) * sqrt(a) -> a; also treat power(...,1/2) as sqrt-like
+	auto extract_sqrt_base_quick = [&](const std::shared_ptr<SymbolicExpr>& e, std::shared_ptr<SymbolicExpr>& out_base) -> bool {
+		if (!e) return false;
+		if (e->type == SymbolicExpr::Type::Sqrt && e->operands.size() == 1) {
+			out_base = e->operands[0];
+			return true;
+		}
+		if (e->type == SymbolicExpr::Type::Power && e->operands.size() == 2 && e->operands[1]->is_number()) {
+			auto r = e->operands[1]->convert_rational();
+			if (r == ::Rational(1, 2)) {
+				out_base = e->operands[0];
+				return true;
+			}
+		}
+		return false;
+	};
+	std::shared_ptr<SymbolicExpr> ba, bb;
+	if (extract_sqrt_base_quick(left, ba) && extract_sqrt_base_quick(right, bb) && symbolic_equal(ba, bb)) {
+		return ba->simplify();
+	}
 
     // Attempt simple pairwise power merges among factors when bases are provably equal
     auto try_merge_pair = [&](size_t i, size_t j) -> bool {
@@ -398,31 +419,42 @@ std::shared_ptr<SymbolicExpr> SymbolicExpr::simplify_multiply() const {
         }
     }
 
-    // Rebuild minimal multiply tree from factors
-    std::shared_ptr<SymbolicExpr> acc = factors.front();
-    for (size_t k = 1; k < factors.size(); ++k) acc = SymbolicExpr::multiply(acc, factors[k]);
-    return acc->simplify();
+	// Handle sqrt * sqrt -> base when possible (also treat power with exponent 1/2 as sqrt)
+	auto extract_sqrt_base = [&](const std::shared_ptr<SymbolicExpr>& e, std::shared_ptr<SymbolicExpr>& out_base) -> bool {
+		if (!e) return false;
+		if (e->type == SymbolicExpr::Type::Sqrt && e->operands.size() == 1) {
+			out_base = e->operands[0];
+			return true;
+		}
+		if (e->type == SymbolicExpr::Type::Power && e->operands.size() == 2 && e->operands[1]->is_number()) {
+			auto r = e->operands[1]->convert_rational();
+			if (r == ::Rational(1, 2)) {
+				out_base = e->operands[0];
+				return true;
+			}
+		}
+		return false;
+	};
 
-	{
-		::Rational c1, c2;
-		std::shared_ptr<SymbolicExpr> b1, b2, e1, e2;
-		if (extract_coeff_power(left, c1, b1, e1) && extract_coeff_power(right, c2, b2, e2)) {
-			if (b1 && b2 && symbolic_equal(b1, b2)) {
-				// coefficients multiplied, exponents added
-				auto new_coeff = c1 * c2;
-				// if exponents are numbers, add them as rationals
-				if (e1->is_number() && e2->is_number()) {
-					auto sum = e1->convert_rational() + e2->convert_rational();
-					auto res = SymbolicExpr::multiply(SymbolicExpr::number(new_coeff), SymbolicExpr::power(b1, SymbolicExpr::number(sum)))->simplify();
-					return res;
-				} else {
-					// fallback to symbolic add of exponents
-					auto res = SymbolicExpr::multiply(SymbolicExpr::number(new_coeff), SymbolicExpr::power(b1, SymbolicExpr::add(e1, e2)))->simplify();
-					return res;
-				}
+	for (size_t i = 0; i < factors.size(); ++i) {
+		for (size_t j = i + 1; j < factors.size();) {
+			std::shared_ptr<SymbolicExpr> bi, bj;
+			if (extract_sqrt_base(factors[i], bi) && extract_sqrt_base(factors[j], bj) && symbolic_equal(bi, bj)) {
+				// replace pair with the base (sqrt(a)*sqrt(a) == a)
+				factors[i] = bi;
+				factors.erase(factors.begin() + j);
+				// after replacement, we could try to merge the new factors[i] again; stay on same i
+			} else {
+				++j;
 			}
 		}
 	}
+
+    // Rebuild minimal multiply tree from factors
+	std::shared_ptr<SymbolicExpr> acc = factors.front();
+	for (size_t k = 1; k < factors.size(); ++k) acc = SymbolicExpr::multiply(acc, factors[k]);
+	// We've already simplified components; avoid calling simplify() on the rebuilt node to prevent recursion loops
+	return acc;
 
 	// Extra safety: if both are powers with equal bases, merge exponents (handles rational denominators)
 	if (left->type == SymbolicExpr::Type::Power && right->type == SymbolicExpr::Type::Power) {
