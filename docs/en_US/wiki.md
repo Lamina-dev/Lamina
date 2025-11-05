@@ -86,25 +86,39 @@ while count <= 3 {
 ```
 
 #### (2) loop (infinite loop)
+#### (2) loop (counted loop)
+
+Note: The old infinite `loop { }` form has been removed. `loop` must now be followed by a count expression.
+
 **Template**:
+
 ```lamina
-loop {
-    // Code to be executed infinitely
-    if stop_condition {
-        break; // Exit the loop when the stop condition is met
-    }
+loop <count-expression> {
+    // Code executed count-expression times
 }
 ```
-**Example**:
+
+Description: `<count-expression>` may be an integer literal, a variable, or any expression that evaluates to an integer at runtime. Accepted numeric types at runtime include: int, bigint (within representable range), rational (only when denominator == 1), and floats only when they are integer-valued (e.g., `3.0`). Irrational numbers, symbolic expressions, strings, arrays, etc. are not valid counts.
+
+Error behavior:
+- If the count-expression evaluates to a non-integer (e.g., 2.5 or 1/2), a runtime error "Repeat count must be an integer" is thrown.
+- If the count is negative, a runtime error "Repeat count must be non-negative" is thrown.
+- If the count is too large to be represented as an integer for looping, a runtime error like "Repeat count too large" or "Repeat count out of range" is thrown.
+
+**Examples**:
+
 ```lamina
-var i = 1;
-loop {
-    print("Loop iteration: ", i);
-    if i >= 2 {
-        break; // Exit after 2 iterations
-    }
-    i = i + 1;
-}
+var i = 0;
+loop 3 { i = i + 1; };
+print(i); // prints 3
+
+var n = 4;
+var acc = 0;
+loop n { acc = acc + 1; };
+print(acc); // prints 4
+
+var a = 2; var b = 3;
+loop (a + b) { print("hi"); } // equivalent to loop 5 { ... }
 ```
 
 ### 5. Function Definition

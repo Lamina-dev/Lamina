@@ -130,12 +130,23 @@ std::unique_ptr<Statement> Parser::parse_stmt() {
         return std::make_unique<IncludeStmt>(path);
     }
     if (tok.type == LexerTokenType::Loop) {
+        // New syntax: loop <count-expression> { ... }
+        // Parse an expression as the repeat count (allows variable or computation)
         skip_token("loop");
-        auto expr = std::make_unique<LiteralExpr>("true", Value::Type::Bool);
+        // Disallow empty immediate '{' to remove infinite-loop syntax
+        if (curr_token().text == "{") {
+            std::cerr << "SyntaxError: infinite 'loop { }' is not supported; use 'loop <count-expression> { ... }'" << std::endl;
+            throw StdLibException("invalid loop syntax: infinite loop removed");
+        }
+        auto count_expr = parse_expression();
+        if (count_expr == nullptr) {
+            std::cerr << "SyntaxError: expected count expression after 'loop'" << std::endl;
+            throw StdLibException("invalid loop syntax: expected count expression");
+        }
         skip_token("{");
         auto stmts = parse_block(true);
         skip_token("}");
-        return std::make_unique<WhileStmt>(std::move(expr), std::move(stmts));
+        return std::make_unique<RepeatStmt>(std::move(count_expr), std::move(stmts));
     }
     if (tok.type == LexerTokenType::Define) {
         skip_token("define");

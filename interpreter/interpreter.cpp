@@ -222,6 +222,117 @@ Value Interpreter::execute(const std::unique_ptr<Statement>& node) {
             func->name, func->params, std::move(func->body))));
     } else if (auto* block = dynamic_cast<BlockStmt*>(node.get())) {
         for (auto& stmt: block->statements) execute(stmt);
+    } else if (auto* rs = dynamic_cast<RepeatStmt*>(node.get())) {
+        if (!rs->count) {
+            RuntimeError error("Repeat count expression cannot be null");
+            error.stack_trace = get_stack_trace();
+            throw error;
+        }
+
+        // Evaluate count and coerce/validate various numeric types into a non-negative integer
+        Value cntv = eval(rs->count.get());
+        long long times = 0;
+
+        // Integer literal
+        if (cntv.is_int()) {
+            times = static_cast<long long>(std::get<int>(cntv.data));
+        }
+        // BigInt -> convert if within range
+        else if (cntv.is_bigint()) {
+            const ::BigInt& bi = std::get<::BigInt>(cntv.data);
+            int bi_int = bi.to_int();
+            if (bi_int == INT_MAX || bi_int == INT_MIN) {
+                RuntimeError error("Repeat count too large");
+                error.stack_trace = get_stack_trace();
+                throw error;
+            }
+            times = static_cast<long long>(bi_int);
+        }
+        // Rational: accept when it's an exact integer (denominator == 1)
+        else if (cntv.is_rational()) {
+            ::Rational r = std::get<::Rational>(cntv.data);
+            if (!r.is_integer()) {
+                RuntimeError error("Repeat count must be an integer (rational provided)");
+                error.stack_trace = get_stack_trace();
+                throw error;
+            }
+            // numerator may be big, convert cautiously
+            try {
+                ::BigInt num = r.get_numerator();
+                int n = num.to_int();
+                if (n == INT_MAX || n == INT_MIN) {
+                    RuntimeError error("Repeat count too large");
+                    error.stack_trace = get_stack_trace();
+                    throw error;
+                }
+                times = static_cast<long long>(n);
+            } catch (const std::exception& e) {
+                RuntimeError error(std::string("Invalid repeat count: ") + e.what());
+                error.stack_trace = get_stack_trace();
+                throw error;
+            }
+        }
+        // Float: accept only when it's an exact integer value
+        else if (cntv.is_float()) {
+            double d = std::get<double>(cntv.data);
+            if (!std::isfinite(d)) {
+                RuntimeError error("Repeat count must be a finite number");
+                error.stack_trace = get_stack_trace();
+                throw error;
+            }
+            double id = std::floor(d);
+            if (d != id) {
+                RuntimeError error("Repeat count must be an integer (float provided)");
+                error.stack_trace = get_stack_trace();
+                throw error;
+            }
+            if (d > static_cast<double>(LLONG_MAX) || d < static_cast<double>(LLONG_MIN)) {
+                RuntimeError error("Repeat count out of range");
+                error.stack_trace = get_stack_trace();
+                throw error;
+            }
+            times = static_cast<long long>(d);
+        }
+        else {
+            // Other types (Irrational, Symbolic, String, Array, etc.) are invalid here
+            RuntimeError error("Repeat count must be an integer expression (int, bigint, rational or integer-valued float)");
+            error.stack_trace = get_stack_trace();
+            throw error;
+        }
+
+        // Final validation: non-negative
+        if (times < 0) {
+            RuntimeError error("Repeat count must be non-negative");
+            error.stack_trace = get_stack_trace();
+            throw error;
+        }
+        if (times == 0) return LAMINA_NULL;
+
+        try {
+            for (long long it = 0; it < times; ++it) {
+                bool continue_encountered = false;
+                for (auto& stmt: rs->body->statements) {
+                    if (continue_encountered) continue;
+
+                    try {
+                        execute(stmt);
+                    } catch (const BreakException&) {
+                        // Exit the repeat entirely
+                        return LAMINA_NULL;
+                    } catch (const ContinueException&) {
+                        // Proceed to next iteration
+                        continue_encountered = true;
+                    }
+                }
+            }
+        } catch (const ReturnException&) {
+            // propagate return
+            throw;
+        } catch (const std::exception& e) {
+            RuntimeError error(std::string("Repeat body execution error: ") + e.what());
+            error.stack_trace = get_stack_trace();
+            throw error;
+        }
     } else if (auto* ret = dynamic_cast<ReturnStmt*>(node.get())) {
         Value val = eval(ret->expr.get());
         throw ReturnException(val);

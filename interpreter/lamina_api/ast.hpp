@@ -174,6 +174,26 @@ struct WhileStmt final :  Statement {
     }
 };
 
+// repeat N times
+struct RepeatStmt final :  Statement {
+    // count expression (should evaluate to a positive integer literal in current grammar)
+    std::unique_ptr<Expression> count;
+    std::unique_ptr<BlockStmt> body;
+    RepeatStmt(std::unique_ptr<Expression> c, std::unique_ptr<BlockStmt> b)
+        : count(std::move(c)), body(std::move(b)) {}
+    [[nodiscard]] std::unique_ptr<Statement> clone_expr() const override {
+        auto cloned_count = count ? count->clone_expr() : nullptr;
+
+        std::unique_ptr<BlockStmt> cloned_body;
+        if (body) {
+            const auto stmt_ptr = body->clone_expr().release();
+            cloned_body = std::unique_ptr<BlockStmt>(dynamic_cast<BlockStmt*>(stmt_ptr));
+        }
+
+        return std::make_unique<RepeatStmt>(std::move(cloned_count), std::move(cloned_body));
+    }
+};
+
 // 函数定义
 struct FuncDefStmt final :  Statement {
     std::string name;

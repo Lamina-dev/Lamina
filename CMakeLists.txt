@@ -235,6 +235,8 @@ target_link_libraries(lamina PRIVATE lamina_core)
 #target_compile_definitions(test_symbolic PRIVATE LAMINA_CORE_EXPORTS)
 #target_compile_definitions(test_symbolic PRIVATE $<$<CONFIG:Debug>:_SYMBOLIC_DEBUG=1>)
 
+
+
 # Ensure the `lamina` executable also gets the _SYMBOLIC_DEBUG define in Debug builds
 target_compile_definitions(lamina PRIVATE $<$<CONFIG:Debug>:_SYMBOLIC_DEBUG=1>)
 

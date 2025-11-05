@@ -104,30 +104,39 @@ while count <= 3 {
 }
 ```
 
-#### （2）loop循环（无限循环）
+#### （2）loop 循环（计数循环）
+
+注意：旧的无限 `loop {}` 语法已被移除。现在 `loop` 需要跟随一个表示次数的表达式。
 
 **模板**：
 
 ```lamina
-loop {
-    // 无限重复执行的代码
-    if stop_condition {
-        break; // 满足终止条件时退出循环
-    }
+loop <count-expression> {
+  // 循环体：按 count-expression 的值重复执行
 }
 ```
+
+说明：`<count-expression>` 可以是字面整数、变量、或任意求值为整数的表达式（例如 `loop (a + b) {}`）。允许的运行时类型包括：整数（int）、大整数（bigint，须在可表示范围内）、有理数（分母为1 即整数）以及数值型浮点数（当且仅当为整数值，如 `3.0`）。不接受无理数、符号表达式或字符串等类型。
+
+错误行为：
+- 如果 count-expression 求值为非整数（例如 2.5 或 1/2），运行时会抛出错误："Repeat count must be an integer"
+- 如果 count-expression 是负数，会抛出错误："Repeat count must be non-negative"
+- 如果数值超出可表示范围，会抛出错误："Repeat count too large" 或 "Repeat count out of range"
 
 **实例**：
 
 ```lamina
-var i = 1;
-loop {
-    print("循环次数：", i);
-    if i >= 2 {
-        break; // 执行2次后退出
-    }
-    i = i + 1;
-}
+var i = 0;
+loop 3 { i = i + 1; };
+print(i); // 输出 3
+
+var n = 4;
+var acc = 0;
+loop n { acc = acc + 1; };
+print(acc); // 输出 4
+
+var a = 2; var b = 3;
+loop (a + b) { print("hi"); } // 等同于 loop 5 { ... }
 ```
 
 ### 5. 函数定义
