@@ -1,10 +1,25 @@
 #include "lexer.hpp"
 #include "parser.hpp"
 std::unique_ptr<BlockStmt> Parser::parse_block(bool is_global) {
+	// Is this boolean parameter really useful???
     std::vector<std::unique_ptr<Statement>> stmts;
     while (curr_token().type != LexerTokenType::RBrace) {
-        stmts.emplace_back(parse_stmt());
-        if (curr_token().type == LexerTokenType::Semicolon) skip_token(";");
+		std::cerr << "[Debug output] parse through blocks! Current: " << curr_token().text << std::endl;
+		auto pres = parse_stmt();
+		if (pres)
+			stmts.push_back(move(pres));
+		else std::cerr << "[Debug output] resolved empty statement!\n";
+		std::cerr << "[Debug output] statement parser end\n";
+		// I think we should sooner or later make this an independent function:
+		bool flag = false;
+		do {
+			flag = false;
+			while (curr_token().type == LexerTokenType::Semicolon
+					or curr_token().type == LexerTokenType::EndOfLine) {
+				skip_token();	// Maybe shall be forced?
+				flag = true;
+			}
+		} while (flag);
     }
     return std::make_unique<BlockStmt>(std::move(stmts));
 }

@@ -79,17 +79,24 @@ std::vector<std::unique_ptr<Statement>> Parser::parse_program() {
             s != nullptr
         ) {
             stmts.push_back(std::move(s));
+			std::cerr << "[Debug output] end of program statement processor!\n";
         }
     }
+	std::cerr << "[Debug output] finished parser.\n";
     return stmts;
 }
 
 std::unique_ptr<Statement> Parser::parse_stmt() {
+	// A little bit weird, but ok for current use
 	while (curr_tok_idx_ < tokens_.size() && curr_token().type == LexerTokenType::EndOfLine) {
         skip_token(); 
     }
     auto tok = curr_token();
-
+	if (tok.type == LexerTokenType::EndOfFile || tok.type == LexerTokenType::Semicolon) {
+		std::cerr << "[Debug output] !!! Semicolon/EOF appeared at the beginning of statement parser !!!\n";
+		return nullptr;
+	}
+	std::cerr << "[Debug output] in token: " << tok.text << std::endl;
     if (tok.type == LexerTokenType::If) {
         skip_token("if");
         return parse_if();

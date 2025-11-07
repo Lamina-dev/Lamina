@@ -33,6 +33,7 @@ std::unique_ptr<Expression> Parser::parse_a_token() {
 
         skip_token("{");
         auto stmt = parse_block(true);
+		std::cerr << "[Debug output] lambda processor end!\n";
         skip_token("}");
         return std::make_unique<LambdaDeclExpr>("<lambda>", std::move(params),std::move(stmt));
     }

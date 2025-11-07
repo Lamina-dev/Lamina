@@ -111,6 +111,7 @@ Value HANDLE_BINARYEXPR_ADD(Value* l, Value* r) {
 Value HANDLE_BINARYEXPR_STR_ADD_STR(Value* l, Value* r) {
     std::string ls = l->to_string();
     std::string rs = r->to_string();
+	/*
     try {
         // Try to parse both strings as CAS expressions and combine them symbolically
         LaminaCAS::Parser pl(ls);
@@ -257,6 +258,8 @@ Value HANDLE_BINARYEXPR_STR_ADD_STR(Value* l, Value* r) {
     } catch (...) {
         // parsing failed for one or both strings; fall back to normal concatenation
     }
+	*/
+	return Value(ls + rs);
 }
 
 Value Interpreter::eval_LiteralExpr(const LiteralExpr* node) {
@@ -804,6 +807,12 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
             return Value();
         }
     }
+
+	if (bin->op == "and" || bin->op == "or") {
+		bool lb = l.as_bool(), rb = r.as_bool();
+		if (bin->op == "and") return lb and rb;
+		else if (bin->op == "or") return lb or rb;
+	}
 
     L_ERR("Unknown binary operator '" + bin->op + "'");
     return {};
