@@ -1,4 +1,4 @@
-# <img src="./assets/logo-icon.svg" width="10%"> This is Lamina version 1.1.0 (Release Candidate 0 )
+# <img src="./assets/logo-icon.svg" width="10%"> This is Lamina version 1.1.0 (Release Candidate 0 ) 代码审阅，本项目仓库archive，解除时间另行通知。
 
 <img src="./assets/logo.svg" width="100%">
 
