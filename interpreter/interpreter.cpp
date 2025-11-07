@@ -96,7 +96,7 @@ void Interpreter::set_global_variable(const std::string& name, const Value& val)
 
 Value Interpreter::execute(const std::unique_ptr<Statement>& node) {
 	
-	std::cerr << "[Debug output] call of execute in interpreter!\n";
+	//std::cerr << "[Debug output] call of execute in interpreter!\n";
 	
     if (!node) {
         return LAMINA_NULL;
