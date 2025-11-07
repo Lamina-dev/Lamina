@@ -32,7 +32,6 @@ std::unique_ptr<Expression> Parser::parse_a_token() {
         }
 
         skip_token("{");
-		std::cerr << "[Debug output] pipe process begin\n";
         auto stmt = parse_block(true);
         skip_token("}");
         return std::make_unique<LambdaDeclExpr>("<lambda>", std::move(params),std::move(stmt));
@@ -65,7 +64,6 @@ std::unique_ptr<Expression> Parser::parse_a_token() {
 			if (key == "}") {
 				break;
 			}
-			std::cerr << "[Debug output] member assignment: key: " << key << std::endl;
             skip_token("=");
             auto val = parse_expression();
             if (curr_token().type == LexerTokenType::Comma) skip_token(",");

@@ -35,7 +35,6 @@ Token Parser::curr_token() const {
         auto& tok = tokens_[curr_tok_idx_];
         return tok;
     }
-	std::cerr << "[Debug output] token fetch got EOF\n";
     return {LexerTokenType::EndOfFile, "", 0, 0};
 }
 
@@ -187,7 +186,6 @@ std::unique_ptr<Statement> Parser::parse_stmt() {
         and tokens_[curr_tok_idx_ + 1].type == LexerTokenType::Assign
     ) {
         const auto name = skip_token().text;
-		std::cerr << "[Debug output] regarded as assignment\n";
         skip_token("=");
         auto expr = parse_expression();
         skip_end_of_ln();
@@ -195,7 +193,6 @@ std::unique_ptr<Statement> Parser::parse_stmt() {
     }
     auto expr = parse_expression();
     if (expr != nullptr and curr_token().text == "=") {
-		std::cerr << "[Debug output] regarded as member assignment\n";
         if (dynamic_cast<GetMemberExpr*>(expr.get())) {
             skip_token("=");
             auto value = parse_expression();

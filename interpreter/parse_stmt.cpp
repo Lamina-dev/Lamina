@@ -3,7 +3,6 @@
 std::unique_ptr<BlockStmt> Parser::parse_block(bool is_global) {
     std::vector<std::unique_ptr<Statement>> stmts;
     while (curr_token().type != LexerTokenType::RBrace) {
-		std::cerr << "[Debug output] block is going through statements\n";
         stmts.emplace_back(parse_stmt());
         if (curr_token().type == LexerTokenType::Semicolon) skip_token(";");
     }
