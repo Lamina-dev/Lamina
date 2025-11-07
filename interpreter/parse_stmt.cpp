@@ -4,12 +4,12 @@ std::unique_ptr<BlockStmt> Parser::parse_block(bool is_global) {
 	// Is this boolean parameter really useful???
     std::vector<std::unique_ptr<Statement>> stmts;
     while (curr_token().type != LexerTokenType::RBrace) {
-		std::cerr << "[Debug output] parse through blocks! Current: " << curr_token().text << std::endl;
+		//std::cerr << "[Debug output] parse through blocks! Current: " << curr_token().text << std::endl;
 		auto pres = parse_stmt();
 		if (pres)
 			stmts.push_back(move(pres));
-		else std::cerr << "[Debug output] resolved empty statement!\n";
-		std::cerr << "[Debug output] statement parser end\n";
+		//else std::cerr << "[Debug output] resolved empty statement!\n";
+		//std::cerr << "[Debug output] statement parser end\n";
 		// I think we should sooner or later make this an independent function:
 		bool flag = false;
 		do {
