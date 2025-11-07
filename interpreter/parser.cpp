@@ -18,6 +18,7 @@ Token Parser::skip_token(const std::string& want_skip) {
     if (curr_tok_idx_ < tokens_.size()) {
         auto& tok = tokens_[curr_tok_idx_];
         if (!want_skip.empty() and tok.text != want_skip) {
+			std::cerr << "[Parser] Errinfo: ";
             std::cerr << ConClr::RED
             << "There should be '" << want_skip << "' , but you given '"
             << tok.text << "'" << ConClr::RESET << std::endl;
@@ -34,6 +35,7 @@ Token Parser::curr_token() const {
         auto& tok = tokens_[curr_tok_idx_];
         return tok;
     }
+	std::cerr << "[Debug output] token fetch got EOF\n";
     return {LexerTokenType::EndOfFile, "", 0, 0};
 }
 
@@ -84,6 +86,9 @@ std::vector<std::unique_ptr<Statement>> Parser::parse_program() {
 }
 
 std::unique_ptr<Statement> Parser::parse_stmt() {
+	while (curr_tok_idx_ < tokens_.size() && curr_token().type == LexerTokenType::EndOfLine) {
+        skip_token(); 
+    }
     auto tok = curr_token();
 
     if (tok.type == LexerTokenType::If) {
@@ -135,7 +140,7 @@ std::unique_ptr<Statement> Parser::parse_stmt() {
         skip_token("loop");
         // Disallow empty immediate '{' to remove infinite-loop syntax
         if (curr_token().text == "{") {
-            std::cerr << "SyntaxError: infinite 'loop { }' is not supported; use 'loop <count-expression> { ... }'" << std::endl;
+            std::cerr << "SyntaxError: infinite 'loop { }' is no longer supported; use 'loop <count-expression> { ... }'" << std::endl;
             throw StdLibException("invalid loop syntax: infinite loop removed");
         }
         auto count_expr = parse_expression();
@@ -182,6 +187,7 @@ std::unique_ptr<Statement> Parser::parse_stmt() {
         and tokens_[curr_tok_idx_ + 1].type == LexerTokenType::Assign
     ) {
         const auto name = skip_token().text;
+		std::cerr << "[Debug output] regarded as assignment\n";
         skip_token("=");
         auto expr = parse_expression();
         skip_end_of_ln();
@@ -189,6 +195,7 @@ std::unique_ptr<Statement> Parser::parse_stmt() {
     }
     auto expr = parse_expression();
     if (expr != nullptr and curr_token().text == "=") {
+		std::cerr << "[Debug output] regarded as member assignment\n";
         if (dynamic_cast<GetMemberExpr*>(expr.get())) {
             skip_token("=");
             auto value = parse_expression();
