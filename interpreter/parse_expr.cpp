@@ -3,8 +3,17 @@
 #include "parser.hpp"
 
 std::unique_ptr<Expression> Parser::parse_expression() {
-    // ToDo: add op support 'and' 'or' 'not in' 'in'
-    return parse_comparison();
+    // ToDo: add op support 'not in' 'in'
+	auto node = parse_comparison();
+	while (curr_token().type == LexerTokenType::LogicalAnd
+		or curr_token().type == LexerTokenType::LogicalOr
+	) {
+		auto tok = curr_token();
+        auto op = skip_token().text;
+        auto right = parse_comparison();
+        node = std::make_unique<BinaryExpr>(std::move(op), std::move(node), std::move(right));
+	}
+    return node;
 }
 
 std::unique_ptr<Expression> Parser::parse_comparison() {
@@ -66,13 +75,16 @@ std::unique_ptr<Expression> Parser::parse_power() {
 }
 
 std::unique_ptr<Expression> Parser::parse_unary() {
-    // ToDo: add op support 'not'
     if (curr_token().type == LexerTokenType::Minus) {
         auto tok = curr_token();
         skip_token();
         auto operand = parse_unary();
         return std::make_unique<UnaryExpr>("-", std::move(operand));
-    }
+    } else if (curr_token().type == LexerTokenType::LogicalNot) {
+		skip_token("not");
+		auto operand = parse_factor();
+		return std::make_unique<UnaryExpr>("not", std::move(operand));
+	}
     return parse_factor();
 }
 
