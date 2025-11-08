@@ -18,9 +18,7 @@ Token Parser::skip_token(const std::string& want_skip) {
     if (curr_tok_idx_ < tokens_.size()) {
         auto& tok = tokens_[curr_tok_idx_];
         if (!want_skip.empty() and tok.text != want_skip) {
-			std::cerr << "[Parser] Errinfo: ";
-            std::cerr << ConClr::RED
-            << "There should be '" << want_skip << "' , but you given '"
+			std::cerr << ConClr::RED << "Error: At line " << tok.line << " column " << tok.column << ": There should be '" << want_skip << "' , but you given '"
             << tok.text << "'" << ConClr::RESET << std::endl;
             throw StdLibException("");
         }
@@ -56,9 +54,8 @@ void Parser::skip_end_of_ln() {
 
     // 仅在“非文件结尾”时报错
     if (curr_token().type != LexerTokenType::EndOfFile) {
-        std::cerr << ConClr::RED 
-                  << "Statement must end with ';' or newline, got '" << curr_token().text << "'" 
-                  << ConClr::RESET << std::endl;
+		auto& tok = tokens_[curr_tok_idx_];
+        std::cerr << ConClr::RED << "Error: At line " << tok.line << ": " << "End of line must be ';', got '" << tok.text << "'" << ConClr::RESET << std::endl;
         throw StdLibException("invalid statement terminator");
     }
 }
@@ -66,7 +63,7 @@ void Parser::skip_end_of_ln() {
 void Parser::must_token(const std::string& text, const std::string& waring) const {
     if (const auto tok = this->curr_token();
         tok.text != text) {
-        std::cerr << ConClr::RED << "The word'" << tok.text << "' cause error that : \n"
+         std::cerr << ConClr::RED << "Error: At line " << tok.line << " column " << tok.column << ": The word'" << tok.text << "' cause error that : \n"
                   << waring
                   << ConClr::RESET << std::endl;
     }

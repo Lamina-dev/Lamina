@@ -74,7 +74,7 @@ Value HANDLE_BINARYEXPR_ADD(Value* l, Value* r) {
         return Value(l->to_string() + r->to_string());
     } else if (ltype & VALUE_IS_ARRAY && rtype & VALUE_IS_ARRAY) {
         // Vector addition
-        return l->vector_add(r);
+        return l->vector_add(*r);
         // 只要有一方是 Irrational 或 Symbolic，优先生成符号表达式
     } else if (((ltype & VALUE_IS_IRRATIONAL) || (ltype & VALUE_IS_SYMBOLIC) || (rtype & VALUE_IS_IRRATIONAL) || (rtype & VALUE_IS_SYMBOLIC)) && (ltype & VALUE_IS_NUMERIC) && (rtype & VALUE_IS_NUMERIC)) {
         std::shared_ptr<SymbolicExpr> leftExpr = GET_SYMBOLICEXPR(l, ltype);
@@ -340,11 +340,13 @@ Value Interpreter::eval_CallExpr(const CallExpr* call) {
             return {};
         }
         // User function
-        return Interpreter::call_function(func.get(), args, self);
+        return Interpreter::call_function(func.get(), args, self, left.in_module ? Value(left.in_module) : LAMINA_NULL);
     }
 
     if (std::holds_alternative<std::shared_ptr<LmCppFunction>>(left.data)) {
         push_frame("<cpp function>", " ");
+		push_scope();
+		set_module_as(left.in_module ? Value(left.in_module) : LAMINA_NULL);
 
         Value result;
         std::shared_ptr<LmCppFunction> func;
@@ -353,9 +355,11 @@ Value Interpreter::eval_CallExpr(const CallExpr* call) {
             result = func->function(args);
         } catch (...) {
             pop_frame();
+			pop_scope();
             throw;
         }
         pop_frame();
+		pop_scope();
         return result;
     }
 
@@ -363,7 +367,7 @@ Value Interpreter::eval_CallExpr(const CallExpr* call) {
     return {};
 }
 
-Value Interpreter::call_function(const LambdaDeclExpr* func, const std::vector<Value>& args, Value self) {
+Value Interpreter::call_function(const LambdaDeclExpr* func, const std::vector<Value>& args, Value self, Value module) {
     if (func == nullptr) {
         std::cerr << "Error: Function at '" << func << "' is null" << std::endl;
         return Value("<func error>");
@@ -372,6 +376,7 @@ Value Interpreter::call_function(const LambdaDeclExpr* func, const std::vector<V
     Interpreter::push_frame(func->name, "<script>", 0);// Add to call stack
 
     Interpreter::push_scope();// Create scope here
+	Interpreter::set_module_as(module);	// After pushing scope!! If it's null, then there's nothing to consider.
     // Pass arguments
     for (size_t j = 0; j < func->params.size(); ++j) {
         set_variable(func->params[j], args[j]);
@@ -432,6 +437,11 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
     // Arithmetic operations (require numeric operands or vector operations)
     if (bin->op == "-" || bin->op == "*" || bin->op == "/" ||
         bin->op == "%" || bin->op == "^") {
+		
+		if (l.is_infinity() || r.is_infinity()) {
+			L_ERR("Error: Infinity cannot participate in evaluations");
+		}
+			
         // Special handling for multiplication
         if (bin->op == "*") {
             // Vector and matrix operations
@@ -714,10 +724,44 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
     // Comparison operators
     if (bin->op == "==" || bin->op == "!=" || bin->op == "<" ||
         bin->op == "<=" || bin->op == ">" || bin->op == ">=") {
+		if (l.is_infinity() && r.is_infinity()) {
+			int lt = std::get<int>(l.data), rt = std::get<int>(r.data);
+			if (bin->op == "==") return lt == rt;
+			else if (bin->op == "!=") return lt != rt;
+			else if (bin->op == "<") return lt < rt;
+			else if (bin->op == "<=") return lt <= rt;
+			else if (bin->op == ">") return lt > rt;
+			else if (bin->op == ">=") return lt >= rt;
+			else return false;
+		}
+		if (l.is_infinity()) {
+			if (bin->op == "==") return false;
+			if (bin->op == "!=") return true;
+			if (bin->op == ">" || bin->op == ">=") return (std::get<int>(l.data) > 0);
+			else return !(std::get<int>(l.data) > 0);
+		}
+		if (r.is_infinity()) {
+			if (bin->op == "==") return false;
+			if (bin->op == "!=") return true;
+			if (bin->op == "<" || bin->op == "<=") return (std::get<int>(r.data) > 0);
+			else return !(std::get<int>(r.data) > 0);
+		}
         // Handle different type combinations
         if (l.is_numeric() && r.is_numeric()) {
             // BigInt 比较优先
-            if (l.is_bigint() || r.is_bigint()) {
+            if (l.is_symbolic() || r.is_symbolic()) {
+				auto ls = l.as_symbolic();
+				auto rs = SymbolicExpr::multiply(SymbolicExpr::number(-1), r.as_symbolic());
+				auto res = SymbolicExpr::add(ls, rs)->simplify();
+				double rd = res->to_double();
+
+				if (bin->op == "==") return Value(rd == 0);
+                if (bin->op == "!=") return Value(rd != 0);
+                if (bin->op == "<") return Value(rd < 0);
+                if (bin->op == "<=") return Value(rd <= 0);
+                if (bin->op == ">") return Value(rd > 0);
+                if (bin->op == ">=") return Value(rd >= 0);
+			} else if (l.is_bigint() || r.is_bigint()) {
                 ::BigInt lb = l.is_bigint() ? std::get<::BigInt>(l.data) : ::BigInt(l.as_number());
                 ::BigInt rb = r.is_bigint() ? std::get<::BigInt>(r.data) : ::BigInt(r.as_number());
 
@@ -763,7 +807,24 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
                     if (bin->op == ">") return Value(!result_less && ls != rs);
                     if (bin->op == ">=") return Value(!result_less);
                 }
-            } else {
+            } else if (l.is_rational() || r.is_rational()) {
+				const auto& ld = l.as_rational();
+				const auto& rd = r.as_rational();
+				if (bin->op == "==") return Value(ld == rd);
+                if (bin->op == "!=") return Value(ld != rd);
+                if (bin->op == "<") return Value(ld < rd);
+                if (bin->op == "<=") return Value(ld <= rd);
+                if (bin->op == ">") return Value(ld > rd);
+                if (bin->op == ">=") return Value(ld >= rd);
+			} else if ((l.is_array() || l.is_matrix()) && (r.is_array() || r.is_matrix())) {
+				// Implemented in value.hpp
+				bool judge = (l == r);
+				if (bin->op == "==") return Value(judge); 
+				if (bin->op == "!=") return Value(!judge);
+
+				L_ERR("Cannot compare array or matrix with operator '" + bin->op + "'");
+				return Value();
+			} else {
                 double ld = l.as_number();
                 double rd = r.as_number();
 
@@ -820,6 +881,10 @@ Value Interpreter::eval_BinaryExpr(const BinaryExpr* bin) {
 
 Value Interpreter::eval_UnaryExpr(const UnaryExpr* unary) {
     Value v = eval(unary->operand.get());
+	
+	if (unary->op == "not") {
+		return Value(!v.as_bool());
+	}
 
     if (unary->op == "-") {
         if (v.type != Value::Type::Int && v.type != Value::Type::BigInt && v.type != Value::Type::Float && v.type != Value::Type::Rational) {

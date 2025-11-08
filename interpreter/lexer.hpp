@@ -69,6 +69,7 @@ enum class LexerTokenType {
     ThinArrow,   // ->
 	LogicalAnd,
 	LogicalOr,
+	LogicalNot,
     EndOfFile,
     EndOfLine,
     Unknown

@@ -17,7 +17,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <ranges>
+// I think it's 100% meaningless to use ranges simply for a vector-reversing.
+// Why not use iterator/index directly?
 #include <sstream>
 #ifdef _WIN32
 #include <direct.h>
@@ -42,6 +43,7 @@ std::vector<std::unique_ptr<ASTNode>> Interpreter::repl_asts{};
 std::vector<StackFrame> Interpreter::call_stack{};
 std::unordered_map<std::string, Value> Interpreter::builtins = register_builtins;
 std::vector<std::unordered_map<std::string, Value>> Interpreter::variable_stack{{}};
+std::vector<Value> Interpreter::module_stack{{}};
 
 Value new_lm_struct(const std::vector<std::pair<std::string, Value>>& vec);
 
@@ -55,18 +57,36 @@ Interpreter::~Interpreter() {
 // Scope stack operations
 void Interpreter::push_scope() {
     variable_stack.emplace_back();
+	module_stack.emplace_back();
 }
 
 void Interpreter::save_repl_ast(std::unique_ptr<ASTNode> ast) {
     repl_asts.push_back(std::move(ast));
 }
 
+void Interpreter::set_module_as(const Value& mod) {
+	if (module_stack.size()) {
+		module_stack.back() = mod;
+	}
+}
+
 void Interpreter::pop_scope() {
     if (variable_stack.size() > 1) variable_stack.pop_back();
+	if (module_stack.size() > 1) module_stack.pop_back();
 }
 
 Value Interpreter::get_variable(const std::string& name) {
-    for (const auto & it : std::ranges::reverse_view(variable_stack)) {
+    if (module_stack.size() != variable_stack.size()) {
+		std::cerr << "[Interpreter] <Warning> Module stack length " << module_stack.size() << " doesn't match " << variable_stack.size() << "\n";
+	}
+	for (int i = variable_stack.size() - 1; i >= 0; i--) {
+		if (module_stack[i].type == Value::Type::lmModule) {
+			// Attempt to get variable in the module, through:
+			auto& mg = std::get<std::shared_ptr<LmModule>>(module_stack[i].data);
+			if (mg->sub_item.count(name)) return mg->sub_item[name];
+			break;			// In current module only, make isolation
+		}
+		const auto &it = variable_stack[i];
         auto found = it.find(name);
         if (found != it.end()) return found->second;
     }
@@ -83,6 +103,13 @@ Value Interpreter::get_variable(const std::string& name) {
 }
 
 void Interpreter::set_variable(const std::string& name, const Value& val) {
+	if (!module_stack.empty()) {
+		if (!module_stack.back().is_null()) {
+			auto& mg = std::get<std::shared_ptr<LmModule>>(module_stack.back().data);
+			mg->sub_item[name] = val;
+			return;
+		}
+	}
     if (!variable_stack.empty()) {
         (*variable_stack.rbegin())[name] = val;
     }
@@ -552,7 +579,7 @@ bool Interpreter::load_module(const std::string& module_path) {
     if (asts.empty()) {
         // print_traceback("<stdin>", lineno);
         // return 1;
-        std::cout << "[Nothing to execute]" << std::endl;
+        std::cout << "Warning: Loading empty module. Nothing to execute!" << std::endl;
         return false;
     }
 
@@ -564,7 +591,7 @@ bool Interpreter::load_module(const std::string& module_path) {
         try {
             execute(stmt);
         } catch (const std::exception& e) {
-            std::cerr << "Error when import other file: " << e.what() << std::endl;
+            std::cerr << "Error when importing other file: " << e.what() << std::endl;
         } catch (...) { // 捕获非标准异常
             std::cerr << "Error: Unknown exception occurred while loading module" << std::endl;
             if (!call_stack.empty()) pop_frame();
@@ -581,33 +608,40 @@ bool Interpreter::load_module(const std::string& module_path) {
         namespace fs = std::filesystem;
         const fs::path path(module_path);
         module_name = path.stem().string();
-        std::cout << "[Debug] Path: " << module_path << " → module: " << module_name << std::endl;
+        //std::cerr << "[Debug] Path: " << module_path << " → module: " << module_name << std::endl;
     }
 
-    std::cout << "\nProgram execution completed." << std::endl;
-    set_variable(module_name,
-        Value(
-            std::make_shared<LmModule>(
+	auto cur_module = std::make_shared<LmModule>(
                 module_name,
                 parser->get_module_version(),
-                module_var_table
-               )
-            )
-    );
+                std::unordered_map<std::string, Value>()
+               );
+	for (auto &i : module_var_table) {
+		i.second.in_module = cur_module;
+	}
+	cur_module->sub_item = module_var_table;
+
+    //std::cerr << "\nModule Loader: Program execution completed." << std::endl;
+    set_variable(module_name, Value(cur_module));
     return true;
 }
 
 bool Interpreter::load_cpp_module(const std::string& module_path) {
-    const auto& module = load_cppmodule(module_path);
+	auto module = load_cppmodule(module_path);	// May result in some problems?
     namespace fs = std::filesystem;
     const fs::path path(module_path);
     std::string module_name = path.stem().string();
-    std::cout << "[Debug] Path: " << module_path << " → module: " << module_name << std::endl;
-    
-    for (const auto& [key, value] : module) {
+    std::cout << "[Debug] Importing Path: " << module_path << " → module: " << module_name << std::endl;
+    std::shared_ptr<LmModule> cur_module = std::make_shared<LmModule>(
+                module_name,
+                "0.0.0",
+                std::unordered_map<std::string, Value>()
+               );
+    for (auto& [key, value] : module) {
         if (key == "lamina_init_module") {
             [[maybe_unused]] auto _ = std::get<std::shared_ptr<LmCppFunction>>(value.data)->function({}); // 初始化函数
         }
+		value.in_module = cur_module;
         std::cerr << "Debug: checking c++ function " << key << std::endl;
     }
     
@@ -621,15 +655,10 @@ bool Interpreter::load_cpp_module(const std::string& module_path) {
     }
 
     const auto version = parse_properties(properties_file_path).at("version");
-    set_variable(module_name,
-        Value(
-            std::make_shared<LmModule>(
-                module_name,
-                version.empty() ? version : "0.0.0" ,
-                module
-               )
-            )
-    );
+	cur_module->sub_item = module;
+	if (!version.empty()) cur_module->id = version;
+	
+    set_variable(module_name, Value(cur_module));
     return true;
 }
 

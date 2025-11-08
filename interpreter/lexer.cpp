@@ -32,6 +32,7 @@ void registerKeywords() {
     keywords["loop"] = LexerTokenType::Loop;
 	keywords["and"] = LexerTokenType::LogicalAnd;
 	keywords["or"] = LexerTokenType::LogicalOr;
+	keywords["not"] = LexerTokenType::LogicalNot;
     keywords_registered = true;
 }
 

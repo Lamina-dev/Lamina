@@ -75,13 +75,16 @@ std::unique_ptr<Expression> Parser::parse_power() {
 }
 
 std::unique_ptr<Expression> Parser::parse_unary() {
-    // ToDo: add op support 'not'
     if (curr_token().type == LexerTokenType::Minus) {
         auto tok = curr_token();
         skip_token();
         auto operand = parse_unary();
         return std::make_unique<UnaryExpr>("-", std::move(operand));
-    }
+    } else if (curr_token().type == LexerTokenType::LogicalNot) {
+		skip_token("not");
+		auto operand = parse_factor();
+		return std::make_unique<UnaryExpr>("not", std::move(operand));
+	}
     return parse_factor();
 }
 
