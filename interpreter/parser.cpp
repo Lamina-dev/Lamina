@@ -18,8 +18,7 @@ Token Parser::skip_token(const std::string& want_skip) {
     if (curr_tok_idx_ < tokens_.size()) {
         auto& tok = tokens_[curr_tok_idx_];
         if (!want_skip.empty() and tok.text != want_skip) {
-            std::cerr << ConClr::RED
-            << "There should be '" << want_skip << "' , but you given '"
+			std::cerr << ConClr::RED << "Error: At line " << tok.line << " column " << tok.column << ": There should be '" << want_skip << "' , but you given '"
             << tok.text << "'" << ConClr::RESET << std::endl;
             throw StdLibException("");
         }
@@ -55,9 +54,8 @@ void Parser::skip_end_of_ln() {
 
     // 仅在“非文件结尾”时报错
     if (curr_token().type != LexerTokenType::EndOfFile) {
-        std::cerr << ConClr::RED 
-                  << "Statement must end with ';' or newline, got '" << curr_token().text << "'" 
-                  << ConClr::RESET << std::endl;
+		auto& tok = tokens_[curr_tok_idx_];
+        std::cerr << ConClr::RED << "Error: At line " << tok.line << ": " << "End of line must be ';', got '" << tok.text << "'" << ConClr::RESET << std::endl;
         throw StdLibException("invalid statement terminator");
     }
 }
@@ -65,7 +63,7 @@ void Parser::skip_end_of_ln() {
 void Parser::must_token(const std::string& text, const std::string& waring) const {
     if (const auto tok = this->curr_token();
         tok.text != text) {
-        std::cerr << ConClr::RED << "The word'" << tok.text << "' cause error that : \n"
+         std::cerr << ConClr::RED << "Error: At line " << tok.line << " column " << tok.column << ": The word'" << tok.text << "' cause error that : \n"
                   << waring
                   << ConClr::RESET << std::endl;
     }
@@ -78,14 +76,24 @@ std::vector<std::unique_ptr<Statement>> Parser::parse_program() {
             s != nullptr
         ) {
             stmts.push_back(std::move(s));
+			//std::cerr << "[Debug output] end of program statement processor!\n";
         }
     }
+	//std::cerr << "[Debug output] finished parser.\n";
     return stmts;
 }
 
 std::unique_ptr<Statement> Parser::parse_stmt() {
+	// A little bit weird, but ok for current use
+	while (curr_tok_idx_ < tokens_.size() && curr_token().type == LexerTokenType::EndOfLine) {
+        skip_token(); 
+    }
     auto tok = curr_token();
-
+	if (tok.type == LexerTokenType::EndOfFile || tok.type == LexerTokenType::Semicolon) {
+		//std::cerr << "[Debug output] !!! Semicolon/EOF appeared at the beginning of statement parser !!!\n";
+		return nullptr;
+	}
+	//std::cerr << "[Debug output] in token: " << tok.text << std::endl;
     if (tok.type == LexerTokenType::If) {
         skip_token("if");
         return parse_if();
@@ -135,7 +143,7 @@ std::unique_ptr<Statement> Parser::parse_stmt() {
         skip_token("loop");
         // Disallow empty immediate '{' to remove infinite-loop syntax
         if (curr_token().text == "{") {
-            std::cerr << "SyntaxError: infinite 'loop { }' is not supported; use 'loop <count-expression> { ... }'" << std::endl;
+            std::cerr << "SyntaxError: infinite 'loop { }' is no longer supported; use 'loop <count-expression> { ... }'" << std::endl;
             throw StdLibException("invalid loop syntax: infinite loop removed");
         }
         auto count_expr = parse_expression();
