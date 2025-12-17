@@ -33,22 +33,19 @@
 5. **模块化设计**：通过`include`语句引入外部模块，支持`::`命名空间访问符，实现代码复用与隔离。
 6. **灵活数据类型**：涵盖精确数值类型（rational/irrational）、复合类型（数组/矩阵/结构体/模块）及匿名函数和C++函数，适配多样开发场景。
 
-## Debug 输出控制（开发者说明）
+# 隐私政策
 
-在调试构建（Debug）中，符号化简器会输出额外的调试信息以便排查问题。控制方式如下：
+除非用户或安装或操作该程序的人员明确要求，否则本核心程序不会将任何信息传输到其他联网系统或第三方。
 
-- 编译时：CMake 在 Debug 配置下会为目标定义宏 `_SYMBOLIC_DEBUG=1`，使得源码中的调试输出默认开启；在 Release 构建中默认关闭。
-- 运行时：可以通过环境变量 `LAMINA_SYMBOLIC_DEBUG` 覆盖运行时行为：设置为 `1` 强制开启，设置为 `0` 强制关闭。如果未设置，则以编译时默认为准。
+# 赞助
 
-示例（PowerShell）：
-```powershell
-# 在 Debug 构建中运行（默认开启）：
-cmake -B build -DCMAKE_BUILD_TYPE=Debug .
-cmake --build build --config Debug --target lamina --parallel
-.
-
-# 强制在任何构建下开启运行时调试输出：
-$env:LAMINA_SYMBOLIC_DEBUG = '1'
-.
-```
-
+<table>
+    <tr>
+        <td><img src="https://signpath.org/assets/logo.svg" alt="SignPath" width="200"></td>
+        <td><a href="https://about.signpath.io/">SignPath.io</a> 提供免费代码签名服务，证书由 <a href="https://signpath.org/">SignPath 基金会</a> 颁发。</td>
+    </tr>
+    <tr>
+        <td><img src="https://chuqiyun.com/static/images/logo2.png" alt="SignPath" width="100"></td>
+        <td><a href="https://chuqiyun.com/aff/HNHKAJUX">初七云</a> 提供优秀的云服务。 给予 Lamina 网络服务强劲动力。</td>
+    </tr>
+</table>
