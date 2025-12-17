@@ -467,7 +467,7 @@ jobs:
           api-token: ${{ env.SIGNING_API_TOKEN }}
           organization-id: '7e544555-678f-4f64-a945-ad61c35f957f'
           project-slug: 'Lamina'
-          signing-policy-slug: 'test-signing'
+          signing-policy-slug: 'release-signing'
           artifact-configuration-slug: 'Lamina_on_Windows'
           github-artifact-id: '${{ steps.upload-artifact.outputs.artifact-id }}'
           wait-for-completion: true
