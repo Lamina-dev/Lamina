@@ -1,4 +1,4 @@
 
 [submodule "interpreter/BigNumCore"]
 	path = interpreter/BigNumCore
-	url = https://github.com/Lamina-dev/Lamina_BigNum.git
+	url = https://github.com/Lamina-dev/Lammp.git
