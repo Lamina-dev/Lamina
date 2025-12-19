@@ -70,6 +70,7 @@ public:
 		std::shared_ptr<LambdaDeclExpr>>;
 
     DataType data;
+	std::shared_ptr<LmModule> in_module = nullptr;
 
     ~Value() = default;
 
@@ -146,6 +147,16 @@ public:
     bool is_lmModule() const { return type == Type::lmModule; }
     bool is_lmCppFunction() const { return type == Type::lmCppFunction; }
     bool is_numeric() const { return type == Type::Int || type == Type::Float || type == Type::BigInt || type == Type::Rational || type == Type::Irrational || type == Type::Symbolic; }
+	bool as_number_compatible() const {
+		if (type == Type::Infinity)  return true;
+        if (type == Type::Int)  return true;
+        if (type == Type::Float)  return true;
+        if (type == Type::BigInt)  return true;
+        if (type == Type::Rational) return true;
+        if (type == Type::Irrational)  return true;
+        if (type == Type::Symbolic) return true;
+		return false;
+	}
     // Get numeric value as double
     double as_number() const {
 		if (type == Type::Infinity) return (1.0 * std::get<int>(data) / 0.0);
@@ -324,13 +335,69 @@ public:
                 return "<unknown>";
         }
     }
+	
+	bool is_comparable() const {
+		if (as_number_compatible() || is_array() || is_string())
+			return true;
+		return false;
+	}
 
     // ToDo: for set type
     bool operator<(const Value& other) const {
-        return false;
+        if (as_number_compatible() && other.as_number_compatible())
+			return as_number() < other.as_number();
+		if (is_string() || other.is_string()) {
+			return to_string() < other.to_string();
+		}
+		if (this->type != other.type)
+			return false;	// Can't compare
+		if (is_array()) {
+			// The other is array as well
+			auto ma = std::get<std::vector<Value> >(data);
+			auto oa = std::get<std::vector<Value> >(other.data);
+			for (size_t i = 0; i < ma.size() && i < oa.size(); i++) {
+				if (ma[i] < oa[i]) return true;
+			}
+			if (ma.size() < oa.size()) return true;
+			return false;
+		}
+		return false;	// Can't compare for other types
     }
     bool operator==(const Value& other) const {
-        return false;
+        if (this->type != other.type)
+			return false;	// Can't compare
+		// TODO: Increase its precision
+        if (as_number_compatible() && other.as_number_compatible())
+			return as_number() == other.as_number();
+		if (is_string()) {
+			return to_string() == other.to_string();
+		}
+		if (is_array()) {
+			// The other is array as well
+			auto ma = std::get<std::vector<Value> >(data);
+			auto oa = std::get<std::vector<Value> >(other.data);
+			if (ma.size() != oa.size()) return false;
+			for (size_t i = 0; i < ma.size() && i < oa.size(); i++) {
+				if (!(ma[i] == oa[i])) return false;
+			}
+			return true;
+		}
+		if (is_matrix()) {
+			auto ma = std::get<std::vector<std::vector<Value> > >(data);
+			auto oa = std::get<std::vector<std::vector<Value> > >(other.data);
+			if (ma.size() != oa.size()) return false;
+			for (size_t i = 0; i < ma.size() && i < oa.size(); i++) {
+				if (ma[i].size() != oa[i].size()) return false;
+				for (size_t j = 0; j < ma[i].size() && j < oa[i].size(); j++) {
+					if (!(ma[i][j] == oa[i][j])) return false;
+				}
+			}
+			return true;
+		}
+		if (is_lstruct()) {
+			// TODO: Implement this
+		}
+		return false;	// TODO: For other types, consider all of them independent so far
     }
 
     // Vector operations

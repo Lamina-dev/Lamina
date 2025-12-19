@@ -82,7 +82,15 @@ inline void L_ERR(const std::string& str) {
 
 inline bool check_cpp_function_argv(const std::vector<Value>& argv, const size_t argc) {
     if (argv.size() != argc) {
-        const std::string msg = "function need " + std::to_string(argc) + ", but got " + std::to_string(argv.size());
+		const std::string msg = "function need " + std::to_string(argc) + " argument(s), but got " + std::to_string(argv.size());
+        throw StdLibException(msg);
+    }
+    return false;
+}
+
+inline bool check_cpp_function_argv_x(const std::vector<Value>& argv, const size_t min_argc, const size_t max_argc) {
+    if (argv.size() < min_argc || argv.size() > max_argc) {
+        const std::string msg = "function need " + std::to_string(min_argc) + " to " + std::to_string(max_argc) + "argument(s), but got " + std::to_string(argv.size());
         throw StdLibException(msg);
     }
     return false;
@@ -94,7 +102,7 @@ inline bool check_cpp_function_argv(
 ) {
 
     if (argv.size() != except_type_vec.size()) {
-        const std::string msg = "function need " + std::to_string(except_type_vec.size()) + ", but got " + std::to_string(argv.size());
+        const std::string msg = "function need " + std::to_string(except_type_vec.size()) + " arguments, but got " + std::to_string(argv.size());
         throw StdLibException(msg);
         return false;
     }
@@ -102,7 +110,7 @@ inline bool check_cpp_function_argv(
     size_t cnt = 0;
     for (const auto& arg: argv) {
         if (arg.type != except_type_vec[cnt]) {
-            const std::string msg =  "callee use illegal type";
+            const std::string msg =  "callee used illegal type";
             throw StdLibException(msg);
             return false;
         }
