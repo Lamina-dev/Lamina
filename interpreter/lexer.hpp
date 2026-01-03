@@ -67,6 +67,9 @@ enum class LexerTokenType {
     Pipe,        // |
     FatArrow,    // =>
     ThinArrow,   // ->
+	LogicalAnd,
+	LogicalOr,
+	LogicalNot,
     EndOfFile,
     EndOfLine,
     Unknown
