@@ -150,6 +150,15 @@ Value map(const std::vector<Value>& args);
 // 替换内容：需3个参数（原字符串/容器、目标值、替换值），替换所有匹配的目标值并返回新结果
 Value replace(const std::vector<Value>& args);
 
+// 拼接给定的所有列表
+Value concat(const std::vector<Value>& args);
+
+// 切片，可以为 [a:b] 或 [a:b:c]
+Value slice(const std::vector<Value>& args);
+
+// 排序给定的列表，第二个参数表示比较器
+Value _sort(const std::vector<Value>& args);
+
 // 变量表
 Value vars(const std::vector<Value>& args);
 
@@ -298,6 +307,10 @@ inline std::unordered_map<std::string, Value> register_builtins =
         LAMINA_FUNC("find", find),
         LAMINA_FUNC("map", map),
         LAMINA_FUNC("replace", replace),
+		
+		LAMINA_FUNC("concat", concat),
+		LAMINA_FUNC("slice", slice),
+		LAMINA_FUNC("sort", _sort),
 
         // CAS数学模块：封装符号计算相关的解析、化简、求导等功能
         LAMINA_MODULE("cas", LAMINA_VERSION, {
