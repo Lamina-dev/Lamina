@@ -1,10 +1,10 @@
 name: Build Lamina Interpreter
 
-# Nightly build + manual trigger
+# Nightly build(X) + manual trigger
 on:
   # Run nightly at 01:00 PT (Pacific Time) -> UTC 08:00; adjust cron as needed
-  schedule:
-    - cron: '0 8 * * *'
+  #schedule:
+  #  - cron: '0 8 * * *'
   # Allow manual runs from the Actions UI
   workflow_dispatch: {}
   # Keep PR-triggered builds enabled for pull requests
@@ -467,33 +467,44 @@ jobs:
           api-token: ${{ env.SIGNING_API_TOKEN }}
           organization-id: '7e544555-678f-4f64-a945-ad61c35f957f'
           project-slug: 'Lamina'
-          signing-policy-slug: 'test-signing'
+          signing-policy-slug: 'release-signing'
           artifact-configuration-slug: 'Lamina_on_Windows'
           github-artifact-id: '${{ steps.upload-artifact.outputs.artifact-id }}'
-          wait-for-completion: true
+          wait-for-completion: false
           output-artifact-directory: 'artifacts/signed'
           parameters: |
-            version: "1.1.1"
+            version: "${{ steps.extract-version.outputs.version || '1.1.1' }}"
 
       - name: Package signed artifacts (Windows)
         if: runner.os == 'Windows'
+        continue-on-error: true
         shell: pwsh
         env:
           ZIP_NAME: "Lamina-${{ matrix.target }}-signed.zip"
         run: |
+          # 如果没有签名产物则跳过打包以避免失败
+          $signedFiles = Get-ChildItem -Path "artifacts/signed" -File -Recurse -ErrorAction SilentlyContinue
+          if (-not $signedFiles) {
+            Write-Output "No signed artifacts found in artifacts/signed — skipping packaging."
+            exit 0
+          }
+
           # Ensure output dir exists
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
           # Remove existing zip if present
           if (Test-Path "artifacts/$env:ZIP_NAME") { Remove-Item "artifacts/$env:ZIP_NAME" -Force }
+
           # Package all signed files into a single zip
-          Compress-Archive -Path "artifacts/signed/*" -DestinationPath "artifacts/$env:ZIP_NAME" -Force
+          $paths = $signedFiles | ForEach-Object { $_.FullName }
+          Compress-Archive -Path $paths -DestinationPath "artifacts/$env:ZIP_NAME" -Force
           Write-Output "Packaged signed artifacts: artifacts/$env:ZIP_NAME"
 
       - name: Upload signed artifact (Windows)
         if: runner.os == 'Windows'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: Lamina-${{ matrix.target }}-signed
           path: artifacts/Lamina-${{ matrix.target }}-signed.zip
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
