@@ -5,8 +5,6 @@
 #include "value.hpp"
 #include <cassert>
 
-#include <gtest/gtest-param-test.h>
-
 using namespace lmx::runtime;
 
 Value::Value() noexcept {}
@@ -59,8 +57,8 @@ std::string Value::to_string() const noexcept {
     case ValueKind::Bool: return bool_val ? "true" : "false";
     case ValueKind::Int: return std::to_string(int_val);
     case ValueKind::Obj: return obj->to_string();
-    case ValueKind::C_Ptr: return "cptr";
-    case ValueKind::Null: return "null";
+    case ValueKind::C_Ptr: return "RawPtr";
+    case ValueKind::Null: return "Null";
     case ValueKind::Fraction: return "frac";
     }
 

@@ -254,10 +254,10 @@ std::vector<Token> Lexer::tokenize(const std::string& code) {
     pos = 0;
     LOG(ITIS(line));
     const auto orig_line = line;
-    line += [&]() -> size_t {
-        if (content.empty()) return 0;
-        return std::ranges::count(content, '\n') + 1;
-    }();
+    // line += [&]() -> size_t {
+    //     if (content.empty()) return 0;
+    //     return std::ranges::count(content, '\n') + 1;
+    // }();
     LOG("now: " << ITIS(line) << ", " << ITIS(orig_line) << ", " << ITIS(col));
     col = 1;
     std::vector<Token> tokens;

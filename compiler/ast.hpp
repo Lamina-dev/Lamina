@@ -23,11 +23,11 @@ enum class ASTKind {
     SuffixParen,
     SuffixBracket,
     ParamsDeclNode,
-    FuncImpl, TailReturn, IfExpr, VarDecl, GlobalVarDecl, BreakStmt
+    FuncImpl, TailReturn, IfExpr, VarDecl, BreakStmt
 };
 
 enum class TypeKind {
-    Basic, Array, Named
+    Basic, Array, Named, Unknown, String, Function, None
 };
 
 struct Type {
@@ -39,6 +39,20 @@ struct Type {
     virtual ~Type();
 
     [[nodiscard]] virtual bool equals(Type *other) const noexcept = 0;
+
+    static bool is_null_type(const Type* kind) noexcept {
+        return !kind || kind->kind == TypeKind::Unknown;
+    }
+};
+
+struct UnknownType : Type {
+    explicit UnknownType() : Type(TypeKind::Unknown) {}
+
+    bool equals(Type *other) const noexcept override;
+};
+struct NoneType : Type {
+    explicit NoneType() : Type(TypeKind::None) {}
+    bool equals(Type *other) const noexcept override;
 };
 
 struct BasicType : Type {
@@ -52,6 +66,19 @@ struct BasicType : Type {
     bool equals(Type *other) const noexcept override;
 };
 
+struct StringType : Type {
+    explicit StringType() noexcept : Type(TypeKind::String) {}
+
+    bool equals(Type *other) const noexcept override;
+};
+struct FunctionType : Type {
+    std::vector<std::shared_ptr<Type>> params_ty;
+    std::shared_ptr<Type> ret_ty;
+
+    explicit FunctionType(std::vector<std::shared_ptr<Type>> params_ty, std::shared_ptr<Type> ret_ty) noexcept;
+    bool equals(Type *other) const noexcept override;
+
+};
 struct NamedType : Type {
     std::string name;
 
@@ -87,10 +114,12 @@ struct ExprNode : ASTNode {
 struct StmtNode : ASTNode {
     explicit StmtNode(ASTKind kind, size_t line, size_t col) noexcept;
 };
+struct FuncImplNode;
 struct Module {
     std::string name;
-    std::vector<std::shared_ptr<ASTNode>> decls;
-    Module(std::string name, std::vector<std::shared_ptr<ASTNode>> decls) noexcept : name(std::move(name)), decls(std::move(decls)) {}
+    std::vector<std::shared_ptr<StmtNode>> decls;
+    std::vector<FuncImplNode> top_func_def;
+    Module(std::string name, decltype(decls) decls) noexcept;
 };
 struct ExprStmtNode : StmtNode {
     std::shared_ptr<ExprNode> expr;
@@ -106,7 +135,7 @@ struct ExprsNode : ExprNode {
 
 struct LiteralNode : ExprNode {
     enum class Kind {
-        Integer, Float, String, Char, Boolean,
+        Integer, Float, String, Boolean,
     };
 
     std::string val;
@@ -180,31 +209,39 @@ struct BreakStmtNode : StmtNode {
 };
 
 struct ParamsDeclNode : StmtNode {
-    std::map<std::shared_ptr<ExprStmtNode>, std::shared_ptr<Type>> stmts;
-    explicit ParamsDeclNode(size_t line, size_t col, std::map<std::shared_ptr<ExprStmtNode>, std::shared_ptr<Type>> stmts) noexcept;
+    std::vector<std::pair<std::string, std::shared_ptr<Type>>> stmts;
+    explicit ParamsDeclNode(size_t line, size_t col, decltype(stmts) stmts) noexcept;
 };
+
+/*
+ * 部分情况
+ * 这个结构体会给block = nullptr
+ * 代表仅声明函数
+ */
 struct FuncImplNode : StmtNode {
-    std::shared_ptr<StmtNode> func_id;
+    std::string func_id;
     std::shared_ptr<ParamsDeclNode> params;
     std::shared_ptr<Type> return_type;
 
     std::shared_ptr<BlockExprNode> block;
 
     explicit FuncImplNode(size_t line, size_t col,
-        std::shared_ptr<StmtNode> func_id,
+        decltype(func_id) func_id,
         std::shared_ptr<ParamsDeclNode> params,
         std::shared_ptr<Type> return_type,
         std::shared_ptr<BlockExprNode> block
         ) noexcept;
+
+    std::shared_ptr<FunctionType> make_type() noexcept;
 };
 
 struct VarDeclNode : StmtNode {
-    std::shared_ptr<ExprStmtNode> id; // ExprStmt<binary: ::> or identifier
+    std::string id; // ExprStmt<binary: ::> or identifier
     std::shared_ptr<Type> type;
     bool is_mutable;
     std::shared_ptr<ExprNode> init_value{nullptr};
 
-    explicit VarDeclNode(size_t line, size_t col, std::shared_ptr<ExprStmtNode> id, std::shared_ptr<Type> type, bool is_mutable) noexcept;
+    explicit VarDeclNode(size_t line, size_t col, decltype(id) id, std::shared_ptr<Type> type, bool is_mutable) noexcept;
 };
 
 struct IfExprNode : ExprNode {

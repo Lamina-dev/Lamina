@@ -1,6 +1,11 @@
 add_library(laminac
     ast.cpp
+    ast_printer.cpp
     error.cpp
     lexer.cpp
     parser.cpp
+        hir.cpp
+        hir.hpp
+        mir.cpp
+        mir.hpp
 )

@@ -3,7 +3,6 @@
 //
 
 #pragma once
-#include <gtest/internal/gtest-string.h>
 
 #include "object.hpp"
 
