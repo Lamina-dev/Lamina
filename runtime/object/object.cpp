@@ -13,3 +13,14 @@ Object::~Object() noexcept = default;
 uint32_t Object::get_kind() const noexcept {
     return this->kind;
 }
+
+Object *Object::get() noexcept {
+    rc++;
+    return this;
+}
+
+void Object::release() noexcept {
+    if (--rc <= 0) {
+        delete this;
+    }
+}

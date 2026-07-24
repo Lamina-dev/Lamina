@@ -3,8 +3,12 @@
 //
 
 #include "ast.hpp"
+#include "ast.hpp"
 #include <ranges>
+#include <sstream>
 #include <utility>
+
+#include "ast_printer.hpp"
 
 using namespace lmx;
 
@@ -64,6 +68,49 @@ bool NoneType::equals(Type *other) const noexcept {
     return true;
 }
 
+std::string Type::to_string(const Type* kind) noexcept {
+    std::ostringstream ss;
+    AstPrinter::print_type(ss, *kind);
+    return ss.str();
+}
+
+std::string BinaryNode::op_to_string(const Op op) noexcept {
+    switch (op) {
+    case Op::Add:
+        return "+";
+    case Op::Sub:
+        return "-";
+    case Op::Mul:
+        return "*";
+    case Op::Div:
+        return "/";
+    case Op::Mod:
+        return "%";
+    case Op::Pow:
+        return "^";
+    case Op::Gt:
+        return ">";
+    case Op::Ge:
+        return ">=";
+    case Op::Lt:
+        return "<";
+    case Op::Le:
+        return "<=";
+    case Op::Eq:
+        return "==";
+    case Op::Ne:
+        return "!=";
+    case Op::And:
+        return "and";
+    case Op::Or:
+        return "or";
+    case Op::Dot:
+        return {};
+        break;
+    }
+    return {};
+}
+
 ASTNode::ASTNode(const ASTKind kind, const size_t line, const size_t col) noexcept
     : kind(kind), line(line), col(col) {
 }
@@ -78,11 +125,13 @@ StmtNode::StmtNode(const ASTKind kind, const size_t line, const size_t col) noex
 
 Module::Module(std::string name, decltype(decls) decls) noexcept
         : name(std::move(name)), decls(std::move(decls)) {
-    for (const auto& decl : decls) {
+    const auto decls_len = this->decls.size();
+    for (auto i = 0; i < decls_len; i++) {
+        const auto decl = this->decls[i];
         if (decl->kind == ASTKind::FuncImpl) {
-            auto node = *std::reinterpret_pointer_cast<FuncImplNode>(decl).get();
-            node.block = nullptr;
-            top_func_def.push_back(std::move(node));
+            // auto node = std::reinterpret_pointer_cast<FuncImplNode>(decl);
+            this->decls.erase(this->decls.begin() + i);
+            this->decls.insert(this->decls.begin(), decl);
         }
     }
 }
@@ -113,13 +162,12 @@ SuffixBracketNode::SuffixBracketNode(const size_t line, const size_t col, std::s
     : ExprNode(ASTKind::SuffixBracket, line, col), expr(std::move(expr)), suffix(std::move(suffix)) {
 }
 
-UnaryNode::UnaryNode(const size_t line, const size_t col, std::string op, std::shared_ptr<ExprNode> expr) noexcept
-    : ExprNode(ASTKind::Unary, line, col), op(std::move(op)), expr(std::move(expr)) {
+UnaryNode::UnaryNode(const size_t line, const size_t col, const Op op, std::shared_ptr<ExprNode> expr) noexcept
+    : ExprNode(ASTKind::Unary, line, col), op(op), expr(std::move(expr)) {
 }
-
-BinaryNode::BinaryNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> lhs, std::string op,
+BinaryNode::BinaryNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> lhs, const Op op,
                        std::shared_ptr<ExprNode> rhs) noexcept
-    : ExprNode(ASTKind::Binary, line, col), op(std::move(op)), lhs(std::move(lhs)), rhs(std::move(rhs)) {
+    : ExprNode(ASTKind::Binary, line, col), lhs(std::move(lhs)), rhs(std::move(rhs)), op(op) {
 }
 
 ReturnNode::ReturnNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> expr) noexcept
@@ -156,12 +204,21 @@ FuncImplNode::FuncImplNode(const size_t line, const size_t col,
     std::shared_ptr<BlockExprNode> block) noexcept
     : StmtNode(ASTKind::FuncImpl, line, col), func_id(std::move(func_id)),params(std::move(params)),return_type(std::move(return_type)), block(std::move(block)) {}
 
-IfExprNode::IfExprNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> cond, std::shared_ptr<ExprNode> then, std::shared_ptr<ASTNode> els) noexcept
+IfExprNode::IfExprNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> cond, std::shared_ptr<ExprNode> then, std::shared_ptr<ExprNode> els) noexcept
     : ExprNode(ASTKind::IfExpr, line, col), cond(std::move(cond)), then(std::move(then)), els(std::move(els)) {}
+
+AsExprNode::AsExprNode(const size_t line, const size_t col,
+                       std::shared_ptr<ExprNode> expr,
+                       std::shared_ptr<Type> cast_type) noexcept
+    : ExprNode(ASTKind::AsExpr, line, col), expr(std::move(expr)), cast_type(std::move(cast_type)) {}
 
 VarDeclNode::VarDeclNode(const size_t line, const size_t col, decltype(id) id, std::shared_ptr<Type> type, const bool is_mutable) noexcept
     : StmtNode(ASTKind::VarDecl, line, col), id(std::move(id)), type(std::move(type)), is_mutable(is_mutable) {}
 
+AssignStmtNode::AssignStmtNode(const size_t line, const size_t col,
+                               std::shared_ptr<ExprNode> lhs,
+                               std::shared_ptr<ExprNode> rhs) noexcept
+    : StmtNode(ASTKind::AssignStmt, line, col), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
 std::shared_ptr<FunctionType> FuncImplNode::make_type() noexcept {
     decltype(FunctionType::params_ty) params_ty;

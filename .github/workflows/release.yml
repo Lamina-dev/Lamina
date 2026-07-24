@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    branches: [ "master" ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            archive: linux-x64
+            ext: ''
+            so_ext: .so
+            lib_ext: .a
+          - os: macos-latest
+            archive: macos-x64
+            ext: ''
+            so_ext: .dylib
+            lib_ext: .a
+          - os: windows-latest
+            archive: windows-x64
+            ext: .exe
+            so_ext: .dll
+            lib_ext: .lib
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p package/bin
+
+          # Executable
+          cp "$(find build -maxdepth 3 -name "lamina${{ matrix.ext }}" -type f | head -1)" package/bin/
+
+          # Shared library (put alongside executable so it can be found)
+          cp "$(find build -maxdepth 3 -name "*laminaCore*${{ matrix.so_ext }}" -type f | head -1)" package/bin/
+
+          # Static libraries
+          mkdir -p package/lib
+          while IFS= read -r f; do
+            cp "$f" package/lib/
+          done < <(find build -maxdepth 3 \( -name "laminac${{ matrix.lib_ext }}" -o -name "lamina_runtime${{ matrix.lib_ext }}" \) -type f)
+
+          # On Windows, also grab import lib for laminaCore
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp "$(find build -maxdepth 3 -name "laminaCore.lib" -type f | head -1)" package/lib/
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lamina-${{ matrix.archive }}
+          path: package/
+

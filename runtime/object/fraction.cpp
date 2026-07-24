@@ -1,11 +1,11 @@
 #include "fraction.hpp"
 #include <cmath>
-#include <cstdint>
 #include <numeric>
-#include <sys/stat.h>
 
 using namespace lmx::runtime;
 
+Fraction::Fraction() noexcept = default;
+Fraction::~Fraction() noexcept = default;
 
 Fraction::Fraction(const int32_t num, const int32_t den) noexcept
 : num(num), den(den) {simplify();}
@@ -26,7 +26,7 @@ Fraction::Fraction(const std::string& num_str) noexcept {
         else break;
     }
 
-    this->den = std::pow(10, den_s.size());
+    this->den = static_cast<int32_t>(std::pow(10, den_s.size()));
 
     this->num = std::stoi(num_s + den_s);
     simplify();
@@ -84,6 +84,14 @@ Fraction Fraction::operator/(const Fraction& other) const noexcept {
     return Fraction(num * other.den, den * other.num);
 }
 
+Fraction Fraction::operator%(const Fraction &other) const noexcept {
+    const auto rem = num * other.den % (den * other.num);
+    return Fraction(rem, other.den * den);
+}
+
+Fraction Fraction::operator-() const noexcept {
+    return Fraction(-num, den);
+}
 
 
 #define ReDuce const int32_t lcm = std::lcm(den, other.den); \
@@ -153,11 +161,11 @@ double Fraction::to_float() const noexcept {
 }
 
 bool Fraction::operator!=(const int64_t other) const noexcept {
-    return to_float() != static_cast<double>(other);
+    return other * den != num;
 }
 
 bool Fraction::operator==(const int64_t other) const noexcept {
-    return to_float() == static_cast<double>(other);
+    return other * den != num;
 }
 
 Fraction Fraction::operator*(const int other) const noexcept {

@@ -23,7 +23,8 @@ enum class ASTKind {
     SuffixParen,
     SuffixBracket,
     ParamsDeclNode,
-    FuncImpl, TailReturn, IfExpr, VarDecl, BreakStmt
+    FuncImpl, TailReturn, IfExpr, VarDecl, BreakStmt,
+    AssignStmt, AsExpr
 };
 
 enum class TypeKind {
@@ -43,6 +44,8 @@ struct Type {
     static bool is_null_type(const Type* kind) noexcept {
         return !kind || kind->kind == TypeKind::Unknown;
     }
+
+    static std::string to_string(const Type* kind) noexcept;
 };
 
 struct UnknownType : Type {
@@ -118,7 +121,6 @@ struct FuncImplNode;
 struct Module {
     std::string name;
     std::vector<std::shared_ptr<StmtNode>> decls;
-    std::vector<FuncImplNode> top_func_def;
     Module(std::string name, decltype(decls) decls) noexcept;
 };
 struct ExprStmtNode : StmtNode {
@@ -167,19 +169,28 @@ struct SuffixBracketNode : ExprNode {
 };
 
 struct UnaryNode : ExprNode {
-    std::string op;
+    enum class Op {
+        Neg,
+    };
+    Op op;
     std::shared_ptr<ExprNode> expr;
 
-    explicit UnaryNode(size_t line, size_t col, std::string op, std::shared_ptr<ExprNode> expr) noexcept;
+    explicit UnaryNode(size_t line, size_t col, Op op, std::shared_ptr<ExprNode> expr) noexcept;
 };
 
 struct BinaryNode : ExprNode {
-    std::string op;
+    enum class Op {
+        Add, Sub, Mul, Div, Mod, Pow,
+        Gt, Ge, Lt, Le, Eq, Ne, And, Or, Dot
+    };
+    Op op;
     std::shared_ptr<ExprNode> lhs;
     std::shared_ptr<ExprNode> rhs;
 
-    explicit BinaryNode(size_t line, size_t col, std::shared_ptr<ExprNode> lhs, std::string op,
+    explicit BinaryNode(size_t line, size_t col, std::shared_ptr<ExprNode> lhs, Op op,
                         std::shared_ptr<ExprNode> rhs) noexcept;
+
+    static std::string op_to_string(Op op) noexcept;
 };
 
 struct ReturnNode : StmtNode {
@@ -244,12 +255,30 @@ struct VarDeclNode : StmtNode {
     explicit VarDeclNode(size_t line, size_t col, decltype(id) id, std::shared_ptr<Type> type, bool is_mutable) noexcept;
 };
 
+struct AssignStmtNode : StmtNode {
+    std::shared_ptr<ExprNode> lhs;
+    std::shared_ptr<ExprNode> rhs;
+
+    explicit AssignStmtNode(size_t line, size_t col,
+                            std::shared_ptr<ExprNode> lhs,
+                            std::shared_ptr<ExprNode> rhs) noexcept;
+};
+
 struct IfExprNode : ExprNode {
     std::shared_ptr<ExprNode> cond;
     std::shared_ptr<ExprNode> then;
-    std::shared_ptr<ASTNode> els;
+    std::shared_ptr<ExprNode> els;
 
-    explicit IfExprNode(size_t line, size_t col, std::shared_ptr<ExprNode> cond, std::shared_ptr<ExprNode> then, std::shared_ptr<ASTNode> els) noexcept;
+    explicit IfExprNode(size_t line, size_t col, std::shared_ptr<ExprNode> cond, std::shared_ptr<ExprNode> then, std::shared_ptr<ExprNode> els) noexcept;
+};
+
+struct AsExprNode : ExprNode {
+    std::shared_ptr<ExprNode> expr;
+    std::shared_ptr<Type> cast_type;
+
+    explicit AsExprNode(size_t line, size_t col,
+                        std::shared_ptr<ExprNode> expr,
+                        std::shared_ptr<Type> cast_type) noexcept;
 };
 
 }

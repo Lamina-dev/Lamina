@@ -1,0 +1,6 @@
+import stdlib as sl
+
+func println(args text...) -> ? {
+    sl._builtins.print(args)
+    sl._builtins.print("\n")
+}

@@ -7,8 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "lmx_export.hpp"
-#include "lmx_debug.hpp"
+#include "lmx.h"
 
 #include <format>
 
@@ -82,7 +81,7 @@ inline std::string to_string(const TokenType& type) {
     }
 }
 
-struct LMC_API Token {
+struct LM_API Token {
     TokenType type;
     std::string text;
     size_t line, col;
@@ -90,7 +89,7 @@ struct LMC_API Token {
     friend std::ostream& operator<<(std::ostream& os, const Token& t);
 };
 
-class LMC_API Lexer {
+class LM_API Lexer {
     size_t pos{0}, line{1}, col{1};
     std::string& content, filename;
 
@@ -100,6 +99,7 @@ class LMC_API Lexer {
 
 public:
     explicit Lexer(std::string& code, std::string filename = "<unknown>"): content(code), filename(std::move(filename)) {}
+    // explicit Lexer(const char* code, std::string filename = "<unknown>"): content(code), filename(std::move(filename)) {}
     std::string error(const std::vector<Token>& tokens, size_t origin_lineno);
     std::vector<Token> tokenize(const std::string &code);
 

@@ -11,7 +11,6 @@ namespace lmx {
 std::ostream& operator<<(std::ostream& os, const Token& t) {
     os << "Token(" << to_string(t.type)
        << ", " << t.text << ", " << t.line << ", " << t.col << ')';
-    LOG(ITIS(t.text) << ", " << ITIS(t.line) << ", " << ITIS(t.col));
     return os;
 }
 
@@ -30,10 +29,8 @@ bool Lexer::valid_pos() const {
 Token Lexer::next() {
     while (isspace(content[pos])) {
         advance();
-        LOG("advance!");
     }
     if (pos >= content.size()) {
-        LOG("Directly EOF!");
         return {TokenType::END_OF_FILE,"", line, col};
     }
 
@@ -137,7 +134,6 @@ Token Lexer::next() {
                 return {TokenType::UNKNOWN, str, line, col - str.size() - 1};
 
             advance();
-            LOG("Content of the STRING_LITERAL: " << str);
             return {TokenType::STRING_LITERAL, str, line, col - str.size() - 1};
         }
         case '(': {
@@ -233,6 +229,8 @@ Token Lexer::next() {
                     {"not", TokenType::NOT},    // 让! 和 not等价
                     {"import", TokenType::KW_IMPORT},
                     {"sym", TokenType::KW_SYM},
+                    {"true", TokenType::TRUE_LITERAL},
+                    {"false", TokenType::FALSE_LITERAL},
                 };
                 if (const auto it = keywords.find(id); it != keywords.end()) {
                     return {it->second, id, cur_line, cur_col};
@@ -244,7 +242,6 @@ Token Lexer::next() {
 
     auto token = Token{TokenType::UNKNOWN, std::string(1, content[pos]), line, col};
     advance();
-    LOG("Will be UNKNOWN: Token: " << ITIS(token.col) << ", " << ITIS(token.line));
     return token;
 }
 
@@ -252,26 +249,21 @@ std::vector<Token> Lexer::tokenize(const std::string& code) {
     content = code;
     has_err = false;
     pos = 0;
-    LOG(ITIS(line));
     const auto orig_line = line;
     // line += [&]() -> size_t {
     //     if (content.empty()) return 0;
     //     return std::ranges::count(content, '\n') + 1;
     // }();
-    LOG("now: " << ITIS(line) << ", " << ITIS(orig_line) << ", " << ITIS(col));
     col = 1;
     std::vector<Token> tokens;
     while (pos < content.size()) {
         tokens.push_back(next());
-        LOG("Pushing...");
     }
     if (tokens.empty() || tokens.back().type != TokenType::END_OF_FILE) tokens.push_back({TokenType::END_OF_FILE, "", line, col});
     for ([[maybe_unused]] auto const &token : tokens) {
-        LOG(ITIS(token));
     }
     const std::string res = error(tokens, orig_line);
     if (res.empty()) return tokens;
-    LOG("Error!");
     has_err = true;
     std::cerr << res << std::endl;
     return {};

@@ -1,0 +1,7 @@
+# Lamina Builtins module
+# 不建议直接导入，该模块用于导入builtins动态库（C implement)
+
+module _builtins {
+    func print(args text...) -> ? = "lmx_std_println"
+
+}

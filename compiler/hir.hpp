@@ -18,12 +18,16 @@ struct Scope {
         std::shared_ptr<Type> type;
         bool is_mut;
     };
+    enum class ScopeType {
+        Function, Block,
+    };
+    ScopeType scope{ScopeType::Function};
     std::string name;
     std::vector<Var> vars;
     std::shared_ptr<Type> return_type;
 
     explicit Scope(std::string name) noexcept;
-
+    explicit Scope(ScopeType scope) noexcept;
     explicit Scope() = default;
 };
 
@@ -34,11 +38,11 @@ class HirContext {
 
     std::optional<Scope::Var *> find_var(const std::string &name) noexcept;
 
-    void new_var(std::string name, std::shared_ptr<Type> type, Scope *scope) noexcept;
-    void new_cur_scope_var(std::string name, std::shared_ptr<Type> type) noexcept;
-    void new_global_var(std::string name, std::shared_ptr<Type> type) noexcept;
+    void new_var(std::string name, std::shared_ptr<Type> type, Scope *scope, bool is_mut = false) noexcept;
+    void new_cur_scope_var(std::string name, std::shared_ptr<Type> type, bool is_mut = false) noexcept;
+    void new_global_var(std::string name, std::shared_ptr<Type> type, bool is_mut = false) noexcept;
 
-    bool is_global_scope() noexcept;
+    bool is_global_scope() const noexcept;
 public:
     explicit HirContext() noexcept;
     void check_module(const Module *mod) noexcept;

@@ -7,8 +7,7 @@
 #include "lexer.hpp"
 
 namespace lmx {
-class LMC_API Parser {
-    std::shared_ptr<ExprNode> parse_assign()        noexcept;   // =
+class LM_API Parser {
     std::shared_ptr<ExprNode> parse_logical()       noexcept;   // or and
     std::shared_ptr<ExprNode> parse_equality()      noexcept;   // == !=
     std::shared_ptr<ExprNode> parse_relational()    noexcept;   // > < >= <=
@@ -21,7 +20,7 @@ class LMC_API Parser {
     std::shared_ptr<ExprNode> parse_block()         noexcept;
     std::shared_ptr<ExprNode> parse_if()            noexcept;
     std::shared_ptr<Type> parse_type() noexcept;
-    std::shared_ptr<ExprStmtNode> parse_multi_naming()    noexcept;
+    // std::shared_ptr<ExprStmtNode> parse_multi_naming()    noexcept;
     std::shared_ptr<ExprStmtNode> parse_param_name()      noexcept;
 
 
@@ -42,9 +41,13 @@ class LMC_API Parser {
     size_t pos{0};
     size_t frame_count{0};
 public:
-    Parser() = delete;
+    explicit Parser() = delete;
     std::shared_ptr<ExprNode> parse_expr() noexcept;
     std::shared_ptr<StmtNode> parse_stmt() noexcept;
+
+    std::shared_ptr<StmtNode> parse_return() noexcept;
+
+    std::shared_ptr<StmtNode> parse_stmt(const std::vector<Token> &tokens) noexcept;
 
     std::shared_ptr<Module> parse_module(const std::string& name) noexcept;
     explicit Parser(std::vector<Token>& tokens) noexcept;

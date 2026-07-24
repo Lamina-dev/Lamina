@@ -1,26 +1,24 @@
 #pragma once
 #include <cstdint>
 #include <string>
-#include <unordered_map>
 
 namespace lmx::runtime {
-class Code;
+class CodeModule;
 
 namespace ObjectKind {
-enum ObjectKind {
+enum  {
     Object,
-    Code,
+    Code  ,
     String,
-    Table,
-    Fraction,
+    Table ,
     Vector,
     Matrix,
-    Array,
+    Array ,
 };
 }
 class Object {
     uint32_t kind { ObjectKind::Object };
-    std::unordered_map<size_t, Code*>* sub_funcs;
+    uint32_t rc { 1 };
 public:
     explicit Object(uint32_t kind) noexcept;
     virtual ~Object() noexcept;
@@ -33,5 +31,8 @@ public:
 
     [[nodiscard]] virtual bool operator==(const Object& other) const noexcept = 0;
     [[nodiscard]] virtual bool operator!=(const Object& other) const noexcept = 0;
+
+    [[nodiscard]] Object*       get() noexcept;
+    void release() noexcept;
 };
 }

@@ -9,7 +9,34 @@ using namespace lmx;
 
 static std::string cur_module_name;
 
+static BinaryNode::Op token_to_binary_op(const TokenType type) {
+    switch (type) {
+    case TokenType::KW_OR: return BinaryNode::Op::Or;
+    case TokenType::KW_AND: return BinaryNode::Op::And;
+    case TokenType::EQ: return BinaryNode::Op::Eq;
+    case TokenType::NE: return BinaryNode::Op::Ne;
+    case TokenType::GT: return BinaryNode::Op::Gt;
+    case TokenType::LT: return BinaryNode::Op::Lt;
+    case TokenType::LE: return BinaryNode::Op::Le;
+    case TokenType::GE: return BinaryNode::Op::Ge;
+    case TokenType::OPER_PLUS: return BinaryNode::Op::Add;
+    case TokenType::OPER_MINUS: return BinaryNode::Op::Sub;
+    case TokenType::OPER_MUL: return BinaryNode::Op::Mul;
+    case TokenType::OPER_DIV: return BinaryNode::Op::Div;
+    case TokenType::OPER_MOD: return BinaryNode::Op::Mod;
+    case TokenType::OPER_POW: return BinaryNode::Op::Pow;
+    case TokenType::DOT: return BinaryNode::Op::Dot;
+    // case TokenType::COL_COLON: return BinaryNode::Op::ColonColon;
+    default: std::unreachable();
+    }
+}
+
 Parser::Parser(std::vector<Token> &tokens) noexcept : tokens(tokens) {}
+
+std::shared_ptr<StmtNode> Parser::parse_stmt(const std::vector<Token> &t) noexcept {
+    this->reset(t);
+    return parse_stmt();
+}
 
 #define advance() \
     do {\
@@ -52,7 +79,7 @@ bool Parser::peek_match(const TokenType t) const noexcept {
 auto line = cur().line, col = cur().col;\
 std::shared_ptr<ExprNode> node = last();   \
 logic (__VA_ARGS__) {    \
-auto op = cur().text;\
+auto op = token_to_binary_op(cur().type);\
 advance();\
 node = std::make_shared<BinaryNode>(line, col, node, op, then());         \
 line = cur().line, col = cur().col;\
@@ -60,10 +87,6 @@ line = cur().line, col = cur().col;\
 return node;
 
 #define PARSER_BINOP_L(last, logic,  ...) PARSER_BINOP(last, last, logic, __VA_ARGS__)
-
-std::shared_ptr<ExprNode> Parser::parse_assign() noexcept {
-    PARSER_BINOP(parse_assign, parse_logical, if, cur().type == TokenType::ASSIGN)
-}
 
 std::shared_ptr<ExprNode> Parser::parse_logical() noexcept {
     PARSER_BINOP_L(parse_equality, while,
@@ -110,31 +133,29 @@ std::shared_ptr<ExprNode> Parser::parse_exponent() noexcept {
 std::shared_ptr<ExprNode> Parser::parse_term() noexcept {
     size_t line = cur().line, col = cur().col;
 
-    switch (std::string op; cur().type) {
+    switch (cur().type) {
     case TokenType::OPER_MINUS:
     // case TokenType::OPER_MUL:
         {
-        op = cur().text;
         advance();
-        return std::make_shared<UnaryNode>(line, col, op, parse_factor());
+        return std::make_shared<UnaryNode>(line, col, UnaryNode::Op::Neg, parse_factor());
     }
     default:return parse_factor();
     }
 
 }
 
-std::shared_ptr<ExprStmtNode> Parser::parse_multi_naming() noexcept {
-    size_t line = cur().line, col = cur().col;
-    std::shared_ptr<ExprNode> naming = std::make_shared<IdentifierNode>(line, col, cur().text);
-    advance();
-    while (match(TokenType::COL_COLON)) {
-        auto op = cur().text;
-        advance();
-        naming = std::make_shared<BinaryNode>(line, col, naming, op, std::make_shared<IdentifierNode>(cur().line, cur().col, cur().text));
-        advance();
-    }
-    return std::make_shared<ExprStmtNode>(line, col, naming);
-}
+// std::shared_ptr<ExprStmtNode> Parser::parse_multi_naming() noexcept {
+//     size_t line = cur().line, col = cur().col;
+//     std::shared_ptr<ExprNode> naming = std::make_shared<IdentifierNode>(line, col, cur().text);
+//     advance();
+//     while (match(TokenType::COL_COLON)) {
+//         advance();
+//         naming = std::make_shared<BinaryNode>(line, col, naming, BinaryNode::Op::ColonColon, std::make_shared<IdentifierNode>(cur().line, cur().col, cur().text));
+//         advance();
+//     }
+//     return std::make_shared<ExprStmtNode>(line, col, naming);
+// }
 
 std::shared_ptr<ExprStmtNode> Parser::parse_param_name() noexcept {
     size_t line = cur().line, col = cur().col;
@@ -149,7 +170,7 @@ std::shared_ptr<ExprNode> Parser::parse_factor() noexcept {
     while (match(TokenType::DOT) || match(TokenType::LPAREN) || match(TokenType::LBRACK) || match(TokenType::COL_COLON)) {
         switch (cur().type) {
         case TokenType::DOT: case TokenType::COL_COLON: {
-            auto op = cur().text;
+            auto op = token_to_binary_op(cur().type);
             advance();
             primary = std::make_shared<BinaryNode>(line, col, primary, op, parse_primary());
             break;
@@ -171,7 +192,7 @@ std::shared_ptr<ExprNode> Parser::parse_factor() noexcept {
         }
         case TokenType::LBRACK: {
             advance();
-            auto e = parse_assign();
+            auto e = parse_expr();
             consume(TokenType::RBRACK, "]");
             primary = std::make_shared<SuffixBracketNode>(line, col, primary, e);
             break;
@@ -201,7 +222,7 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
     }
     case TokenType::LPAREN: {
         advance();
-        auto e = parse_assign();
+        auto e = parse_expr();
         consume(TokenType::RPAREN, ")");
         return e;
     }
@@ -210,12 +231,21 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         advance();
         return std::make_shared<IdentifierNode>(line, col, id);
     }
+    case TokenType::TRUE_LITERAL:
+    case TokenType::FALSE_LITERAL: {
+        auto id = cur().text;
+        advance();
+        return std::make_shared<LiteralNode>(line, col, id, LiteralNode::Kind::Boolean);
+    }
     case TokenType::KW_IF: {
         advance();
         return parse_if();
     }
     case TokenType::END_OF_FILE: {
         return nullptr;
+    }
+    case TokenType::LBRACE: {
+        return parse_block();
     }
     default: {
         throw_error(ErrorType::Parse, "`" + cur().text + "` is wrong primary token", cur().line, cur().col);
@@ -226,10 +256,12 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
 }
 
 std::shared_ptr<ExprNode> Parser::parse_expr() noexcept {
-    auto result = parse_assign();
+    auto line = cur().line, col = cur().col;
+    auto result = parse_logical();
     if (match(TokenType::KW_AS)) {
         advance();
-        result->type = parse_type();
+        auto cast_type = parse_type();
+        result = std::make_shared<AsExprNode>(line, col, result, cast_type);
     }
     return result;
 }
@@ -244,10 +276,31 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
     case TokenType::KW_VAR: case TokenType::KW_LET: {
         return std::static_pointer_cast<VarDeclNode>(parse_var());
     }
+    case TokenType::KW_RETURN: {
+        // advance();
+        return parse_return();
+    }
     default: {
-        return std::make_shared<ExprStmtNode>(line, col, parse_expr());
+        auto expr = parse_expr();
+        if (match(TokenType::ASSIGN)) {
+            advance();
+            auto rhs = parse_expr();
+            return std::make_shared<AssignStmtNode>(line, col, expr, rhs);
+        }
+        return std::make_shared<ExprStmtNode>(line, col, expr);
     }
     }
+}
+
+std::shared_ptr<StmtNode> Parser::parse_return() noexcept {
+    auto old_line = cur().line, old_col = cur().col;
+    advance();
+    std::shared_ptr<ExprNode> expr = nullptr;
+    auto line = cur().line, col = cur().col;
+    if (old_line == line) {
+        expr = parse_expr();
+    }
+    return std::make_shared<ReturnNode>(line, col,  expr);
 }
 
 std::shared_ptr<StmtNode> Parser::parse_var() noexcept {
@@ -280,7 +333,7 @@ std::shared_ptr<ExprNode> Parser::parse_if() noexcept {
     auto cond = parse_expr();
     frame_count++;
     auto then = parse_block();
-    std::shared_ptr<ASTNode> els = nullptr;
+    std::shared_ptr<ExprNode> els = nullptr;
     if (match(TokenType::KW_ELSE)) {
         advance();
         if (match(TokenType::KW_IF)) {
@@ -344,8 +397,10 @@ std::shared_ptr<StmtNode> Parser::parse_func() noexcept {
     }
     consume(TokenType::RPAREN, ")");
     std::shared_ptr<Type> return_type;
-    if (match(TokenType::ARROW))
+    if (match(TokenType::ARROW)) {
+        advance();
         return_type = parse_type();
+    }
     else return_type = std::make_shared<UnknownType>();
     auto body = std::static_pointer_cast<BlockExprNode>(parse_block());
     frame_count--;
@@ -381,7 +436,7 @@ std::shared_ptr<Module> Parser::parse_module(const std::string &name) noexcept {
     cur_module_name = name;
     decltype(Module::decls) decls;
     while (pos < tokens.size() && tokens[pos].type != TokenType::END_OF_FILE) {
-        decls.push_back(parse_stmt());
+        decls.push_back(std::move(parse_stmt()));
     }
     cur_module_name = save_cur_mod;
     return std::make_shared<Module>(name, decls);
