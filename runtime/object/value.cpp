@@ -14,7 +14,7 @@ Value::Value(const bool bool_val) noexcept : kind(ValueKind::Bool), bool_val(boo
 
 Value::Value(void *c_ptr) noexcept : kind(ValueKind::C_Ptr), c_ptr(c_ptr) {}
 
-Value::Value(const int64_t int_val) noexcept : kind(ValueKind::Int), int_val(int_val) {}
+Value::Value(const LmInt int_val) noexcept : kind(ValueKind::Int), int_val(int_val) {}
 
 Value::Value(Object *obj) noexcept : kind(ValueKind::Obj), obj(obj) {}
 
@@ -23,6 +23,7 @@ Value::Value(const int num, const int den) : kind(ValueKind::Fraction), frac_val
 Value::Value(const Fraction& frac) noexcept : kind(ValueKind::Fraction), frac_val(frac) {}
 
 Value &Value::operator=(const Fraction& fraction) {
+    this->~Value();
     // assert(this->kind == ValueKind::Fraction);
     this->kind = ValueKind::Fraction;
     this->frac_val = fraction;
@@ -30,6 +31,7 @@ Value &Value::operator=(const Fraction& fraction) {
 }
 
 Value &Value::operator=(std::nullptr_t) noexcept {
+    this->~Value();
     // assert(this->kind == ValueKind::Null);
     this->kind = ValueKind::Null;
     this->null_val = nullptr;
@@ -42,6 +44,7 @@ Object *Value::operator->() const noexcept {
 }
 
 Value &Value::operator=(void *ptr) noexcept {
+    this->~Value();
     // assert(this->kind == ValueKind::C_Ptr);
     this->kind = ValueKind::C_Ptr;
     this->c_ptr = ptr;
@@ -49,13 +52,15 @@ Value &Value::operator=(void *ptr) noexcept {
 }
 
 Value &Value::operator=(const bool val) noexcept {
+    this->~Value();
     // assert(this->kind == ValueKind::Bool);
     this->kind = ValueKind::Bool;
     this->bool_val = val;
     return *this;
 }
 
-Value &Value::operator=(const int64_t val) noexcept {
+Value &Value::operator=(const LmInt val) noexcept {
+    this->~Value();
     // assert(this->kind == ValueKind::Int);
     this->kind = ValueKind::Int;
     this->int_val = val;
@@ -63,6 +68,7 @@ Value &Value::operator=(const int64_t val) noexcept {
 }
 
 Value &Value::operator=(Object *obj) noexcept {
+    this->~Value();
     // assert(this->kind == ValueKind::Obj);
     this->kind = ValueKind::Obj;
     this->obj = obj;
@@ -76,7 +82,8 @@ std::string Value::to_string() const noexcept {
     case ValueKind::Obj: return obj->to_string();
     case ValueKind::C_Ptr: return "RawPtr";
     case ValueKind::Null: return "Null";
-    case ValueKind::Fraction: return "frac";
+    case ValueKind::Fraction: return frac_val.to_string();
+    case ValueKind::C_VaList: return "VaList";
     }
 
     // 不可能到达这里

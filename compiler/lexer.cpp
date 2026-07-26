@@ -231,6 +231,7 @@ Token Lexer::next() {
                     {"sym", TokenType::KW_SYM},
                     {"true", TokenType::TRUE_LITERAL},
                     {"false", TokenType::FALSE_LITERAL},
+                    {"static", TokenType::KW_STATIC},
                 };
                 if (const auto it = keywords.find(id); it != keywords.end()) {
                     return {it->second, id, cur_line, cur_col};

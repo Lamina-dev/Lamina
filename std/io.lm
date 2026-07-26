@@ -4,3 +4,6 @@ func println(args text...) -> ? {
     sl._builtins.print(args)
     sl._builtins.print("\n")
 }
+func print(args text..) -> ? {
+    sl._builtins.print(args)
+}

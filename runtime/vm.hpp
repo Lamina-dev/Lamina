@@ -7,7 +7,7 @@
 #include <vector>
 #include <span>
 
-#include "binary.hpp"
+#include "dyncall/dyncall.h"
 #include "gc.hpp"
 #include "lmx.h"
 #include "object/code_module.hpp"
@@ -28,17 +28,21 @@ struct Frame {
     ~Frame() noexcept;
 };
 class LaminaVM {
+
+    std::vector<Frame*> free_frames;
     Value regs[LMX_VM_REG_COUNT];
-    // ConstantPoolInfo* cp;
     Value* stack;
     // Value* local_vars_bp;
     // Value* local_vars_curp;
     Value* global_vars;
-    std::vector<Frame*> free_frames;
     Frame* cur_frame{};
     LmGCAllocator allocator{};
 
     std::span<char*> args;
+    DCCallVM* call_vm;
+
+
+    // ConstantPoolInfo* cp;
 
 
 public:
@@ -70,6 +74,8 @@ public:
         vm->cur_frame = cur_frame->last;
         return cur_frame->ret_addr;
     }
+
+    void native_call() noexcept;
 };
 
 

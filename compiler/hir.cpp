@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <ranges>
+#include <map>
 
 #include "error.hpp"
 
@@ -126,6 +127,7 @@ std::shared_ptr<Type> HirContext::inference_type(ExprNode* type) noexcept {
 // }
 
 void HirContext::check_module(const Module *mod) noexcept {
+
     // reset();
     for (auto& node : mod->decls) {
         check_stmt(node.get());
@@ -289,6 +291,7 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
                 break;
             }
         }
+        node->type = node->then->type;
         break;
     }
     case ASTKind::AsExpr: {

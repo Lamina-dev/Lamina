@@ -15,8 +15,7 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
         ss << "none";
         break;
     case TypeKind::Basic: {
-        auto &bt = static_cast<const BasicType &>(type);
-        switch (bt.type) {
+        switch (auto &bt = static_cast<const BasicType &>(type); bt.type) {
             case runtime::ValueKind::Null:   ss << "Null"; break;
             case runtime::ValueKind::C_Ptr:  ss << "CPtr"; break;
             case runtime::ValueKind::Obj:    ss << "Object"; break;
@@ -101,10 +100,7 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
             if (node.type) { ss << " : "; print_type(ss, *node.type); }
             ss << "\n";
             if (un.expr) {
-                std::vector kids = {un.expr.get()};
-                for (size_t i = 0; i < kids.size(); i++) {
-                    print_expr(ss, *kids[i], child_prefix + "└── ", child_prefix + "    ");
-                }
+                print_expr(ss, *un.expr.get(), child_prefix + "└── ", child_prefix + "    ");
             }
             break;
         }
@@ -126,7 +122,6 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
                 case BinaryNode::Op::Ne: ss << "!="; break;
                 case BinaryNode::Op::And: ss << "and"; break;
                 case BinaryNode::Op::Or: ss << "or"; break;
-                case BinaryNode::Op::Dot: ss << "."; break;
                 // case BinaryNode::Op::ColonColon: ss << "::"; break;
             }
             if (node.type) { ss << " : "; print_type(ss, *node.type); }

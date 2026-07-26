@@ -3,7 +3,6 @@
 //
 
 #include "ast.hpp"
-#include "ast.hpp"
 #include <ranges>
 #include <sstream>
 #include <utility>
@@ -21,7 +20,7 @@ ArrayType::~ArrayType() = default;
 bool BasicType::equals(Type *other) const noexcept {
     if (!other) return false;
     if (other->kind != this->kind) return false;
-    const auto *o = static_cast<BasicType *>(other);
+    const auto *o = reinterpret_cast<BasicType *>(other);
     if (o->type != this->type) return false;
     return true;
 }
@@ -29,7 +28,7 @@ bool BasicType::equals(Type *other) const noexcept {
 bool ArrayType::equals(Type *other) const noexcept {
     if (!other) return false;
     if (other->kind != this->kind) return false;
-    const auto *o = static_cast<ArrayType *>(other);
+    const auto *o = reinterpret_cast<ArrayType *>(other);
     if (this->type->equals(o->type.get())) return false;
     if (this->len != o->len) return false;
     return true;
@@ -52,7 +51,7 @@ FunctionType::FunctionType(std::vector<std::shared_ptr<Type> > params_ty, std::s
 bool FunctionType::equals(Type *other) const noexcept {
     if (!other) return false;
     if (other->kind != this->kind) return false;
-    const auto *o = static_cast<FunctionType *>(other);
+    const auto *o = reinterpret_cast<FunctionType *>(other);
     const auto params_len = params_ty.size();
     if (params_len != o->params_ty.size()) return false;
     for (size_t i = 0; i < params_len; i++) {
@@ -72,6 +71,23 @@ std::string Type::to_string(const Type* kind) noexcept {
     std::ostringstream ss;
     AstPrinter::print_type(ss, *kind);
     return ss.str();
+}
+
+NativeFunctionType::NativeFunctionType(std::vector<std::shared_ptr<Type>> params_ty, std::shared_ptr<Type> ret_ty, std::string name) noexcept
+    : Type(TypeKind::NativeFunction), params_ty(std::move(params_ty)), ret_ty(std::move(ret_ty)), name(std::move(name)) {
+}
+
+bool NativeFunctionType::equals(Type *other) const noexcept {
+    if (is_null_type(other)) return false;
+    if (other->kind != this->kind) return false;
+
+    const auto *o = reinterpret_cast<NativeFunctionType *>(other);
+    if (params_ty.size() != o->params_ty.size()) return false;
+    for (size_t i = 0; i < params_ty.size(); i++) {
+        if (!params_ty[i]->equals(o->params_ty[i].get())) return false;
+    }
+    if (!ret_ty->equals(o->ret_ty.get())) return false;
+    return true;
 }
 
 std::string BinaryNode::op_to_string(const Op op) noexcept {
@@ -104,8 +120,6 @@ std::string BinaryNode::op_to_string(const Op op) noexcept {
         return "and";
     case Op::Or:
         return "or";
-    case Op::Dot:
-        return {};
         break;
     }
     return {};
@@ -226,4 +240,24 @@ std::shared_ptr<FunctionType> FuncImplNode::make_type() noexcept {
         params_ty.push_back(type);
     }
     return std::make_shared<FunctionType>(params_ty, return_type);
+}
+
+DotExprNode::DotExprNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> expr, std::shared_ptr<IdentifierNode> rhs) noexcept
+    : ExprNode(ASTKind::DotExpr, line, col), expr(std::move(expr)), rhs(std::move(rhs)) {}
+
+NativeFuncDeclNode::NativeFuncDeclNode(
+    const size_t line,
+    const size_t col,
+    decltype(func_id) func_id,
+    std::shared_ptr<ParamsDeclNode> params,
+    std::shared_ptr<Type> return_type,
+    std::string symbol) noexcept
+    : StmtNode(ASTKind::NativeFuncDecl, line, col), func_id(std::move(func_id)), params(std::move(params)), return_type(std::move(return_type)), symbol(std::move(symbol)) {}
+
+std::shared_ptr<NativeFunctionType> NativeFuncDeclNode::make_type() noexcept {
+    decltype(NativeFunctionType::params_ty) params_ty;
+    for (const auto &type: params->stmts | std::views::values) {
+        params_ty.push_back(type);
+    }
+    return std::make_shared<NativeFunctionType>(params_ty, return_type, symbol);
 }

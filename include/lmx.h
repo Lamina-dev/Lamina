@@ -51,11 +51,13 @@ struct LmState {
     LmLinkedNode* n;
 };
 typedef LmState LmState;
-LmState lmx_newState();
-void lmx_deleteState(const LmState* state);
+LM_API LmState lmx_newState();
+LM_API void lmx_deleteState(const LmState* state);
 
 struct LmValue;
 typedef LmValue LmValue;
+
+typedef int64_t LmInt;
 
 struct LmModule;
 typedef LmModule LmModule;

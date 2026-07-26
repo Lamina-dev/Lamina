@@ -5,8 +5,10 @@
 #pragma once
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 
 #include "object.hpp"
+#include "value.hpp"
 #include "../binary.hpp"
 
 namespace lmx::runtime {
@@ -17,18 +19,43 @@ struct FuncObj {
     uint32_t bytecode_len;
     explicit FuncObj(CodeModule* mod, const uint8_t* addr, uint32_t bytecode_len = 0) noexcept;
 };
+struct NativeFuncObj {
+    // CodeModule* mod;
+    const uint8_t* addr;
 
+    uint8_t args_ty_len;
+    std::unique_ptr<ValueKind> args_ty;
+    ValueKind ret_ty;
+
+    explicit NativeFuncObj(CodeModule* mod, const uint8_t* addr) noexcept;
+};
+#if defined(_WIN32) || defined(_WIN64)
+constexpr auto lib_prefix = "";
+constexpr auto lib_suffix = ".dll";
+#elif defined(__linux__) || defined(__unix__)
+constexpr auto lib_prefix = "lib";
+constexpr auto lib_suffix = ".so";
+#elif defined(__APPLE__)
+constexpr auto lib_prefix = "lib";
+constexpr auto lib_suffix = ".dylib";
+#else
+#error "Unsupported platform from dynamic loading. What's your System?"
+#endif
 class CodeModule : public Object {
 public:
+    void* native_lib_handle;
     std::vector<ConstantPoolInfo> cp;
     std::vector<FuncObj> funcs;
     std::vector<TypeInfo> types;
+    std::vector<NativeFuncObj> native_funcs;
     const uint8_t* code;
     size_t code_len;
     explicit CodeModule(
         std::vector<ConstantPoolInfo> cp,
         std::vector<TypeInfo> types,
         std::vector<FuncObj> funcs,
+        std::vector<NativeFuncObj> native_funcs,
+        const char* lib_name,
         const uint8_t* code,
         size_t code_len = 0
         ) noexcept;
@@ -36,6 +63,8 @@ public:
         std::vector<ConstantPoolInfo>&& cp,
         std::vector<TypeInfo>&& types,
         std::vector<FuncObj>&& funcs,
+        std::vector<NativeFuncObj>&& native_funcs,
+        const char* lib_name,
         const uint8_t* code,
         size_t code_len = 0
         ) noexcept;

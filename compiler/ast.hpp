@@ -5,12 +5,13 @@
 #pragma once
 #include "../runtime/object/value.hpp"
 
-#include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 namespace lmx {
+struct NativeFuncDeclNode;
+
 enum class ASTKind {
     ExprStmt,
     Literal,
@@ -24,11 +25,12 @@ enum class ASTKind {
     SuffixBracket,
     ParamsDeclNode,
     FuncImpl, TailReturn, IfExpr, VarDecl, BreakStmt,
-    AssignStmt, AsExpr
+    AssignStmt, AsExpr, DotExpr,
+    NativeFuncDecl,
 };
 
 enum class TypeKind {
-    Basic, Array, Named, Unknown, String, Function, None
+    Basic, Array, Named, Unknown, String, Function, None, NativeFunction,
 };
 
 struct Type {
@@ -80,7 +82,14 @@ struct FunctionType : Type {
 
     explicit FunctionType(std::vector<std::shared_ptr<Type>> params_ty, std::shared_ptr<Type> ret_ty) noexcept;
     bool equals(Type *other) const noexcept override;
+};
+struct NativeFunctionType : Type {
+    std::vector<std::shared_ptr<Type>> params_ty;
+    std::shared_ptr<Type> ret_ty;
+    std::string name;
 
+    explicit NativeFunctionType(std::vector<std::shared_ptr<Type>> params_ty, std::shared_ptr<Type> ret_ty, std::string name) noexcept;
+    bool equals(Type *other) const noexcept override;
 };
 struct NamedType : Type {
     std::string name;
@@ -120,7 +129,9 @@ struct StmtNode : ASTNode {
 struct FuncImplNode;
 struct Module {
     std::string name;
+    std::string lib_name;
     std::vector<std::shared_ptr<StmtNode>> decls;
+    std::vector<std::shared_ptr<NativeFuncDeclNode>> native_funcs;
     Module(std::string name, decltype(decls) decls) noexcept;
 };
 struct ExprStmtNode : StmtNode {
@@ -181,7 +192,7 @@ struct UnaryNode : ExprNode {
 struct BinaryNode : ExprNode {
     enum class Op {
         Add, Sub, Mul, Div, Mod, Pow,
-        Gt, Ge, Lt, Le, Eq, Ne, And, Or, Dot
+        Gt, Ge, Lt, Le, Eq, Ne, And, Or
     };
     Op op;
     std::shared_ptr<ExprNode> lhs;
@@ -246,6 +257,23 @@ struct FuncImplNode : StmtNode {
     std::shared_ptr<FunctionType> make_type() noexcept;
 };
 
+struct NativeFuncDeclNode : StmtNode {
+    std::string func_id;
+    std::shared_ptr<ParamsDeclNode> params;
+    std::shared_ptr<Type> return_type;
+
+    std::string symbol;
+
+    explicit NativeFuncDeclNode(size_t line, size_t col,
+        decltype(func_id) func_id,
+        std::shared_ptr<ParamsDeclNode> params,
+        std::shared_ptr<Type> return_type,
+        std::string symbol
+        ) noexcept;
+
+    std::shared_ptr<NativeFunctionType> make_type() noexcept;
+};
+
 struct VarDeclNode : StmtNode {
     std::string id; // ExprStmt<binary: ::> or identifier
     std::shared_ptr<Type> type;
@@ -279,6 +307,12 @@ struct AsExprNode : ExprNode {
     explicit AsExprNode(size_t line, size_t col,
                         std::shared_ptr<ExprNode> expr,
                         std::shared_ptr<Type> cast_type) noexcept;
+};
+struct DotExprNode : ExprNode {
+    std::shared_ptr<ExprNode> expr;
+    std::shared_ptr<IdentifierNode> rhs;
+    explicit DotExprNode(size_t line, size_t col, std::shared_ptr<ExprNode> expr, std::shared_ptr<IdentifierNode> rhs) noexcept;
+
 };
 
 }
