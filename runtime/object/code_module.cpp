@@ -3,6 +3,9 @@
 //
 
 #include "code_module.hpp"
+
+#include <cstring>
+
 #include "lmx.h"
 #include "dynload/dynload.h"
 #include "../opcode.hpp"
@@ -31,6 +34,17 @@ public:
         p += sizeof(Version);
         return true;
     }
+
+    static bool load_native_decl(std::vector<NativeFuncObj>& result, DLLib*& handle, const uint8_t*& p) noexcept {
+        const auto name = reinterpret_cast<const char *>(p);
+
+        p += strlen(name) + 1;
+
+        
+
+        return true;
+    }
+
     static bool load_cp(std::vector<ConstantPoolInfo>& result, const uint8_t*& p) noexcept {
         const auto size = *reinterpret_cast<const uint64_t*>(p);
         p += sizeof(uint64_t);
@@ -89,6 +103,10 @@ Object *CodeModule::clone() const noexcept {
     return nullptr;
 }
 
+CodeModule::~CodeModule() noexcept {
+    dlFreeLibrary(this->native_lib_handle);
+}
+
 CodeModule::CodeModule(
     std::vector<ConstantPoolInfo> cp,
     std::vector<TypeInfo> types,
@@ -105,7 +123,8 @@ CodeModule::CodeModule(
     types(std::move(types)),
     native_funcs(std::move(native_funcs)),
     code(code),
-    code_len(code_len) {
+    code_len(code_len)
+{
     if (lib_name) {
         std::string name = lib_prefix;
         name += lib_name;
@@ -121,7 +140,8 @@ CodeModule::CodeModule(
     std::vector<NativeFuncObj>&& native_funcs,
     const char* lib_name,
     const uint8_t *code,
-    const size_t code_len) noexcept
+    const size_t code_len
+    ) noexcept
     :
     Object(ObjectKind::Code),
     cp(std::move(cp)),
@@ -129,7 +149,8 @@ CodeModule::CodeModule(
     types(std::move(types)),
     native_funcs(std::move(native_funcs)),
     code(code),
-    code_len(code_len) {
+    code_len(code_len)
+    {
     if (lib_name) {
         std::string name = lib_prefix;
         name += lib_name;
@@ -143,6 +164,7 @@ CodeModule::CodeModule(const uint8_t *binary) noexcept : Object(ObjectKind::Code
     ModuleLoader::check_version(binary);
     ModuleLoader::load_funcs(this, funcs, binary);
     ModuleLoader::load_cp(cp, binary);
+    // ModuleLoader::load_native_decl(native_funcs, native_lib_handle, binary);
     ModuleLoader::load_entry_code(code, code_len, binary);
 }
 

@@ -4,12 +4,11 @@
 
 #pragma once
 #include <cstdint>
-#include <cstdio>
-#include <memory>
-
 #include "object.hpp"
 #include "value.hpp"
 #include "../binary.hpp"
+#include "dynload/dynload.h"
+
 
 namespace lmx::runtime {
 class CodeModule;
@@ -24,7 +23,7 @@ struct NativeFuncObj {
     const uint8_t* addr;
 
     uint8_t args_ty_len;
-    std::unique_ptr<ValueKind> args_ty;
+    ValueKind* args_ty;
     ValueKind ret_ty;
 
     explicit NativeFuncObj(CodeModule* mod, const uint8_t* addr) noexcept;
@@ -43,7 +42,7 @@ constexpr auto lib_suffix = ".dylib";
 #endif
 class CodeModule : public Object {
 public:
-    void* native_lib_handle;
+    DLLib* native_lib_handle;
     std::vector<ConstantPoolInfo> cp;
     std::vector<FuncObj> funcs;
     std::vector<TypeInfo> types;
@@ -69,7 +68,10 @@ public:
         size_t code_len = 0
         ) noexcept;
     explicit CodeModule(const uint8_t* binary) noexcept;
+    ~CodeModule() noexcept;
+
     [[nodiscard]] Object*       clone       () const noexcept override;
+
     [[nodiscard]] std::string   to_string   () const noexcept override;
     [[nodiscard]] std::string   type_info   () const noexcept override;
     [[nodiscard]] bool          equals(const Object* other) const noexcept override;

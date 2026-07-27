@@ -8,7 +8,7 @@
 
 using namespace lmx::runtime;
 
-Value::Value() noexcept {}
+Value::Value() noexcept = default;
 
 Value::Value(const bool bool_val) noexcept : kind(ValueKind::Bool), bool_val(bool_val) {}
 

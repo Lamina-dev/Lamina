@@ -41,29 +41,29 @@ extern "C" {
 #endif
 
 
-
+struct LmLinkedNode;
+typedef struct LmLinkedNode LmLinkedNode;
 struct LmLinkedNode {
     void* ptr;
     LmLinkedNode* last;
 };
-typedef LmLinkedNode LmLinkedNode;
 struct LmState {
     LmLinkedNode* n;
 };
-typedef LmState LmState;
+typedef struct LmState LmState;
 LM_API LmState lmx_newState();
 LM_API void lmx_deleteState(const LmState* state);
 
 struct LmValue;
-typedef LmValue LmValue;
+typedef struct LmValue LmValue;
 
 typedef int64_t LmInt;
 
 struct LmModule;
-typedef LmModule LmModule;
+typedef struct LmModule LmModule;
 
 struct LaminaVM;
-typedef LaminaVM LaminaVM;
+typedef struct LaminaVM LaminaVM;
 
 LM_API LmModule* LM_CALL lmx_doString(LmState* state, const char* code, const char* name);
 

@@ -39,7 +39,7 @@ if (UNIX)
 endif ()
 
 message(STATUS "Your System is '${CMAKE_SYSTEM_NAME}'")
-add_library(laminaCore SHARED
+add_library(laminaCore STATIC
         lmx.cpp
     $<TARGET_OBJECTS:laminac>
     $<TARGET_OBJECTS:lamina_runtime>
@@ -79,6 +79,7 @@ foreach(tgt IN ITEMS ${LMX_ALL_TARGETS})
     disable_exceptions_rtti(${tgt})
 endforeach()
 
+set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -g -pg -fno-omit-frame-pointer")
 
 if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang-cl
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /arch:AVX2 /Oi /fp:fast")

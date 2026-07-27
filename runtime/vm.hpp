@@ -61,7 +61,9 @@ public:
         } else {
             const auto frame = vm->free_frames.back();
             vm->free_frames.pop_back();
-            new (frame) Frame(vm->cur_frame, mod, ret_addr);
+            frame->last = vm->cur_frame;
+            frame->mod = mod;
+            frame->ret_addr = ret_addr;
             vm->cur_frame = frame;
         }
         // vm->local_vars_curp += LMX_LOCAL_VAR_COUNT;
