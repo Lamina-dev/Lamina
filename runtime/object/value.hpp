@@ -8,7 +8,7 @@
 #include "object.hpp"
 
 namespace lmx::runtime {
-enum class ValueKind {
+enum class ValueKind : uint8_t {
     Null, C_Ptr, Obj, Int, Bool, Fraction, C_VaList,
 };
 

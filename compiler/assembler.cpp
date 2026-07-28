@@ -499,7 +499,6 @@ void Assembler::asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) n
     }
     case mir::MirNodeKind::NativeFunc: {
         const auto n = reinterpret_cast<mir::MirNativeFuncDefine*>(node);
-
     }
     }
 }

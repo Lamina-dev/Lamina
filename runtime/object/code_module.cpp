@@ -77,7 +77,7 @@ public:
             const auto* args_ty = reinterpret_cast<const ValueKind*>(++p);
             p += count;
             const auto ret_ty = static_cast<ValueKind>(*p++);
-            const void* addr = nullptr;//dlFindSymbol(handle, name);
+            const void* addr = dlFindSymbol(handle, name);
 
             result.emplace_back(addr, count, args_ty, ret_ty, name);
         }
