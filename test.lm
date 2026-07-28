@@ -1,3 +1,5 @@
-static "libc"
+static "Lamina"
 
-func puts(s text) -> int = "puts"
+func puts() -> int = "lmx_newState"
+
+puts()

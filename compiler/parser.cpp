@@ -219,6 +219,11 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         }
         return std::make_shared<LiteralNode>(line, col, num, LiteralNode::Kind::Integer);
     }
+    case TokenType::STRING_LITERAL: {
+        auto str = cur().text;
+        advance();
+        return std::make_shared<LiteralNode>(line, col, str, LiteralNode::Kind::String);
+    }
     case TokenType::LPAREN: {
         advance();
         auto e = parse_expr();
@@ -442,11 +447,13 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
         auto id = cur().text;
         advance();
         static const std::unordered_map<std::string, runtime::ValueKind> basic_types = {
-            {"int", runtime::ValueKind::Int}, {"bool", runtime::ValueKind::Bool}
+            {"int", runtime::ValueKind::Int}, {"bool", runtime::ValueKind::Bool},
         };
         if (const auto it = basic_types.find(id); it != basic_types.end())
             return std::make_shared<BasicType>(it->second);
-
+        if (id == "text") {
+            return std::make_shared<StringType>();
+        }
         return std::make_shared<NamedType>(id);
     }
     default: {

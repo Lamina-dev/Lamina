@@ -132,6 +132,7 @@ std::optional<uint8_t> RegAllocator::alloc() noexcept {
 }
 
 void RegAllocator::free(const uint8_t reg) noexcept {
+    if (reg == 0) return;
     regs.reset(reg - 1);
 }
 
@@ -402,7 +403,7 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             const auto func_idx = static_cast<uint16_t>(func_it->second);
 
             const auto rd = *reg.alloc();
-            InstEmitter::emit(insts, runtime::Opcode::CallFast, func_idx, argc);
+            InstEmitter::emit(insts, runtime::Opcode::CCall, func_idx, argc);
             for (const auto r : using_regs | std::views::reverse) {
                 InstEmitter::emit(insts, runtime::Opcode::Pop, r);
             }
@@ -610,6 +611,7 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
         std::vector<uint8_t> n_re;
 
         n_re.insert(n_re.end(), n.name.begin(), n.name.end());
+        n_re.push_back(0);
         n_re.push_back(static_cast<uint8_t>(n.arg_ty.size()));
         auto* arg_ty_ref = reinterpret_cast<std::vector<uint8_t>*>(&n.arg_ty);
         n_re.insert(n_re.end(), arg_ty_ref->begin(), arg_ty_ref->end());
@@ -633,7 +635,7 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
         } else if (node->kind == mir::MirNodeKind::NativeFunc) {
             const auto* f = reinterpret_cast<mir::MirNativeFuncDefine*>(node.get());
             native_funcs[f->name] = native_func_idx++;
-            encode_native_funcs.push_back({.name = f->name, .arg_ty = f->params, .ret_ty = f->ret_ty});
+            encode_native_funcs.push_back({.name = f->symbol, .arg_ty = f->params, .ret_ty = f->ret_ty});
         }
         else {
             top_level_nodes.push_back(node);
@@ -706,12 +708,12 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
         auto data = encoder_native(n);
         native_decls.insert(native_decls.end(), data.begin(), data.end());
     }
-    write_u64(result, native_decls.size() + mod->lib_name.size());
-    if (mod->lib_name.empty()) {
-        result.push_back(0);
-    } else {
+    write_u64(result, native_decls.size() + mod->lib_name.size() + 1);
+    if (!mod->lib_name.empty()) {
         result.insert(result.end(), mod->lib_name.begin(), mod->lib_name.end());
     }
+    result.push_back(0);
+
     result.insert(result.end(), native_decls.begin(), native_decls.end());
 
 

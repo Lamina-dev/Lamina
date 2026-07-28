@@ -85,8 +85,7 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     cur_frame = new Frame(nullptr, prog, nullptr);
     const uint8_t* ip = prog->code;
 
-    // std::cout << prog->disassemble() << std::endl;
-
+    std::cout << prog->disassemble() << std::endl;
     // const auto start = std::chrono::high_resolution_clock::now();
     VM_DISPATCH
 
@@ -215,6 +214,7 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
 
     VM_LABEL(CCall) {
+        native_call(read_u16(ip + 1), ip[3]);
         VM_NEXT
     }
 

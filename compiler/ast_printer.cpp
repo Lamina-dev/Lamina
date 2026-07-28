@@ -354,12 +354,26 @@ std::string AstPrinter::print(const ASTNode &node) {
 
 std::string AstPrinter::print(const Module &module) {
     std::ostringstream ss;
-    ss << "Module " << module.name << "\n";
-    for (size_t i = 0; i < module.decls.size(); i++) {
-        const bool last = i + 1 == module.decls.size();
+    ss << "Module " << module.name;
+    if (!module.lib_name.empty()) {
+        ss << " [lib: " << module.lib_name << "]";
+    }
+    ss << "\n";
+
+    const size_t total = module.decls.size() + module.native_funcs.size();
+    size_t idx = 0;
+
+    for (const auto &d : module.decls) {
+        const bool last = ++idx == total;
         auto pref = last ? "└── " : "├── ";
         auto cont = last ? "    " : "│   ";
-        print_stmt(ss, *module.decls[i], pref, cont);
+        print_stmt(ss, *d, pref, cont);
+    }
+    for (const auto &n : module.native_funcs) {
+        const bool last = ++idx == total;
+        auto pref = last ? "└── " : "├── ";
+        auto cont = last ? "    " : "│   ";
+        print_stmt(ss, *n, pref, cont);
     }
     return ss.str();
 }

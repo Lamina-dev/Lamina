@@ -152,7 +152,6 @@ Module::Module(std::string name, decltype(decls) decls) noexcept
 
 ExprStmtNode::ExprStmtNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> expr) noexcept
     : StmtNode(ASTKind::ExprStmt, line, col), expr(std::move(expr)) {
-
 }
 
 ExprsNode::ExprsNode(const size_t line, const size_t col, std::vector<std::shared_ptr<ExprNode> > exprs) noexcept

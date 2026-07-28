@@ -5,6 +5,7 @@
 #include "code_module.hpp"
 
 #include <cstring>
+#include <iostream>
 
 #include "lmx.h"
 #include "dynload/dynload.h"
@@ -21,9 +22,10 @@ NativeFuncObj::NativeFuncObj(
     const void *addr,
     const uint8_t args_ty_len,
     const ValueKind *args_ty,
-    const ValueKind ret_ty
+    const ValueKind ret_ty,
+    const char* name
     ) noexcept
-    : addr(addr), args_ty_len(args_ty_len), args_ty(args_ty), ret_ty(ret_ty) {}
+    : addr(addr), args_ty_len(args_ty_len), args_ty(args_ty), ret_ty(ret_ty), name(name) {}
 
 namespace {
 class ModuleLoader {
@@ -49,13 +51,22 @@ public:
         const auto over = p + size;
 
         const auto lib_name = reinterpret_cast<const char *>(p);
-        if (*lib_name == '\0') return false;
-        handle = dlLoadLibrary(lib_name);
-
-        p += strlen(lib_name) + 1;
-        if (handle == nullptr) {
+        if (*lib_name == '\0') {
+            p += 1;
             return false;
         }
+        if (!strcmp(lib_name, "Lamina")) {
+            handle = dlLoadLibrary(nullptr);
+        } else {
+            handle = dlLoadLibrary(lib_name);
+        }
+
+        p += strlen(lib_name) + 1;
+        // if (handle == nullptr) {
+        //     std::cerr << "ModuleLoaderError: `" << lib_name << "` not found." << std::endl;
+        //     std::exit(1);
+        //     return false;
+        // }
 
         while (p != over) {
             const auto name = reinterpret_cast<const char *>(p);
@@ -66,10 +77,9 @@ public:
             const auto* args_ty = reinterpret_cast<const ValueKind*>(++p);
             p += count;
             const auto ret_ty = static_cast<ValueKind>(*p++);
+            const void* addr = nullptr;//dlFindSymbol(handle, name);
 
-            const void* addr = dlFindSymbol(handle, name);
-
-            result.emplace_back(addr, count, args_ty, ret_ty);
+            result.emplace_back(addr, count, args_ty, ret_ty, name);
         }
 
         return true;
@@ -198,7 +208,7 @@ CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind
     ModuleLoader::check_version(binary);
     ModuleLoader::load_funcs(this, funcs, binary);
     ModuleLoader::load_cp(cp, binary);
-    // ModuleLoader::load_native_decl(native_funcs, native_lib_handle, binary);
+    ModuleLoader::load_native_decl(native_funcs, native_lib_handle, binary);
     ModuleLoader::load_entry_code(code, code_len, binary);
 }
 
@@ -252,7 +262,7 @@ constexpr InstInfo INST_TABLE[] = {
     /* INeg       */ {.name = "ineg",      .fmt = InstInfo::RegReg},
     /* FuncCreate */ {.name = "func_create", .fmt = InstInfo::RegImm16},
     /* CallVirtual*/ {.name = "call_virtual",.fmt = InstInfo::RegIdx},
-    /* CCall      */ {.name = "ccall",     .fmt = InstInfo::RegImm16},
+    /* CCall      */ {.name = "ccall",     .fmt = InstInfo::Imm16Reg},
     /* CallFast   */ {.name = "call_fast", .fmt = InstInfo::Imm16Reg},
     /* Ret        */ {.name = "ret",       .fmt = InstInfo::Reg},
     /* Goto       */ {.name = "goto",      .fmt = InstInfo::Imm16},
@@ -368,7 +378,8 @@ std::string CodeModule::disassemble() const noexcept {
         for (size_t i = 0; i < native_funcs.size(); ++i) {
             const auto& nf = native_funcs[i];
             out << "  #" << i << ": ";
-            if (nf.addr == nullptr) out << "[unresolved] ";
+            out << nf.name;
+            if (nf.addr == nullptr) out << " [unresolved] ";
             out << "(" << static_cast<int>(nf.args_ty_len) << " args) -> " << value_kind_name(nf.ret_ty) << "\n";
             for (uint8_t j = 0; j < nf.args_ty_len; ++j) {
                 out << "    arg" << static_cast<int>(j) << ": " << value_kind_name(nf.args_ty[j]) << "\n";

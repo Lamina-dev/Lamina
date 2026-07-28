@@ -7,6 +7,7 @@
 #include "object.hpp"
 #include "value.hpp"
 #include "../binary.hpp"
+#include "dyncall/dyncall_types.h"
 #include "dynload/dynload.h"
 
 
@@ -25,12 +26,14 @@ struct NativeFuncObj {
     uint8_t args_ty_len;
     const ValueKind* args_ty;
     ValueKind ret_ty;
+    const char* name;
 
     explicit NativeFuncObj(
         const void* addr,
         uint8_t args_ty_len,
         const ValueKind* args_ty,
-        ValueKind ret_ty
+        ValueKind ret_ty,
+        const char* name
     ) noexcept;
 };
 #if defined(_WIN32) || defined(_WIN64)
