@@ -33,6 +33,10 @@ namespace lmx::runtime {
 
      [[nodiscard]] bool operator==(const Fraction& other) const noexcept;
      [[nodiscard]] bool operator!=(const Fraction& other) const noexcept;
+     [[nodiscard]] bool operator>=(const Fraction& other) const noexcept;
+     [[nodiscard]] bool operator<=(const Fraction& other) const noexcept;
+     [[nodiscard]] bool operator>(const Fraction& other) const noexcept;
+     [[nodiscard]] bool operator<(const Fraction& other) const noexcept;
 
      [[nodiscard]] double to_float() const noexcept;
 

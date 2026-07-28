@@ -3,7 +3,12 @@
 //
 
 #include "code_module.hpp"
+
+#include <cstring>
+#include <iostream>
+
 #include "lmx.h"
+#include "dynload/dynload.h"
 #include "../opcode.hpp"
 
 #include <sstream>
@@ -12,6 +17,15 @@ using namespace lmx::runtime;
 
 FuncObj::FuncObj(CodeModule *mod, const uint8_t *addr, const uint32_t bytecode_len) noexcept
    : mod(mod), addr(addr), bytecode_len(bytecode_len) {}
+
+NativeFuncObj::NativeFuncObj(
+    const void *addr,
+    const uint8_t args_ty_len,
+    const ValueKind *args_ty,
+    const ValueKind ret_ty,
+    const char* name
+    ) noexcept
+    : addr(addr), args_ty_len(args_ty_len), args_ty(args_ty), ret_ty(ret_ty), name(name) {}
 
 namespace {
 class ModuleLoader {
@@ -30,6 +44,47 @@ public:
         p += sizeof(Version);
         return true;
     }
+
+    static bool load_native_decl(std::vector<NativeFuncObj>& result, DLLib*& handle, const uint8_t*& p) noexcept {
+        const auto size = *reinterpret_cast<const uint64_t*>(p);
+        p += sizeof(uint64_t);
+        const auto over = p + size;
+
+        const auto lib_name = reinterpret_cast<const char *>(p);
+        if (*lib_name == '\0') {
+            p += 1;
+            return false;
+        }
+        if (!strcmp(lib_name, "Lamina")) {
+            handle = dlLoadLibrary(nullptr);
+        } else {
+            handle = dlLoadLibrary(lib_name);
+        }
+
+        p += strlen(lib_name) + 1;
+        // if (handle == nullptr) {
+        //     std::cerr << "ModuleLoaderError: `" << lib_name << "` not found." << std::endl;
+        //     std::exit(1);
+        //     return false;
+        // }
+
+        while (p != over) {
+            const auto name = reinterpret_cast<const char *>(p);
+
+            p += strlen(name) + 1;
+
+            const uint8_t count = *p;
+            const auto* args_ty = reinterpret_cast<const ValueKind*>(++p);
+            p += count;
+            const auto ret_ty = static_cast<ValueKind>(*p++);
+            const void* addr = dlFindSymbol(handle, name);
+
+            result.emplace_back(addr, count, args_ty, ret_ty, name);
+        }
+
+        return true;
+    }
+
     static bool load_cp(std::vector<ConstantPoolInfo>& result, const uint8_t*& p) noexcept {
         const auto size = *reinterpret_cast<const uint64_t*>(p);
         p += sizeof(uint64_t);
@@ -88,17 +143,72 @@ Object *CodeModule::clone() const noexcept {
     return nullptr;
 }
 
-CodeModule::CodeModule(std::vector<ConstantPoolInfo> cp, std::vector<TypeInfo> types, std::vector<FuncObj> funcs, const uint8_t *code, const size_t code_len) noexcept
-    : Object(ObjectKind::Code), cp(std::move(cp)), funcs(std::move(funcs)), types(std::move(types)), code(code), code_len(code_len) {}
+CodeModule::~CodeModule() noexcept {
+    if (native_lib_handle) {
+        dlFreeLibrary(native_lib_handle);
+    }
+}
 
-CodeModule::CodeModule(std::vector<ConstantPoolInfo>&& cp, std::vector<TypeInfo>&& types, std::vector<FuncObj>&& funcs, const uint8_t *code, const size_t code_len) noexcept
-    : Object(ObjectKind::Code), cp(std::move(cp)), funcs(std::move(funcs)), types(std::move(types)), code(code), code_len(code_len) {}
+CodeModule::CodeModule(
+    std::vector<ConstantPoolInfo> cp,
+    std::vector<TypeInfo> types,
+    std::vector<FuncObj> funcs,
+    std::vector<NativeFuncObj> native_funcs,
+    const char* lib_name,
+    const uint8_t *code,
+    const size_t code_len
+    ) noexcept
+    :
+    Object(ObjectKind::Code),
+    cp(std::move(cp)),
+    funcs(std::move(funcs)),
+    types(std::move(types)),
+    native_funcs(std::move(native_funcs)),
+    code(code),
+    code_len(code_len)
+{
+    if (lib_name) {
+        std::string name = lib_prefix;
+        name += lib_name;
+        name += lib_suffix;
+        this->native_lib_handle = dlLoadLibrary(name.c_str());
+    }
+}
 
-CodeModule::CodeModule(const uint8_t *binary) noexcept : Object(ObjectKind::Code) {
+CodeModule::CodeModule(
+    std::vector<ConstantPoolInfo>&& cp,
+    std::vector<TypeInfo>&& types,
+    std::vector<FuncObj>&& funcs,
+    std::vector<NativeFuncObj>&& native_funcs,
+    const char* lib_name,
+    const uint8_t *code,
+    const size_t code_len
+    ) noexcept
+    :
+    Object(ObjectKind::Code),
+    cp(std::move(cp)),
+    funcs(std::move(funcs)),
+    types(std::move(types)),
+    native_funcs(std::move(native_funcs)),
+    code(code),
+    code_len(code_len)
+    {
+    if (lib_name) {
+        std::string name = lib_prefix;
+        name += lib_name;
+        name += lib_suffix;
+        this->native_lib_handle = dlLoadLibrary(name.c_str());
+    }
+}
+
+CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind::Code), raw_data(std::move(data)) {
+
+    const uint8_t* binary = raw_data.data();
     ModuleLoader::check_magic(binary);
     ModuleLoader::check_version(binary);
     ModuleLoader::load_funcs(this, funcs, binary);
     ModuleLoader::load_cp(cp, binary);
+    ModuleLoader::load_native_decl(native_funcs, native_lib_handle, binary);
     ModuleLoader::load_entry_code(code, code_len, binary);
 }
 
@@ -132,58 +242,64 @@ struct InstInfo {
     ArgFmt fmt;
 };
 
-static constexpr InstInfo INST_TABLE[] = {
-    /* Nop        */ {"nop",       InstInfo::None},
-    /* New        */ {"new",       InstInfo::RegImm16},
-    /* GetTrue    */ {"get_true",  InstInfo::Reg},
-    /* GetFalse   */ {"get_false", InstInfo::Reg},
-    /* GetNull    */ {"get_null",  InstInfo::Reg},
-    /* IConst     */ {"iconst",    InstInfo::RegImm16},
-    /* CConst     */ {"cconst",    InstInfo::RegImm16},
-    /* Pop        */ {"pop",       InstInfo::Reg},
-    /* Push       */ {"push",      InstInfo::Reg},
-    /* Halt       */ {"halt",      InstInfo::None},
-    /* IAdd       */ {"iadd",      InstInfo::RegRegReg},
-    /* ISub       */ {"isub",      InstInfo::RegRegReg},
-    /* IMul       */ {"imul",      InstInfo::RegRegReg},
-    /* IDiv       */ {"idiv",      InstInfo::RegRegReg},
-    /* IMod       */ {"imod",      InstInfo::RegRegReg},
-    /* IPow       */ {"ipow",      InstInfo::RegRegReg},
-    /* INeg       */ {"ineg",      InstInfo::RegReg},
-    /* FuncCreate */ {"func_create", InstInfo::RegImm16},
-    /* CallVirtual*/ {"call_virtual",InstInfo::RegIdx},
-    /* CCall      */ {"ccall",     InstInfo::RegImm16},
-    /* CallFast   */ {"call_fast", InstInfo::Imm16Reg},
-    /* Ret        */ {"ret",       InstInfo::Reg},
-    /* Goto       */ {"goto",      InstInfo::Imm16},
-    /* ICmpEq     */ {"icmp_eq",   InstInfo::RegRegReg},
-    /* ICmpNe     */ {"icmp_ne",   InstInfo::RegRegReg},
-    /* ICmpLt     */ {"icmp_lt",   InstInfo::RegRegReg},
-    /* ICmpLe     */ {"icmp_le",   InstInfo::RegRegReg},
-    /* ICmpGt     */ {"icmp_gt",   InstInfo::RegRegReg},
-    /* ICmpGe     */ {"icmp_ge",   InstInfo::RegRegReg},
-    /* IfTrue     */ {"if_true",   InstInfo::RegImm16},
-    /* IfFalse    */ {"if_false",  InstInfo::RegImm16},
-    /* LGet       */ {"lget",      InstInfo::RegIdx},
-    /* LSet       */ {"lset",      InstInfo::RegIdx},
-    /* GGet       */ {"gget",      InstInfo::RegImm16},
-    /* GSet       */ {"gset",      InstInfo::RegImm16},
-    /* FAdd       */ {"fadd",      InstInfo::RegRegReg},
-    /* FSub       */ {"fsub",      InstInfo::RegRegReg},
-    /* FMul       */ {"fmul",      InstInfo::RegRegReg},
-    /* FDiv       */ {"fdiv",      InstInfo::RegRegReg},
-    /* FMod       */ {"fmodi",     InstInfo::RegRegReg},
-    /* FNeg       */ {"fneg",      InstInfo::RegReg},
-    /* MovRR      */ {"movrr",     InstInfo::RegReg},
-    /* Call       */ {"call",      InstInfo::RegArgc},
-    /* And        */ {"and",       InstInfo::RegRegReg},
-    /* Or         */ {"or",        InstInfo::RegRegReg},
+constexpr InstInfo INST_TABLE[] = {
+    /* Nop        */ {.name = "nop",       .fmt = InstInfo::None},
+    /* New        */ {.name = "new",       .fmt = InstInfo::RegImm16},
+    /* GetTrue    */ {.name = "get_true",  .fmt = InstInfo::Reg},
+    /* GetFalse   */ {.name = "get_false", .fmt = InstInfo::Reg},
+    /* GetNull    */ {.name = "get_null",  .fmt = InstInfo::Reg},
+    /* IConst     */ {.name = "iconst",    .fmt = InstInfo::RegImm16},
+    /* CConst     */ {.name = "cconst",    .fmt = InstInfo::RegImm16},
+    /* Pop        */ {.name = "pop",       .fmt = InstInfo::Reg},
+    /* Push       */ {.name = "push",      .fmt = InstInfo::Reg},
+    /* Halt       */ {.name = "halt",      .fmt = InstInfo::None},
+    /* IAdd       */ {.name = "iadd",      .fmt = InstInfo::RegRegReg},
+    /* ISub       */ {.name = "isub",      .fmt = InstInfo::RegRegReg},
+    /* IMul       */ {.name = "imul",      .fmt = InstInfo::RegRegReg},
+    /* IDiv       */ {.name = "idiv",      .fmt = InstInfo::RegRegReg},
+    /* IMod       */ {.name = "imod",      .fmt = InstInfo::RegRegReg},
+    /* IPow       */ {.name = "ipow",      .fmt = InstInfo::RegRegReg},
+    /* INeg       */ {.name = "ineg",      .fmt = InstInfo::RegReg},
+    /* FuncCreate */ {.name = "func_create", .fmt = InstInfo::RegImm16},
+    /* CallVirtual*/ {.name = "call_virtual",.fmt = InstInfo::RegIdx},
+    /* CCall      */ {.name = "ccall",     .fmt = InstInfo::Imm16Reg},
+    /* CallFast   */ {.name = "call_fast", .fmt = InstInfo::Imm16Reg},
+    /* Ret        */ {.name = "ret",       .fmt = InstInfo::Reg},
+    /* Goto       */ {.name = "goto",      .fmt = InstInfo::Imm16},
+    /* ICmpEq     */ {.name = "icmp_eq",   .fmt = InstInfo::RegRegReg},
+    /* ICmpNe     */ {.name = "icmp_ne",   .fmt = InstInfo::RegRegReg},
+    /* ICmpLt     */ {.name = "icmp_lt",   .fmt = InstInfo::RegRegReg},
+    /* ICmpLe     */ {.name = "icmp_le",   .fmt = InstInfo::RegRegReg},
+    /* ICmpGt     */ {.name = "icmp_gt",   .fmt = InstInfo::RegRegReg},
+    /* ICmpGe     */ {.name = "icmp_ge",   .fmt = InstInfo::RegRegReg},
+    /* IfTrue     */ {.name = "if_true",   .fmt = InstInfo::RegImm16},
+    /* IfFalse    */ {.name = "if_false",  .fmt = InstInfo::RegImm16},
+    /* LGet       */ {.name = "lget",      .fmt = InstInfo::RegIdx},
+    /* LSet       */ {.name = "lset",      .fmt = InstInfo::RegIdx},
+    /* GGet       */ {.name = "gget",      .fmt = InstInfo::RegImm16},
+    /* GSet       */ {.name = "gset",      .fmt = InstInfo::RegImm16},
+    /* FAdd       */ {.name = "fadd",      .fmt = InstInfo::RegRegReg},
+    /* FSub       */ {.name = "fsub",      .fmt = InstInfo::RegRegReg},
+    /* FMul       */ {.name = "fmul",      .fmt = InstInfo::RegRegReg},
+    /* FDiv       */ {.name = "fdiv",      .fmt = InstInfo::RegRegReg},
+    /* FMod       */ {.name = "fmodi",     .fmt = InstInfo::RegRegReg},
+    /* FNeg       */ {.name = "fneg",      .fmt = InstInfo::RegReg},
+    /* MovRR      */ {.name = "movrr",     .fmt = InstInfo::RegReg},
+    /* Call       */ {.name = "call",      .fmt = InstInfo::RegArgc},
+    /* And        */ {.name = "and",       .fmt = InstInfo::RegRegReg},
+    /* Or         */ {.name = "or",        .fmt = InstInfo::RegRegReg},
+    /* FCmpEq     */ {.name = "fcmp_eq",   .fmt = InstInfo::RegRegReg},
+    /* FCmpNe     */ {.name = "fcmp_ne",   .fmt = InstInfo::RegRegReg},
+    /* FCmpLt     */ {.name = "fcmp_lt",   .fmt = InstInfo::RegRegReg},
+    /* FCmpLe     */ {.name = "fcmp_le",   .fmt = InstInfo::RegRegReg},
+    /* FCmpGt     */ {.name = "fcmp_gt",   .fmt = InstInfo::RegRegReg},
+    /* FCmpGe     */ {.name = "fcmp_ge",   .fmt = InstInfo::RegRegReg},
 };
 
-static constexpr size_t INST_COUNT = sizeof(INST_TABLE) / sizeof(INST_TABLE[0]);
+constexpr size_t INST_COUNT = std::size(INST_TABLE);
 
-static void decode_inst(std::ostringstream& out, const uint8_t* p, size_t offset) {
-    const auto op = static_cast<lmx::runtime::Opcode::Opcode>(p[0]);
+void decode_inst(std::ostringstream& out, const uint8_t* p, const size_t offset) {
+    const auto op = static_cast<Opcode::Opcode>(p[0]);
     const uint8_t a = p[1], b = p[2], c = p[3];
 
     if (static_cast<size_t>(op) >= INST_COUNT) {
@@ -193,7 +309,7 @@ static void decode_inst(std::ostringstream& out, const uint8_t* p, size_t offset
         return;
     }
 
-    const auto& info = INST_TABLE[static_cast<size_t>(op)];
+    const auto&[name, fmt] = INST_TABLE[static_cast<size_t>(op)];
 
     // Imm16 at p[1..2]: for Imm16, Imm16Reg formats
     const auto u16_lo = static_cast<uint16_t>(a | (b << 8));
@@ -204,33 +320,33 @@ static void decode_inst(std::ostringstream& out, const uint8_t* p, size_t offset
     const auto i16_hi = static_cast<int16_t>(u16_hi);
 
     char buf[96];
-    switch (info.fmt) {
+    switch (fmt) {
     case InstInfo::None:
-        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s\n", offset, info.name);
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s\n", offset, name);
         break;
     case InstInfo::Reg:
-        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u\n", offset, info.name, a);
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u\n", offset, name, a);
         break;
     case InstInfo::RegReg:
-        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, r%u\n", offset, info.name, a, b);
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, r%u\n", offset, name, a, b);
         break;
     case InstInfo::RegRegReg:
-        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, r%u, r%u\n", offset, info.name, a, b, c);
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, r%u, r%u\n", offset, name, a, b, c);
         break;
     case InstInfo::RegImm16:
-        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %d\n", offset, info.name, a, i16_hi);
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %d\n", offset, name, a, i16_hi);
         break;
     case InstInfo::RegIdx:
-        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, #%u\n", offset, info.name, a, b);
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, #%u\n", offset, name, a, b);
         break;
     case InstInfo::Imm16:
-        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  %d\t; -> 0x%04zX\n", offset, info.name, i16_lo, offset + i16_lo);
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  %d\t; -> 0x%04zX\n", offset, name, i16_lo, offset + i16_lo);
         break;
     case InstInfo::Imm16Reg:
-        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  %u, %u\n", offset, info.name, u16_lo, c);
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  %u, %u\n", offset, name, u16_lo, c);
         break;
     case InstInfo::RegArgc:
-        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %u\n", offset, info.name, a, b);
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %u\n", offset, name, a, b);
         break;
     }
     out << buf;
@@ -238,9 +354,38 @@ static void decode_inst(std::ostringstream& out, const uint8_t* p, size_t offset
 
 } // anonymous namespace
 
+static const char* value_kind_name(ValueKind kind) noexcept {
+    switch (kind) {
+    case ValueKind::Null:     return "Null";
+    case ValueKind::C_Ptr:    return "CPtr";
+    case ValueKind::Obj:      return "Obj";
+    case ValueKind::Int:      return "Int";
+    case ValueKind::Bool:     return "Bool";
+    case ValueKind::Fraction: return "Frac";
+    default:                  return "?";
+    }
+}
+
 std::string CodeModule::disassemble() const noexcept {
     std::ostringstream out;
-    out << "Module: " << funcs.size() << " function(s), " << cp.size() << " constant(s)\n";
+    out << "Module: " << funcs.size() << " function(s), "
+        << cp.size() << " constant(s), "
+        << native_funcs.size() << " native(s)\n";
+
+    // Native functions
+    if (!native_funcs.empty()) {
+        out << "\n--- Native Functions ---\n";
+        for (size_t i = 0; i < native_funcs.size(); ++i) {
+            const auto& nf = native_funcs[i];
+            out << "  #" << i << ": ";
+            out << nf.name;
+            if (nf.addr == nullptr) out << " [unresolved] ";
+            out << "(" << static_cast<int>(nf.args_ty_len) << " args) -> " << value_kind_name(nf.ret_ty) << "\n";
+            for (uint8_t j = 0; j < nf.args_ty_len; ++j) {
+                out << "    arg" << static_cast<int>(j) << ": " << value_kind_name(nf.args_ty[j]) << "\n";
+            }
+        }
+    }
 
     // Disassemble functions
     for (size_t i = 0; i < funcs.size(); ++i) {
@@ -265,7 +410,7 @@ std::string CodeModule::disassemble() const noexcept {
             const auto op = code[off];
             decode_inst(out, code + off, off);
             off += 4;
-            if (op == static_cast<uint8_t>(lmx::runtime::Opcode::Opcode::Halt)) break;
+            if (op == static_cast<uint8_t>(Opcode::Halt)) break;
         }
     } else {
         out << "  (none)\n";
@@ -275,8 +420,7 @@ std::string CodeModule::disassemble() const noexcept {
     if (!cp.empty()) {
         out << "\n--- Constant Pool ---\n";
         for (size_t i = 0; i < cp.size(); ++i) {
-            const auto& c = cp[i];
-            switch (c.id) {
+            switch (const auto& c = cp[i]; c.id) {
             case ConstantId::Int:
                 out << "  #" << i << ": int " << c.int_value << "\n";
                 break;

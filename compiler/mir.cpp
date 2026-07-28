@@ -24,6 +24,10 @@ MirAssign::MirAssign(std::string name, std::shared_ptr<MirExpr> expr) noexcept
 MirFuncDefine::MirFuncDefine(std::string name, std::vector<std::string> params, std::vector<std::shared_ptr<MirNode> > body) noexcept :
     MirNode(MirNodeKind::Func), name(std::move(name)), params(std::move(params)), body(std::move(body)) {}
 
+MirNativeFuncDefine::MirNativeFuncDefine(std::string name, std::string symbol, std::vector<runtime::ValueKind> params, const runtime::ValueKind ret_ty) noexcept
+    : MirNode(MirNodeKind::NativeFunc), name(std::move(name)), symbol(std::move(symbol)), params(std::move(params)), ret_ty(ret_ty) {
+}
+
 MirOperateExpr::MirOperateExpr(const runtime::Opcode::Opcode opcode, MirOperateKind kind) noexcept
     : MirExpr(MirExprKind::Operate), opcode(opcode), operate_kind(kind) {}
 
@@ -60,6 +64,9 @@ MirCallVirtualExpr::MirCallVirtualExpr(uint8_t reg, uint8_t arg_count) noexcept
 
 MirCallFastExpr::MirCallFastExpr(std::string name, std::vector<std::shared_ptr<MirRefExpr>> args) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::CallFast), name(std::move(name)), args(std::move(args)) {}
+
+MirCCallExpr::MirCCallExpr(std::string name, std::vector<std::shared_ptr<MirRefExpr> > args) noexcept
+    : MirOperateExpr(runtime::Opcode::Opcode::CCall), name(std::move(name)), args(std::move(args)) {}
 
 MirRetExpr::MirRetExpr(std::shared_ptr<MirExpr> value) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::Ret), value(std::move(value)) {}
@@ -118,4 +125,6 @@ MirCmpAndExpr::MirCmpAndExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirEx
     : MirOperateExpr(runtime::Opcode::Opcode::And), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 MirCmpOrExpr::MirCmpOrExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::Or), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+
+
 }

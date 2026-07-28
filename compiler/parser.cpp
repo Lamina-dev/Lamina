@@ -7,7 +7,7 @@
 
 using namespace lmx;
 
-static std::string cur_module_name;
+static std::shared_ptr<Module> cur_module;
 
 static BinaryNode::Op token_to_binary_op(const TokenType type) {
     switch (type) {
@@ -25,7 +25,6 @@ static BinaryNode::Op token_to_binary_op(const TokenType type) {
     case TokenType::OPER_DIV: return BinaryNode::Op::Div;
     case TokenType::OPER_MOD: return BinaryNode::Op::Mod;
     case TokenType::OPER_POW: return BinaryNode::Op::Pow;
-    case TokenType::DOT: return BinaryNode::Op::Dot;
     // case TokenType::COL_COLON: return BinaryNode::Op::ColonColon;
     default: std::unreachable();
     }
@@ -220,6 +219,11 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         }
         return std::make_shared<LiteralNode>(line, col, num, LiteralNode::Kind::Integer);
     }
+    case TokenType::STRING_LITERAL: {
+        auto str = cur().text;
+        advance();
+        return std::make_shared<LiteralNode>(line, col, str, LiteralNode::Kind::String);
+    }
     case TokenType::LPAREN: {
         advance();
         auto e = parse_expr();
@@ -267,6 +271,7 @@ std::shared_ptr<ExprNode> Parser::parse_expr() noexcept {
 }
 
 std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
+    re_parse:
     size_t line = cur().line, col = cur().col;
     switch (cur().type) {
     case TokenType::KW_FUNC: {
@@ -279,6 +284,16 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
     case TokenType::KW_RETURN: {
         // advance();
         return parse_return();
+    }
+    case TokenType::KW_STATIC: {
+        advance();
+        if (!cur_module->lib_name.empty()) {
+            throw_error(ErrorType::Parse, "current module `" + cur_module->name + "` lib_name redefined", cur().line, cur().col);
+        }
+        const auto name = cur().text;
+        consume(TokenType::STRING_LITERAL, "text");
+        cur_module->lib_name = name;
+        goto re_parse;
     }
     default: {
         auto expr = parse_expr();
@@ -293,7 +308,8 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
 }
 
 std::shared_ptr<StmtNode> Parser::parse_return() noexcept {
-    auto old_line = cur().line, old_col = cur().col;
+    const auto old_line = cur().line;
+    // auto old_col = cur().col;
     advance();
     std::shared_ptr<ExprNode> expr = nullptr;
     auto line = cur().line, col = cur().col;
@@ -402,6 +418,20 @@ std::shared_ptr<StmtNode> Parser::parse_func() noexcept {
         return_type = parse_type();
     }
     else return_type = std::make_shared<UnknownType>();
+    if (match(TokenType::ASSIGN)) {
+        if (Type::is_null_type(return_type.get())) {
+            throw_error(ErrorType::Parse, "native function declare must be have return_type declare", line, col);
+        }
+        advance();
+        auto sym = cur().text;
+        consume(TokenType::STRING_LITERAL, "lib symbol");
+        cur_module->native_funcs.push_back(std::make_shared<NativeFuncDeclNode>(
+        line, col, id,
+        std::make_shared<ParamsDeclNode>(psline, pscol, params),
+        return_type, sym
+        ));
+        return parse_stmt();
+    }
     auto body = std::static_pointer_cast<BlockExprNode>(parse_block());
     frame_count--;
     return std::make_shared<FuncImplNode>(
@@ -417,11 +447,14 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
         auto id = cur().text;
         advance();
         static const std::unordered_map<std::string, runtime::ValueKind> basic_types = {
-            {"int", runtime::ValueKind::Int}, {"bool", runtime::ValueKind::Bool}
+            {"int", runtime::ValueKind::Int}, {"bool", runtime::ValueKind::Bool},
+            {"null", runtime::ValueKind::Null}
         };
         if (const auto it = basic_types.find(id); it != basic_types.end())
             return std::make_shared<BasicType>(it->second);
-
+        if (id == "text") {
+            return std::make_shared<StringType>();
+        }
         return std::make_shared<NamedType>(id);
     }
     default: {
@@ -432,14 +465,14 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
 }
 
 std::shared_ptr<Module> Parser::parse_module(const std::string &name) noexcept {
-    const auto save_cur_mod = cur_module_name;
-    cur_module_name = name;
-    decltype(Module::decls) decls;
+    const auto save_cur_mod = cur_module;
+    cur_module = std::make_shared<Module>(name, decltype(Module::decls){});
     while (pos < tokens.size() && tokens[pos].type != TokenType::END_OF_FILE) {
-        decls.push_back(std::move(parse_stmt()));
+       cur_module->decls.push_back(std::move(parse_stmt()));
     }
-    cur_module_name = save_cur_mod;
-    return std::make_shared<Module>(name, decls);
+    auto result = cur_module;
+    cur_module = save_cur_mod;
+    return result;
 }
 
 #undef PARSER_BINOP_R

@@ -41,27 +41,29 @@ extern "C" {
 #endif
 
 
-
+struct LmLinkedNode;
+typedef struct LmLinkedNode LmLinkedNode;
 struct LmLinkedNode {
     void* ptr;
     LmLinkedNode* last;
 };
-typedef LmLinkedNode LmLinkedNode;
 struct LmState {
     LmLinkedNode* n;
 };
-typedef LmState LmState;
-LmState lmx_newState();
-void lmx_deleteState(const LmState* state);
+typedef struct LmState LmState;
+LM_API LmState lmx_newState();
+LM_API void lmx_deleteState(const LmState* state);
 
 struct LmValue;
-typedef LmValue LmValue;
+typedef struct LmValue LmValue;
+
+typedef int64_t LmInt;
 
 struct LmModule;
-typedef LmModule LmModule;
+typedef struct LmModule LmModule;
 
 struct LaminaVM;
-typedef LaminaVM LaminaVM;
+typedef struct LaminaVM LaminaVM;
 
 LM_API LmModule* LM_CALL lmx_doString(LmState* state, const char* code, const char* name);
 
@@ -70,6 +72,7 @@ LM_API LmModule* LM_CALL lmx_doFile(LmState* state, const char* name);
 LM_API void LM_CALL lmx_printASTFromFile(LmState* state, FILE* file, const char* name);
 
 LM_API void LM_CALL lmx_printASTFromString(LmState* state, FILE* file, const char* code, const char* name);
+
 LM_API void LM_CALL lmx_printMIRFromString(LmState* state, FILE* file, const char* code, const char* name);
 
 LM_API void LM_CALL lmx_moduleToFile(LmState* state, LmModule* module, const char* name);

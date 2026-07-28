@@ -1,0 +1,5 @@
+static "Lamina"
+
+func exit(s int) -> null = "exit"
+
+exit(10)

@@ -7,7 +7,7 @@
 #include <vector>
 #include <span>
 
-#include "binary.hpp"
+#include "dyncall/dyncall.h"
 #include "gc.hpp"
 #include "lmx.h"
 #include "object/code_module.hpp"
@@ -28,17 +28,21 @@ struct Frame {
     ~Frame() noexcept;
 };
 class LaminaVM {
+
+    std::vector<Frame*> free_frames;
     Value regs[LMX_VM_REG_COUNT];
-    // ConstantPoolInfo* cp;
     Value* stack;
     // Value* local_vars_bp;
     // Value* local_vars_curp;
-    Value* global_vars;
-    std::vector<Frame*> free_frames;
+    // Value* global_vars;
     Frame* cur_frame{};
     LmGCAllocator allocator{};
 
     std::span<char*> args;
+    DCCallVM* call_vm;
+
+
+    // ConstantPoolInfo* cp;
 
 
 public:
@@ -57,7 +61,9 @@ public:
         } else {
             const auto frame = vm->free_frames.back();
             vm->free_frames.pop_back();
-            new (frame) Frame(vm->cur_frame, mod, ret_addr);
+            frame->last = vm->cur_frame;
+            frame->mod = mod;
+            frame->ret_addr = ret_addr;
             vm->cur_frame = frame;
         }
         // vm->local_vars_curp += LMX_LOCAL_VAR_COUNT;
@@ -69,6 +75,35 @@ public:
         vm->free_frames.push_back(cur_frame);
         vm->cur_frame = cur_frame->last;
         return cur_frame->ret_addr;
+    }
+
+    LMX_INLINE void native_call(const uint16_t idx, const uint8_t argc) noexcept {
+        const auto* meta = &cur_frame->mod->native_funcs[idx];
+        dcReset(call_vm);
+        for (uint8_t i = 0; i < argc; ++i) {
+            switch (meta->args_ty[i]) {
+            case ValueKind::Null: dcArgPointer(call_vm, nullptr); break;
+            case ValueKind::C_Ptr: dcArgPointer(call_vm, regs[LMX_VM_REG_COUNT - 1 - i].c_ptr); break;
+            case ValueKind::Obj: dcArgPointer(call_vm, regs[LMX_VM_REG_COUNT - 1 - i].obj); break;
+            case ValueKind::Int: dcArgLongLong(call_vm, regs[LMX_VM_REG_COUNT - 1 - i].int_val); break;
+            case ValueKind::Bool: dcArgBool(call_vm, regs[LMX_VM_REG_COUNT - 1 - i].bool_val); break;
+            case ValueKind::Fraction: dcArgDouble(call_vm, regs[LMX_VM_REG_COUNT - 1 - i].frac_val.to_float()); break;
+            case ValueKind::C_VaList:
+                break;
+            }
+        }
+        if (meta->addr) {
+            switch (meta->ret_ty) {
+            case ValueKind::Null:   regs[0] = dcCallPointer(call_vm, (DCpointer)meta->addr); break;
+            case ValueKind::C_Ptr:  regs[0] = dcCallPointer(call_vm, (DCpointer)meta->addr); break;
+            case ValueKind::Obj:    regs[0] = (Object*)dcCallPointer(call_vm, (DCpointer)meta->addr); break;
+            case ValueKind::Int:    regs[0] = (LmInt)dcCallInt(call_vm, (DCpointer)meta->addr); break;
+            case ValueKind::Bool:   regs[0] = (bool)dcCallBool(call_vm, (DCpointer)meta->addr); break;
+            case ValueKind::Fraction: dcCallVoid(call_vm, (DCpointer)meta->addr); break;
+            case ValueKind::C_VaList:
+                break;
+            }
+        }
     }
 };
 

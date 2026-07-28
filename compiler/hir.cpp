@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <ranges>
+#include <map>
 
 #include "error.hpp"
 
@@ -126,6 +127,9 @@ std::shared_ptr<Type> HirContext::inference_type(ExprNode* type) noexcept {
 // }
 
 void HirContext::check_module(const Module *mod) noexcept {
+    for (const auto& n : mod->native_funcs) {
+        new_global_var(n->func_id, n->make_type());
+    }
     // reset();
     for (auto& node : mod->decls) {
         check_stmt(node.get());
@@ -240,24 +244,42 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         check_expr(node->expr.get());
         const auto left = inference_type(node->expr.get());
         if (Type::is_null_type(left.get())) break;
-        if (left->kind != TypeKind::Function) {
-            throw_error(ErrorType::Analysis, "not a function type", node->line, node->col);
-            break;
-        }
-        const auto func_ty = std::reinterpret_pointer_cast<FunctionType>(left);
-        if (func_ty->params_ty.size() != node->suffix->exprs.size()) {
-            throw_error(ErrorType::Analysis, "mismatch args count in function calling", node->line, node->col);
-            break;
-        }
-        const auto len = func_ty->params_ty.size();
-        for (auto i = 0; i < len; i++) {
-            const auto param = func_ty->params_ty[i];
-            check_expr(node->suffix->exprs[i].get());
-            if (!param->equals(node->suffix->exprs[i]->type.get())) {
-                goto arg_type_mismatch;
+        if (left->kind == TypeKind::Function) {
+            const auto func_ty = std::reinterpret_pointer_cast<FunctionType>(left);
+            if (func_ty->params_ty.size() != node->suffix->exprs.size()) {
+                throw_error(ErrorType::Analysis, "mismatch args count in function calling", node->line, node->col);
+                break;
             }
+            const auto len = func_ty->params_ty.size();
+            for (auto i = 0; i < len; i++) {
+                const auto param = func_ty->params_ty[i];
+                check_expr(node->suffix->exprs[i].get());
+                if (!param->equals(node->suffix->exprs[i]->type.get())) {
+                    goto arg_type_mismatch;
+                }
+            }
+            node->type = std::reinterpret_pointer_cast<FunctionType>(left)->ret_ty;
+        } else if (left->kind == TypeKind::NativeFunction) {
+            new (expr) NativeFuncCallExpr(node);
+            const auto node = reinterpret_cast<NativeFuncCallExpr*>(expr);
+            const auto func_ty = std::reinterpret_pointer_cast<NativeFunctionType>(left);
+            if (func_ty->params_ty.size() != node->suffix->exprs.size()) {
+                throw_error(ErrorType::Analysis, "mismatch args count in function calling", node->line, node->col);
+                break;
+            }
+            const auto len = func_ty->params_ty.size();
+            for (auto i = 0; i < len; i++) {
+                const auto param = func_ty->params_ty[i];
+                check_expr(node->suffix->exprs[i].get());
+                if (!param->equals(node->suffix->exprs[i]->type.get())) {
+                    goto arg_type_mismatch;
+                }
+            }
+            node->type = std::reinterpret_pointer_cast<NativeFunctionType>(left)->ret_ty;
+        } else {
+            throw_error(ErrorType::Analysis, "not a function type", node->line, node->col);
         }
-        node->type = std::reinterpret_pointer_cast<FunctionType>(left)->ret_ty;
+
         break;
         arg_type_mismatch:
             throw_error(ErrorType::Analysis, "type mismatch arg in function calling", node->line, node->col);
@@ -289,6 +311,7 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
                 break;
             }
         }
+        node->type = node->then->type;
         break;
     }
     case ASTKind::AsExpr: {

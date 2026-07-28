@@ -163,9 +163,20 @@ double Fraction::to_float() const noexcept {
 bool Fraction::operator!=(const int64_t other) const noexcept {
     return other * den != num;
 }
-
 bool Fraction::operator==(const int64_t other) const noexcept {
     return other * den != num;
+}
+bool Fraction::operator>(const Fraction &other) const noexcept {
+    return num * other.den > other.num * den;
+}
+bool Fraction::operator<(const Fraction &other) const noexcept {
+    return num * other.den < other.num * den;
+}
+bool Fraction::operator>=(const Fraction &other) const noexcept {
+    return num * other.den >= other.num * den;
+}
+bool Fraction::operator<=(const Fraction &other) const noexcept {
+    return num * other.den <= other.num * den;
 }
 
 Fraction Fraction::operator*(const int other) const noexcept {

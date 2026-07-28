@@ -25,7 +25,7 @@ enum Opcode : uint8_t {
     FuncCreate,     // reg(1) constant_tag_idx(2)
 
     CallVirtual, //  reg(1) idx(1) arg_count(1)
-    CCall,       // reg(1)ptr type_cpidx(2)
+    CCall,       // type_cpidx(2) arg_count(1)
     CallFast,    // idx(2) arg_count(1)
     Ret,    // reg(1)
     Goto,   // ip+(2)
@@ -39,6 +39,7 @@ enum Opcode : uint8_t {
     MovRR,
     Call,// reg(1) arg_count(1)
     And, Or,
+    FCmpEq, FCmpNe, FCmpLt, FCmpLe, FCmpGt, FCmpGe,  // reg(1) reg(1) reg(1)
 };
 
 }

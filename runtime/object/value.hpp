@@ -3,21 +3,22 @@
 //
 
 #pragma once
-#include "code_module.hpp"
 #include "fraction.hpp"
+#include "lmx.h"
 #include "object.hpp"
 
 namespace lmx::runtime {
-enum class ValueKind {
-    Null, C_Ptr, Obj, Int, Bool, Fraction,
+enum class ValueKind : uint8_t {
+    Null, C_Ptr, Obj, Int, Bool, Fraction, C_VaList,
 };
+
 struct Value {
     ValueKind kind{ValueKind::Null};
     union {
         std::nullptr_t null_val;
         void* c_ptr{nullptr};
         Object* obj;
-        int64_t int_val;
+        LmInt int_val;
         bool bool_val;
         Fraction frac_val;
     };
@@ -25,7 +26,7 @@ struct Value {
     explicit Value()            noexcept;
     explicit Value(void* ptr)   noexcept;
     explicit Value(Object* obj) noexcept;
-    explicit Value(int64_t val) noexcept;
+    explicit Value(LmInt val) noexcept;
     explicit Value(bool val)    noexcept;
     explicit Value(int num, int den);
     explicit Value(const Fraction& frac) noexcept;
@@ -34,12 +35,12 @@ struct Value {
 
     Value& operator=(void* c_ptr)       noexcept;
     Value& operator=(Object* obj)       noexcept;
-    Value& operator=(int64_t int_val)   noexcept;
+    Value& operator=(LmInt int_val)     noexcept;
     Value& operator=(bool bool_val)     noexcept;
     Value& operator=(const Value& other)noexcept;
     Value& operator=(Value&& other)     noexcept;
     Value &operator=(const Fraction& fraction);
-    Value& operator=(std::nullptr_t)   noexcept;
+    Value& operator=(std::nullptr_t)    noexcept;
 
     Value operator+(const Value& other) const noexcept;
     Value operator-(const Value& other) const noexcept;

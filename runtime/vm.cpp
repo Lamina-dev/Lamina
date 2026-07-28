@@ -4,6 +4,7 @@
 
 #include "vm.hpp"
 
+#include <cassert>
 #include <chrono>
 
 #include "object/fraction.hpp"
@@ -15,19 +16,21 @@
 namespace lmx::runtime {
 LaminaVM::LaminaVM(const int argc, char **argv) noexcept :
     // cp(cp),
-    stack(new Value[LMX_VM_REG_COUNT * LMX_CALLSTACK_MAX_COUNT]),
+    stack(new Value[LMX_VM_REG_COUNT /* LMX_CALLSTACK_MAX_COUNT*/]),
     //local_vars_bp(new Value[LMX_LOCAL_VAR_COUNT * LMX_CALLSTACK_MAX_COUNT]),
     //local_vars_curp(local_vars_bp),
-    global_vars(new Value[65536]),
+    // global_vars(/*new Value[65536]*/nullptr),
     // cur_frame(new Frame(nullptr, nullptr, local_vars_curp)),
-    args(argv, argc) {}
+    args(argv, argc),
+    call_vm(dcNewCallVM(4096)) {}
 
 LaminaVM::~LaminaVM() noexcept {
     delete[] stack;
-    delete[] global_vars;
+    // delete[] global_vars;
     //delete[] local_vars_bp;
     for (const auto frames : free_frames) delete frames;
     delete cur_frame;
+    dcFree(call_vm);
 }
 
 Value &LaminaVM::get_reg(const uint8_t reg) noexcept {
@@ -57,6 +60,7 @@ static const void* dispatch[] = {\
     &&opGGet, &&opGSet,\
     &&opFAdd, &&opFSub, &&opFMul, &&opFDiv, &&opFMod, &&opFNeg,\
     &&opMovRR,&&opCall, &&opAnd, &&opOr,\
+    &&opFCmpEq, &&opFCmpNe, &&opFCmpLt, &&opFCmpLe, &&opFCmpGt, &&opFCmpGe, \
 };\
 goto *dispatch[*ip];
 
@@ -81,11 +85,11 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     cur_frame = new Frame(nullptr, prog, nullptr);
     const uint8_t* ip = prog->code;
 
-    // std::cout << prog->disassemble() << std::endl;
-
+    std::cout << prog->disassemble() << std::endl;
     // const auto start = std::chrono::high_resolution_clock::now();
     VM_DISPATCH
 
+    assert(reinterpret_cast<uint64_t>(ip) % 4 == 0);
     VM_LABEL(Nop) {
         VM_NEXT
     }
@@ -210,6 +214,7 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
 
     VM_LABEL(CCall) {
+        native_call(read_u16(ip + 1), ip[3]);
         VM_NEXT
     }
 
@@ -295,12 +300,12 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
 
     VM_LABEL(GGet) {
-        regs[ip[1]] = global_vars[read_u16(ip + 2)];
+        // regs[ip[1]] = global_vars[read_u16(ip + 2)];
         VM_NEXT
     }
 
     VM_LABEL(GSet) {
-        global_vars[read_u16(ip + 2)] = regs[ip[1]];
+        // global_vars[read_u16(ip + 2)] = regs[ip[1]];
         VM_NEXT
     }
 
@@ -356,6 +361,30 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
     VM_LABEL(Or) {
         regs[ip[1]] = regs[ip[2]] || regs[ip[3]];
+        VM_NEXT
+    }
+    VM_LABEL(FCmpEq) {
+        regs[ip[1]] = regs[ip[2]].frac_val == regs[ip[3]].frac_val;
+        VM_NEXT
+    }
+    VM_LABEL(FCmpNe) {
+        regs[ip[1]] = regs[ip[2]].frac_val != regs[ip[3]].frac_val;
+        VM_NEXT
+    }
+    VM_LABEL(FCmpLt) {
+        regs[ip[1]] = regs[ip[2]].frac_val < regs[ip[3]].frac_val;
+        VM_NEXT
+    }
+    VM_LABEL(FCmpLe) {
+        regs[ip[1]] = regs[ip[2]].frac_val <= regs[ip[3]].frac_val;
+        VM_NEXT
+    }
+    VM_LABEL(FCmpGt) {
+        regs[ip[1]] = regs[ip[2]].frac_val > regs[ip[3]].frac_val;
+        VM_NEXT
+    }
+    VM_LABEL(FCmpGe) {
+        regs[ip[1]] = regs[ip[2]].frac_val >= regs[ip[3]].frac_val;
         VM_NEXT
     }
 

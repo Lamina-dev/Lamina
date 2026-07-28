@@ -15,7 +15,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         include:
           - os: ubuntu-latest
             archive: linux-x64
@@ -27,11 +27,11 @@ jobs:
             ext: ''
             so_ext: .dylib
             lib_ext: .a
-          - os: windows-latest
-            archive: windows-x64
-            ext: .exe
-            so_ext: .dll
-            lib_ext: .lib
+#          - os: windows-latest
+#            archive: windows-x64
+#            ext: .exe
+#            so_ext: .dll
+#            lib_ext: .lib
 
     runs-on: ${{ matrix.os }}
 
