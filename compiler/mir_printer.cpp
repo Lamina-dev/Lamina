@@ -54,6 +54,17 @@ std::string MirPrinter::opcode_name(const runtime::Opcode::Opcode op) {
     case runtime::Opcode::FDiv:        return "fdiv";
     case runtime::Opcode::FMod:       return "fmodi";
     case runtime::Opcode::FNeg:        return "fneg";
+    case runtime::Opcode::Push:        return "push";
+    case runtime::Opcode::MovRR:       return "movrr";
+    case runtime::Opcode::Call:        return "call";
+    case runtime::Opcode::And:         return "and";
+    case runtime::Opcode::Or:          return "or";
+    case runtime::Opcode::FCmpEq:      return "fcmp_eq";
+    case runtime::Opcode::FCmpNe:      return "fcmp_ne";
+    case runtime::Opcode::FCmpLt:      return "fcmp_lt";
+    case runtime::Opcode::FCmpLe:      return "fcmp_le";
+    case runtime::Opcode::FCmpGt:      return "fcmp_gt";
+    case runtime::Opcode::FCmpGe:      return "fcmp_ge";
     default:                           return "unknown";
     }
 }
@@ -205,6 +216,22 @@ void MirPrinter::format_operate(std::ostringstream &ss, const MirOperateExpr &op
         ss << name << " reg=" << static_cast<int>(c.reg) << " argc=" << static_cast<int>(c.arg_count);
         break;
     }
+    case runtime::Opcode::And: {
+        DISPATCH(MirCmpAndExpr, format_binary(ss, name, d.lhs, d.rhs));
+    }
+    case runtime::Opcode::Or: {
+        DISPATCH(MirCmpOrExpr, format_binary(ss, name, d.lhs, d.rhs));
+    }
+    case runtime::Opcode::CCall: {
+        auto &c = static_cast<const MirCCallExpr &>(op);
+        ss << name << " " << c.name << "(";
+        for (size_t i = 0; i < c.args.size(); ++i) {
+            if (i > 0) ss << ", ";
+            format_expr(ss, *c.args[i]);
+        }
+        ss << ")";
+        break;
+    }
     default:
         ss << name;
         break;
@@ -251,6 +278,16 @@ void MirPrinter::format_node(std::ostringstream &ss, const MirNode &node) {
         ss << "}";
         break;
     }
+    case MirNodeKind::NativeFunc: {
+        auto &n = static_cast<const MirNativeFuncDefine &>(node);
+        ss << "native " << n.name << " = " << n.symbol << "(";
+        for (size_t i = 0; i < n.params.size(); ++i) {
+            if (i > 0) ss << ", ";
+            ss << static_cast<int>(n.params[i]);
+        }
+        ss << ") -> " << static_cast<int>(n.ret_ty);
+        break;
+    }
     }
 }
 
@@ -268,8 +305,14 @@ std::string MirPrinter::print(const MirExpr &expr) {
 
 std::string MirPrinter::print(const MirModule &module) {
     std::ostringstream ss;
+    ss << "Module";
+    if (!module.lib_name.empty()) {
+        ss << " [lib: " << module.lib_name << "]";
+    }
+    ss << "\n";
     for (auto &node : module.nodes) {
-        if (node->kind != MirNodeKind::Func) {
+        if (node->kind != MirNodeKind::Func
+            && node->kind != MirNodeKind::NativeFunc) {
             ss << "  ";
         }
         format_node(ss, *node);

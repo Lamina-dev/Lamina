@@ -11,6 +11,8 @@
 │  Functions Section              │
 ├─────────────────────────────────┤
 │  Constants Section              │
+├─────────────────────────────────┤
+│  Native functions Section       │
 └─────────────────────────────────┘
 ```
 
@@ -80,3 +82,36 @@
 | 1   | Frac   | 8 bytes   | `int32_t num` + `int32_t den`，小端序 |
 | 2   | Str    | 可变      | `u32 length` + `char data[length]` |
 
+## Native functions Section
+
+```
+┌─────────────────────────────────┐
+│  SectionSize  (8 bytes)  u64    │
+├─────────────────────────────────┤
+│  lib_name (C string,            │
+│            null-terminated)     │
+├─────────────────────────────────┤
+│  NativeFunc #0                  │
+│  ┌───────────────────────────┐  │
+│  │  name       (C string)    │  │
+│  │  arg_count  (1 byte)      │  │
+│  │  arg_types  (arg_count    │  │
+│  │             bytes)        │  │
+│  │  ret_type   (1 byte)      │  │
+│  └───────────────────────────┘  │
+│  NativeFunc #1                  │
+│  ┌───────────────────────────┐  │
+│  │  ...                      │  │
+│  └───────────────────────────┘  │
+│  ...                            │
+└─────────────────────────────────┘
+```
+
+| 字段        | 类型     | 大小               | 说明                         |
+| ----------- | -------- | ------------------ | ---------------------------- |
+| SectionSize | `u64`    | 8 bytes            | 整个 section 的字节数        |
+| lib_name    | `char[]` | 可变               | 共享库文件名，以 `\0` 结尾   |
+| name        | `char[]` | 可变               | 函数名，以 `\0` 结尾         |
+| arg_count   | `u8`     | 1 byte             | 参数个数                     |
+| arg_types   | `u8[]`   | arg_count bytes    | 每个参数的类型 (`ValueKind`)  |
+| ret_type    | `u8`     | 1 byte             | 返回值类型 (`ValueKind`)     |

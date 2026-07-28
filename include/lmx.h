@@ -72,6 +72,7 @@ LM_API LmModule* LM_CALL lmx_doFile(LmState* state, const char* name);
 LM_API void LM_CALL lmx_printASTFromFile(LmState* state, FILE* file, const char* name);
 
 LM_API void LM_CALL lmx_printASTFromString(LmState* state, FILE* file, const char* code, const char* name);
+
 LM_API void LM_CALL lmx_printMIRFromString(LmState* state, FILE* file, const char* code, const char* name);
 
 LM_API void LM_CALL lmx_moduleToFile(LmState* state, LmModule* module, const char* name);

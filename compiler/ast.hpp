@@ -27,6 +27,7 @@ enum class ASTKind {
     FuncImpl, TailReturn, IfExpr, VarDecl, BreakStmt,
     AssignStmt, AsExpr, DotExpr,
     NativeFuncDecl,
+    NativeFuncCall,
 };
 
 enum class TypeKind {
@@ -170,6 +171,13 @@ struct SuffixParenNode : ExprNode {
     explicit SuffixParenNode(size_t line, size_t col, std::shared_ptr<ExprNode> expr,
                              std::shared_ptr<ExprsNode> suffix) noexcept;
 };
+struct NativeFuncCallExpr : ExprNode {
+    std::shared_ptr<ExprNode> expr;
+    std::shared_ptr<ExprsNode> suffix;
+
+    explicit NativeFuncCallExpr(const SuffixParenNode* sp) noexcept;
+};
+static_assert(sizeof(SuffixParenNode) == sizeof(NativeFuncCallExpr));
 
 struct SuffixBracketNode : ExprNode {
     std::shared_ptr<ExprNode> expr;

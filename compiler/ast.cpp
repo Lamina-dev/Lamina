@@ -152,6 +152,7 @@ Module::Module(std::string name, decltype(decls) decls) noexcept
 
 ExprStmtNode::ExprStmtNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> expr) noexcept
     : StmtNode(ASTKind::ExprStmt, line, col), expr(std::move(expr)) {
+
 }
 
 ExprsNode::ExprsNode(const size_t line, const size_t col, std::vector<std::shared_ptr<ExprNode> > exprs) noexcept
@@ -261,3 +262,6 @@ std::shared_ptr<NativeFunctionType> NativeFuncDeclNode::make_type() noexcept {
     }
     return std::make_shared<NativeFunctionType>(params_ty, return_type, symbol);
 }
+
+NativeFuncCallExpr::NativeFuncCallExpr(const SuffixParenNode *sp) noexcept
+    : ExprNode(ASTKind::NativeFuncCall, sp->line, sp->col), expr(sp->expr), suffix(sp->suffix) {}

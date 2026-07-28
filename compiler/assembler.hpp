@@ -70,6 +70,7 @@ public:
     std::unordered_map<std::string, Val> vals;
     std::unordered_map<std::string, GlobalVar> globals;
     std::unordered_map<std::string, size_t> funcs; // func name -> index
+    std::unordered_map<std::string, size_t> native_funcs; // ^
     RegAllocator reg;
 
     std::optional<Val*> find_var(const std::string& name) noexcept;
@@ -91,6 +92,8 @@ public:
     uint8_t asm_mir_expr(InstEmitter::InstSeq& result, mir::MirExpr* node) noexcept;
     void asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) noexcept;
     void resolve_fixups(std::vector<uint8_t>& code) noexcept;
+
+    std::vector<uint8_t> asm_native_decl(mir::MirNativeFuncDefine *def) noexcept;
 };
 
 }

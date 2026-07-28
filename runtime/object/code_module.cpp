@@ -17,6 +17,14 @@ using namespace lmx::runtime;
 FuncObj::FuncObj(CodeModule *mod, const uint8_t *addr, const uint32_t bytecode_len) noexcept
    : mod(mod), addr(addr), bytecode_len(bytecode_len) {}
 
+NativeFuncObj::NativeFuncObj(
+    const void *addr,
+    const uint8_t args_ty_len,
+    const ValueKind *args_ty,
+    const ValueKind ret_ty
+    ) noexcept
+    : addr(addr), args_ty_len(args_ty_len), args_ty(args_ty), ret_ty(ret_ty) {}
+
 namespace {
 class ModuleLoader {
 public:
@@ -36,11 +44,33 @@ public:
     }
 
     static bool load_native_decl(std::vector<NativeFuncObj>& result, DLLib*& handle, const uint8_t*& p) noexcept {
-        const auto name = reinterpret_cast<const char *>(p);
+        const auto size = *reinterpret_cast<const uint64_t*>(p);
+        p += sizeof(uint64_t);
+        const auto over = p + size;
 
-        p += strlen(name) + 1;
+        const auto lib_name = reinterpret_cast<const char *>(p);
+        if (*lib_name == '\0') return false;
+        handle = dlLoadLibrary(lib_name);
 
-        
+        p += strlen(lib_name) + 1;
+        if (handle == nullptr) {
+            return false;
+        }
+
+        while (p != over) {
+            const auto name = reinterpret_cast<const char *>(p);
+
+            p += strlen(name) + 1;
+
+            const uint8_t count = *p;
+            const auto* args_ty = reinterpret_cast<const ValueKind*>(++p);
+            p += count;
+            const auto ret_ty = static_cast<ValueKind>(*p++);
+
+            const void* addr = dlFindSymbol(handle, name);
+
+            result.emplace_back(addr, count, args_ty, ret_ty);
+        }
 
         return true;
     }
@@ -104,7 +134,9 @@ Object *CodeModule::clone() const noexcept {
 }
 
 CodeModule::~CodeModule() noexcept {
-    dlFreeLibrary(this->native_lib_handle);
+    if (native_lib_handle) {
+        dlFreeLibrary(native_lib_handle);
+    }
 }
 
 CodeModule::CodeModule(
@@ -159,7 +191,9 @@ CodeModule::CodeModule(
     }
 }
 
-CodeModule::CodeModule(const uint8_t *binary) noexcept : Object(ObjectKind::Code) {
+CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind::Code), raw_data(std::move(data)) {
+
+    const uint8_t* binary = raw_data.data();
     ModuleLoader::check_magic(binary);
     ModuleLoader::check_version(binary);
     ModuleLoader::load_funcs(this, funcs, binary);
@@ -244,6 +278,12 @@ constexpr InstInfo INST_TABLE[] = {
     /* Call       */ {.name = "call",      .fmt = InstInfo::RegArgc},
     /* And        */ {.name = "and",       .fmt = InstInfo::RegRegReg},
     /* Or         */ {.name = "or",        .fmt = InstInfo::RegRegReg},
+    /* FCmpEq     */ {.name = "fcmp_eq",   .fmt = InstInfo::RegRegReg},
+    /* FCmpNe     */ {.name = "fcmp_ne",   .fmt = InstInfo::RegRegReg},
+    /* FCmpLt     */ {.name = "fcmp_lt",   .fmt = InstInfo::RegRegReg},
+    /* FCmpLe     */ {.name = "fcmp_le",   .fmt = InstInfo::RegRegReg},
+    /* FCmpGt     */ {.name = "fcmp_gt",   .fmt = InstInfo::RegRegReg},
+    /* FCmpGe     */ {.name = "fcmp_ge",   .fmt = InstInfo::RegRegReg},
 };
 
 constexpr size_t INST_COUNT = std::size(INST_TABLE);
@@ -304,9 +344,37 @@ void decode_inst(std::ostringstream& out, const uint8_t* p, const size_t offset)
 
 } // anonymous namespace
 
+static const char* value_kind_name(ValueKind kind) noexcept {
+    switch (kind) {
+    case ValueKind::Null:     return "Null";
+    case ValueKind::C_Ptr:    return "CPtr";
+    case ValueKind::Obj:      return "Obj";
+    case ValueKind::Int:      return "Int";
+    case ValueKind::Bool:     return "Bool";
+    case ValueKind::Fraction: return "Frac";
+    default:                  return "?";
+    }
+}
+
 std::string CodeModule::disassemble() const noexcept {
     std::ostringstream out;
-    out << "Module: " << funcs.size() << " function(s), " << cp.size() << " constant(s)\n";
+    out << "Module: " << funcs.size() << " function(s), "
+        << cp.size() << " constant(s), "
+        << native_funcs.size() << " native(s)\n";
+
+    // Native functions
+    if (!native_funcs.empty()) {
+        out << "\n--- Native Functions ---\n";
+        for (size_t i = 0; i < native_funcs.size(); ++i) {
+            const auto& nf = native_funcs[i];
+            out << "  #" << i << ": ";
+            if (nf.addr == nullptr) out << "[unresolved] ";
+            out << "(" << static_cast<int>(nf.args_ty_len) << " args) -> " << value_kind_name(nf.ret_ty) << "\n";
+            for (uint8_t j = 0; j < nf.args_ty_len; ++j) {
+                out << "    arg" << static_cast<int>(j) << ": " << value_kind_name(nf.args_ty[j]) << "\n";
+            }
+        }
+    }
 
     // Disassemble functions
     for (size_t i = 0; i < funcs.size(); ++i) {

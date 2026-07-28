@@ -378,6 +378,38 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, uint8_t{0}); // return from r0
             return rd;
         }
+        case runtime::Opcode::CCall: {
+            const auto& c = *reinterpret_cast<mir::MirCCallExpr*>(node);
+
+
+            const auto argc = static_cast<uint8_t>(c.args.size());
+            // Evaluate each arg and place in regs[255 - i]
+            for (size_t i = 0; i < c.args.size(); ++i) {
+                const auto rr = asm_mir_expr(insts, c.args[i].get());
+                if (rr != static_cast<uint8_t>(LMX_VM_REG_COUNT - 1 - i)) {
+                    InstEmitter::emit(insts, runtime::Opcode::MovRR,
+                        static_cast<uint8_t>(LMX_VM_REG_COUNT - 1 - i), rr);
+                }
+                reg.free(rr);
+            }
+            auto using_regs = reg.get_all_using();
+            for (const auto r : using_regs) {
+                InstEmitter::emit(insts, runtime::Opcode::Push, r);
+            }
+
+            const auto func_it = native_funcs.find(c.name);
+            if (func_it == native_funcs.end()) return 0;
+            const auto func_idx = static_cast<uint16_t>(func_it->second);
+
+            const auto rd = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::CallFast, func_idx, argc);
+            for (const auto r : using_regs | std::views::reverse) {
+                InstEmitter::emit(insts, runtime::Opcode::Pop, r);
+            }
+            // CallFast result is left in regs[0] by convention
+            InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, uint8_t{0}); // return from r0
+            return rd;
+        }
 
         // --- Halt ---
         case runtime::Opcode::Halt: {
@@ -464,6 +496,10 @@ void Assembler::asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) n
         // For now, just skip – functions are collected at module level
         break;
     }
+    case mir::MirNodeKind::NativeFunc: {
+        const auto n = reinterpret_cast<mir::MirNativeFuncDefine*>(node);
+
+    }
     }
 }
 
@@ -500,11 +536,11 @@ std::vector<uint8_t> Assembler::asm_func(mir::MirFuncDefine* def) noexcept {
     // Flatten instructions into raw bytecode
     std::vector<uint8_t> code;
     code.reserve(insts.size() * 4);
-    for (const auto& w : insts) {
-        code.push_back(w.bytes[0]);
-        code.push_back(w.bytes[1]);
-        code.push_back(w.bytes[2]);
-        code.push_back(w.bytes[3]);
+    for (const auto&[bytes] : insts) {
+        code.push_back(bytes[0]);
+        code.push_back(bytes[1]);
+        code.push_back(bytes[2]);
+        code.push_back(bytes[3]);
     }
 
     // Resolve label fixups
@@ -544,13 +580,14 @@ void Assembler::resolve_fixups(std::vector<uint8_t>& code) noexcept {
     }
 }
 
+
 // ============================================================
 //  Module assembly (binary format)
 // ============================================================
 
 std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     std::vector<uint8_t> result;
-    result.reserve(4096);
+    result.reserve(512);
 
     // Magic number
     write_u32(result, LMX_MAGIC_NUM);
@@ -564,17 +601,41 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     };
     std::vector<CompiledFunc> compiled_funcs;
 
+    struct EncodeNativeFunc {
+        std::string name;
+        std::vector<runtime::ValueKind> arg_ty;
+        runtime::ValueKind ret_ty;
+    };
+    static auto encoder_native = [](EncodeNativeFunc& n) -> std::vector<uint8_t> {
+        std::vector<uint8_t> n_re;
+
+        n_re.insert(n_re.end(), n.name.begin(), n.name.end());
+        n_re.push_back(static_cast<uint8_t>(n.arg_ty.size()));
+        auto* arg_ty_ref = reinterpret_cast<std::vector<uint8_t>*>(&n.arg_ty);
+        n_re.insert(n_re.end(), arg_ty_ref->begin(), arg_ty_ref->end());
+        n_re.push_back(static_cast<uint8_t>(n.ret_ty));
+        return n_re;
+    };
+    std::vector<EncodeNativeFunc> encode_native_funcs;
+
     // First pass: assign indices and compile all top-level functions
     funcs.clear();
+    native_funcs.clear();
+    size_t native_func_idx = 0;
     size_t func_idx = 0;
     std::vector<std::shared_ptr<mir::MirNode>> top_level_nodes;
 
     for (auto& node : mod->nodes) {
         if (node->kind == mir::MirNodeKind::Func) {
-            auto* fdef = reinterpret_cast<mir::MirFuncDefine*>(node.get());
-            funcs[fdef->name] = func_idx++;
-            compiled_funcs.push_back({.name = fdef->name, .code = std::vector<uint8_t>{}});
-        } else {
+            const auto* f = reinterpret_cast<mir::MirFuncDefine*>(node.get());
+            funcs[f->name] = func_idx++;
+            compiled_funcs.push_back({.name = f->name, .code = std::vector<uint8_t>{}});
+        } else if (node->kind == mir::MirNodeKind::NativeFunc) {
+            const auto* f = reinterpret_cast<mir::MirNativeFuncDefine*>(node.get());
+            native_funcs[f->name] = native_func_idx++;
+            encode_native_funcs.push_back({.name = f->name, .arg_ty = f->params, .ret_ty = f->ret_ty});
+        }
+        else {
             top_level_nodes.push_back(node);
         }
     }
@@ -607,12 +668,13 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     resolve_fixups(entry_code);
 
     // Compile each function body
-    for (auto& cf : compiled_funcs) {
+    for (auto&[name, code] : compiled_funcs) {
         for (auto& node : mod->nodes) {
             if (node->kind == mir::MirNodeKind::Func) {
-                auto* fdef = reinterpret_cast<mir::MirFuncDefine*>(node.get());
-                if (fdef->name == cf.name) {
-                    cf.code = asm_func(fdef);
+                if (auto* f = reinterpret_cast<mir::MirFuncDefine*>(node.get());
+                    f->name == name) {
+
+                    code = asm_func(f);
                     break;
                 }
             }
@@ -622,13 +684,13 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     // ---- Write function section (user functions only) ----
     std::vector<uint8_t> func_section;
 
-    for (auto& cf : compiled_funcs) {
-        const auto func_len = static_cast<uint32_t>(cf.code.size());
+    for (auto&[name, code] : compiled_funcs) {
+        const auto func_len = static_cast<uint32_t>(code.size());
         func_section.push_back(static_cast<uint8_t>(func_len & 0xFF));
         func_section.push_back(static_cast<uint8_t>((func_len >> 8) & 0xFF));
         func_section.push_back(static_cast<uint8_t>((func_len >> 16) & 0xFF));
         func_section.push_back(static_cast<uint8_t>((func_len >> 24) & 0xFF));
-        func_section.insert(func_section.end(), cf.code.begin(), cf.code.end());
+        func_section.insert(func_section.end(), code.begin(), code.end());
     }
 
     write_u64(result, func_section.size());
@@ -636,6 +698,22 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
 
     // ---- Write constant pool section (empty for now) ----
     write_u64(result, 0);
+
+
+    // ---- Write native functions section (empty for now) ----
+    std::vector<uint8_t> native_decls;
+    for (auto& n : encode_native_funcs) {
+        auto data = encoder_native(n);
+        native_decls.insert(native_decls.end(), data.begin(), data.end());
+    }
+    write_u64(result, native_decls.size() + mod->lib_name.size());
+    if (mod->lib_name.empty()) {
+        result.push_back(0);
+    } else {
+        result.insert(result.end(), mod->lib_name.begin(), mod->lib_name.end());
+    }
+    result.insert(result.end(), native_decls.begin(), native_decls.end());
+
 
     // ---- Write entry code section (after constants, loaded as prog->code) ----
     write_u64(result, entry_code.size());

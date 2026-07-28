@@ -1,6 +1,7 @@
 #include "mir_builder.hpp"
 
 #include <memory>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -219,7 +220,32 @@ public:
         }
     }
 
+    void build_native_decl(NativeFuncDeclNode *node) {
+        std::vector<runtime::ValueKind> params;
+        for (auto &ty: node->params->stmts | std::views::values) {
+            if (ty->kind == TypeKind::Basic) {
+                const auto t = std::static_pointer_cast<BasicType>(ty);
+                params.push_back(t->type);
+            } else {
+                params.push_back(runtime::ValueKind::Obj);
+            }
+        }
+        runtime::ValueKind ret_ty;
+        if (node->return_type->kind == TypeKind::Basic) {
+            const auto t = std::static_pointer_cast<BasicType>(node->return_type);
+            ret_ty = t->type;
+        } else {
+            ret_ty = runtime::ValueKind::Obj;
+        }
+        emit(std::make_shared<MirNativeFuncDefine>(node->func_id, node->symbol, std::move(params), ret_ty));
+    }
+
     void build(const Module *ast_mod) {
+
+        for (auto& n : ast_mod->native_funcs) {
+            build_native_decl(n.get());
+        }
+
         for (auto &decl : ast_mod->decls) {
             process(decl.get());
         }
@@ -360,6 +386,22 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         auto *as = static_cast<AsExprNode *>(expr);
         return eval(as->expr.get());
     }
+    case ASTKind::NativeFuncCall: {
+        auto *call = static_cast<NativeFuncCallExpr*>(expr);
+        std::string func_name;
+        if (call->expr->kind == ASTKind::Identifier) {
+            func_name = static_cast<IdentifierNode *>(call->expr.get())->id;
+        }
+        std::vector<std::shared_ptr<MirRefExpr>> arg_refs;
+        if (call->suffix) {
+            for (auto &arg : call->suffix->exprs) {
+                auto arg_val = eval(arg.get());
+                arg_refs.push_back(ensure_temp(std::move(arg_val)));
+            }
+        }
+        auto call_expr = std::make_shared<MirCCallExpr>(std::move(func_name), std::move(arg_refs));
+        return temp_assign(std::move(call_expr));
+    }
     case ASTKind::DotExpr:
         break;
     default:
@@ -368,10 +410,13 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
     }
 }
 
+
+
 } // namespace
 
 MirModule MirBuilder::from_ast_module(const std::shared_ptr<Module> &ast) {
     MirModule mod;
+    mod.lib_name = ast->lib_name;
     Builder builder(mod);
     builder.build(ast.get());
     return mod;

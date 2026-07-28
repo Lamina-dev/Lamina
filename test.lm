@@ -1,0 +1,3 @@
+static "libc"
+
+func puts(s text) -> int = "puts"

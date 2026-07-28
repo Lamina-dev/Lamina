@@ -199,6 +199,24 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
             }
             break;
         }
+        case ASTKind::DotExpr: {
+            auto &d = static_cast<const DotExprNode &>(node);
+            ss << line_prefix << "DotExpr";
+            if (node.type) { ss << " : "; print_type(ss, *node.type); }
+            ss << "\n";
+            if (d.expr) print_expr(ss, *d.expr, child_prefix + "├── ", child_prefix + "│   ");
+            if (d.rhs) {
+                ss << child_prefix << "└── " << d.rhs->id << "\n";
+            }
+            break;
+        }
+        case ASTKind::NativeFuncCall: {
+            ss << line_prefix << "NativeFuncCall\n";
+            auto &nc = static_cast<const NativeFuncCallExpr &>(node);
+            if (nc.expr) print_expr(ss, *nc.expr, child_prefix + "├── ", child_prefix + "│   ");
+            if (nc.suffix) print_expr(ss, *nc.suffix, child_prefix + "└── ", child_prefix + "    ");
+            break;
+        }
         default:
             ss << line_prefix << "UnknownExpr(" << static_cast<int>(node.kind) << ")\n";
             break;
@@ -278,6 +296,17 @@ void AstPrinter::print_stmt(std::ostringstream &ss, const StmtNode &node,
             if (as.rhs) print_expr(ss, *as.rhs, child_prefix + "└── ", child_prefix + "    ");
             break;
         }
+        case ASTKind::NativeFuncDecl: {
+            auto &nf = static_cast<const NativeFuncDeclNode &>(node);
+            ss << line_prefix << "NativeFunc " << nf.func_id << " : " << nf.symbol;
+            if (nf.return_type) {
+                ss << " -> ";
+                print_type(ss, *nf.return_type);
+            }
+            ss << "\n";
+            if (nf.params) print_stmt(ss, *nf.params, child_prefix + "└── ", child_prefix + "    ");
+            break;
+        }
         default:
             ss << line_prefix << "UnknownStmt(" << static_cast<int>(node.kind) << ")\n";
             break;
@@ -296,6 +325,8 @@ static bool is_expr_kind(ASTKind kind) {
         case ASTKind::SuffixBracket:
         case ASTKind::IfExpr:
         case ASTKind::AsExpr:
+        case ASTKind::DotExpr:
+        case ASTKind::NativeFuncCall:
             return true;
         default:
             return false;

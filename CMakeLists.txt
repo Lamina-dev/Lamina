@@ -39,7 +39,7 @@ if (UNIX)
 endif ()
 
 message(STATUS "Your System is '${CMAKE_SYSTEM_NAME}'")
-add_library(laminaCore STATIC
+add_library(laminaCore SHARED
         lmx.cpp
     $<TARGET_OBJECTS:laminac>
     $<TARGET_OBJECTS:lamina_runtime>
@@ -51,6 +51,7 @@ target_link_libraries(laminaCore PRIVATE
 message( ${CMAKE_BINARY_DIR}/_deps/dyncall-src)
 
 target_compile_definitions(laminaCore PRIVATE LMX_DLL)
+target_compile_definitions(laminaCore PRIVATE LMX_BUILD)
 if(LMX_BUILD_STATIC)
     add_library(laminac_s STATIC $<TARGET_OBJECTS:laminac>)
     add_library(lamina_runtime_s STATIC $<TARGET_OBJECTS:lamina_runtime>)
@@ -86,7 +87,7 @@ if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang-cl
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG")
 else()
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -funroll-loops -ffast-math -flto -fomit-frame-pointer -fno-semantic-interposition -fvisibility=hidden -fmerge-all-constants -fpeel-loops -fsplit-loops -fpredictive-commoning -fipa-cp-clone -ftree-vectorize -fdata-sections -ffunction-sections")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -fno-plt -mtune=native -fvisibility=hidden -funroll-loops -ffast-math -flto -fomit-frame-pointer -fno-semantic-interposition -fvisibility=hidden -fmerge-all-constants -fpeel-loops -fsplit-loops -fpredictive-commoning -fipa-cp-clone -ftree-vectorize -fdata-sections -ffunction-sections")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -flto -s -Wl,--gc-sections")
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -flto -s -Wl,--gc-sections")
 endif()

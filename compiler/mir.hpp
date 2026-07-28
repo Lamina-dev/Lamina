@@ -16,7 +16,7 @@ enum Opcode : uint8_t;
 namespace lmx::mir {
 
 enum class MirNodeKind {
-    TempAssign, Assign, Label, Expr, Func
+    TempAssign, Assign, Label, Expr, Func, NativeFunc
 };
 struct MirNode {
     MirNodeKind kind;
@@ -55,6 +55,15 @@ struct MirFuncDefine : MirNode {
     std::vector<std::shared_ptr<MirNode>> body;
 
     explicit MirFuncDefine(std::string name, std::vector<std::string> params,  std::vector<std::shared_ptr<MirNode>> body) noexcept;
+};
+
+struct MirNativeFuncDefine : MirNode {
+    std::string name;
+    std::string symbol;
+    std::vector<runtime::ValueKind> params;
+    runtime::ValueKind ret_ty;
+
+    explicit MirNativeFuncDefine(std::string name, std::string symbol, std::vector<runtime::ValueKind> params, runtime::ValueKind ret_ty) noexcept;
 };
 
 struct MirTempAssign : MirNode {
@@ -129,6 +138,15 @@ struct MirCallFastExpr : MirOperateExpr {
     std::string name;
     std::vector<std::shared_ptr<MirRefExpr>> args;
     explicit MirCallFastExpr(std::string name, std::vector<std::shared_ptr<MirRefExpr>> args) noexcept;
+};
+
+/*
+ * calling c function
+ */
+struct MirCCallExpr : MirOperateExpr {
+    std::string name;
+    std::vector<std::shared_ptr<MirRefExpr>> args;
+    explicit MirCCallExpr(std::string name, std::vector<std::shared_ptr<MirRefExpr>> args) noexcept;
 };
 struct MirRetExpr : MirOperateExpr {
     std::shared_ptr<MirExpr> value;
@@ -214,6 +232,7 @@ struct MirAssign : MirNode {
     explicit MirAssign(std::string name, std::shared_ptr<MirExpr> expr) noexcept;
 };
 struct MirModule {
+    std::string lib_name{};
     std::vector<std::shared_ptr<MirNode>> nodes;
 };
 }

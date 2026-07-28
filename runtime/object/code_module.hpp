@@ -20,13 +20,18 @@ struct FuncObj {
 };
 struct NativeFuncObj {
     // CodeModule* mod;
-    const uint8_t* addr;
+    const void* addr;
 
     uint8_t args_ty_len;
-    ValueKind* args_ty;
+    const ValueKind* args_ty;
     ValueKind ret_ty;
 
-    explicit NativeFuncObj(CodeModule* mod, const uint8_t* addr) noexcept;
+    explicit NativeFuncObj(
+        const void* addr,
+        uint8_t args_ty_len,
+        const ValueKind* args_ty,
+        ValueKind ret_ty
+    ) noexcept;
 };
 #if defined(_WIN32) || defined(_WIN64)
 constexpr auto lib_prefix = "";
@@ -42,13 +47,14 @@ constexpr auto lib_suffix = ".dylib";
 #endif
 class CodeModule : public Object {
 public:
-    DLLib* native_lib_handle;
+    DLLib* native_lib_handle{};
     std::vector<ConstantPoolInfo> cp;
     std::vector<FuncObj> funcs;
     std::vector<TypeInfo> types;
-    std::vector<NativeFuncObj> native_funcs;
+    std::vector<NativeFuncObj> native_funcs{};
     const uint8_t* code;
     size_t code_len;
+    std::vector<uint8_t> raw_data{};
     explicit CodeModule(
         std::vector<ConstantPoolInfo> cp,
         std::vector<TypeInfo> types,
@@ -67,8 +73,8 @@ public:
         const uint8_t* code,
         size_t code_len = 0
         ) noexcept;
-    explicit CodeModule(const uint8_t* binary) noexcept;
-    ~CodeModule() noexcept;
+    explicit CodeModule(std::vector<uint8_t>&& data) noexcept;
+    ~CodeModule() noexcept override;
 
     [[nodiscard]] Object*       clone       () const noexcept override;
 
