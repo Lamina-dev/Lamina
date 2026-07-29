@@ -405,8 +405,13 @@ std::shared_ptr<StmtNode> Parser::parse_func() noexcept {
     if (!match(TokenType::RPAREN)) {
         do {
             auto pid = cur().text;
-            advance();
-            params.emplace_back(pid, parse_type());
+            if (cur().type == TokenType::DOT_DOT_DOT) {
+                advance();
+                params.emplace_back("#", std::make_shared<BasicType>(runtime::ValueKind::C_VaList));
+            } else {
+                advance();
+                params.emplace_back(pid, parse_type());
+            }
             if (match(TokenType::RPAREN)) { break; }
             if (!consume(TokenType::COMMA, ",")) break;
         } while (true);

@@ -180,6 +180,29 @@ std::optional<Assembler::GlobalVar*> Assembler::find_global(const std::string& n
     return &it->second;
 }
 
+uint16_t Assembler::write_cp_frac(const int32_t num, const int32_t frac) {
+    using namespace lmx::runtime;
+    cp.push_back(static_cast<uint8_t>(ConstantId::Frac));
+    write_n(cp, reinterpret_cast<const uint8_t *>(&num), sizeof(num));
+    write_n(cp, reinterpret_cast<const uint8_t *>(&frac), sizeof(frac));
+    return cp_cnt++;
+}
+
+uint16_t Assembler::write_cp_i64(const int64_t num) {
+    using namespace lmx::runtime;
+    cp.push_back(static_cast<uint8_t>(ConstantId::Int));
+    write_n(cp, reinterpret_cast<const uint8_t *>(&num), sizeof(num));
+    return cp_cnt++;
+}
+
+uint16_t Assembler::write_cp_str(const uint32_t len, const std::string& str) {
+    using namespace lmx::runtime;
+    cp.push_back(static_cast<uint8_t>(ConstantId::Str));
+    write_u32(cp, len);
+    write_n(cp, reinterpret_cast<const uint8_t *>(str.c_str()), str.size());
+    return cp_cnt++;
+}
+
 // ============================================================
 //  Expression assembly: returns the register holding the result
 // ============================================================
@@ -205,8 +228,15 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
         switch (e->literal_kind) {
         case mir::MirLiteralKind::Integer: {
             const auto r = *reg.alloc();
-            const auto val = static_cast<int16_t>(std::stoi(e->data));
-            InstEmitter::emit(insts, runtime::Opcode::IConst, r, static_cast<uint16_t>(val));
+            const auto val = static_cast<int64_t>(std::stoi(e->data));
+            if (val <= INT16_MAX) {
+                const auto v = static_cast<int16_t>(val);
+                InstEmitter::emit(insts, runtime::Opcode::IConst, r, std::bit_cast<uint16_t>(v));
+            } else {
+                const auto idx = write_cp_i64(val);
+                InstEmitter::emit(insts, runtime::Opcode::New, r, idx);
+            }
+
             return r;
         }
         case mir::MirLiteralKind::Float: {
@@ -231,9 +261,12 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             }
             return r;
         }
-        case mir::MirLiteralKind::String:
-            // String constants not yet supported
-            return 0;
+        case mir::MirLiteralKind::String: {
+            const auto r = *reg.alloc();
+            const auto idx = write_cp_str(static_cast<uint32_t>(e->data.size()), e->data);
+            InstEmitter::emit(insts, runtime::Opcode::New, r, idx);
+            return r;
+        }
         }
         break;
     }
@@ -622,6 +655,8 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     // First pass: assign indices and compile all top-level functions
     funcs.clear();
     native_funcs.clear();
+    cp.clear();
+    cp_cnt = 0;
     size_t native_func_idx = 0;
     size_t func_idx = 0;
     std::vector<std::shared_ptr<mir::MirNode>> top_level_nodes;
@@ -698,7 +733,8 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     result.insert(result.end(), func_section.begin(), func_section.end());
 
     // ---- Write constant pool section (empty for now) ----
-    write_u64(result, 0);
+    write_u64(result, cp.size());
+    result.insert(result.end(), cp.begin(), cp.end());
 
 
     // ---- Write native functions section (empty for now) ----

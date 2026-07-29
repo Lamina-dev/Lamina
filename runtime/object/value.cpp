@@ -185,6 +185,7 @@ Value::operator bool() const noexcept {
 }
 
 Value &Value::operator=(const Value &other) noexcept {
+    this->~Value();
     if (other.kind == ValueKind::Obj) {
         this->obj = other.obj->get();
         this->kind = ValueKind::Obj;

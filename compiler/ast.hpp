@@ -91,6 +91,8 @@ struct NativeFunctionType : Type {
 
     explicit NativeFunctionType(std::vector<std::shared_ptr<Type>> params_ty, std::shared_ptr<Type> ret_ty, std::string name) noexcept;
     bool equals(Type *other) const noexcept override;
+
+    [[nodiscard]] bool have_va_list() const noexcept;
 };
 struct NamedType : Type {
     std::string name;

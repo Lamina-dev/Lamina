@@ -182,6 +182,11 @@ Token Lexer::next() {
         }
         case '.': {
             advance();
+            if (content[pos] == '.' && content[pos + 1] == '.') {
+                advance();
+                advance();
+                return {TokenType::DOT_DOT_DOT, "...", line, col - 3};
+            }
             return {TokenType::DOT, ".", line, col - 1};
         }
         default: {

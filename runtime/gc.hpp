@@ -16,7 +16,7 @@ using GCObject = std::shared_ptr<Object>;
 class LmGCAllocator {
     std::list<Object*> objects;
 public:
-    Object* alloc_string(const char* str) noexcept;
+    Object* alloc_string(const char *str, uint32_t len) noexcept;
 
     ~LmGCAllocator() noexcept;
 };

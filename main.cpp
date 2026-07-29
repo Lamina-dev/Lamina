@@ -9,9 +9,9 @@
 #include "runtime/vm.hpp"
 
 int main(int argc, char** argv) {
-    // if (argc < 2) return 1;
+    if (argc < 2) return 1;
     auto state = lmx_newState();
-    const auto module = lmx_doFile(&state, "../test.lm");
+    const auto module = lmx_doFile(&state, argv[1]);
 
     // lmx_printASTFromFile(&state, stdout, "../test.lm");
     const auto vm = lmx_newLaminaVM(&state, argc, argv);
