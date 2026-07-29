@@ -103,19 +103,37 @@ LaminaVM* lmx_newLaminaVM(LmState* state, int argc, char** argv) {
     return vm;
 }
 
+bool lmx_moduleToFile(LmState *state, LmModule *module, const char *name) {
+    std::ofstream ofs(name, std::ios::binary | std::ios::trunc);
+    const auto* mod = reinterpret_cast<lmx::runtime::CodeModule*>(module);
+    ofs.write(
+        reinterpret_cast<const char*>(mod->raw_data.data()),
+        static_cast<std::streamsize>(mod->raw_data.size())
+        );
+    if (!ofs) return false;
+    return true;
+}
+
 LmModule *lmx_doString(LmState *state, const char *code, const char* name) {
     std::string c = code;
     auto tokens = lmx::Lexer(c).tokenize(c);
+    if (errd) return nullptr;
+
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return nullptr;
+
     lmx::hir::HirContext().check_module(node.get());
     if (errd) return nullptr;
 
     auto mir = lmx::mir::MirBuilder::from_ast_module(node);
     if (errd) return nullptr;
-    const auto binary = lmx::Assembler().asm_module(&mir);
-    const auto new_m = malloc(binary.size() * sizeof(binary[0]));
-    memcpy(new_m, binary.data(), binary.size() * sizeof(binary[0]));
+
+    auto binary = lmx::Assembler().asm_module(&mir);
+    if (errd) return nullptr;
+
+    const auto new_m = malloc(sizeof(lmx::runtime::CodeModule));
+    if (new_m == nullptr) return nullptr;
+    new (new_m) lmx::runtime::CodeModule(std::move(binary));
     lmx_state_addNode(state, new_m);
     return static_cast<LmModule*>(new_m);
 }
@@ -135,6 +153,8 @@ LmModule *lmx_doFile(LmState *state, const char* name) {
     auto mir = lmx::mir::MirBuilder::from_ast_module(node);
     if (errd) return nullptr;
     auto binary = lmx::Assembler().asm_module(&mir);
+    if (errd) return nullptr;
+
     const auto new_m = malloc(sizeof(lmx::runtime::CodeModule));
     new (new_m) lmx::runtime::CodeModule(std::move(binary));
     lmx_state_addNode(state, new_m);

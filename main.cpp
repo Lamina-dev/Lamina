@@ -2,11 +2,8 @@
 // Created by meian on 2026/4/8.
 //
 
-#include <iostream>
-#include <ostream>
 
 #include "lmx.h"
-#include "runtime/vm.hpp"
 
 int main(int argc, char** argv) {
     if (argc < 2) return 1;
