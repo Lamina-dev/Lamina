@@ -263,26 +263,49 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
             new (expr) NativeFuncCallExpr(node);
             const auto node = reinterpret_cast<NativeFuncCallExpr*>(expr);
             const auto func_ty = std::reinterpret_pointer_cast<NativeFunctionType>(left);
-            if (func_ty->params_ty.size() != node->suffix->exprs.size()) {
+            bool has_va_list = false;
+            size_t fixed_arg_cnt = func_ty->params_ty.size();
+            for (const auto& p : func_ty->params_ty) {
+                if (p->kind == TypeKind::Basic &&
+                    reinterpret_cast<BasicType*>(p.get())->type == runtime::ValueKind::C_VaList) {
+                    if (p.get() != func_ty->params_ty.back().get()) {
+                        // 如果变参不是最后一个类型，报错
+                        throw_error(ErrorType::Analysis, "c_valist must be last type", node->line, node->col);
+                        goto suffix_paren_break;
+                    }
+                    has_va_list = true;
+                    fixed_arg_cnt = func_ty->params_ty.size() - 1;
+                }
+            }
+
+            if (!has_va_list && func_ty->params_ty.size() != node->suffix->exprs.size()) {
                 throw_error(ErrorType::Analysis, "mismatch args count in function calling", node->line, node->col);
                 break;
             }
-            const auto len = func_ty->params_ty.size();
-            for (auto i = 0; i < len; i++) {
+            const auto len = node->suffix->exprs.size();
+            size_t i = 0;
+            for (; i < fixed_arg_cnt; i++) {
                 const auto param = func_ty->params_ty[i];
                 check_expr(node->suffix->exprs[i].get());
                 if (!param->equals(node->suffix->exprs[i]->type.get())) {
                     goto arg_type_mismatch;
                 }
             }
+            // for (; i < len; i++) {
+            //     const auto param = func_ty->params_ty[i];
+            //
+            // }
+
             node->type = std::reinterpret_pointer_cast<NativeFunctionType>(left)->ret_ty;
         } else {
             throw_error(ErrorType::Analysis, "not a function type", node->line, node->col);
+            break;
         }
 
         break;
         arg_type_mismatch:
             throw_error(ErrorType::Analysis, "type mismatch arg in function calling", node->line, node->col);
+        suffix_paren_break:
         break;
     }
     case ASTKind::SuffixBracket: {

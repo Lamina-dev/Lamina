@@ -10,6 +10,7 @@ namespace lmx::runtime {
 enum class ConstantId : uint8_t {
     Int, Frac, Str
 };
+#pragma pack(push, 1)
 struct FracInfo {
     int32_t num;
     int32_t den;
@@ -40,5 +41,5 @@ struct ConstantPoolInfo {
 
 
 
-
+#pragma pack(pop)
 }

@@ -362,6 +362,7 @@ static const char* value_kind_name(ValueKind kind) noexcept {
     case ValueKind::Int:      return "Int";
     case ValueKind::Bool:     return "Bool";
     case ValueKind::Fraction: return "Frac";
+    case ValueKind::C_VaList: return "CVaList";
     default:                  return "?";
     }
 }
@@ -428,7 +429,8 @@ std::string CodeModule::disassemble() const noexcept {
                 out << "  #" << i << ": frac " << c.frac_info->num << "/" << c.frac_info->den << "\n";
                 break;
             case ConstantId::Str:
-                out << "  #" << i << ": str \"" << c.str->str << "\"\n";
+                const std::string str(c.str->str, c.str->length);
+                out << "  #" << i << ": str \"" << str << "\"\n";
                 break;
             }
         }

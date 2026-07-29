@@ -90,6 +90,17 @@ bool NativeFunctionType::equals(Type *other) const noexcept {
     return true;
 }
 
+bool NativeFunctionType::have_va_list() const noexcept {
+    for (const auto& p : params_ty) {
+        if (p->kind == TypeKind::Basic) {
+            const auto t = reinterpret_cast<BasicType *>(p.get());
+            if (t->type == runtime::ValueKind::C_VaList) return true;
+
+        }
+    }
+    return false;
+}
+
 std::string BinaryNode::op_to_string(const Op op) noexcept {
     switch (op) {
     case Op::Add:

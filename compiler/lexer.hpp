@@ -42,6 +42,8 @@ enum class TokenType {
     KW_IMPORT,
     KW_SYM,
     KW_STATIC,
+
+    DOT_DOT_DOT,
 };
 
 inline std::string to_string(const TokenType& type) {

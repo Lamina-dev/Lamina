@@ -84,14 +84,15 @@ LMX_INLINE static constexpr uint16_t read_u16(const uint8_t* p) {
 int LaminaVM::run(CodeModule *prog) noexcept {
     cur_frame = new Frame(nullptr, prog, nullptr);
     const uint8_t* ip = prog->code;
-
+    // assert((reinterpret_cast<uint64_t>(ip) % 4) == 0);
     std::cout << prog->disassemble() << std::endl;
     // const auto start = std::chrono::high_resolution_clock::now();
     VM_DISPATCH
 
-    assert(reinterpret_cast<uint64_t>(ip) % 4 == 0);
+
     VM_LABEL(Nop) {
-        VM_NEXT
+        ip++;
+        VM_NEXT_RAW
     }
 
     VM_LABEL(New) {
@@ -107,7 +108,7 @@ int LaminaVM::run(CodeModule *prog) noexcept {
             break;
         }
         case ConstantId::Str: {
-            regs[ip[1]] = allocator.alloc_string(c.str->str);
+            regs[ip[1]] = allocator.alloc_string(c.str->str, c.str->length);
             break;
         }
         }

@@ -1,5 +1,5 @@
 static "Lamina"
 
-func exit(s int) -> null = "exit"
+func printf(fmt text, ...) -> int = "printf"
 
-exit(10)
+printf("Hello Lamina, %lld", 15)

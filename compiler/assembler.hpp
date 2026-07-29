@@ -73,6 +73,12 @@ public:
     std::unordered_map<std::string, size_t> native_funcs; // ^
     RegAllocator reg;
 
+    std::vector<uint8_t> cp;
+    uint16_t cp_cnt{0};
+    uint16_t write_cp_i64(int64_t num);
+    uint16_t write_cp_str(uint32_t len, const std::string& str);
+    uint16_t write_cp_frac(int32_t num, int32_t frac);
+
     std::optional<Val*> find_var(const std::string& name) noexcept;
     std::optional<GlobalVar*> find_global(const std::string& name) noexcept;
 
@@ -93,7 +99,7 @@ public:
     void asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) noexcept;
     void resolve_fixups(std::vector<uint8_t>& code) noexcept;
 
-    std::vector<uint8_t> asm_native_decl(mir::MirNativeFuncDefine *def) noexcept;
+    // std::vector<uint8_t> asm_native_decl(mir::MirNativeFuncDefine *def) noexcept;
 };
 
 }

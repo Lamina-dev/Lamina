@@ -25,6 +25,10 @@ Object *String::clone() const noexcept {
     return new String(data);
 }
 
+const char *String::c_str() const noexcept {
+    return data.c_str();
+}
+
 std::string String::to_string() const noexcept {
     return data;
 }

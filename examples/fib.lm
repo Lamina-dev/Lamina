@@ -6,4 +6,4 @@ func fib(n int) -> int {
     }
 }
 
-let v = fib(30)
+let v = fib(35)
