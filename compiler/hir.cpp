@@ -116,6 +116,14 @@ std::shared_ptr<Type> HirContext::inference_type(ExprNode* type) noexcept {
         const auto node = reinterpret_cast<AsExprNode*>(type);
         return node->cast_type;
     }
+    case ASTKind::DotExpr:
+        break;
+    case ASTKind::NativeFuncCall: {
+        const auto node = reinterpret_cast<NativeFuncCallExpr*>(type);
+        const auto left_ty = std::reinterpret_pointer_cast<NativeFunctionType>(inference_type(node->expr.get()));
+        return left_ty->ret_ty;
+        break;
+    }
     default: std::unreachable();
     }
     return std::make_shared<UnknownType>();

@@ -24,5 +24,5 @@ int main(int argc, char** argv) {
     // }
     // std::cout << reinterpret_cast<lmx::runtime::LaminaVM*>(vm)->get_reg(1).int_val << std::endl;
     lmx_deleteState(&state);
-    //return result;
+    return result;
 }

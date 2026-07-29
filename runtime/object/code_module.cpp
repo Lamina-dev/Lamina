@@ -78,6 +78,10 @@ public:
             p += count;
             const auto ret_ty = static_cast<ValueKind>(*p++);
             const void* addr = dlFindSymbol(handle, name);
+            if (addr == nullptr) {
+                std::cerr << "native symbol `" << name << "` not found" << std::endl;
+                std::exit(1);
+            }
 
             result.emplace_back(addr, count, args_ty, ret_ty, name);
         }
