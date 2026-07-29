@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.35)
+cmake_minimum_required(VERSION 3.26)
 project(Lamina LANGUAGES CXX)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 if (MSVC)
@@ -80,13 +80,15 @@ foreach(tgt IN ITEMS ${LMX_ALL_TARGETS})
     disable_exceptions_rtti(${tgt})
 endforeach()
 
-set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -g -pg -fno-omit-frame-pointer")
+# set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -g -pg -fno-omit-frame-pointer")
 
 if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang-cl
+    message(STATUS "Use Clang-Cl toolchain compiling")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /arch:AVX2 /Oi /fp:fast")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG")
-else()
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    message(STATUS "Use GNU toolchain compiling")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -fno-plt -mtune=native -fvisibility=hidden -funroll-loops -ffast-math -flto -fomit-frame-pointer -fno-semantic-interposition -fvisibility=hidden -fmerge-all-constants -fpeel-loops -fsplit-loops -fpredictive-commoning -fipa-cp-clone -ftree-vectorize -fdata-sections -ffunction-sections")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -flto -s -Wl,--gc-sections")
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -flto -s -Wl,--gc-sections")

@@ -1,5 +1,8 @@
 static "Lamina"
 
 func printf(fmt text, ...) -> int = "printf"
+func sleep(s int) -> null = "sleep"
 
-printf("Hello Lamina, %lld", 15)
+sleep(1)
+
+printf("Hello Lamina\n")
