@@ -111,6 +111,7 @@ bool lmx_moduleToFile(LmState *state, LmModule *module, const char *name) {
         static_cast<std::streamsize>(mod->raw_data.size())
         );
     if (!ofs) return false;
+    ofs.close();
     return true;
 }
 

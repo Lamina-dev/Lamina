@@ -471,8 +471,35 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
         }
         break;
     }
-    case ASTKind::BreakStmt: {
+    case ASTKind::BreakStmt:
+    case ASTKind::ContinueStmt:{
+        bool in_loop = false;
+        for (const auto& s : scope_stack | std::views::reverse) {
+            if (s.scope == Scope::ScopeType::Loop) {
+                in_loop = true;
+                break;
+            }
+        }
+        if (!in_loop) {
+            throw_error(ErrorType::Analysis, "break stmt must be in loop body", stmt->line, stmt->col);
+            break;
+        }
         break;
+    }
+    case ASTKind::LoopStmt: {
+        const auto node = reinterpret_cast<LoopStmtNode*>(stmt);
+        check_expr(node->expr.get());
+        if (!Type::is_null_type(node->expr->type.get()) &&
+            !node->expr->type->equals(std::make_shared<BasicType>(runtime::ValueKind::Int).get())
+            ) {
+            throw_error(ErrorType::Analysis, "loop condition type must be int", node->line, node->col);
+            break;
+        }
+        scope_stack.emplace_back(Scope::ScopeType::Loop);
+        for (auto& s : node->body) {
+            check_stmt(s.get());
+        }
+        scope_stack.pop_back();
     }
     default: std::unreachable();
     }

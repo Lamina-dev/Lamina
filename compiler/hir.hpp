@@ -19,7 +19,7 @@ struct Scope {
         bool is_mut;
     };
     enum class ScopeType {
-        Function, Block,
+        Function, Block, Loop
     };
     ScopeType scope{ScopeType::Function};
     std::string name;

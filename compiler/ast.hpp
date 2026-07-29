@@ -28,6 +28,8 @@ enum class ASTKind {
     AssignStmt, AsExpr, DotExpr,
     NativeFuncDecl,
     NativeFuncCall,
+    LoopStmt,
+    ContinueStmt,
 };
 
 enum class TypeKind {
@@ -323,6 +325,17 @@ struct DotExprNode : ExprNode {
     std::shared_ptr<IdentifierNode> rhs;
     explicit DotExprNode(size_t line, size_t col, std::shared_ptr<ExprNode> expr, std::shared_ptr<IdentifierNode> rhs) noexcept;
 
+};
+
+struct LoopStmtNode : StmtNode {
+    std::shared_ptr<ExprNode> expr;
+    std::vector<std::shared_ptr<StmtNode>> body;
+
+    explicit LoopStmtNode(size_t line, size_t col, decltype(expr) expr, std::vector<std::shared_ptr<StmtNode>> body) noexcept;
+};
+
+struct ContinueStmtNode : StmtNode {
+    explicit ContinueStmtNode(size_t line, size_t col) noexcept;
 };
 
 }
