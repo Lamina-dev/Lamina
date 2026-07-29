@@ -56,9 +56,12 @@ class LaminaVM {
                 dcArgPointer(call_vm, (DCpointer)reinterpret_cast<const String*>(o)->c_str()); break;
                 break;
             }
-            default: {break;}
+            default: {
+                dcArgPointer(call_vm, (DCpointer)o);
+                break;
             }
-            dcArgPointer(call_vm, (DCpointer)o);
+            }
+
             break;
         }
         case ValueKind::Int: {
