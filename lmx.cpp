@@ -192,6 +192,7 @@ LmModule *lmx_doFile(LmState *state, const char* name, bool is_main_module) {
     auto mir = lmx::mir::MirBuilder::from_ast_module(node);
     if (errd) return nullptr;
     auto binary = lmx::Assembler().asm_module(&mir);
+    binary.shrink_to_fit();
     if (errd) return nullptr;
 
     const auto new_m = malloc(sizeof(lmx::runtime::CodeModule));

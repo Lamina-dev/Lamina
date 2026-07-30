@@ -755,7 +755,7 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     // ---- Write entry code section (after constants, loaded as prog->code) ----
     write_u64(result, entry_code.size());
     result.insert(result.end(), entry_code.begin(), entry_code.end());
-
+    result.shrink_to_fit();
     return result;
 }
 

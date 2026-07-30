@@ -36,17 +36,8 @@ extern "C" {
 #endif
 #include <stdint.h>
 #include <stdio.h>
-#if UINTPTR_MAX == INT32_MAX
-#if defined(_MSC_VER)
-#define LM_CALL __cdecl
-#else
-#define LM_CALL __attribute__((cdecl))
-#endif
-#else
+
 #define LM_CALL
-#endif
-
-
 
 /*
  * Lamina 接口状态管理
