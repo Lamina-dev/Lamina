@@ -3,6 +3,12 @@ static "Lamina"
 func printf(fmt text, ...) -> int = "printf"
 func sleep(s int) -> null = "sleep"
 
-sleep(1)
+var i = 5
+loop {
+    printf("Hello Lamina %lld\n", i)
+    i = i - 1
+    if i == 0 {
+        break
+    }
+}
 
-printf("Hello Lamina\n")

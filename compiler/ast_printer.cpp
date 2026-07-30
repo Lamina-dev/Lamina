@@ -248,6 +248,22 @@ void AstPrinter::print_stmt(std::ostringstream &ss, const StmtNode &node,
             ss << line_prefix << "Break\n";
             break;
         }
+        case ASTKind::ContinueStmt: {
+            ss << line_prefix << "Continue\n";
+            break;
+        }
+        case ASTKind::LoopStmt: {
+            auto &ls = static_cast<const LoopStmtNode &>(node);
+            ss << line_prefix << "Loop\n";
+            if (ls.expr) print_expr(ss, *ls.expr, child_prefix + "├── ", child_prefix + "│   ");
+            for (size_t i = 0; i < ls.body.size(); i++) {
+                const bool last = i + 1 == ls.body.size();
+                auto kid_pref = child_prefix + (last ? "└── " : "├── ");
+                auto kid_cont = child_prefix + (last ? "    " : "│   ");
+                print_stmt(ss, *ls.body[i], kid_pref, kid_cont);
+            }
+            break;
+        }
         case ASTKind::ParamsDeclNode: {
             auto &pd = static_cast<const ParamsDeclNode &>(node);
             ss << line_prefix << "Params\n";

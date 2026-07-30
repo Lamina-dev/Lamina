@@ -272,7 +272,7 @@ std::shared_ptr<ExprNode> Parser::parse_expr() noexcept {
 
 std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
     re_parse:
-    size_t line = cur().line, col = cur().col;
+
     switch (cur().type) {
     case TokenType::KW_FUNC: {
         advance();
@@ -285,6 +285,10 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
         // advance();
         return parse_return();
     }
+    case TokenType::KW_LOOP: {
+        advance();
+        return parse_loop();
+    }
     case TokenType::KW_STATIC: {
         advance();
         if (!cur_module->lib_name.empty()) {
@@ -295,7 +299,18 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
         cur_module->lib_name = name;
         goto re_parse;
     }
+    case TokenType::KW_BREAK: {
+        size_t line = cur().line, col = cur().col;
+        advance();
+        return std::make_shared<BreakStmtNode>(line, col);
+    }
+    case TokenType::KW_CONTINUE: {
+        size_t line = cur().line, col = cur().col;
+        advance();
+        return std::make_shared<ContinueStmtNode>(line, col);
+    }
     default: {
+        size_t line = cur().line, col = cur().col;
         auto expr = parse_expr();
         if (match(TokenType::ASSIGN)) {
             advance();
@@ -305,6 +320,30 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
         return std::make_shared<ExprStmtNode>(line, col, expr);
     }
     }
+}
+
+std::shared_ptr<StmtNode> Parser::parse_loop() noexcept {
+    const auto line = cur().line, col = cur().col;
+
+    std::shared_ptr<ExprNode> expr = nullptr;
+    if (!match(TokenType::LBRACE)) {
+        expr = parse_expr();
+    }
+    decltype(LoopStmtNode::body) body;
+    consume(TokenType::LBRACE, "{");
+    while (pos < tokens.size() && !match(TokenType::RBRACE)) {
+        const size_t last_pos = pos;
+        auto stmt = parse_stmt();
+        if (stmt == nullptr) {
+            break;
+        }
+        if (pos == last_pos) {
+            break;
+        }
+        body.push_back(stmt);
+    }
+    consume(TokenType::RBRACE, "}");
+    return std::make_shared<LoopStmtNode>(line, col, expr, body);
 }
 
 std::shared_ptr<StmtNode> Parser::parse_return() noexcept {

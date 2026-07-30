@@ -488,18 +488,21 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
     }
     case ASTKind::LoopStmt: {
         const auto node = reinterpret_cast<LoopStmtNode*>(stmt);
-        check_expr(node->expr.get());
-        if (!Type::is_null_type(node->expr->type.get()) &&
-            !node->expr->type->equals(std::make_shared<BasicType>(runtime::ValueKind::Int).get())
-            ) {
-            throw_error(ErrorType::Analysis, "loop condition type must be int", node->line, node->col);
-            break;
+        if (node->expr) {
+            check_expr(node->expr.get());
+            if (!Type::is_null_type(node->expr->type.get()) &&
+                !node->expr->type->equals(std::make_shared<BasicType>(runtime::ValueKind::Int).get())
+                ) {
+                throw_error(ErrorType::Analysis, "loop condition type must be int", node->line, node->col);
+                break;
+                }
         }
         scope_stack.emplace_back(Scope::ScopeType::Loop);
         for (auto& s : node->body) {
             check_stmt(s.get());
         }
         scope_stack.pop_back();
+        break;
     }
     default: std::unreachable();
     }

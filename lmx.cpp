@@ -95,6 +95,28 @@ void lmx_printMIRFromString(LmState *state, FILE *file, const char *code, const 
         fprintf(stderr, "Error writing MIR to file\n");
     }
 }
+void lmx_printMIRFromFile(LmState *state, FILE *file, const char *name) {
+    std::ifstream ifs(name);
+    if (!ifs.is_open()) return;
+    std::string c{
+        std::istreambuf_iterator(ifs), std::istreambuf_iterator<char>()
+    };
+    ifs.close();
+    auto tokens = lmx::Lexer(c).tokenize(c);
+    const auto node = lmx::Parser(tokens).parse_module(name);
+    if (errd) return;
+    lmx::hir::HirContext().check_module(node.get());
+    if (errd) return;
+
+    const auto mir = lmx::mir::MirBuilder::from_ast_module(node);
+    if (errd) return;
+
+    const auto mir_str = lmx::mir::MirPrinter::print(mir);
+
+    if (fwrite(mir_str.c_str(), 1, mir_str.length(), file) != mir_str.length()) {
+        fprintf(stderr, "Error writing MIR to file\n");
+    }
+}
 
 LaminaVM* lmx_newLaminaVM(LmState* state, int argc, char** argv) {
     auto* vm = static_cast<LaminaVM*>(malloc(sizeof(lmx::runtime::LaminaVM)));

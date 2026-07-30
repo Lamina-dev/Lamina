@@ -114,7 +114,7 @@ LM_API void LM_CALL lmx_printASTFromFile(LmState* state, FILE* file, const char*
 LM_API void LM_CALL lmx_printASTFromString(LmState* state, FILE* file, const char* code, const char* name);
 
 LM_API void LM_CALL lmx_printMIRFromString(LmState* state, FILE* file, const char* code, const char* name);
-
+LM_API void LM_CALL lmx_printMIRFromFile(LmState* state, FILE* file, const char* name);
 LM_API bool LM_CALL lmx_moduleToFile(LmState* state, LmModule* module, const char* name);
 
 LM_API LaminaVM* LM_CALL lmx_newLaminaVM(LmState* state, int argc, char** argv);

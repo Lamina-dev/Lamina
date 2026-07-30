@@ -21,6 +21,8 @@ bool is_float_type(const Type *type) {
 }
 
 class Builder {
+    std::vector<std::string> break_labels;
+    std::vector<std::string> continue_labels;
     MirModule &module_;
     std::vector<std::shared_ptr<MirNode>> *emit_target_ = &module_.nodes;
     size_t temp_counter_ = 0;
@@ -130,6 +132,8 @@ class Builder {
     std::shared_ptr<MirExpr> eval(ExprNode *expr);
 
     std::shared_ptr<MirExpr> process_block(const BlockExprNode *block) {
+        const auto save_temp_counter = temp_counter_;
+        const auto save_label_counter_ = label_counter_;
         std::shared_ptr<MirExpr> block_val;
         for (auto &stmt : block->stmts) {
             if (stmt->kind == ASTKind::TailReturn) {
@@ -139,6 +143,8 @@ class Builder {
                 process(stmt.get());
             }
         }
+        temp_counter_ = save_temp_counter;
+        label_counter_ = save_label_counter_;
         return block_val;
     }
 
@@ -165,6 +171,11 @@ public:
             break;
         }
         case ASTKind::BreakStmt: {
+            emit(std::make_shared<MirExprNode>(std::make_shared<MirGotoExpr>(break_labels.back())));
+            break;
+        }
+        case ASTKind::ContinueStmt: {
+            emit(std::make_shared<MirExprNode>(std::make_shared<MirGotoExpr>(continue_labels.back())));
             break;
         }
         case ASTKind::VarDecl: {
@@ -217,24 +228,62 @@ public:
         }
         case ASTKind::LoopStmt: {
             const auto *node = reinterpret_cast<LoopStmtNode *>(stmt);
-            auto cl = new_label();
-            auto bl = new_label();
+            auto cl = new_label() + "_continue";
+            auto bl = new_label() + "_break";
+            continue_labels.push_back(cl);
+            break_labels.push_back(bl);
             emit(std::make_shared<MirLabel>(cl));
-            auto left_result = eval(node->expr.get());
-            auto zero = new_temp();
-            auto zero_lit = std::make_shared<MirLiteralExpr>(MirLiteralKind::Integer, "0");
-            emit(std::make_shared<MirTempAssign>(zero, zero_lit));
-            auto result_tmp = new_temp();
-            emit(std::make_shared<MirTempAssign>(
-                result_tmp,
-                std::make_shared<MirICmpEqExpr>(
-                        left_result, std::make_shared<MirRefExpr>(zero, true)
-                    )
-            ));
-            auto if_expr = std::make_shared<MirIfTrueExpr>(std::make_shared<MirRefExpr>(result_tmp, true), bl);
-            emit(std::make_shared<MirExprNode>(if_expr));
-            // todo!
 
+            std::shared_ptr<MirExpr> left_result = std::make_shared<MirNopExpr>();
+            if (node->expr) {
+                left_result = eval(node->expr.get());
+
+                auto zero = new_temp();
+                auto zero_lit = std::make_shared<MirLiteralExpr>(MirLiteralKind::Integer, "0");
+                emit(std::make_shared<MirTempAssign>(zero, zero_lit));
+                // %zero = 0
+
+                auto result_tmp = new_temp();
+                emit(std::make_shared<MirTempAssign>(
+                    result_tmp,
+                    std::make_shared<MirICmpEqExpr>(
+                            left_result, std::make_shared<MirRefExpr>(zero, true)
+                        )
+                ));
+                // %result_tmp = ICmpEq %left_result, %zero
+
+                auto if_expr = std::make_shared<MirIfTrueExpr>(std::make_shared<MirRefExpr>(result_tmp, true), bl);
+                emit(std::make_shared<MirExprNode>(if_expr));
+                // IfTrue %result_tmp, break
+            }
+
+            for (auto& s : node->body) {
+                process(s.get());
+            }
+            // loop body
+
+
+            if (node->expr) {
+                auto one = new_temp();
+                auto one_lit = std::make_shared<MirLiteralExpr>(MirLiteralKind::Integer, "1");
+                emit(std::make_shared<MirTempAssign>(one, one_lit));
+                // %one = 1
+
+                emit(std::make_shared<MirTempAssign>(
+                    reinterpret_cast<MirRefExpr*>(left_result.get())->name,
+                    std::make_shared<MirISubExpr>(left_result, one_lit)
+                    ));
+            }
+
+
+            emit(std::make_shared<MirExprNode>(std::make_shared<MirGotoExpr>(cl)));
+            // continue
+
+            emit(std::make_shared<MirLabel>(bl));
+            // break_label
+
+            continue_labels.pop_back();
+            break_labels.pop_back();
             break;
         }
         default:
@@ -392,12 +441,16 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         auto cond = ensure_temp(eval(if_expr->cond.get()));
         emit_expr(std::make_shared<MirIfFalseExpr>(cond, else_label));
 
-        auto _ = emit_to_temp(result_name, eval(if_expr->then.get()));
+        if (auto e = eval(if_expr->then.get()); e) {
+            auto _ = emit_to_temp(result_name, e);
+        }
         emit_expr(std::make_shared<MirGotoExpr>(end_label));
 
         emit_label(else_label);
         if (if_expr->els) {
-            auto _ = emit_to_temp(result_name, eval(if_expr->els.get()));
+            if (auto e = eval(if_expr->els.get()); e) {
+                auto _ = emit_to_temp(result_name, e);
+            }
         }
         emit_label(end_label);
 
