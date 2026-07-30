@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "lmx.h"
+
 namespace lmx {
 
 

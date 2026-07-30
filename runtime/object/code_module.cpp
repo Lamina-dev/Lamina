@@ -4,14 +4,18 @@
 
 #include "code_module.hpp"
 
+#include <complex>
 #include <cstring>
 #include <iostream>
 
 #include "lmx.h"
 #include "dynload/dynload.h"
 #include "../opcode.hpp"
-
+#include "error.h"
 #include <sstream>
+
+#include "../error.hpp"
+#include "../../utils/utils.hpp"
 
 using namespace lmx::runtime;
 
@@ -55,18 +59,15 @@ public:
             p += 1;
             return false;
         }
-        if (!strcmp(lib_name, "Lamina")) {
-            handle = dlLoadLibrary(nullptr);
-        } else {
-            handle = dlLoadLibrary(lib_name);
-        }
+        const auto real_name = std::string(lib_prefix) + lib_name + lib_suffix;
+
+        handle = dlLoadLibrary(real_name.c_str());
 
         p += strlen(lib_name) + 1;
-        // if (handle == nullptr) {
-        //     std::cerr << "ModuleLoaderError: `" << lib_name << "` not found." << std::endl;
-        //     std::exit(1);
-        //     return false;
-        // }
+        if (handle == nullptr) {
+            VM_ERROR(VM_ERROR_ModLoad + ": `" + real_name + "` not found.");
+            return false;
+        }
 
         while (p != over) {
             const auto name = reinterpret_cast<const char *>(p);

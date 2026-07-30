@@ -48,6 +48,8 @@ constexpr auto lib_suffix = ".dylib";
 #else
 #error "Unsupported platform from dynamic loading. What's your System?"
 #endif
+// constexpr auto runtime_lib_name = std::string(lib_prefix) + "Lamina" + lib_suffix;
+
 class CodeModule : public Object {
 public:
     DLLib* native_lib_handle{};
