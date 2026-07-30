@@ -448,6 +448,7 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
 
         emit_label(else_label);
         if (if_expr->els) {
+
             if (auto e = eval(if_expr->els.get()); e) {
                 auto _ = emit_to_temp(result_name, e);
             }

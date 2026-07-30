@@ -98,7 +98,7 @@ public:
             //cur_frame = frame;
             //return;
         } else {
-            const auto frame = vm->free_frames.back();
+            const auto frame = vm->free_frames[vm->free_frames.size() - 1];
             vm->free_frames.pop_back();
             frame->last = vm->cur_frame;
             frame->mod = mod;
