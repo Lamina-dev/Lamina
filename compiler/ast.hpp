@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 namespace lmx {
@@ -30,6 +31,7 @@ enum class ASTKind {
     NativeFuncCall,
     LoopStmt,
     ContinueStmt,
+    ImportStmt,
 };
 
 enum class TypeKind {
@@ -137,7 +139,20 @@ struct Module {
     std::string lib_name;
     std::vector<std::shared_ptr<StmtNode>> decls;
     std::vector<std::shared_ptr<NativeFuncDeclNode>> native_funcs;
+
+    // key 是展开后的源码绝对路径，value是输出的module编码文件路径
+    std::unordered_map<std::string, std::string> sub_mods;
+
+
     Module(std::string name, decltype(decls) decls) noexcept;
+
+
+    /*
+     * name必须是绝对路径
+     */
+    [[nodiscard]] bool module_is_imported(const std::string& other_name) const noexcept {
+        return sub_mods.contains(other_name);
+    }
 };
 struct ExprStmtNode : StmtNode {
     std::shared_ptr<ExprNode> expr;
@@ -336,6 +351,12 @@ struct LoopStmtNode : StmtNode {
 
 struct ContinueStmtNode : StmtNode {
     explicit ContinueStmtNode(size_t line, size_t col) noexcept;
+};
+
+struct ImportStmtNode : StmtNode {
+    std::string name;
+
+    explicit ImportStmtNode(size_t line, size_t col, decltype(name) name) noexcept;
 };
 
 }

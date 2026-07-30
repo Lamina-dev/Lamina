@@ -20,10 +20,13 @@
 #include "compiler/mir_builder.hpp"
 #include "compiler/mir_printer.hpp"
 
-LM_API LmState lmx_newState() {
+LmState global_state;
+
+LM_API LmState* lmx_newState() {
     auto* node = static_cast<LmLinkedNode *>(malloc(sizeof(LmLinkedNode)));
     memset(node, 0, sizeof(LmLinkedNode));
-    return LmState {node};
+    global_state = LmState {node};
+    return &global_state;
 }
 LM_API void lmx_deleteState(const LmState* state) {
     const LmLinkedNode* node = state->n;
@@ -50,7 +53,7 @@ void lmx_printASTFromString(LmState *state, FILE *file, const char *code, const 
     if (errd) return;
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return;
-    lmx::hir::HirContext().check_module(node.get());
+    lmx::hir::HirContext().check_module(node);
     if (errd) return;
 
     const auto ast_str = lmx::AstPrinter::print(*node);
@@ -69,7 +72,7 @@ void lmx_printASTFromFile(LmState *state, FILE *file, const char *name) {
     auto tokens = lmx::Lexer(c).tokenize(c);
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return;
-    lmx::hir::HirContext().check_module(node.get());
+    lmx::hir::HirContext().check_module(node);
     if (errd) return;
 
     auto str = lmx::AstPrinter::print(*node.get());
@@ -83,7 +86,7 @@ void lmx_printMIRFromString(LmState *state, FILE *file, const char *code, const 
     auto tokens = lmx::Lexer(c).tokenize(c);
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return;
-    lmx::hir::HirContext().check_module(node.get());
+    lmx::hir::HirContext().check_module(node);
     if (errd) return;
 
     const auto mir = lmx::mir::MirBuilder::from_ast_module(node);
@@ -105,7 +108,7 @@ void lmx_printMIRFromFile(LmState *state, FILE *file, const char *name) {
     auto tokens = lmx::Lexer(c).tokenize(c);
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return;
-    lmx::hir::HirContext().check_module(node.get());
+    lmx::hir::HirContext().check_module(node);
     if (errd) return;
 
     const auto mir = lmx::mir::MirBuilder::from_ast_module(node);
@@ -126,7 +129,9 @@ LaminaVM* lmx_newLaminaVM(LmState* state, int argc, char** argv) {
 }
 
 bool lmx_moduleToFile(LmState *state, LmModule *module, const char *name) {
-    std::ofstream ofs(name, std::ios::binary | std::ios::trunc);
+    const std::filesystem::path path = name;
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream ofs(path.string() + lmx::file_suffix_binary, std::ios::binary | std::ios::trunc);
     const auto* mod = reinterpret_cast<lmx::runtime::CodeModule*>(module);
     ofs.write(
         reinterpret_cast<const char*>(mod->raw_data.data()),
@@ -145,7 +150,7 @@ LmModule *lmx_doString(LmState *state, const char *code, const char* name) {
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return nullptr;
 
-    lmx::hir::HirContext().check_module(node.get());
+    lmx::hir::HirContext().check_module(node);
     if (errd) return nullptr;
 
     auto mir = lmx::mir::MirBuilder::from_ast_module(node);
@@ -160,8 +165,11 @@ LmModule *lmx_doString(LmState *state, const char *code, const char* name) {
     lmx_state_addNode(state, new_m);
     return static_cast<LmModule*>(new_m);
 }
-LmModule *lmx_doFile(LmState *state, const char* name) {
-    std::ifstream ifs(name);
+LmModule *lmx_doFile(LmState *state, const char* name, bool is_main_module) {
+    const auto save_current_path = lmx::current_module_path;
+    const auto this_module_path_name = std::filesystem::absolute(name).lexically_normal();
+    lmx::current_module_path = this_module_path_name.parent_path();
+    std::ifstream ifs(this_module_path_name);
     if (!ifs.is_open()) return nullptr;
     std::string c{
         std::istreambuf_iterator(ifs), std::istreambuf_iterator<char>()
@@ -169,9 +177,16 @@ LmModule *lmx_doFile(LmState *state, const char* name) {
     c += '\n';
     ifs.close();
     auto tokens = lmx::Lexer(c).tokenize(c);
-    const auto node = lmx::Parser(tokens).parse_module(name);
+    const auto node = lmx::Parser(tokens).parse_module(this_module_path_name.string());
+    if (is_main_module) {
+        if (lmx::main_module) {
+            fprintf(stderr, "main module already exists: named \"%s\"\n", lmx::main_module->name.c_str());
+            return nullptr;
+        }
+        lmx::main_module = node;
+    }
     if (errd) return nullptr;
-    lmx::hir::HirContext().check_module(node.get());
+    lmx::hir::HirContext().check_module(node);
     if (errd) return nullptr;
 
     auto mir = lmx::mir::MirBuilder::from_ast_module(node);
@@ -182,6 +197,7 @@ LmModule *lmx_doFile(LmState *state, const char* name) {
     const auto new_m = malloc(sizeof(lmx::runtime::CodeModule));
     new (new_m) lmx::runtime::CodeModule(std::move(binary));
     lmx_state_addNode(state, new_m);
+    lmx::current_module_path = save_current_path;
     return static_cast<LmModule*>(new_m);
 }
 

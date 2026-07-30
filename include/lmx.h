@@ -62,7 +62,9 @@ struct LmState {
 };
 typedef struct LmState LmState;
 
-LM_API LmState lmx_newState();
+extern LmState global_state;
+
+LM_API LmState* lmx_newState();
 LM_API void lmx_deleteState(const LmState* state);
 /******************************/
 
@@ -101,13 +103,14 @@ LM_API LmModule* LM_CALL lmx_doString(LmState* state, const char* code, const ch
  * Args:
  *     state (LmState*): 接口状态
  *     name  (const char*): 代码文件名字(同模块名)
+ *     is_main_module (bool):  是不是主模块，主模块就是被直接运行的模块，不会被import
  * Return:
  *     LmModule*:  成功时返回加载完成的模块，失败nullptr
  *
  * Notes:
- *     失败原因可供参考： 编译错误，内存分配失败
+ *     失败原因可供参考： 编译错误，内存分配失败，已经存在主模块但是 is_main_module = true
  */
-LM_API LmModule* LM_CALL lmx_doFile(LmState* state, const char* name);
+LM_API LmModule* LM_CALL lmx_doFile(LmState* state, const char* name, bool is_main_module);
 
 LM_API void LM_CALL lmx_printASTFromFile(LmState* state, FILE* file, const char* name);
 
@@ -115,6 +118,8 @@ LM_API void LM_CALL lmx_printASTFromString(LmState* state, FILE* file, const cha
 
 LM_API void LM_CALL lmx_printMIRFromString(LmState* state, FILE* file, const char* code, const char* name);
 LM_API void LM_CALL lmx_printMIRFromFile(LmState* state, FILE* file, const char* name);
+
+
 LM_API bool LM_CALL lmx_moduleToFile(LmState* state, LmModule* module, const char* name);
 
 LM_API LaminaVM* LM_CALL lmx_newLaminaVM(LmState* state, int argc, char** argv);

@@ -43,6 +43,7 @@ add_library(laminaCore SHARED
         lmx.cpp
     $<TARGET_OBJECTS:laminac>
     $<TARGET_OBJECTS:lamina_runtime>
+        utils/utils.cpp
 )
 target_link_libraries(laminaCore PRIVATE
         dyncall_s

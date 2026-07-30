@@ -3,11 +3,15 @@
 //
 
 #include "parser.hpp"
+
+#include <filesystem>
+
 #include "error.hpp"
 
-using namespace lmx;
+namespace lmx {
 
-static std::shared_ptr<Module> cur_module;
+
+std::shared_ptr<Module> cur_module = nullptr;
 
 static BinaryNode::Op token_to_binary_op(const TokenType type) {
     switch (type) {
@@ -25,7 +29,7 @@ static BinaryNode::Op token_to_binary_op(const TokenType type) {
     case TokenType::OPER_DIV: return BinaryNode::Op::Div;
     case TokenType::OPER_MOD: return BinaryNode::Op::Mod;
     case TokenType::OPER_POW: return BinaryNode::Op::Pow;
-    // case TokenType::COL_COLON: return BinaryNode::Op::ColonColon;
+        // case TokenType::COL_COLON: return BinaryNode::Op::ColonColon;
     default: std::unreachable();
     }
 }
@@ -134,8 +138,8 @@ std::shared_ptr<ExprNode> Parser::parse_term() noexcept {
 
     switch (cur().type) {
     case TokenType::OPER_MINUS:
-    // case TokenType::OPER_MUL:
-        {
+        // case TokenType::OPER_MUL:
+    {
         advance();
         return std::make_shared<UnaryNode>(line, col, UnaryNode::Op::Neg, parse_factor());
     }
@@ -309,6 +313,10 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
         advance();
         return std::make_shared<ContinueStmtNode>(line, col);
     }
+    case TokenType::KW_IMPORT: {
+        advance();
+        return parse_import();
+    }
     default: {
         size_t line = cur().line, col = cur().col;
         auto expr = parse_expr();
@@ -320,6 +328,18 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
         return std::make_shared<ExprStmtNode>(line, col, expr);
     }
     }
+}
+
+std::shared_ptr<StmtNode> Parser::parse_import() noexcept {
+    auto line = cur().line, col = cur().col;
+    auto name = cur().text;
+    consume(TokenType::IDENTIFIER, "identifier");
+    while (pos < tokens.size() && match(TokenType::DOT)) {
+        advance();
+        name += '.' + cur().text;
+        consume(TokenType::IDENTIFIER, "identifier");
+    }
+    return std::make_shared<ImportStmtNode>(line, col, name);
 }
 
 std::shared_ptr<StmtNode> Parser::parse_loop() noexcept {
@@ -512,13 +532,15 @@ std::shared_ptr<Module> Parser::parse_module(const std::string &name) noexcept {
     const auto save_cur_mod = cur_module;
     cur_module = std::make_shared<Module>(name, decltype(Module::decls){});
     while (pos < tokens.size() && tokens[pos].type != TokenType::END_OF_FILE) {
-       cur_module->decls.push_back(std::move(parse_stmt()));
+        cur_module->decls.push_back(std::move(parse_stmt()));
     }
     auto result = cur_module;
     cur_module = save_cur_mod;
     return result;
 }
 
+
+}
 #undef PARSER_BINOP_R
 #undef PARSER_BINOP_L
 #undef advance

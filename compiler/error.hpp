@@ -3,9 +3,10 @@
 //
 
 #pragma once
-#include <iostream>
 #include <string>
 #include <unordered_map>
+#include <iostream>
+#include "parser.hpp"
 
 enum class ErrorType {
     Unknown,
@@ -31,5 +32,5 @@ true;
 if constexpr (LMX_DEBUG) {\
     std::cerr << "[" << __FILE__ << ":" << __LINE__ << "]";\
 }\
-    std::cerr << error_type_map[error_type] << "Error at " <<  line << ", " << col << ":\n\t" << message << std::endl;\
+    std::cerr << error_type_map[error_type] << "Error at \"" << lmx::cur_module->name << "\" " <<  line << ", " << col << ":\n\t" << message << std::endl;\
     } while(0);

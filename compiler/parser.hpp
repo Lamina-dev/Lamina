@@ -7,7 +7,8 @@
 #include "lexer.hpp"
 
 namespace lmx {
-class LM_API Parser {
+extern std::shared_ptr<Module> cur_module;
+class Parser {
     std::shared_ptr<ExprNode> parse_logical()       noexcept;   // or and
     std::shared_ptr<ExprNode> parse_equality()      noexcept;   // == !=
     std::shared_ptr<ExprNode> parse_relational()    noexcept;   // > < >= <=
@@ -29,6 +30,11 @@ class LM_API Parser {
     std::shared_ptr<StmtNode> parse_var()               noexcept;
     std::shared_ptr<StmtNode> parse_var_decl()          noexcept;
 
+    std::shared_ptr<StmtNode> parse_loop() noexcept;
+
+    std::shared_ptr<StmtNode> parse_return() noexcept;
+    std::shared_ptr<StmtNode> parse_import() noexcept;
+
 
     // void advance() noexcept;
     bool consume(TokenType token_type, const std::string &tk) noexcept;
@@ -40,14 +46,13 @@ class LM_API Parser {
     std::vector<Token>& tokens;
     size_t pos{0};
     size_t frame_count{0};
+
 public:
     explicit Parser() = delete;
     std::shared_ptr<ExprNode> parse_expr() noexcept;
     std::shared_ptr<StmtNode> parse_stmt() noexcept;
 
-    std::shared_ptr<StmtNode> parse_loop() noexcept;
 
-    std::shared_ptr<StmtNode> parse_return() noexcept;
 
     std::shared_ptr<StmtNode> parse_stmt(const std::vector<Token> &tokens) noexcept;
 

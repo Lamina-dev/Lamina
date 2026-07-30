@@ -154,57 +154,6 @@ CodeModule::~CodeModule() noexcept {
     }
 }
 
-CodeModule::CodeModule(
-    std::vector<ConstantPoolInfo> cp,
-    std::vector<TypeInfo> types,
-    std::vector<FuncObj> funcs,
-    std::vector<NativeFuncObj> native_funcs,
-    const char* lib_name,
-    const uint8_t *code,
-    const size_t code_len
-    ) noexcept
-    :
-    Object(ObjectKind::Code),
-    cp(std::move(cp)),
-    funcs(std::move(funcs)),
-    types(std::move(types)),
-    native_funcs(std::move(native_funcs)),
-    code(code),
-    code_len(code_len)
-{
-    if (lib_name) {
-        std::string name = lib_prefix;
-        name += lib_name;
-        name += lib_suffix;
-        this->native_lib_handle = dlLoadLibrary(name.c_str());
-    }
-}
-
-CodeModule::CodeModule(
-    std::vector<ConstantPoolInfo>&& cp,
-    std::vector<TypeInfo>&& types,
-    std::vector<FuncObj>&& funcs,
-    std::vector<NativeFuncObj>&& native_funcs,
-    const char* lib_name,
-    const uint8_t *code,
-    const size_t code_len
-    ) noexcept
-    :
-    Object(ObjectKind::Code),
-    cp(std::move(cp)),
-    funcs(std::move(funcs)),
-    types(std::move(types)),
-    native_funcs(std::move(native_funcs)),
-    code(code),
-    code_len(code_len)
-    {
-    if (lib_name) {
-        std::string name = lib_prefix;
-        name += lib_name;
-        name += lib_suffix;
-        this->native_lib_handle = dlLoadLibrary(name.c_str());
-    }
-}
 
 CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind::Code), raw_data(std::move(data)) {
 

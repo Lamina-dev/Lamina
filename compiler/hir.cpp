@@ -7,8 +7,9 @@
 #include <functional>
 #include <ranges>
 #include <map>
-
+#include "parser.hpp"
 #include "error.hpp"
+#include "../utils/utils.hpp"
 
 using namespace lmx;
 using namespace lmx::hir;
@@ -134,7 +135,10 @@ std::shared_ptr<Type> HirContext::inference_type(ExprNode* type) noexcept {
 //     scope_stack.clear();
 // }
 
-void HirContext::check_module(const Module *mod) noexcept {
+void HirContext::check_module(const std::shared_ptr<Module>& mod) noexcept {
+    const auto save_cur_module = cur_module;
+    cur_module = mod;
+
     for (const auto& n : mod->native_funcs) {
         new_global_var(n->func_id, n->make_type());
     }
@@ -142,6 +146,8 @@ void HirContext::check_module(const Module *mod) noexcept {
     for (auto& node : mod->decls) {
         check_stmt(node.get());
     }
+
+    cur_module = save_cur_module;
 }
 void HirContext::check_expr(ExprNode *expr) noexcept {
     if (!expr) return;
@@ -363,6 +369,27 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
         check_expr(node->expr.get());
         break;
     }
+    case ASTKind::ImportStmt: {
+        const auto* node = reinterpret_cast<ImportStmtNode*>(stmt);
+        const auto found = find_module_name(node->name);
+        if (!found) {
+            throw_error(ErrorType::Analysis, "no module is called `" + node->name + "`", node->line, node->col);
+            break;
+        }
+        const auto [path, abs_path] = *found;
+        if (cur_module->module_is_imported(abs_path)) {
+            break;
+        }
+        const auto output_path = std::filesystem::path(main_module->name).parent_path() / module_cache_fold / path;
+
+        cur_module->sub_mods[abs_path.string()] = output_path.string();
+        lmx_moduleToFile(
+            &global_state,
+            lmx_doFile(&global_state, abs_path.c_str(), false),
+            output_path.c_str()
+            );
+        break;
+    }
     //case ASTKind::Exprs:
     //    break;
     //case ASTKind::ParamsDeclNode:
@@ -382,8 +409,9 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
         scope_stack.push_back(scope);
 
         if (node->block->kind == ASTKind::Block) {
-            const auto* block = reinterpret_cast<BlockExprNode*>(node->block.get());
-            for (auto& s : block->stmts) {
+            for (const auto* block = node->block.get();
+                auto& s : block->stmts) {
+
                 check_stmt(s.get());
             }
         } else check_expr(node->block.get());

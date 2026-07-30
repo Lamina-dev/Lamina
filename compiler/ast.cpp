@@ -281,3 +281,6 @@ LoopStmtNode::LoopStmtNode(const size_t line, const size_t col, decltype(expr) e
 
 ContinueStmtNode::ContinueStmtNode(const size_t line, const size_t col) noexcept
     : StmtNode(ASTKind::ContinueStmt, line, col) {}
+
+ImportStmtNode::ImportStmtNode(size_t line, size_t col, decltype(name) name) noexcept
+    : StmtNode(ASTKind::ImportStmt, line, col), name(std::move(name)) {}

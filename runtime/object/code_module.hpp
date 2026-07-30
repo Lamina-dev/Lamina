@@ -60,24 +60,6 @@ public:
     const uint8_t* code{};
     size_t code_len{};
     std::vector<uint8_t> raw_data{};
-    explicit CodeModule(
-        std::vector<ConstantPoolInfo> cp,
-        std::vector<TypeInfo> types,
-        std::vector<FuncObj> funcs,
-        std::vector<NativeFuncObj> native_funcs,
-        const char* lib_name,
-        const uint8_t* code,
-        size_t code_len = 0
-        ) noexcept;
-    explicit CodeModule(
-        std::vector<ConstantPoolInfo>&& cp,
-        std::vector<TypeInfo>&& types,
-        std::vector<FuncObj>&& funcs,
-        std::vector<NativeFuncObj>&& native_funcs,
-        const char* lib_name,
-        const uint8_t* code,
-        size_t code_len = 0
-        ) noexcept;
     explicit CodeModule(std::vector<uint8_t>&& data) noexcept;
     ~CodeModule() noexcept override;
 

@@ -45,7 +45,7 @@ class HirContext {
     bool is_global_scope() const noexcept;
 public:
     explicit HirContext() noexcept;
-    void check_module(const Module *mod) noexcept;
+    void check_module(const std::shared_ptr<Module> &mod) noexcept;
 
     void check_expr(ExprNode *expr) noexcept;
 
