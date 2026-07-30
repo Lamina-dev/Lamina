@@ -266,13 +266,12 @@ std::vector<Token> Lexer::tokenize(const std::string& code) {
         tokens.push_back(next());
     }
     if (tokens.empty() || tokens.back().type != TokenType::END_OF_FILE) tokens.push_back({TokenType::END_OF_FILE, "", line, col});
-    for ([[maybe_unused]] auto const &token : tokens) {
-    }
-    const std::string res = error(tokens, orig_line);
-    if (res.empty()) return tokens;
-    has_err = true;
-    std::cerr << res << std::endl;
-    return {};
+    // const std::string res = error(tokens, orig_line);
+    //if (res.empty())
+        return tokens;
+    //has_err = true;
+    //std::cerr << res << std::endl;
+    //return {};
 }
 
 std::string Lexer::error(const std::vector<Token>& tokens, const size_t origin_lineno) {

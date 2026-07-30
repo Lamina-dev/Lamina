@@ -166,6 +166,7 @@ LmModule *lmx_doFile(LmState *state, const char* name) {
     std::string c{
         std::istreambuf_iterator(ifs), std::istreambuf_iterator<char>()
     };
+    c += '\n';
     ifs.close();
     auto tokens = lmx::Lexer(c).tokenize(c);
     const auto node = lmx::Parser(tokens).parse_module(name);
