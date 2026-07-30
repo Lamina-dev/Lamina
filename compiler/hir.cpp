@@ -299,10 +299,10 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
                     goto arg_type_mismatch;
                 }
             }
-            // for (; i < len; i++) {
-            //     const auto param = func_ty->params_ty[i];
-            //
-            // }
+            for (; i < len; i++) {
+                // const auto param = func_ty->params_ty[i];
+                check_expr(node->suffix->exprs[i].get());
+            }
 
             node->type = std::reinterpret_pointer_cast<NativeFunctionType>(left)->ret_ty;
         } else {

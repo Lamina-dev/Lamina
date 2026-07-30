@@ -11,7 +11,7 @@ namespace lmx::runtime {
 enum class ValueKind : uint8_t {
     Null, C_Ptr, Obj, Int, Bool, Fraction, C_VaList,
 };
-
+// #pragma pack(push, 1)
 struct Value {
     ValueKind kind{ValueKind::Null};
     union {
@@ -70,7 +70,7 @@ struct Value {
 
     ~Value() noexcept;
 };
-
+// #pragma pack(pop)
 
 LMX_INLINE Value::Value() noexcept = default;
 
