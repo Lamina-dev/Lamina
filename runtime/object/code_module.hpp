@@ -24,8 +24,8 @@ struct NativeFuncObj {
     const void* addr;
 
     uint8_t args_ty_len;
-    const ValueKind* args_ty;
     ValueKind ret_ty;
+    const ValueKind* args_ty;
     const char* name;
 
     explicit NativeFuncObj(
@@ -55,8 +55,8 @@ public:
     std::vector<FuncObj> funcs;
     std::vector<TypeInfo> types;
     std::vector<NativeFuncObj> native_funcs{};
-    const uint8_t* code;
-    size_t code_len;
+    const uint8_t* code{};
+    size_t code_len{};
     std::vector<uint8_t> raw_data{};
     explicit CodeModule(
         std::vector<ConstantPoolInfo> cp,

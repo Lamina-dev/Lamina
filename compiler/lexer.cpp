@@ -103,7 +103,7 @@ Token Lexer::next() {
             while (pos <= content.size() && content[pos] != '\n' )
                 advance();
             advance();
-            return {TokenType::COMMENT, {}, line, col};
+            return next();
         }
         case '"': {
             advance();

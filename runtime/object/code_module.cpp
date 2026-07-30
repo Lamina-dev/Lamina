@@ -25,7 +25,7 @@ NativeFuncObj::NativeFuncObj(
     const ValueKind ret_ty,
     const char* name
     ) noexcept
-    : addr(addr), args_ty_len(args_ty_len), args_ty(args_ty), ret_ty(ret_ty), name(name) {}
+    : addr(addr), args_ty_len(args_ty_len), ret_ty(ret_ty), args_ty(args_ty), name(name) {}
 
 namespace {
 class ModuleLoader {
