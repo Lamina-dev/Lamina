@@ -100,9 +100,9 @@ Token Lexer::next() {
             return {TokenType::OPER_POW, "^", line, col - 1};
         }
         case '#': {
-            while (pos <= content.size() && content[pos] != '\n' )
+            while (pos < content.size() && content[pos] != '\n')
                 advance();
-            advance();
+            if (pos < content.size()) advance();
             return next();
         }
         case '"': {

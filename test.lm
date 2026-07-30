@@ -10,13 +10,13 @@ loop {
     }
 
     printf("Hello Lamina %lld\n", i)
-#    loop {
-#        printf("Lamina %lld\n", i)
-#        i2 = i2 - 1
-#        if i2 == 0 {
-#            break
-#        }
-#   }
+    loop {
+        printf("Lamina %lld\n", i)
+        i2 = i2 - 1
+        if i2 == 0 {
+            break
+        }
+   }
 
     i = i - 1
 }
