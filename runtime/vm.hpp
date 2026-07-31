@@ -7,9 +7,11 @@
 #include <vector>
 #include <span>
 
+#include "error.hpp"
 #include "dyncall/dyncall.h"
 #include "gc.hpp"
 #include "lmx.h"
+#include "../utils/utils.hpp"
 #include "object/code_module.hpp"
 #include "object/string.hpp"
 #include "object/value.hpp"
@@ -98,7 +100,7 @@ public:
             //cur_frame = frame;
             //return;
         } else {
-            const auto frame = vm->free_frames.back();
+            const auto frame = vm->free_frames[vm->free_frames.size() - 1];
             vm->free_frames.pop_back();
             frame->last = vm->cur_frame;
             frame->mod = mod;
@@ -117,7 +119,11 @@ public:
     }
 
     LMX_INLINE void native_call(const uint16_t idx, const uint8_t argc) noexcept {
-        const auto* meta = &cur_frame->mod->native_funcs[idx];
+        const auto mod = cur_frame->mod;
+        if (!mod->native_lib_handle) {
+            VM_ERROR(VM_ERROR_CanNotCalling + ": module not loaded dynamic library, cannot calling");
+        }
+        const auto* meta = &mod->native_funcs[idx];
         dcReset(call_vm);
         dcMode(call_vm, DC_CALL_C_DEFAULT);
         uint8_t va_list_len = 0;

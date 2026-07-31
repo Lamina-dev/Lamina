@@ -4,14 +4,18 @@
 
 #include "code_module.hpp"
 
+#include <complex>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 
 #include "lmx.h"
 #include "dynload/dynload.h"
 #include "../opcode.hpp"
-
 #include <sstream>
+
+#include "../error.hpp"
+#include "../../utils/utils.hpp"
 
 using namespace lmx::runtime;
 
@@ -25,7 +29,7 @@ NativeFuncObj::NativeFuncObj(
     const ValueKind ret_ty,
     const char* name
     ) noexcept
-    : addr(addr), args_ty_len(args_ty_len), args_ty(args_ty), ret_ty(ret_ty), name(name) {}
+    : addr(addr), args_ty_len(args_ty_len), ret_ty(ret_ty), args_ty(args_ty), name(name) {}
 
 namespace {
 class ModuleLoader {
@@ -55,18 +59,15 @@ public:
             p += 1;
             return false;
         }
-        if (!strcmp(lib_name, "Lamina")) {
-            handle = dlLoadLibrary(nullptr);
-        } else {
-            handle = dlLoadLibrary(lib_name);
-        }
+        const auto real_name = std::string(lib_prefix) + lib_name + lib_suffix;
+
+        handle = dlLoadLibrary(real_name.c_str());
 
         p += strlen(lib_name) + 1;
-        // if (handle == nullptr) {
-        //     std::cerr << "ModuleLoaderError: `" << lib_name << "` not found." << std::endl;
-        //     std::exit(1);
-        //     return false;
-        // }
+        if (handle == nullptr) {
+            VM_ERROR(VM_ERROR_ModLoad + ": `" + real_name + "` not found.");
+            return false;
+        }
 
         while (p != over) {
             const auto name = reinterpret_cast<const char *>(p);
@@ -138,6 +139,27 @@ public:
         return true;
     }
 
+    static bool load_imports(decltype(CodeModule::imports)& mod, const uint8_t*& p) noexcept {
+        const auto over = p + *reinterpret_cast<const uint64_t*>(p) + sizeof(uint64_t);
+        p += sizeof(uint64_t);
+        while (p != over) {
+            std::string tmp = reinterpret_cast<const char *>(p);
+            const size_t len = tmp.size();
+            const auto path = (lmx::current_module_path / lmx::module_cache_fold / std::move(tmp)).string();
+
+            p += len + 1;
+            std::ifstream ifs(path, std::ios::binary);
+            if (!ifs.is_open()) return false;
+            ifs.seekg(0, std::ios::end);
+
+            std::vector<uint8_t> data(ifs.tellg());
+            ifs.seekg(0, std::ios::beg);
+            ifs.read(reinterpret_cast<std::istream::char_type *>(data.data()), static_cast<std::streamsize>(data.size()));
+            ifs.close();
+            mod.push_back(std::make_unique<CodeModule>(std::move(data)));
+        }
+        return true;
+    }
 };
 }
 
@@ -153,57 +175,6 @@ CodeModule::~CodeModule() noexcept {
     }
 }
 
-CodeModule::CodeModule(
-    std::vector<ConstantPoolInfo> cp,
-    std::vector<TypeInfo> types,
-    std::vector<FuncObj> funcs,
-    std::vector<NativeFuncObj> native_funcs,
-    const char* lib_name,
-    const uint8_t *code,
-    const size_t code_len
-    ) noexcept
-    :
-    Object(ObjectKind::Code),
-    cp(std::move(cp)),
-    funcs(std::move(funcs)),
-    types(std::move(types)),
-    native_funcs(std::move(native_funcs)),
-    code(code),
-    code_len(code_len)
-{
-    if (lib_name) {
-        std::string name = lib_prefix;
-        name += lib_name;
-        name += lib_suffix;
-        this->native_lib_handle = dlLoadLibrary(name.c_str());
-    }
-}
-
-CodeModule::CodeModule(
-    std::vector<ConstantPoolInfo>&& cp,
-    std::vector<TypeInfo>&& types,
-    std::vector<FuncObj>&& funcs,
-    std::vector<NativeFuncObj>&& native_funcs,
-    const char* lib_name,
-    const uint8_t *code,
-    const size_t code_len
-    ) noexcept
-    :
-    Object(ObjectKind::Code),
-    cp(std::move(cp)),
-    funcs(std::move(funcs)),
-    types(std::move(types)),
-    native_funcs(std::move(native_funcs)),
-    code(code),
-    code_len(code_len)
-    {
-    if (lib_name) {
-        std::string name = lib_prefix;
-        name += lib_name;
-        name += lib_suffix;
-        this->native_lib_handle = dlLoadLibrary(name.c_str());
-    }
-}
 
 CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind::Code), raw_data(std::move(data)) {
 
@@ -213,6 +184,7 @@ CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind
     ModuleLoader::load_funcs(this, funcs, binary);
     ModuleLoader::load_cp(cp, binary);
     ModuleLoader::load_native_decl(native_funcs, native_lib_handle, binary);
+    ModuleLoader::load_imports(imports, binary);
     ModuleLoader::load_entry_code(code, code_len, binary);
 }
 

@@ -61,6 +61,7 @@ static const void* dispatch[] = {\
     &&opFAdd, &&opFSub, &&opFMul, &&opFDiv, &&opFMod, &&opFNeg,\
     &&opMovRR,&&opCall, &&opAnd, &&opOr,\
     &&opFCmpEq, &&opFCmpNe, &&opFCmpLt, &&opFCmpLe, &&opFCmpGt, &&opFCmpGe, \
+    &&opGetModule, &&opGetModuleAttr,\
 };\
 goto *dispatch[*ip];
 
@@ -86,6 +87,7 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     const uint8_t* ip = prog->code;
     // assert((reinterpret_cast<uint64_t>(ip) % 4) == 0);
     // std::cout << prog->disassemble() << std::endl;
+    // return 0;
     // const auto start = std::chrono::high_resolution_clock::now();
     VM_DISPATCH
 
@@ -386,6 +388,14 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
     VM_LABEL(FCmpGe) {
         regs[ip[1]] = regs[ip[2]].frac_val >= regs[ip[3]].frac_val;
+        VM_NEXT
+    }
+    VM_LABEL(GetModule) {
+        regs[ip[1]] = cur_frame->mod->imports[read_u16(ip + 2)].get();
+        VM_NEXT
+    }
+    VM_LABEL(GetModuleAttr) {
+        regs[ip[1]] = &reinterpret_cast<CodeModule*>(regs[0].obj)->funcs[read_u16(ip + 2)];
         VM_NEXT
     }
 

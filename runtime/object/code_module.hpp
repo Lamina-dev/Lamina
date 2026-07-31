@@ -4,6 +4,8 @@
 
 #pragma once
 #include <cstdint>
+#include <memory>
+
 #include "object.hpp"
 #include "value.hpp"
 #include "../binary.hpp"
@@ -24,8 +26,8 @@ struct NativeFuncObj {
     const void* addr;
 
     uint8_t args_ty_len;
-    const ValueKind* args_ty;
     ValueKind ret_ty;
+    const ValueKind* args_ty;
     const char* name;
 
     explicit NativeFuncObj(
@@ -48,34 +50,19 @@ constexpr auto lib_suffix = ".dylib";
 #else
 #error "Unsupported platform from dynamic loading. What's your System?"
 #endif
+// constexpr auto runtime_lib_name = std::string(lib_prefix) + "Lamina" + lib_suffix;
+
 class CodeModule : public Object {
 public:
     DLLib* native_lib_handle{};
     std::vector<ConstantPoolInfo> cp;
     std::vector<FuncObj> funcs;
-    std::vector<TypeInfo> types;
     std::vector<NativeFuncObj> native_funcs{};
-    const uint8_t* code;
-    size_t code_len;
+    std::vector<std::unique_ptr<CodeModule>> imports;
+    std::vector<TypeInfo> types;
+    const uint8_t* code{};
+    size_t code_len{};
     std::vector<uint8_t> raw_data{};
-    explicit CodeModule(
-        std::vector<ConstantPoolInfo> cp,
-        std::vector<TypeInfo> types,
-        std::vector<FuncObj> funcs,
-        std::vector<NativeFuncObj> native_funcs,
-        const char* lib_name,
-        const uint8_t* code,
-        size_t code_len = 0
-        ) noexcept;
-    explicit CodeModule(
-        std::vector<ConstantPoolInfo>&& cp,
-        std::vector<TypeInfo>&& types,
-        std::vector<FuncObj>&& funcs,
-        std::vector<NativeFuncObj>&& native_funcs,
-        const char* lib_name,
-        const uint8_t* code,
-        size_t code_len = 0
-        ) noexcept;
     explicit CodeModule(std::vector<uint8_t>&& data) noexcept;
     ~CodeModule() noexcept override;
 

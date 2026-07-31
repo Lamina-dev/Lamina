@@ -17,6 +17,13 @@ BasicType::~BasicType() = default;
 
 ArrayType::~ArrayType() = default;
 
+bool ModuleType::equals(Type *other) const noexcept {
+    if (is_null_type(other)) return false;
+    if (other->kind != this->kind) return false;
+    if (reinterpret_cast<ModuleType *>(other)->target_path != this->target_path) return false;
+    return true;
+}
+
 bool BasicType::equals(Type *other) const noexcept {
     if (!other) return false;
     if (other->kind != this->kind) return false;
@@ -93,8 +100,8 @@ bool NativeFunctionType::equals(Type *other) const noexcept {
 bool NativeFunctionType::have_va_list() const noexcept {
     for (const auto& p : params_ty) {
         if (p->kind == TypeKind::Basic) {
-            const auto t = reinterpret_cast<BasicType *>(p.get());
-            if (t->type == runtime::ValueKind::C_VaList) return true;
+            if (const auto t = reinterpret_cast<BasicType *>(p.get());
+                t->type == runtime::ValueKind::C_VaList) return true;
 
         }
     }
@@ -192,7 +199,7 @@ UnaryNode::UnaryNode(const size_t line, const size_t col, const Op op, std::shar
 }
 BinaryNode::BinaryNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> lhs, const Op op,
                        std::shared_ptr<ExprNode> rhs) noexcept
-    : ExprNode(ASTKind::Binary, line, col), lhs(std::move(lhs)), rhs(std::move(rhs)), op(op) {
+    : ExprNode(ASTKind::Binary, line, col), op(op), lhs(std::move(lhs)), rhs(std::move(rhs)) {
 }
 
 ReturnNode::ReturnNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> expr) noexcept
@@ -275,3 +282,12 @@ std::shared_ptr<NativeFunctionType> NativeFuncDeclNode::make_type() noexcept {
 
 NativeFuncCallExpr::NativeFuncCallExpr(const SuffixParenNode *sp) noexcept
     : ExprNode(ASTKind::NativeFuncCall, sp->line, sp->col), expr(sp->expr), suffix(sp->suffix) {}
+
+LoopStmtNode::LoopStmtNode(const size_t line, const size_t col, decltype(expr) expr, std::vector<std::shared_ptr<StmtNode> > body) noexcept
+    : StmtNode(ASTKind::LoopStmt, line, col), expr(std::move(expr)), body(std::move(body)) {}
+
+ContinueStmtNode::ContinueStmtNode(const size_t line, const size_t col) noexcept
+    : StmtNode(ASTKind::ContinueStmt, line, col) {}
+
+ImportStmtNode::ImportStmtNode(size_t line, size_t col, decltype(name) name) noexcept
+    : StmtNode(ASTKind::ImportStmt, line, col), name(std::move(name)) {}

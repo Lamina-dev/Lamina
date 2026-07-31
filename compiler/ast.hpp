@@ -3,14 +3,45 @@
 //
 
 #pragma once
+#include <cmath>
+
 #include "../runtime/object/value.hpp"
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
+
 namespace lmx {
+struct Type;
 struct NativeFuncDeclNode;
+
+namespace hir {
+struct Scope {
+    struct Var {
+        std::string name;
+        std::shared_ptr<Type> type;
+        bool is_mut;
+    };
+    enum class ScopeType {
+        Function, Block, Loop
+    };
+    ScopeType scope{ScopeType::Function};
+    std::string name;
+    std::vector<Var> vars;
+    std::shared_ptr<Type> return_type;
+
+    explicit Scope(std::string name) noexcept;
+    explicit Scope(ScopeType scope) noexcept;
+    explicit Scope() = default;
+
+
+
+};
+}
+
 
 enum class ASTKind {
     ExprStmt,
@@ -28,12 +59,15 @@ enum class ASTKind {
     AssignStmt, AsExpr, DotExpr,
     NativeFuncDecl,
     NativeFuncCall,
+    LoopStmt,
+    ContinueStmt,
+    ImportStmt,
 };
 
 enum class TypeKind {
     Basic, Array, Named, Unknown, String, Function, None, NativeFunction,
+    Module
 };
-
 struct Type {
     TypeKind kind;
 
@@ -49,6 +83,28 @@ struct Type {
     }
 
     static std::string to_string(const Type* kind) noexcept;
+};
+
+struct ModuleType : Type {
+    std::string target_path;
+    std::vector<hir::Scope::Var> exports;
+    explicit ModuleType(std::string target_path, std::vector<hir::Scope::Var> exports) noexcept
+    : Type(TypeKind::Module), target_path(std::move(target_path)), exports(std::move(exports)) {}
+
+    bool equals(Type *other) const noexcept override;
+
+    std::optional<hir::Scope::Var*> find_var(const std::string& n) noexcept {
+        for (auto& var : exports) {
+            if (var.name == n) return &var;
+        }
+        return std::nullopt;
+    }
+    [[nodiscard]] std::optional<size_t> find_var_idx(const std::string& n) const noexcept {
+        for (size_t i = 0; i < exports.size(); i++) {
+            if (exports[i].name == n) return i;
+        }
+        return std::nullopt;
+    }
 };
 
 struct UnknownType : Type {
@@ -130,13 +186,7 @@ struct StmtNode : ASTNode {
     explicit StmtNode(ASTKind kind, size_t line, size_t col) noexcept;
 };
 struct FuncImplNode;
-struct Module {
-    std::string name;
-    std::string lib_name;
-    std::vector<std::shared_ptr<StmtNode>> decls;
-    std::vector<std::shared_ptr<NativeFuncDeclNode>> native_funcs;
-    Module(std::string name, decltype(decls) decls) noexcept;
-};
+
 struct ExprStmtNode : StmtNode {
     std::shared_ptr<ExprNode> expr;
 
@@ -323,6 +373,45 @@ struct DotExprNode : ExprNode {
     std::shared_ptr<IdentifierNode> rhs;
     explicit DotExprNode(size_t line, size_t col, std::shared_ptr<ExprNode> expr, std::shared_ptr<IdentifierNode> rhs) noexcept;
 
+};
+
+struct LoopStmtNode : StmtNode {
+    std::shared_ptr<ExprNode> expr;
+    std::vector<std::shared_ptr<StmtNode>> body;
+
+    explicit LoopStmtNode(size_t line, size_t col, decltype(expr) expr, std::vector<std::shared_ptr<StmtNode>> body) noexcept;
+};
+
+struct ContinueStmtNode : StmtNode {
+    explicit ContinueStmtNode(size_t line, size_t col) noexcept;
+};
+
+struct ImportStmtNode : StmtNode {
+    std::string name;
+
+    explicit ImportStmtNode(size_t line, size_t col, decltype(name) name) noexcept;
+};
+
+
+struct Module {
+    std::string name;
+    std::string lib_name;
+    std::vector<std::shared_ptr<StmtNode>> decls;
+    std::vector<std::shared_ptr<NativeFuncDeclNode>> native_funcs;
+
+    // key 是展开后的源码绝对路径，value是输出的module编码文件路径
+    std::unordered_map<std::string, std::shared_ptr<ModuleType>> imports;
+
+
+    Module(std::string name, decltype(decls) decls) noexcept;
+
+
+    /*
+     * name必须是绝对路径
+     */
+    [[nodiscard]] bool module_is_imported(const std::string& other_name) const noexcept {
+        return imports.contains(other_name);
+    }
 };
 
 }

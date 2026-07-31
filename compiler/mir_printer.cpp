@@ -65,6 +65,8 @@ std::string MirPrinter::opcode_name(const runtime::Opcode::Opcode op) {
     case runtime::Opcode::FCmpLe:      return "fcmp_le";
     case runtime::Opcode::FCmpGt:      return "fcmp_gt";
     case runtime::Opcode::FCmpGe:      return "fcmp_ge";
+    case runtime::Opcode::GetModule:        return "get_module";
+    case runtime::Opcode::GetModuleAttr:    return "get_module_attr";
     default:                           return "unknown";
     }
 }
@@ -211,9 +213,26 @@ void MirPrinter::format_operate(std::ostringstream &ss, const MirOperateExpr &op
         ss << ")";
         break;
     }
-    case runtime::Opcode::CallVirtual: {
-        auto &c = static_cast<const MirCallVirtualExpr &>(op);
-        ss << name << " reg=" << static_cast<int>(c.reg) << " argc=" << static_cast<int>(c.arg_count);
+    case runtime::Opcode::Call: {
+        auto &c = static_cast<const MirCallExpr &>(op);
+        ss << name << " ";
+        if (c.func) format_expr(ss, *c.func);
+        ss << "(";
+        for (size_t i = 0; i < c.args.size(); ++i) {
+            if (i > 0) ss << ", ";
+            format_expr(ss, *c.args[i]);
+        }
+        ss << ")";
+        break;
+    }
+    case runtime::Opcode::GetModule: {
+        auto &m = static_cast<const MirGetModuleExpr &>(op);
+        ss << name << " \"" << m.name << "\"";
+        break;
+    }
+    case runtime::Opcode::GetModuleAttr: {
+        auto &m = static_cast<const MirGetModuleAttrExpr &>(op);
+        ss << name << " \"" << m.mod_name << "\".\"" << m.name << "\"";
         break;
     }
     case runtime::Opcode::And: {

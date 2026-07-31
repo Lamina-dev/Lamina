@@ -6,6 +6,7 @@
 #include "lmx.h"
 
 #include <algorithm>
+#include <assert.h>
 #include <cstring>
 #include <ranges>
 
@@ -444,6 +445,35 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, uint8_t{0}); // return from r0
             return rd;
         }
+        case runtime::Opcode::Call: {
+            const auto& c = *reinterpret_cast<mir::MirCallExpr*>(node);
+
+            const auto argc = static_cast<uint8_t>(c.args.size());
+            // Evaluate each arg and place in regs[255 - i]
+            for (size_t i = 0; i < c.args.size(); ++i) {
+                const auto rr = asm_mir_expr(insts, c.args[i].get());
+                if (rr != static_cast<uint8_t>(LMX_VM_REG_COUNT - 1 - i)) {
+                    InstEmitter::emit(insts, runtime::Opcode::MovRR,
+                        static_cast<uint8_t>(LMX_VM_REG_COUNT - 1 - i), rr);
+                }
+                reg.free(rr);
+            }
+            auto using_regs = reg.get_all_using();
+            for (const auto r : using_regs) {
+                InstEmitter::emit(insts, runtime::Opcode::Push, r);
+            }
+
+            const auto func_it = asm_mir_expr(insts, c.func.get());
+
+            const auto rd = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::Call, func_it, argc);
+            for (const auto r : using_regs | std::views::reverse) {
+                InstEmitter::emit(insts, runtime::Opcode::Pop, r);
+            }
+            // CallFast result is left in regs[0] by convention
+            InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, uint8_t{0}); // return from r0
+            return rd;
+        }
 
         // --- Halt ---
         case runtime::Opcode::Halt: {
@@ -461,6 +491,31 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, r);
             reg.free(r);
             return rd;
+        }
+        case runtime::Opcode::GetModule: {
+            const auto& n = *reinterpret_cast<mir::MirGetModuleExpr*>(node);
+            const auto r = *reg.alloc();
+            const auto it = imports.find(n.name);
+            if (it == imports.end()) return 0;
+            InstEmitter::emit(insts, runtime::Opcode::GetModule, r, static_cast<uint16_t>(it->second.first));
+            return r;
+        }
+        case runtime::Opcode::GetModuleAttr: {
+            const auto& n = *reinterpret_cast<mir::MirGetModuleAttrExpr*>(node);
+            auto mod_reg = *find_var(n.mod->name);
+            if (!mod_reg) return 0;
+
+            const auto it = imports.find(n.mod_name);
+            if (it == imports.end()) return 0;
+            const auto attr_idx = it->second.second->find_var_idx(n.name);
+            if (!attr_idx) return 0;
+
+            const auto r = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::MovRR, static_cast<uint8_t>(0), mod_reg->reg);
+            reg.free(mod_reg->reg);
+            InstEmitter::emit(insts, runtime::Opcode::GetModuleAttr, r, static_cast<uint16_t>(*attr_idx));
+            return r;
+            break;
         }
 
         default:
@@ -613,6 +668,12 @@ void Assembler::resolve_fixups(std::vector<uint8_t>& code) noexcept {
     }
 }
 
+std::shared_ptr<ModuleType> Assembler::get_module_type(const size_t idx) noexcept {
+    for (auto &[i, t]: imports | std::views::values) {
+        if (i == idx) return t;
+    }
+    return nullptr;
+}
 
 // ============================================================
 //  Module assembly (binary format)
@@ -656,10 +717,25 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     funcs.clear();
     native_funcs.clear();
     cp.clear();
+    imports.clear();
     cp_cnt = 0;
     size_t native_func_idx = 0;
     size_t func_idx = 0;
     std::vector<std::shared_ptr<mir::MirNode>> top_level_nodes;
+
+
+    for (auto& [name, ty] : mod->imports) {
+        const auto idx = imports.size();
+        std::string real_name;
+        if (const auto path = std::filesystem::path(name);
+            path.filename() == std::string(file_default_mod) + file_suffix) {
+
+            real_name = path.parent_path().filename().string();
+        } else {
+            real_name = path.filename().stem().string();
+        }
+        imports[std::move(real_name)] = {idx, ty};
+    }
 
     for (auto& node : mod->nodes) {
         if (node->kind == mir::MirNodeKind::Func) {
@@ -719,7 +795,6 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
 
     // ---- Write function section (user functions only) ----
     std::vector<uint8_t> func_section;
-
     for (auto&[name, code] : compiled_funcs) {
         const auto func_len = static_cast<uint32_t>(code.size());
         func_section.push_back(static_cast<uint8_t>(func_len & 0xFF));
@@ -732,6 +807,7 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     write_u64(result, func_section.size());
     result.insert(result.end(), func_section.begin(), func_section.end());
 
+
     // ---- Write constant pool section (empty for now) ----
     write_u64(result, cp.size());
     result.insert(result.end(), cp.begin(), cp.end());
@@ -743,19 +819,47 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
         auto data = encoder_native(n);
         native_decls.insert(native_decls.end(), data.begin(), data.end());
     }
+
     write_u64(result, native_decls.size() + mod->lib_name.size() + 1);
     if (!mod->lib_name.empty()) {
         result.insert(result.end(), mod->lib_name.begin(), mod->lib_name.end());
     }
     result.push_back(0);
-
     result.insert(result.end(), native_decls.begin(), native_decls.end());
+
+
+    static auto path_after = [](const std::filesystem::path& p, const std::string& target) -> std::string {
+        auto it = p.end();
+        while (it != p.begin()) {
+            --it;
+            if (*it == target) {
+                std::filesystem::path result;
+                ++it;
+                for (; it != p.end(); ++it) {
+                    result /= *it;
+                }
+                return result;
+            }
+        }
+        return {};
+    };
+
+    // ---- Write imports section ----
+
+    std::vector<uint8_t> import_data;
+    for (auto &ty: mod->imports | std::views::values) {
+        const std::string out_path = path_after(ty->target_path, module_cache_fold);
+        import_data.insert(import_data.end(), out_path.begin(), out_path.end());
+        import_data.push_back(0);
+    }
+    write_u64(result, import_data.size());
+    result.insert(result.end(), import_data.begin(), import_data.end());
 
 
     // ---- Write entry code section (after constants, loaded as prog->code) ----
     write_u64(result, entry_code.size());
     result.insert(result.end(), entry_code.begin(), entry_code.end());
-
+    result.shrink_to_fit();
     return result;
 }
 

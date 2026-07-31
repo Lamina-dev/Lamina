@@ -1,8 +1,5 @@
-static "Lamina"
+import std
 
-func printf(fmt text, ...) -> int = "printf"
-func sleep(s int) -> null = "sleep"
 
-sleep(1)
-
-printf("Hello Lamina\n")
+var i = 1
+std.foo()

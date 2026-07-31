@@ -59,8 +59,9 @@ MirIPowExpr::MirIPowExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> 
 MirINegExpr::MirINegExpr(std::shared_ptr<MirExpr> e) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::INeg), e(std::move(e)) {}
 
-MirCallVirtualExpr::MirCallVirtualExpr(uint8_t reg, uint8_t arg_count) noexcept
-    : MirOperateExpr(runtime::Opcode::Opcode::CallVirtual), reg(reg), arg_count(arg_count) {}
+MirCallExpr::MirCallExpr(std::shared_ptr<MirRefExpr> func,
+    std::vector<std::shared_ptr<MirRefExpr>> args) noexcept
+    : MirOperateExpr(runtime::Opcode::Opcode::Call), func(std::move(func)), args(std::move(args)) {}
 
 MirCallFastExpr::MirCallFastExpr(std::string name, std::vector<std::shared_ptr<MirRefExpr>> args) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::CallFast), name(std::move(name)), args(std::move(args)) {}
@@ -126,5 +127,5 @@ MirCmpAndExpr::MirCmpAndExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirEx
 MirCmpOrExpr::MirCmpOrExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::Or), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
-
+MirGetModuleExpr::MirGetModuleExpr(std::string name) noexcept : MirOperateExpr(runtime::Opcode::GetModule), name(std::move(name)) {}
 }

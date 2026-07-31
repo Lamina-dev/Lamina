@@ -4,11 +4,13 @@
 
 #include "hir.hpp"
 
-#include <functional>
+#include <fstream>
 #include <ranges>
 #include <map>
 
+#include "parser.hpp"
 #include "error.hpp"
+#include "../utils/utils.hpp"
 
 using namespace lmx;
 using namespace lmx::hir;
@@ -116,8 +118,12 @@ std::shared_ptr<Type> HirContext::inference_type(ExprNode* type) noexcept {
         const auto node = reinterpret_cast<AsExprNode*>(type);
         return node->cast_type;
     }
-    case ASTKind::DotExpr:
+    case ASTKind::DotExpr: {
+        const auto node = reinterpret_cast<DotExprNode*>(type);
+        const auto left = std::reinterpret_pointer_cast<ModuleType>(inference_type(node->expr.get()));
+        return (*left->find_var(node->rhs->id))->type;
         break;
+    }
     case ASTKind::NativeFuncCall: {
         const auto node = reinterpret_cast<NativeFuncCallExpr*>(type);
         const auto left_ty = std::reinterpret_pointer_cast<NativeFunctionType>(inference_type(node->expr.get()));
@@ -134,7 +140,10 @@ std::shared_ptr<Type> HirContext::inference_type(ExprNode* type) noexcept {
 //     scope_stack.clear();
 // }
 
-void HirContext::check_module(const Module *mod) noexcept {
+std::vector<Scope::Var> HirContext::check_module(const std::shared_ptr<Module> &mod) noexcept {
+    const auto save_cur_module = cur_module;
+    cur_module = mod;
+
     for (const auto& n : mod->native_funcs) {
         new_global_var(n->func_id, n->make_type());
     }
@@ -142,6 +151,15 @@ void HirContext::check_module(const Module *mod) noexcept {
     for (auto& node : mod->decls) {
         check_stmt(node.get());
     }
+
+    cur_module = save_cur_module;
+
+    std::vector<Scope::Var> result;
+
+    for (const auto& v : get_global()) {
+        if (v.type->kind == TypeKind::Function) result.push_back(v);
+    }
+    return result;
 }
 void HirContext::check_expr(ExprNode *expr) noexcept {
     if (!expr) return;
@@ -250,7 +268,7 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
     case ASTKind::SuffixParen: {
         const auto node = reinterpret_cast<SuffixParenNode*>(expr);
         check_expr(node->expr.get());
-        const auto left = inference_type(node->expr.get());
+        const auto left = node->expr->type;
         if (Type::is_null_type(left.get())) break;
         if (left->kind == TypeKind::Function) {
             const auto func_ty = std::reinterpret_pointer_cast<FunctionType>(left);
@@ -299,10 +317,10 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
                     goto arg_type_mismatch;
                 }
             }
-            // for (; i < len; i++) {
-            //     const auto param = func_ty->params_ty[i];
-            //
-            // }
+            for (; i < len; i++) {
+                // const auto param = func_ty->params_ty[i];
+                check_expr(node->suffix->exprs[i].get());
+            }
 
             node->type = std::reinterpret_pointer_cast<NativeFunctionType>(left)->ret_ty;
         } else {
@@ -352,6 +370,24 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         // todo!
         break;
     }
+    case ASTKind::DotExpr: {
+        const auto node = reinterpret_cast<DotExprNode*>(expr);
+        check_expr(node->expr.get());
+        if (node->expr->type->kind != TypeKind::Module) {
+            throw_error(ErrorType::Analysis, "must be module type", node->line, node->col);
+            break;
+        }
+        const auto left_ty = std::reinterpret_pointer_cast<ModuleType>(node->expr->type);
+        if (const auto result = left_ty->find_var(node->rhs->id); result.has_value()) {
+            const auto* var = *result;
+            node->rhs->type = var->type;
+            node->type = var->type;
+        } else {
+            throw_error(ErrorType::Analysis, "module not have var `" + node->rhs->id + "`", node->line, node->col);
+            break;
+        }
+        break;
+    }
     default: std::unreachable();
     }
 }
@@ -361,6 +397,60 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
     case ASTKind::ExprStmt: {
         const auto* node = reinterpret_cast<ExprStmtNode*>(stmt);
         check_expr(node->expr.get());
+        break;
+    }
+    case ASTKind::ImportStmt: {
+        const auto* node = reinterpret_cast<ImportStmtNode*>(stmt);
+        const auto found = find_module_name(node->name);
+        if (!found) {
+            throw_error(ErrorType::Analysis, "no module is called `" + node->name + "`", node->line, node->col);
+            break;
+        }
+        const auto [path, abs_path] = *found;
+
+        if (cur_module->module_is_imported(abs_path)) {
+            break;
+        }
+
+        std::vector<Scope::Var> exports;
+        std::vector<uint8_t> compiled;
+        do {
+            std::ifstream ifs(abs_path);
+            if (!ifs.is_open()) {
+                throw_error(ErrorType::Analysis, "cannot open `" + abs_path.string() + "`", node->line, node->col);
+            }
+            std::string code{
+                std::istreambuf_iterator(ifs),
+                std::istreambuf_iterator<char>()
+            };
+            code += '\n';
+
+            auto tokens = Lexer(code).tokenize(code);
+            if (errd) break;
+
+            auto ast = Parser(tokens).parse_module(abs_path);
+            if (errd) break;
+
+            exports = check_module(ast);
+            compiled = ast_to_binary(ast);
+            if (errd) break;
+        } while (false);
+        if (errd) break;
+
+        auto output_path = std::filesystem::path(main_module->name).parent_path() / module_cache_fold ;
+        if (abs_path.filename() == std::string(file_default_mod) + file_suffix) {
+            output_path /= path.string();
+            output_path /= std::string(file_default_mod) + file_suffix_binary;
+        } else {
+            output_path /= path.string() + file_suffix_binary;
+        }
+        std::ofstream ofs(output_path);
+        ofs.write(reinterpret_cast<const char*>(compiled.data()), static_cast<std::streamsize>(compiled.size()));
+        ofs.close();
+        auto mod_ty = std::make_shared<ModuleType>(output_path, std::move(exports));
+        new_global_var(path.filename(), mod_ty);
+
+        cur_module->imports[abs_path.string()] = mod_ty;
         break;
     }
     //case ASTKind::Exprs:
@@ -382,8 +472,9 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
         scope_stack.push_back(scope);
 
         if (node->block->kind == ASTKind::Block) {
-            const auto* block = reinterpret_cast<BlockExprNode*>(node->block.get());
-            for (auto& s : block->stmts) {
+            for (const auto* block = node->block.get();
+                auto& s : block->stmts) {
+
                 check_stmt(s.get());
             }
         } else check_expr(node->block.get());
@@ -471,7 +562,37 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
         }
         break;
     }
-    case ASTKind::BreakStmt: {
+    case ASTKind::BreakStmt:
+    case ASTKind::ContinueStmt:{
+        bool in_loop = false;
+        for (const auto& s : scope_stack | std::views::reverse) {
+            if (s.scope == Scope::ScopeType::Loop) {
+                in_loop = true;
+                break;
+            }
+        }
+        if (!in_loop) {
+            throw_error(ErrorType::Analysis, "break stmt must be in loop body", stmt->line, stmt->col);
+            break;
+        }
+        break;
+    }
+    case ASTKind::LoopStmt: {
+        const auto node = reinterpret_cast<LoopStmtNode*>(stmt);
+        if (node->expr) {
+            check_expr(node->expr.get());
+            if (!Type::is_null_type(node->expr->type.get()) &&
+                !node->expr->type->equals(std::make_shared<BasicType>(runtime::ValueKind::Int).get())
+                ) {
+                throw_error(ErrorType::Analysis, "loop condition type must be int", node->line, node->col);
+                break;
+                }
+        }
+        scope_stack.emplace_back(Scope::ScopeType::Loop);
+        for (auto& s : node->body) {
+            check_stmt(s.get());
+        }
+        scope_stack.pop_back();
         break;
     }
     default: std::unreachable();
@@ -492,5 +613,9 @@ void HirContext::new_cur_scope_var(std::string name, std::shared_ptr<Type> type,
 
 void HirContext::new_global_var(std::string name, std::shared_ptr<Type> type, bool is_mut) noexcept {
     scope_stack[0].vars.emplace_back(std::move(name), std::move(type), is_mut);
+}
+
+std::vector<Scope::Var> &HirContext::get_global() noexcept {
+    return scope_stack[0].vars;
 }
 

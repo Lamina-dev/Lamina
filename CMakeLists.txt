@@ -43,6 +43,7 @@ add_library(laminaCore SHARED
         lmx.cpp
     $<TARGET_OBJECTS:laminac>
     $<TARGET_OBJECTS:lamina_runtime>
+        utils/utils.cpp
 )
 target_link_libraries(laminaCore PRIVATE
         dyncall_s
@@ -80,7 +81,7 @@ foreach(tgt IN ITEMS ${LMX_ALL_TARGETS})
     disable_exceptions_rtti(${tgt})
 endforeach()
 
-# set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -g -pg -fno-omit-frame-pointer")
+# set(CMAKE_CXX_FLAGS_  "${CMAKE_CXX_FLAGS} -g -pg -fno-omit-frame-pointer")
 
 if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang-cl
     message(STATUS "Use Clang-Cl toolchain compiling")
@@ -89,7 +90,7 @@ if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang-cl
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(STATUS "Use GNU toolchain compiling")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -fno-plt -mtune=native -fvisibility=hidden -funroll-loops -ffast-math -flto -fomit-frame-pointer -fno-semantic-interposition -fvisibility=hidden -fmerge-all-constants -fpeel-loops -fsplit-loops -fpredictive-commoning -fipa-cp-clone -ftree-vectorize -fdata-sections -ffunction-sections")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -fno-plt -mtune=native -fvisibility=hidden -funroll-loops -fomit-frame-pointer -ffast-math -flto  -fno-semantic-interposition -fvisibility=hidden -fmerge-all-constants -fpeel-loops -fsplit-loops -fpredictive-commoning -fipa-cp-clone -ftree-vectorize -fdata-sections -ffunction-sections")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -flto -s -Wl,--gc-sections")
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -flto -s -Wl,--gc-sections")
 endif()

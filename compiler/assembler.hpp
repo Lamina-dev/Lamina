@@ -52,7 +52,7 @@ class Assembler {
 public:
     size_t counter{0};
     struct Val {
-        enum class Kind { Var, Reg };
+        enum class Kind { Var, Reg};
         Kind kind;
         bool is_tmp;
         union {
@@ -71,6 +71,7 @@ public:
     std::unordered_map<std::string, GlobalVar> globals;
     std::unordered_map<std::string, size_t> funcs; // func name -> index
     std::unordered_map<std::string, size_t> native_funcs; // ^
+    std::unordered_map<std::string, std::pair<size_t, std::shared_ptr<ModuleType>>> imports;      // name -> index, ty
     RegAllocator reg;
 
     std::vector<uint8_t> cp;
@@ -98,6 +99,8 @@ public:
     uint8_t asm_mir_expr(InstEmitter::InstSeq& result, mir::MirExpr* node) noexcept;
     void asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) noexcept;
     void resolve_fixups(std::vector<uint8_t>& code) noexcept;
+
+    std::shared_ptr<ModuleType> get_module_type(size_t idx) noexcept;
 
     // std::vector<uint8_t> asm_native_decl(mir::MirNativeFuncDefine *def) noexcept;
 };

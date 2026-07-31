@@ -1,0 +1,20 @@
+static "laminaCore"
+
+func printf(fmt text, ...) -> int = "printf"
+
+var i = 1
+loop {
+    if i == 10 {
+        break
+    }
+    var j = 1
+    loop {
+        if j > i {
+            break
+        }
+        printf("%lld*%lld=%lld\t", j, i, i * j)
+        j = j + 1
+    }
+    printf("\n")
+    i = i + 1
+}

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ast.hpp"
+#include "../runtime/opcode.hpp"
 
 namespace lmx::runtime::Opcode {
 enum Opcode : uint8_t;
@@ -42,8 +43,8 @@ struct MirLiteralExpr : MirExpr {
 };
 struct MirRefExpr : MirExpr {
     explicit MirRefExpr(std::string name, bool is_temp) noexcept;
-    std::string name;
     bool is_temp;
+    std::string name;
 };
 struct MirLabel : MirNode {
     std::string name;
@@ -129,10 +130,11 @@ struct MirINegExpr : MirOperateExpr {
     std::shared_ptr<MirExpr> e;
     explicit MirINegExpr(std::shared_ptr<MirExpr> e) noexcept;
 };
-struct MirCallVirtualExpr : MirOperateExpr {
-    uint8_t reg;
-    uint8_t arg_count;
-    explicit MirCallVirtualExpr(uint8_t reg, uint8_t arg_count) noexcept;
+struct MirCallExpr : MirOperateExpr {
+    std::shared_ptr<MirRefExpr> func;
+    std::vector<std::shared_ptr<MirRefExpr>> args;
+    explicit MirCallExpr(std::shared_ptr<MirRefExpr> func,
+    std::vector<std::shared_ptr<MirRefExpr>> args) noexcept;
 };
 struct MirCallFastExpr : MirOperateExpr {
     std::string name;
@@ -231,8 +233,22 @@ struct MirAssign : MirNode {
     std::shared_ptr<MirExpr> expr;
     explicit MirAssign(std::string name, std::shared_ptr<MirExpr> expr) noexcept;
 };
+struct MirGetModuleExpr : MirOperateExpr {
+    std::string name;
+    explicit MirGetModuleExpr(std::string name) noexcept;
+};
+struct MirGetModuleAttrExpr : MirOperateExpr {
+    std::shared_ptr<MirRefExpr> mod;
+    std::string mod_name;
+    std::string name;
+    explicit MirGetModuleAttrExpr(std::shared_ptr<MirRefExpr> mod, std::string mod_name, std::string name) noexcept
+        : MirOperateExpr(runtime::Opcode::Opcode::GetModuleAttr), mod(std::move(mod)),
+          mod_name(std::move(mod_name)), name(std::move(name)) {}
+};
+
 struct MirModule {
     std::string lib_name{};
     std::vector<std::shared_ptr<MirNode>> nodes;
+    std::unordered_map<std::string, std::shared_ptr<ModuleType>> imports;
 };
 }

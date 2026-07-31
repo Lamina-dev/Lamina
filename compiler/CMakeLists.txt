@@ -9,4 +9,6 @@ add_library(laminac OBJECT
     mir_builder.cpp
     mir_printer.cpp
     assembler.cpp
+        compiler.cpp
+        compiler.hpp
 )
