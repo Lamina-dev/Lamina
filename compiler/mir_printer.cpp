@@ -211,9 +211,9 @@ void MirPrinter::format_operate(std::ostringstream &ss, const MirOperateExpr &op
         ss << ")";
         break;
     }
-    case runtime::Opcode::CallVirtual: {
-        auto &c = static_cast<const MirCallVirtualExpr &>(op);
-        ss << name << " reg=" << static_cast<int>(c.reg) << " argc=" << static_cast<int>(c.arg_count);
+    case runtime::Opcode::Call: {
+        auto &c = static_cast<const MirCallExpr &>(op);
+        ss << name << " func=" << static_cast<int>(c.reg) << " argc=" << static_cast<int>(c.arg_count);
         break;
     }
     case runtime::Opcode::And: {

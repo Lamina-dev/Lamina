@@ -6,6 +6,7 @@
 #include "lmx.h"
 
 #include <algorithm>
+#include <assert.h>
 #include <cstring>
 #include <ranges>
 
@@ -444,6 +445,35 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, uint8_t{0}); // return from r0
             return rd;
         }
+        case runtime::Opcode::Call: {
+            const auto& c = *reinterpret_cast<mir::MirCallExpr*>(node);
+
+            const auto argc = static_cast<uint8_t>(c.args.size());
+            // Evaluate each arg and place in regs[255 - i]
+            for (size_t i = 0; i < c.args.size(); ++i) {
+                const auto rr = asm_mir_expr(insts, c.args[i].get());
+                if (rr != static_cast<uint8_t>(LMX_VM_REG_COUNT - 1 - i)) {
+                    InstEmitter::emit(insts, runtime::Opcode::MovRR,
+                        static_cast<uint8_t>(LMX_VM_REG_COUNT - 1 - i), rr);
+                }
+                reg.free(rr);
+            }
+            auto using_regs = reg.get_all_using();
+            for (const auto r : using_regs) {
+                InstEmitter::emit(insts, runtime::Opcode::Push, r);
+            }
+
+            const auto func_it = asm_mir_expr(insts, c.func.get());
+
+            const auto rd = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::Call, func_it, argc);
+            for (const auto r : using_regs | std::views::reverse) {
+                InstEmitter::emit(insts, runtime::Opcode::Pop, r);
+            }
+            // CallFast result is left in regs[0] by convention
+            InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, uint8_t{0}); // return from r0
+            return rd;
+        }
 
         // --- Halt ---
         case runtime::Opcode::Halt: {
@@ -462,9 +492,26 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             reg.free(r);
             return rd;
         }
+        case runtime::Opcode::GetModule: {
+            const auto& n = *reinterpret_cast<mir::MirGetModuleExpr*>(node);
+            const auto r = *reg.alloc();
+            const auto it = imports.find(n.name);
+            if (it == imports.end()) return 0;
+            InstEmitter::emit(insts, runtime::Opcode::GetModule, r, static_cast<uint16_t>(it->second.first));
+            return r;
+        }
         case runtime::Opcode::GetModuleAttr: {
             const auto& n = *reinterpret_cast<mir::MirGetModuleAttrExpr*>(node);
+            const auto mod = *find_var(n.name);
+            assert(mod->is_tmp);
+            reg.free(mod->reg);
+            InstEmitter::emit(insts, runtime::Opcode::MovRR, static_cast<uint8_t>(0), mod->reg);
+            const uint16_t idx = *imports[n.mod->name].second->find_var_idx(n.name);
 
+            const auto r = *reg.alloc();
+
+            InstEmitter::emit(insts, runtime::Opcode::GetModuleAttr, r, idx);
+            return r;
             break;
         }
 

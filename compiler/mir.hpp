@@ -130,10 +130,11 @@ struct MirINegExpr : MirOperateExpr {
     std::shared_ptr<MirExpr> e;
     explicit MirINegExpr(std::shared_ptr<MirExpr> e) noexcept;
 };
-struct MirCallVirtualExpr : MirOperateExpr {
-    uint8_t reg;
-    uint8_t arg_count;
-    explicit MirCallVirtualExpr(uint8_t reg, uint8_t arg_count) noexcept;
+struct MirCallExpr : MirOperateExpr {
+    std::shared_ptr<MirRefExpr> func;
+    std::vector<std::shared_ptr<MirRefExpr>> args;
+    explicit MirCallExpr(std::shared_ptr<MirRefExpr> func,
+    std::vector<std::shared_ptr<MirRefExpr>> args) noexcept;
 };
 struct MirCallFastExpr : MirOperateExpr {
     std::string name;

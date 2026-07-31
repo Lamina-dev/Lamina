@@ -413,10 +413,7 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
     // }
     case ASTKind::SuffixParen: {
         auto *call = reinterpret_cast<SuffixParenNode *>(expr);
-        std::string func_name;
-        if (call->expr->kind == ASTKind::Identifier) {
-            func_name = reinterpret_cast<IdentifierNode *>(call->expr.get())->id;
-        }
+
         std::vector<std::shared_ptr<MirRefExpr>> arg_refs;
         if (call->suffix) {
             for (auto &arg : call->suffix->exprs) {
@@ -424,7 +421,14 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
                 arg_refs.push_back(ensure_temp(std::move(arg_val)));
             }
         }
-        auto call_expr = std::make_shared<MirCallFastExpr>(std::move(func_name), std::move(arg_refs));
+        if (call->expr->kind == ASTKind::Identifier) {
+            std::string func_name = reinterpret_cast<IdentifierNode *>(call->expr.get())->id;
+            auto call_expr = std::make_shared<MirCallFastExpr>(std::move(func_name), std::move(arg_refs));
+            return temp_assign(std::move(call_expr));
+        }
+
+        const auto reg_func = temp_assign(std::move(eval(call->expr.get())));
+        auto call_expr = std::make_shared<MirCallExpr>(reg_func, std::move(arg_refs));
         return temp_assign(std::move(call_expr));
     }
     case ASTKind::SuffixBracket: {
@@ -482,11 +486,16 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
     }
     case ASTKind::DotExpr: {
         const auto *dot = reinterpret_cast<DotExprNode *>(expr);
-        auto left = temp_assign(eval(dot->expr.get()));
-        assert(left->kind == MirExprKind::Ref);
-        auto gen = std::make_shared<MirGetModuleAttrExpr>(left, dot->rhs->id);
-        return temp_assign(gen);
-        break;
+        std::shared_ptr<MirRefExpr> mod_ref;
+         if (dot->expr->type->kind == TypeKind::Module) {
+             const auto *id = reinterpret_cast<IdentifierNode *>(dot->expr.get());
+             mod_ref = temp_assign(std::make_shared<MirGetModuleExpr>(id->id));  //
+         } else {
+             mod_ref = temp_assign(eval(dot->expr.get()));
+         }
+         auto attr = std::make_shared<MirGetModuleAttrExpr>(mod_ref, dot->rhs->id);  // %_1 = GetModuleAttr %_0, "foo"
+         return temp_assign(attr);
+         break;
     }
     default:
         std::unreachable();
