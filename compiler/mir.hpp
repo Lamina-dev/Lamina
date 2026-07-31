@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ast.hpp"
+#include "../runtime/opcode.hpp"
 
 namespace lmx::runtime::Opcode {
 enum Opcode : uint8_t;
@@ -42,8 +43,8 @@ struct MirLiteralExpr : MirExpr {
 };
 struct MirRefExpr : MirExpr {
     explicit MirRefExpr(std::string name, bool is_temp) noexcept;
-    std::string name;
     bool is_temp;
+    std::string name;
 };
 struct MirLabel : MirNode {
     std::string name;
@@ -231,9 +232,15 @@ struct MirAssign : MirNode {
     std::shared_ptr<MirExpr> expr;
     explicit MirAssign(std::string name, std::shared_ptr<MirExpr> expr) noexcept;
 };
-struct MirGetModule : MirOperateExpr {
+struct MirGetModuleExpr : MirOperateExpr {
+    std::string name;
+    explicit MirGetModuleExpr(std::string name) noexcept;
+};
+struct MirGetModuleAttrExpr : MirOperateExpr {
     std::shared_ptr<MirRefExpr> mod;
-    explicit MirGetModule(std::shared_ptr<MirRefExpr> mod) noexcept;
+    std::string name;
+    explicit MirGetModuleAttrExpr(std::shared_ptr<MirRefExpr> mod, std::string name) noexcept
+        : MirOperateExpr(runtime::Opcode::Opcode::GetModuleAttr), mod(std::move(mod)), name(std::move(name)) {}
 };
 
 struct MirModule {

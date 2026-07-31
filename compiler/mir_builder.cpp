@@ -1,5 +1,6 @@
 #include "mir_builder.hpp"
 
+#include <cassert>
 #include <memory>
 #include <ranges>
 #include <string>
@@ -479,8 +480,14 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         auto call_expr = std::make_shared<MirCCallExpr>(std::move(func_name), std::move(arg_refs));
         return temp_assign(std::move(call_expr));
     }
-    case ASTKind::DotExpr:
+    case ASTKind::DotExpr: {
+        const auto *dot = reinterpret_cast<DotExprNode *>(expr);
+        auto left = temp_assign(eval(dot->expr.get()));
+        assert(left->kind == MirExprKind::Ref);
+        auto gen = std::make_shared<MirGetModuleAttrExpr>(left, dot->rhs->id);
+        return temp_assign(gen);
         break;
+    }
     default:
         std::unreachable();
         //return std::make_shared<MirLiteralExpr>(MirLiteralKind::Integer, "0");

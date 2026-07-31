@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include <cmath>
+
 #include "../runtime/object/value.hpp"
 
 #include <memory>
@@ -94,6 +96,12 @@ struct ModuleType : Type {
     std::optional<hir::Scope::Var*> find_var(const std::string& n) noexcept {
         for (auto& var : exports) {
             if (var.name == n) return &var;
+        }
+        return std::nullopt;
+    }
+    [[nodiscard]] std::optional<size_t> find_var_idx(const std::string& n) const noexcept {
+        for (size_t i = 0; i < exports.size(); i++) {
+            if (exports[i].name == n) return i;
         }
         return std::nullopt;
     }

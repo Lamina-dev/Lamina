@@ -126,5 +126,5 @@ MirCmpAndExpr::MirCmpAndExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirEx
 MirCmpOrExpr::MirCmpOrExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::Or), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
-MirGetModule::MirGetModule(std::shared_ptr<MirRefExpr> mod) noexcept : MirOperateExpr(runtime::Opcode::GetModule), mod(std::move(mod)) {}
+MirGetModuleExpr::MirGetModuleExpr(std::string name) noexcept : MirOperateExpr(runtime::Opcode::GetModule), name(std::move(name)) {}
 }

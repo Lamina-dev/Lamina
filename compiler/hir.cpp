@@ -268,7 +268,7 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
     case ASTKind::SuffixParen: {
         const auto node = reinterpret_cast<SuffixParenNode*>(expr);
         check_expr(node->expr.get());
-        const auto left = inference_type(node->expr.get());
+        const auto left = node->expr->type;
         if (Type::is_null_type(left.get())) break;
         if (left->kind == TypeKind::Function) {
             const auto func_ty = std::reinterpret_pointer_cast<FunctionType>(left);

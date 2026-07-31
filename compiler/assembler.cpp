@@ -462,6 +462,11 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             reg.free(r);
             return rd;
         }
+        case runtime::Opcode::GetModuleAttr: {
+            const auto& n = *reinterpret_cast<mir::MirGetModuleAttrExpr*>(node);
+
+            break;
+        }
 
         default:
             return 0;
@@ -613,6 +618,12 @@ void Assembler::resolve_fixups(std::vector<uint8_t>& code) noexcept {
     }
 }
 
+std::shared_ptr<ModuleType> Assembler::get_module_type(const size_t idx) noexcept {
+    for (auto &[i, t]: imports | std::views::values) {
+        if (i == idx) return t;
+    }
+    return nullptr;
+}
 
 // ============================================================
 //  Module assembly (binary format)
@@ -665,7 +676,15 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
 
     for (auto& [name, ty] : mod->imports) {
         const auto idx = imports.size();
-        imports[name] = {idx, ty};
+        std::string real_name;
+        if (const auto path = std::filesystem::path(name);
+            path.filename() == std::string(file_default_mod) + file_suffix) {
+
+            real_name = path.parent_path().filename().string();
+        } else {
+            real_name = path.filename().stem().string();
+        }
+        imports[std::move(real_name)] = {idx, ty};
     }
 
     for (auto& node : mod->nodes) {

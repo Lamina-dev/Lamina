@@ -3,18 +3,4 @@ import std
 
 
 var i = 1
-loop {
-    if i == 10 {
-        break
-    }
-    var j = 1
-    loop {
-        if j > i {
-            break
-        }
-        std.printf("%lld*%lld=%lld\t", j, i, i * j)
-        j = j + 1
-    }
-    std.printf("\n")
-    i = i + 1
-}
+std.foo()

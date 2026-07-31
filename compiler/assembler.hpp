@@ -100,6 +100,8 @@ public:
     void asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) noexcept;
     void resolve_fixups(std::vector<uint8_t>& code) noexcept;
 
+    std::shared_ptr<ModuleType> get_module_type(size_t idx) noexcept;
+
     // std::vector<uint8_t> asm_native_decl(mir::MirNativeFuncDefine *def) noexcept;
 };
 
