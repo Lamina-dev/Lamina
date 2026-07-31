@@ -12,7 +12,6 @@
 #include "lmx.h"
 #include "dynload/dynload.h"
 #include "../opcode.hpp"
-#include "error.h"
 #include <sstream>
 
 #include "../error.hpp"
