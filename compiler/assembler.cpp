@@ -827,7 +827,9 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     result.push_back(0);
     result.insert(result.end(), native_decls.begin(), native_decls.end());
 
-
+    /*
+     * path_after("/path/to/a", "path") ->    "to/a"
+     */
     static auto path_after = [](const std::filesystem::path& p, const std::string& target) -> std::string {
         auto it = p.end();
         while (it != p.begin()) {

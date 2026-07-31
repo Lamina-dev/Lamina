@@ -194,10 +194,9 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         auto* node = reinterpret_cast<BinaryNode*>(expr);
         check_expr(node->lhs.get());
         check_expr(node->rhs.get());
-        const auto lty = inference_type(node->lhs.get());
-        const auto rty = inference_type(node->rhs.get());
-        node->lhs->type = lty;
-        node->rhs->type = rty;
+        const auto lty = node->lhs->type;
+        const auto rty = node->rhs->type;
+        if (Type::is_null_type(lty.get()) || Type::is_null_type(rty.get())) break;
         if (!lty->equals(rty.get())) {
             throw_error(
                 ErrorType::Analysis,
@@ -373,11 +372,12 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
     case ASTKind::DotExpr: {
         const auto node = reinterpret_cast<DotExprNode*>(expr);
         check_expr(node->expr.get());
-        if (node->expr->type->kind != TypeKind::Module) {
+        if (!Type::is_null_type(node->expr->type.get()) && node->expr->type->kind != TypeKind::Module) {
             throw_error(ErrorType::Analysis, "must be module type", node->line, node->col);
             break;
         }
         const auto left_ty = std::reinterpret_pointer_cast<ModuleType>(node->expr->type);
+        if (Type::is_null_type(left_ty.get())) break;
         if (const auto result = left_ty->find_var(node->rhs->id); result.has_value()) {
             const auto* var = *result;
             node->rhs->type = var->type;
@@ -431,7 +431,8 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
             auto ast = Parser(tokens).parse_module(abs_path);
             if (errd) break;
 
-            exports = check_module(ast);
+            exports = HirContext().check_module(ast);
+            if (errd) break;
             compiled = ast_to_binary(ast);
             if (errd) break;
         } while (false);
@@ -519,7 +520,14 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
     case ASTKind::TailReturn: {
         const auto node = reinterpret_cast<TailReturnNode*>(stmt);
         check_expr(node->expr.get());
-        scope_stack.back().return_type = node->expr->type;
+        if (Type::is_null_type(scope_stack.back().return_type.get()))
+            scope_stack.back().return_type = node->expr->type;
+        else {
+            if (!scope_stack.back().return_type->equals(node->expr->type.get())) {
+                throw_error(ErrorType::Analysis, "return type is inconsistent with the above", node->line, node->col);
+                break;
+            }
+        }
         // node->expr->type = inference_type(node->expr.get());
         break;
     }
@@ -529,7 +537,7 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
         if (Type::is_null_type(node->type.get())) {
             if (!node->init_value) {
                 throw_error(ErrorType::Analysis, "the var `" + node->id + "` type not found", node->line, node->col);
-            } else node->type = inference_type(node->init_value.get());
+            } else node->type = node->init_value->type;
         } else {
             if (!node->type->equals(node->init_value->type.get())) {
                 throw_error(ErrorType::Analysis, "the var `" + node->id + "` type mismatch with the initialization type", node->line, node->col);

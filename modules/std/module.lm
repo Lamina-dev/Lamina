@@ -2,7 +2,6 @@ static "laminaCore"
 
 func printf(fmt text, ...) -> int = "printf"
 
-
-func foo() -> null {
-    printf("std/module foo calling")
+func int_to_frac(n int) -> frac {
+    n / 1
 }

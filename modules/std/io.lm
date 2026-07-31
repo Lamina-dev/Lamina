@@ -1,3 +1,0 @@
-func test(a int) -> int {
-    a + 1
-}

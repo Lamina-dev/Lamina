@@ -200,6 +200,7 @@ LmModule *lmx_doFile(LmState *state, const char* name, bool is_main_module) {
     }
     if (errd) return nullptr;
     lmx::hir::HirContext().check_module(node);
+    // std::cout << lmx::AstPrinter::print(*node) << std::endl;
     if (errd) return nullptr;
 
     auto mir = lmx::mir::MirBuilder::from_ast_module(node);

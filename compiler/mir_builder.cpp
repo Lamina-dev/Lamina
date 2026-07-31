@@ -392,7 +392,7 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
                 auto rhs = ensure_temp(eval(bin->rhs.get()));
                 return temp_assign(eval_binary_cmp(bin->op, std::move(lhs), std::move(rhs)));
             }
-            bool is_float = is_float_type(expr->type.get());
+            bool is_float = is_float_type(bin->lhs->type.get());
             auto lhs = ensure_temp(eval(bin->lhs.get()));
             auto rhs = ensure_temp(eval(bin->rhs.get()));
             return temp_assign(eval_binary_arith(bin->op, std::move(lhs), std::move(rhs), is_float));
