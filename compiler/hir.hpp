@@ -12,24 +12,7 @@ namespace lmx::hir {
  */
 
 using HirNode = ASTNode;
-struct Scope {
-    struct Var {
-        std::string name;
-        std::shared_ptr<Type> type;
-        bool is_mut;
-    };
-    enum class ScopeType {
-        Function, Block, Loop
-    };
-    ScopeType scope{ScopeType::Function};
-    std::string name;
-    std::vector<Var> vars;
-    std::shared_ptr<Type> return_type;
 
-    explicit Scope(std::string name) noexcept;
-    explicit Scope(ScopeType scope) noexcept;
-    explicit Scope() = default;
-};
 
 class HirContext {
     std::vector<Scope> scope_stack;
@@ -42,10 +25,13 @@ class HirContext {
     void new_cur_scope_var(std::string name, std::shared_ptr<Type> type, bool is_mut = false) noexcept;
     void new_global_var(std::string name, std::shared_ptr<Type> type, bool is_mut = false) noexcept;
 
+    std::vector<Scope::Var> &get_global() noexcept;
+
     bool is_global_scope() const noexcept;
 public:
     explicit HirContext() noexcept;
-    void check_module(const std::shared_ptr<Module> &mod) noexcept;
+
+    std::vector<Scope::Var> check_module(const std::shared_ptr<Module> &mod) noexcept;
 
     void check_expr(ExprNode *expr) noexcept;
 

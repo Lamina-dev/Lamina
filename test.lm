@@ -1,6 +1,6 @@
 static "laminaCore"
-import std.io
-func printf(fmt text, ...) -> int = "printf"
+import std
+
 
 var i = 1
 loop {
@@ -12,9 +12,9 @@ loop {
         if j > i {
             break
         }
-        printf("%lld*%lld=%lld\t", j, i, i * j)
+        std.printf("%lld*%lld=%lld\t", j, i, i * j)
         j = j + 1
     }
-    printf("\n")
+    std.printf("\n")
     i = i + 1
 }

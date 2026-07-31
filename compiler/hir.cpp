@@ -4,9 +4,10 @@
 
 #include "hir.hpp"
 
-#include <functional>
+#include <fstream>
 #include <ranges>
 #include <map>
+
 #include "parser.hpp"
 #include "error.hpp"
 #include "../utils/utils.hpp"
@@ -117,8 +118,12 @@ std::shared_ptr<Type> HirContext::inference_type(ExprNode* type) noexcept {
         const auto node = reinterpret_cast<AsExprNode*>(type);
         return node->cast_type;
     }
-    case ASTKind::DotExpr:
+    case ASTKind::DotExpr: {
+        const auto node = reinterpret_cast<DotExprNode*>(type);
+        const auto left = std::reinterpret_pointer_cast<ModuleType>(inference_type(node->expr.get()));
+        return (*left->find_var(node->rhs->id))->type;
         break;
+    }
     case ASTKind::NativeFuncCall: {
         const auto node = reinterpret_cast<NativeFuncCallExpr*>(type);
         const auto left_ty = std::reinterpret_pointer_cast<NativeFunctionType>(inference_type(node->expr.get()));
@@ -135,7 +140,7 @@ std::shared_ptr<Type> HirContext::inference_type(ExprNode* type) noexcept {
 //     scope_stack.clear();
 // }
 
-void HirContext::check_module(const std::shared_ptr<Module>& mod) noexcept {
+std::vector<Scope::Var> HirContext::check_module(const std::shared_ptr<Module> &mod) noexcept {
     const auto save_cur_module = cur_module;
     cur_module = mod;
 
@@ -148,6 +153,13 @@ void HirContext::check_module(const std::shared_ptr<Module>& mod) noexcept {
     }
 
     cur_module = save_cur_module;
+
+    std::vector<Scope::Var> result;
+
+    for (const auto& v : get_global()) {
+        if (v.type->kind == TypeKind::Function) result.push_back(v);
+    }
+    return result;
 }
 void HirContext::check_expr(ExprNode *expr) noexcept {
     if (!expr) return;
@@ -358,6 +370,24 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         // todo!
         break;
     }
+    case ASTKind::DotExpr: {
+        const auto node = reinterpret_cast<DotExprNode*>(expr);
+        check_expr(node->expr.get());
+        if (node->expr->type->kind != TypeKind::Module) {
+            throw_error(ErrorType::Analysis, "must be module type", node->line, node->col);
+            break;
+        }
+        const auto left_ty = std::reinterpret_pointer_cast<ModuleType>(node->expr->type);
+        if (const auto result = left_ty->find_var(node->rhs->id); result.has_value()) {
+            const auto* var = *result;
+            node->rhs->type = var->type;
+            node->type = var->type;
+        } else {
+            throw_error(ErrorType::Analysis, "module not have var `" + node->rhs->id + "`", node->line, node->col);
+            break;
+        }
+        break;
+    }
     default: std::unreachable();
     }
 }
@@ -377,17 +407,50 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
             break;
         }
         const auto [path, abs_path] = *found;
+
         if (cur_module->module_is_imported(abs_path)) {
             break;
         }
-        const auto output_path = std::filesystem::path(main_module->name).parent_path() / module_cache_fold / path;
 
-        cur_module->sub_mods[abs_path.string()] = output_path.string();
-        lmx_moduleToFile(
-            &global_state,
-            lmx_doFile(&global_state, abs_path.c_str(), false),
-            output_path.c_str()
-            );
+        std::vector<Scope::Var> exports;
+        std::vector<uint8_t> compiled;
+        do {
+            std::ifstream ifs(abs_path);
+            if (!ifs.is_open()) {
+                throw_error(ErrorType::Analysis, "cannot open `" + abs_path.string() + "`", node->line, node->col);
+            }
+            std::string code{
+                std::istreambuf_iterator(ifs),
+                std::istreambuf_iterator<char>()
+            };
+            code += '\n';
+
+            auto tokens = Lexer(code).tokenize(code);
+            if (errd) break;
+
+            auto ast = Parser(tokens).parse_module(abs_path);
+            if (errd) break;
+
+            exports = check_module(ast);
+            compiled = ast_to_binary(ast);
+            if (errd) break;
+        } while (false);
+        if (errd) break;
+
+        auto output_path = std::filesystem::path(main_module->name).parent_path() / module_cache_fold ;
+        if (abs_path.filename() == std::string(file_default_mod) + file_suffix) {
+            output_path /= path.string();
+            output_path /= std::string(file_default_mod) + file_suffix_binary;
+        } else {
+            output_path /= path.string() + file_suffix_binary;
+        }
+        std::ofstream ofs(output_path);
+        ofs.write(reinterpret_cast<const char*>(compiled.data()), static_cast<std::streamsize>(compiled.size()));
+        ofs.close();
+        auto mod_ty = std::make_shared<ModuleType>(output_path, std::move(exports));
+        new_global_var(path.filename(), mod_ty);
+
+        cur_module->imports[abs_path.string()] = mod_ty;
         break;
     }
     //case ASTKind::Exprs:
@@ -550,5 +613,9 @@ void HirContext::new_cur_scope_var(std::string name, std::shared_ptr<Type> type,
 
 void HirContext::new_global_var(std::string name, std::shared_ptr<Type> type, bool is_mut) noexcept {
     scope_stack[0].vars.emplace_back(std::move(name), std::move(type), is_mut);
+}
+
+std::vector<Scope::Var> &HirContext::get_global() noexcept {
+    return scope_stack[0].vars;
 }
 

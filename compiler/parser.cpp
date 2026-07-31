@@ -170,14 +170,8 @@ std::shared_ptr<ExprStmtNode> Parser::parse_param_name() noexcept {
 std::shared_ptr<ExprNode> Parser::parse_factor() noexcept {
     size_t line = cur().line, col = cur().col;
     auto primary = parse_primary();
-    while (match(TokenType::DOT) || match(TokenType::LPAREN) || match(TokenType::LBRACK) || match(TokenType::COL_COLON)) {
+    while (match(TokenType::LPAREN) || match(TokenType::LBRACK) || match(TokenType::DOT)) {
         switch (cur().type) {
-        case TokenType::DOT: case TokenType::COL_COLON: {
-            auto op = token_to_binary_op(cur().type);
-            advance();
-            primary = std::make_shared<BinaryNode>(line, col, primary, op, parse_primary());
-            break;
-        }
         case TokenType::LPAREN: {
             size_t pline = cur().line, pcol = cur().col;
             advance();
@@ -198,6 +192,13 @@ std::shared_ptr<ExprNode> Parser::parse_factor() noexcept {
             auto e = parse_expr();
             consume(TokenType::RBRACK, "]");
             primary = std::make_shared<SuffixBracketNode>(line, col, primary, e);
+            break;
+        }
+        case TokenType::DOT: {
+            advance();
+            auto ident = cur();
+            consume(TokenType::IDENTIFIER, "identifier");
+            primary = std::make_shared<DotExprNode>(line, col, primary, std::make_shared<IdentifierNode>(ident.line, ident.col, ident.text));
             break;
         }
         default: {
@@ -320,6 +321,7 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
     default: {
         size_t line = cur().line, col = cur().col;
         auto expr = parse_expr();
+        if (!expr) return nullptr;
         if (match(TokenType::ASSIGN)) {
             advance();
             auto rhs = parse_expr();
@@ -532,7 +534,8 @@ std::shared_ptr<Module> Parser::parse_module(const std::string &name) noexcept {
     const auto save_cur_mod = cur_module;
     cur_module = std::make_shared<Module>(name, decltype(Module::decls){});
     while (pos < tokens.size() && tokens[pos].type != TokenType::END_OF_FILE) {
-        cur_module->decls.push_back(std::move(parse_stmt()));
+        auto stmt = parse_stmt();
+        if (stmt) cur_module->decls.push_back(std::move(stmt));
     }
     auto result = cur_module;
     cur_module = save_cur_mod;

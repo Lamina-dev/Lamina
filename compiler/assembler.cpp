@@ -656,10 +656,17 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     funcs.clear();
     native_funcs.clear();
     cp.clear();
+    imports.clear();
     cp_cnt = 0;
     size_t native_func_idx = 0;
     size_t func_idx = 0;
     std::vector<std::shared_ptr<mir::MirNode>> top_level_nodes;
+
+
+    for (auto& [name, ty] : mod->imports) {
+        const auto idx = imports.size();
+        imports[name] = {idx, ty};
+    }
 
     for (auto& node : mod->nodes) {
         if (node->kind == mir::MirNodeKind::Func) {
@@ -719,7 +726,6 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
 
     // ---- Write function section (user functions only) ----
     std::vector<uint8_t> func_section;
-
     for (auto&[name, code] : compiled_funcs) {
         const auto func_len = static_cast<uint32_t>(code.size());
         func_section.push_back(static_cast<uint8_t>(func_len & 0xFF));
@@ -732,6 +738,7 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     write_u64(result, func_section.size());
     result.insert(result.end(), func_section.begin(), func_section.end());
 
+
     // ---- Write constant pool section (empty for now) ----
     write_u64(result, cp.size());
     result.insert(result.end(), cp.begin(), cp.end());
@@ -743,13 +750,17 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
         auto data = encoder_native(n);
         native_decls.insert(native_decls.end(), data.begin(), data.end());
     }
+
     write_u64(result, native_decls.size() + mod->lib_name.size() + 1);
     if (!mod->lib_name.empty()) {
         result.insert(result.end(), mod->lib_name.begin(), mod->lib_name.end());
     }
     result.push_back(0);
-
     result.insert(result.end(), native_decls.begin(), native_decls.end());
+
+
+    // ---- Write imports section ----
+
 
 
     // ---- Write entry code section (after constants, loaded as prog->code) ----

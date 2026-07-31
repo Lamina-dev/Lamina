@@ -17,6 +17,13 @@ BasicType::~BasicType() = default;
 
 ArrayType::~ArrayType() = default;
 
+bool ModuleType::equals(Type *other) const noexcept {
+    if (is_null_type(other)) return false;
+    if (other->kind != this->kind) return false;
+    if (reinterpret_cast<ModuleType *>(other)->target_path != this->target_path) return false;
+    return true;
+}
+
 bool BasicType::equals(Type *other) const noexcept {
     if (!other) return false;
     if (other->kind != this->kind) return false;

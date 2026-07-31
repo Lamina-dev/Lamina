@@ -63,6 +63,13 @@ void lmx_printASTFromString(LmState *state, FILE *file, const char *code, const 
 }
 
 void lmx_printASTFromFile(LmState *state, FILE *file, const char *name) {
+
+    const auto save_current_path = lmx::current_module_path;
+    const auto this_module_path_name = std::filesystem::absolute(name).lexically_normal();
+    lmx::current_module_path = this_module_path_name.parent_path();
+
+
+
     std::ifstream ifs(name);
     if (!ifs.is_open()) return;
     std::string c{
@@ -72,13 +79,19 @@ void lmx_printASTFromFile(LmState *state, FILE *file, const char *name) {
     auto tokens = lmx::Lexer(c).tokenize(c);
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return;
+
+    auto save_main_module = lmx::main_module;
+    lmx::main_module = node;
     lmx::hir::HirContext().check_module(node);
+
     if (errd) return;
 
     auto str = lmx::AstPrinter::print(*node.get());
     if (fwrite(str.c_str(), 1, str.length(), file) != str.length()) {
         fprintf(stderr, "Error writing AST to file\n");
     }
+    lmx::current_module_path = save_current_path;
+    lmx::main_module = save_main_module;
 }
 
 void lmx_printMIRFromString(LmState *state, FILE *file, const char *code, const char *name) {

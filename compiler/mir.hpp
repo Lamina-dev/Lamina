@@ -231,8 +231,14 @@ struct MirAssign : MirNode {
     std::shared_ptr<MirExpr> expr;
     explicit MirAssign(std::string name, std::shared_ptr<MirExpr> expr) noexcept;
 };
+struct MirGetModule : MirOperateExpr {
+    std::shared_ptr<MirRefExpr> mod;
+    explicit MirGetModule(std::shared_ptr<MirRefExpr> mod) noexcept;
+};
+
 struct MirModule {
     std::string lib_name{};
     std::vector<std::shared_ptr<MirNode>> nodes;
+    std::unordered_map<std::string, std::shared_ptr<ModuleType>> imports;
 };
 }

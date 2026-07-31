@@ -6,6 +6,7 @@
 
 #include "lmx.h"
 #include <filesystem>
+#include <vector>
 
 namespace lmx {
 struct Module;
@@ -21,6 +22,7 @@ LM_API extern std::shared_ptr<Module> main_module;
 
 inline constexpr auto file_suffix = ".lm";
 inline constexpr auto file_suffix_binary = ".lmc";
+inline constexpr auto file_default_mod = "module";
 
 inline constexpr auto module_cache_fold = "_lm_cache";
 
@@ -76,5 +78,7 @@ LMX_INLINE std::optional<std::pair<std::filesystem::path, std::filesystem::path>
     }
     return std::nullopt;
 }
+
+std::vector<uint8_t> ast_to_binary(const std::shared_ptr<Module>& mod) noexcept;
 
 }

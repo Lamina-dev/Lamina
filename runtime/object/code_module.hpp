@@ -4,6 +4,8 @@
 
 #pragma once
 #include <cstdint>
+#include <memory>
+
 #include "object.hpp"
 #include "value.hpp"
 #include "../binary.hpp"
@@ -55,8 +57,9 @@ public:
     DLLib* native_lib_handle{};
     std::vector<ConstantPoolInfo> cp;
     std::vector<FuncObj> funcs;
-    std::vector<TypeInfo> types;
     std::vector<NativeFuncObj> native_funcs{};
+    std::vector<std::unique_ptr<CodeModule>> imports;
+    std::vector<TypeInfo> types;
     const uint8_t* code{};
     size_t code_len{};
     std::vector<uint8_t> raw_data{};

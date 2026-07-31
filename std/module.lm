@@ -1,0 +1,3 @@
+static "laminaCore"
+
+func printf(fmt text, ...) -> int = "printf"

@@ -10,12 +10,12 @@ namespace lmx::mir {
 
 namespace {
 
-bool is_int_type(const Type *type) {
+bool is_int_type(const Type *type) noexcept {
     return type && type->kind == TypeKind::Basic &&
            reinterpret_cast<const BasicType *>(type)->type == runtime::ValueKind::Int;
 }
 
-bool is_float_type(const Type *type) {
+bool is_float_type(const Type *type) noexcept {
     return type && type->kind == TypeKind::Basic &&
            reinterpret_cast<const BasicType *>(type)->type == runtime::ValueKind::Fraction;
 }
@@ -28,27 +28,27 @@ class Builder {
     size_t temp_counter_ = 0;
     size_t label_counter_ = 0;
 
-    std::string new_temp() {
+    std::string new_temp() noexcept {
         return "_" + std::to_string(temp_counter_++);
     }
 
-    std::string new_label() {
+    std::string new_label() noexcept {
         return ".L" + std::to_string(label_counter_++);
     }
 
-    void emit(std::shared_ptr<MirNode> node) const {
+    void emit(std::shared_ptr<MirNode> node) const noexcept {
         emit_target_->push_back(std::move(node));
     }
 
-    void emit_label(const std::string &name) const {
+    void emit_label(const std::string &name) const noexcept {
         emit(std::make_shared<MirLabel>(name));
     }
 
-    void emit_expr(std::shared_ptr<MirExpr> expr) const {
+    void emit_expr(std::shared_ptr<MirExpr> expr) const noexcept {
         emit(std::make_shared<MirExprNode>(std::move(expr)));
     }
 
-    std::shared_ptr<MirRefExpr> ensure_temp(std::shared_ptr<MirExpr> expr) {
+    std::shared_ptr<MirRefExpr> ensure_temp(std::shared_ptr<MirExpr> expr) noexcept {
         if (expr->kind == MirExprKind::Ref) {
             if (const auto &ref = reinterpret_cast<MirRefExpr &>(*expr);
                 ref.is_temp) return std::static_pointer_cast<MirRefExpr>(std::move(expr));
@@ -149,9 +149,9 @@ class Builder {
     }
 
 public:
-    explicit Builder(MirModule &mod) : module_(mod) {}
+    explicit Builder(MirModule &mod) noexcept : module_(mod)  {}
 
-    void process(StmtNode *stmt) {
+    void process(StmtNode *stmt) noexcept {
         switch (stmt->kind) {
         case ASTKind::ExprStmt: {
             const auto *node = reinterpret_cast<ExprStmtNode *>(stmt);
@@ -291,7 +291,7 @@ public:
         }
     }
 
-    void build_native_decl(NativeFuncDeclNode *node) const {
+    void build_native_decl(NativeFuncDeclNode *node) const noexcept {
         std::vector<runtime::ValueKind> params;
         for (auto &ty: node->params->stmts | std::views::values) {
             if (ty->kind == TypeKind::Basic) {
@@ -310,6 +310,7 @@ public:
         }
         emit(std::make_shared<MirNativeFuncDefine>(node->func_id, node->symbol, std::move(params), ret_ty));
     }
+
 
     void build(const Module *ast_mod) {
 
@@ -492,6 +493,7 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
 MirModule MirBuilder::from_ast_module(const std::shared_ptr<Module> &ast) {
     MirModule mod;
     mod.lib_name = ast->lib_name;
+    mod.imports = ast->imports;
     Builder builder(mod);
     builder.build(ast.get());
     return mod;

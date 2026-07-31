@@ -22,6 +22,7 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
             case runtime::ValueKind::Int:    ss << "Int"; break;
             case runtime::ValueKind::Bool:   ss << "Bool"; break;
             case runtime::ValueKind::Fraction: ss << "Frac"; break;
+            case runtime::ValueKind::C_VaList: ss << "..."; break;
         }
         break;
     }
@@ -52,6 +53,25 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
         ss << "[";
         if (at.type) print_type(ss, *at.type);
         ss << "; " << at.len << "]";
+        break;
+    }
+    case TypeKind::NativeFunction: {
+        auto &nt = static_cast<const NativeFunctionType &>(type);
+        ss << "native func(";
+        for (size_t i = 0; i < nt.params_ty.size(); i++) {
+            if (i > 0) ss << ", ";
+            if (nt.params_ty[i]) print_type(ss, *nt.params_ty[i]);
+        }
+        ss << ")";
+        if (nt.ret_ty) {
+            ss << " -> ";
+            print_type(ss, *nt.ret_ty);
+        }
+        break;
+    }
+    case TypeKind::Module: {
+        auto &mt = static_cast<const ModuleType &>(type);
+        ss << "module(" << mt.target_path << ")";
         break;
     }
     }
@@ -321,6 +341,11 @@ void AstPrinter::print_stmt(std::ostringstream &ss, const StmtNode &node,
             }
             ss << "\n";
             if (nf.params) print_stmt(ss, *nf.params, child_prefix + "└── ", child_prefix + "    ");
+            break;
+        }
+        case ASTKind::ImportStmt: {
+            auto &imp = static_cast<const ImportStmtNode &>(node);
+            ss << line_prefix << "Import " << imp.name << "\n";
             break;
         }
         default:

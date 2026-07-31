@@ -52,7 +52,7 @@ class Assembler {
 public:
     size_t counter{0};
     struct Val {
-        enum class Kind { Var, Reg };
+        enum class Kind { Var, Reg};
         Kind kind;
         bool is_tmp;
         union {
@@ -71,6 +71,7 @@ public:
     std::unordered_map<std::string, GlobalVar> globals;
     std::unordered_map<std::string, size_t> funcs; // func name -> index
     std::unordered_map<std::string, size_t> native_funcs; // ^
+    std::unordered_map<std::string, std::pair<size_t, std::shared_ptr<ModuleType>>> imports;      // name -> index, ty
     RegAllocator reg;
 
     std::vector<uint8_t> cp;
