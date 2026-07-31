@@ -7,6 +7,7 @@
 #include "lmx.h"
 #include <filesystem>
 #include <vector>
+#include <optional>
 
 namespace lmx {
 struct Module;
