@@ -502,15 +502,14 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
         }
         case runtime::Opcode::GetModuleAttr: {
             const auto& n = *reinterpret_cast<mir::MirGetModuleAttrExpr*>(node);
-            const auto mod = *find_var(n.name);
-            assert(mod->is_tmp);
-            reg.free(mod->reg);
-            InstEmitter::emit(insts, runtime::Opcode::MovRR, static_cast<uint8_t>(0), mod->reg);
-            const uint16_t idx = *imports[n.mod->name].second->find_var_idx(n.name);
+            auto mod_reg = *find_var(n.mod->name);
 
             const auto r = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::MovRR, static_cast<uint8_t>(0), mod_reg->reg);
 
-            InstEmitter::emit(insts, runtime::Opcode::GetModuleAttr, r, idx);
+            //如何获得idx???
+
+            //InstEmitter::emit(insts, runtime::Opcode::GetModuleAttr, r, idx);
             return r;
             break;
         }
