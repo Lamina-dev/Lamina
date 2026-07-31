@@ -487,13 +487,15 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
     case ASTKind::DotExpr: {
         const auto *dot = reinterpret_cast<DotExprNode *>(expr);
         std::shared_ptr<MirRefExpr> mod_ref;
+        std::string mod_name;
          if (dot->expr->type->kind == TypeKind::Module) {
              const auto *id = reinterpret_cast<IdentifierNode *>(dot->expr.get());
              mod_ref = temp_assign(std::make_shared<MirGetModuleExpr>(id->id));  //
+             mod_name = id->id;
          } else {
              mod_ref = temp_assign(eval(dot->expr.get()));
          }
-         auto attr = std::make_shared<MirGetModuleAttrExpr>(mod_ref, dot->rhs->id);  // %_1 = GetModuleAttr %_0, "foo"
+         auto attr = std::make_shared<MirGetModuleAttrExpr>(mod_ref, std::move(mod_name), dot->rhs->id);  // %_1 = GetModuleAttr %_0, "foo"
          return temp_assign(attr);
          break;
     }

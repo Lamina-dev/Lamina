@@ -6,6 +6,7 @@
 
 #include <complex>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 
 #include "lmx.h"
@@ -139,6 +140,27 @@ public:
         return true;
     }
 
+    static bool load_imports(decltype(CodeModule::imports)& mod, const uint8_t*& p) noexcept {
+        const auto over = p + *reinterpret_cast<const uint64_t*>(p) + sizeof(uint64_t);
+        p += sizeof(uint64_t);
+        while (p != over) {
+            std::string tmp = reinterpret_cast<const char *>(p);
+            const size_t len = tmp.size();
+            const auto path = (lmx::current_module_path / lmx::module_cache_fold / std::move(tmp)).string();
+
+            p += len + 1;
+            std::ifstream ifs(path, std::ios::binary);
+            if (!ifs.is_open()) return false;
+            ifs.seekg(0, std::ios::end);
+
+            std::vector<uint8_t> data(ifs.tellg());
+            ifs.seekg(0, std::ios::beg);
+            ifs.read(reinterpret_cast<std::istream::char_type *>(data.data()), static_cast<std::streamsize>(data.size()));
+            ifs.close();
+            mod.push_back(std::make_unique<CodeModule>(std::move(data)));
+        }
+        return true;
+    }
 };
 }
 
@@ -163,6 +185,7 @@ CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind
     ModuleLoader::load_funcs(this, funcs, binary);
     ModuleLoader::load_cp(cp, binary);
     ModuleLoader::load_native_decl(native_funcs, native_lib_handle, binary);
+    ModuleLoader::load_imports(imports, binary);
     ModuleLoader::load_entry_code(code, code_len, binary);
 }
 

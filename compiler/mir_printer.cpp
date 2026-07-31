@@ -232,9 +232,7 @@ void MirPrinter::format_operate(std::ostringstream &ss, const MirOperateExpr &op
     }
     case runtime::Opcode::GetModuleAttr: {
         auto &m = static_cast<const MirGetModuleAttrExpr &>(op);
-        ss << name << " ";
-        if (m.mod) format_expr(ss, *m.mod);
-        ss << ", \"" << m.name << "\"";
+        ss << name << " \"" << m.mod_name << "\".\"" << m.name << "\"";
         break;
     }
     case runtime::Opcode::And: {

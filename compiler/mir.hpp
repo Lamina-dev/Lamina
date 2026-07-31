@@ -239,9 +239,11 @@ struct MirGetModuleExpr : MirOperateExpr {
 };
 struct MirGetModuleAttrExpr : MirOperateExpr {
     std::shared_ptr<MirRefExpr> mod;
+    std::string mod_name;
     std::string name;
-    explicit MirGetModuleAttrExpr(std::shared_ptr<MirRefExpr> mod, std::string name) noexcept
-        : MirOperateExpr(runtime::Opcode::Opcode::GetModuleAttr), mod(std::move(mod)), name(std::move(name)) {}
+    explicit MirGetModuleAttrExpr(std::shared_ptr<MirRefExpr> mod, std::string mod_name, std::string name) noexcept
+        : MirOperateExpr(runtime::Opcode::Opcode::GetModuleAttr), mod(std::move(mod)),
+          mod_name(std::move(mod_name)), name(std::move(name)) {}
 };
 
 struct MirModule {

@@ -503,13 +503,17 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
         case runtime::Opcode::GetModuleAttr: {
             const auto& n = *reinterpret_cast<mir::MirGetModuleAttrExpr*>(node);
             auto mod_reg = *find_var(n.mod->name);
+            if (!mod_reg) return 0;
+
+            const auto it = imports.find(n.mod_name);
+            if (it == imports.end()) return 0;
+            const auto attr_idx = it->second.second->find_var_idx(n.name);
+            if (!attr_idx) return 0;
 
             const auto r = *reg.alloc();
             InstEmitter::emit(insts, runtime::Opcode::MovRR, static_cast<uint8_t>(0), mod_reg->reg);
-
-            //如何获得idx???
-
-            //InstEmitter::emit(insts, runtime::Opcode::GetModuleAttr, r, idx);
+            reg.free(mod_reg->reg);
+            InstEmitter::emit(insts, runtime::Opcode::GetModuleAttr, r, static_cast<uint16_t>(*attr_idx));
             return r;
             break;
         }
@@ -824,8 +828,32 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     result.insert(result.end(), native_decls.begin(), native_decls.end());
 
 
+    static auto path_after = [](const std::filesystem::path& p, const std::string& target) -> std::string {
+        auto it = p.end();
+        while (it != p.begin()) {
+            --it;
+            if (*it == target) {
+                std::filesystem::path result;
+                ++it;
+                for (; it != p.end(); ++it) {
+                    result /= *it;
+                }
+                return result;
+            }
+        }
+        return {};
+    };
+
     // ---- Write imports section ----
 
+    std::vector<uint8_t> import_data;
+    for (auto &ty: mod->imports | std::views::values) {
+        const std::string out_path = path_after(ty->target_path, module_cache_fold);
+        import_data.insert(import_data.end(), out_path.begin(), out_path.end());
+        import_data.push_back(0);
+    }
+    write_u64(result, import_data.size());
+    result.insert(result.end(), import_data.begin(), import_data.end());
 
 
     // ---- Write entry code section (after constants, loaded as prog->code) ----
