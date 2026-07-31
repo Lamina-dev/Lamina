@@ -444,6 +444,7 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
         } else {
             output_path /= path.string() + file_suffix_binary;
         }
+        std::filesystem::create_directories(output_path.parent_path());
         std::ofstream ofs(output_path);
         ofs.write(reinterpret_cast<const char*>(compiled.data()), static_cast<std::streamsize>(compiled.size()));
         ofs.close();
