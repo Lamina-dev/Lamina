@@ -1,2 +1,4 @@
 .idea/
 .vscode/
+cmake-build-*/
+_lm_cache/

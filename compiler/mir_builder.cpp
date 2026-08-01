@@ -58,6 +58,7 @@ class Builder {
     }
 
     std::shared_ptr<MirRefExpr> temp_assign(std::shared_ptr<MirExpr> expr) {
+        //if (!expr) return nullptr;
         auto name = new_temp();
         emit(std::make_shared<MirTempAssign>(name, std::move(expr)));
         return std::make_shared<MirRefExpr>(name, true);
@@ -156,7 +157,8 @@ public:
         switch (stmt->kind) {
         case ASTKind::ExprStmt: {
             const auto *node = reinterpret_cast<ExprStmtNode *>(stmt);
-            emit_expr(eval(node->expr.get()));
+            auto e = eval(node->expr.get());
+            if (e) emit_expr(std::move(e));
             break;
         }
         case ASTKind::Return: {
@@ -442,7 +444,9 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         auto *if_expr = reinterpret_cast<IfExprNode *>(expr);
         auto else_label = new_label();
         auto end_label = new_label();
-        auto result_name = new_temp();
+        std::string result_name;
+        if (expr->have_ret_value()) result_name = new_temp();
+
 
         auto cond = ensure_temp(eval(if_expr->cond.get()));
         emit_expr(std::make_shared<MirIfFalseExpr>(cond, else_label));
@@ -460,9 +464,8 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
             }
         }
         emit_label(end_label);
-
-        auto result_ref = std::make_shared<MirRefExpr>(result_name, true);
-        return result_ref;
+        if (expr->have_ret_value()) return std::make_shared<MirRefExpr>(result_name, true);
+        return nullptr;
     }
     case ASTKind::AsExpr: {
         auto *as = reinterpret_cast<AsExprNode *>(expr);

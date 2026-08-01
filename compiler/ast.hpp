@@ -180,6 +180,10 @@ struct ASTNode {
 struct ExprNode : ASTNode {
     std::shared_ptr<Type> type;
     explicit ExprNode(ASTKind kind, size_t line, size_t col) noexcept;
+
+    [[nodiscard]] LMX_INLINE bool have_ret_value() const noexcept {
+        return !Type::is_null_type(type.get()) && type->kind != TypeKind::None;
+    }
 };
 
 struct StmtNode : ASTNode {
