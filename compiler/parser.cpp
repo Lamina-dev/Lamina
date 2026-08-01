@@ -515,6 +515,7 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
         static const std::unordered_map<std::string, runtime::ValueKind> basic_types = {
             {"int", runtime::ValueKind::Int}, {"bool", runtime::ValueKind::Bool},
             {"null", runtime::ValueKind::Null}, {"frac", runtime::ValueKind::Fraction},
+            {"cptr", runtime::ValueKind::C_Ptr}
         };
         if (const auto it = basic_types.find(id); it != basic_types.end())
             return std::make_shared<BasicType>(it->second);

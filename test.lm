@@ -1,7 +1,33 @@
-static "laminaCore"
+static "SDL3"
 
-import std
-
+func SDL_Init(s int) -> bool = "SDL_Init"
+func SDL_CreateWindow(t text, w int, h int, wflag int) -> int = "SDL_CreateWindow"
+func SDL_CreateRenderer(win int, name int) -> int = "SDL_CreateRenderer"
+func SDL_Quit() -> null = "SDL_Quit"
+func SDL_GetError() -> cptr = "SDL_GetError"
+func SDL_SetRenderDrawColor(ren int, r int, g int, b int, a int) -> null = "SDL_SetRenderDrawColor"
+func SDL_RenderClear(ren int) -> null = "SDL_RenderClear"
+func SDL_RenderPresent(ren int) -> null = "SDL_RenderPresent"
+func SDL_Delay(ms int) -> null = "SDL_Delay"
+func SDL_DestroyRenderer(ren int) -> null = "SDL_DestroyRenderer"
+func SDL_DestroyWindow(win int) -> null = "SDL_DestroyWindow"
 func printf(fmt text, ...) -> int = "printf"
-let three = 3/1
-printf("%.0f\n", (1/3)*std.int_to_frac(3))
+func exit(s int) -> null = "exit"
+if (SDL_Init(32)) {
+    let win = SDL_CreateWindow("Hello SDL", 640, 480, 0)
+    if (win == 0) {
+        printf("%s\n", SDL_GetError())
+        exit(1)
+    }
+    let ren = SDL_CreateRenderer(win, 0)
+    SDL_SetRenderDrawColor(ren, 255, 255, 255, 255)
+    SDL_RenderClear(ren)
+    SDL_RenderPresent(ren)
+    SDL_Delay(2000)
+    SDL_DestroyRenderer(ren)
+    SDL_DestroyWindow(win)
+    SDL_Quit()
+} else {
+    printf("%s\n", SDL_GetError())
+    exit(1)
+}

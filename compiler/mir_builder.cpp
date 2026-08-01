@@ -156,7 +156,7 @@ public:
         switch (stmt->kind) {
         case ASTKind::ExprStmt: {
             const auto *node = reinterpret_cast<ExprStmtNode *>(stmt);
-            eval(node->expr.get());
+            emit_expr(eval(node->expr.get()));
             break;
         }
         case ASTKind::Return: {
@@ -424,12 +424,12 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         if (call->expr->kind == ASTKind::Identifier) {
             std::string func_name = reinterpret_cast<IdentifierNode *>(call->expr.get())->id;
             auto call_expr = std::make_shared<MirCallFastExpr>(std::move(func_name), std::move(arg_refs));
-            return temp_assign(std::move(call_expr));
+            return std::move(call_expr);
         }
 
         const auto reg_func = temp_assign(std::move(eval(call->expr.get())));
         auto call_expr = std::make_shared<MirCallExpr>(reg_func, std::move(arg_refs));
-        return temp_assign(std::move(call_expr));
+        return std::move(call_expr);
     }
     case ASTKind::SuffixBracket: {
         // auto *idx = static_cast<SuffixBracketNode *>(expr);
@@ -482,7 +482,7 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
             }
         }
         auto call_expr = std::make_shared<MirCCallExpr>(std::move(func_name), std::move(arg_refs));
-        return temp_assign(std::move(call_expr));
+        return std::move(call_expr);
     }
     case ASTKind::DotExpr: {
         const auto *dot = reinterpret_cast<DotExprNode *>(expr);

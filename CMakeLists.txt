@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.26)
 project(Lamina LANGUAGES CXX)
+
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 if (MSVC)
     message(FATAL_ERROR "MSVC is not supported, use clang-cl or other compilers in Windows")
@@ -9,6 +12,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include_directories(include)
 include_directories(${CMAKE_BINARY_DIR}/_deps/dyncall-src)
+include_directories(${CMAKE_BINARY_DIR}/_deps/LMCAS/include)
 add_subdirectory(runtime)
 add_subdirectory(compiler)
 
@@ -20,6 +24,9 @@ include(FetchContent)
 
 set(DYNCALL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(DYNCALL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
+
+message(STATUS "cloning dyncall")
 FetchContent_Declare(
         dyncall
         GIT_REPOSITORY https://github.com/ugexe/dyncall.git
@@ -29,6 +36,18 @@ FetchContent_Declare(
         FIND_PACKAGE_ARGS 11 CONFIG
 )
 FetchContent_MakeAvailable(dyncall)
+
+#message(STATUS "cloning LmCAS")
+#FetchContent_Declare(
+#        LmCAS
+#        GIT_REPOSITORY https://github.com/Lamina-dev/LMCAS.git
+#        GIT_TAG main
+#        GIT_SHALLOW TRUE
+#        GIT_SUBMODULES_RECURSE ON
+#        EXCLUDE_FROM_ALL TRUE
+#)
+#FetchContent_MakeAvailable(LmCAS)
+
 
 if (UNIX)
     set_target_properties(lamina PROPERTIES
@@ -49,7 +68,11 @@ target_link_libraries(laminaCore PRIVATE
         dyncall_s
         dynload_s
 )
-message( ${CMAKE_BINARY_DIR}/_deps/dyncall-src)
+#message( ${CMAKE_BINARY_DIR}/_deps/dyncall-src)
+#target_link_libraries(laminaCore PRIVATE
+#    lmcas
+#)
+
 
 target_compile_definitions(laminaCore PRIVATE LMX_DLL)
 target_compile_definitions(laminaCore PRIVATE LMX_BUILD)

@@ -86,7 +86,9 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     cur_frame = new Frame(nullptr, prog, nullptr);
     const uint8_t* ip = prog->code;
     // assert((reinterpret_cast<uint64_t>(ip) % 4) == 0);
-    // std::cout << prog->disassemble() << std::endl;
+#if !NDEBUG
+    std::cout << prog->disassemble() << std::endl;
+#endif
     // return 0;
     // const auto start = std::chrono::high_resolution_clock::now();
     VM_DISPATCH

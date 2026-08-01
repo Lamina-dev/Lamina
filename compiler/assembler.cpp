@@ -213,7 +213,7 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
     case mir::MirExprKind::Ref: {
         const auto e = reinterpret_cast<mir::MirRefExpr*>(node);
         const auto v_opt = find_var(e->name);
-        if (!v_opt) return 0;
+        //if (!v_opt) return 0;
         const auto& v = *v_opt;
         if (v->kind == Val::Kind::Reg) {
             return v->reg;
@@ -404,19 +404,14 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             if (func_it == funcs.end()) return 0;
             const auto func_idx = static_cast<uint16_t>(func_it->second);
 
-            const auto rd = *reg.alloc();
             InstEmitter::emit(insts, runtime::Opcode::CallFast, func_idx, argc);
             for (const auto r : using_regs | std::views::reverse) {
                 InstEmitter::emit(insts, runtime::Opcode::Pop, r);
             }
-            // CallFast result is left in regs[0] by convention
-            InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, uint8_t{0}); // return from r0
-            return rd;
+            return 0;
         }
         case runtime::Opcode::CCall: {
             const auto& c = *reinterpret_cast<mir::MirCCallExpr*>(node);
-
-
             const auto argc = static_cast<uint8_t>(c.args.size());
             // Evaluate each arg and place in regs[255 - i]
             for (size_t i = 0; i < c.args.size(); ++i) {
@@ -433,17 +428,14 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             }
 
             const auto func_it = native_funcs.find(c.name);
-            if (func_it == native_funcs.end()) return 0;
+            // if (func_it == native_funcs.end()) return 0;
             const auto func_idx = static_cast<uint16_t>(func_it->second);
 
-            const auto rd = *reg.alloc();
             InstEmitter::emit(insts, runtime::Opcode::CCall, func_idx, argc);
             for (const auto r : using_regs | std::views::reverse) {
                 InstEmitter::emit(insts, runtime::Opcode::Pop, r);
             }
-            // CallFast result is left in regs[0] by convention
-            InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, uint8_t{0}); // return from r0
-            return rd;
+            return 0;
         }
         case runtime::Opcode::Call: {
             const auto& c = *reinterpret_cast<mir::MirCallExpr*>(node);
@@ -465,14 +457,12 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
 
             const auto func_it = asm_mir_expr(insts, c.func.get());
 
-            const auto rd = *reg.alloc();
             InstEmitter::emit(insts, runtime::Opcode::Call, func_it, argc);
             for (const auto r : using_regs | std::views::reverse) {
                 InstEmitter::emit(insts, runtime::Opcode::Pop, r);
             }
-            // CallFast result is left in regs[0] by convention
-            InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, uint8_t{0}); // return from r0
-            return rd;
+            reg.free(func_it);
+            return 0;
         }
 
         // --- Halt ---
@@ -485,18 +475,18 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
         case runtime::Opcode::New: {
             const auto& n = *reinterpret_cast<mir::MirNewExpr*>(node);
             const auto r = asm_mir_expr(insts, n.expr.get());
-            const auto rd = *reg.alloc();
-            // Use constant pool index from the evaluated expression
-            // For now, just move the result
-            InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, r);
-            reg.free(r);
-            return rd;
+            // const auto rd = *reg.alloc();
+            // // Use constant pool index from the evaluated expression
+            // // For now, just move the result
+            // InstEmitter::emit(insts, runtime::Opcode::MovRR, rd, r);
+            // reg.free(r);
+            return r;
         }
         case runtime::Opcode::GetModule: {
             const auto& n = *reinterpret_cast<mir::MirGetModuleExpr*>(node);
             const auto r = *reg.alloc();
             const auto it = imports.find(n.name);
-            if (it == imports.end()) return 0;
+            //if (it == imports.end()) return 0;
             InstEmitter::emit(insts, runtime::Opcode::GetModule, r, static_cast<uint16_t>(it->second.first));
             return r;
         }
@@ -517,10 +507,10 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             return r;
             break;
         }
-
         default:
             return 0;
         }
+        break;
     }
     }
     return 0;
@@ -540,11 +530,15 @@ void Assembler::asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) n
 
     case mir::MirNodeKind::TempAssign: {
         const auto n = reinterpret_cast<mir::MirTempAssign*>(node);
-        const auto r = asm_mir_expr(result, n->expr.get());
+        auto r = asm_mir_expr(result, n->expr.get());
         if (const auto found = find_var(n->name)) {
             InstEmitter::emit(result, runtime::Opcode::MovRR, (*found)->reg, r);
             reg.free(r);
         } else {
+            if (r == 0) {
+                r = *reg.alloc();
+                InstEmitter::emit(result, runtime::Opcode::MovRR, r, uint8_t{0});
+            }
             vals[n->name] = Val(r, true);
         }
         break;
