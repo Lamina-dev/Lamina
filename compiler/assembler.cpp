@@ -104,8 +104,17 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::Pop:
     case runtime::Opcode::And:
     case runtime::Opcode::Or:
+    case runtime::Opcode::FCmpEq:
+    case runtime::Opcode::FCmpNe:
+    case runtime::Opcode::FCmpLt:
+    case runtime::Opcode::FCmpLe:
+    case runtime::Opcode::FCmpGt:
+    case runtime::Opcode::FCmpGe:
+    case runtime::Opcode::GetModule:
+    case runtime::Opcode::GetModuleAttr:
         return true;
         break;
+
     }
     return false;
 }
@@ -532,8 +541,10 @@ void Assembler::asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) n
         const auto n = reinterpret_cast<mir::MirTempAssign*>(node);
         auto r = asm_mir_expr(result, n->expr.get());
         if (const auto found = find_var(n->name)) {
-            InstEmitter::emit(result, runtime::Opcode::MovRR, (*found)->reg, r);
-            reg.free(r);
+            if ((*found)->reg != r) {
+                InstEmitter::emit(result, runtime::Opcode::MovRR, (*found)->reg, r);
+                reg.free(r);
+            }
         } else {
             if (r == 0) {
                 r = *reg.alloc();
