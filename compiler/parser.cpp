@@ -170,7 +170,7 @@ std::shared_ptr<ExprStmtNode> Parser::parse_param_name() noexcept {
 std::shared_ptr<ExprNode> Parser::parse_factor() noexcept {
     size_t line = cur().line, col = cur().col;
     auto primary = parse_primary();
-    while (match(TokenType::LPAREN) || match(TokenType::LBRACK) || match(TokenType::DOT)) {
+    while (match(TokenType::LPAREN) || match(TokenType::LBRACK) || match(TokenType::DOT) || match(TokenType::PIPE)) {
         switch (cur().type) {
         case TokenType::LPAREN: {
             size_t pline = cur().line, pcol = cur().col;
@@ -199,6 +199,12 @@ std::shared_ptr<ExprNode> Parser::parse_factor() noexcept {
             auto ident = cur();
             consume(TokenType::IDENTIFIER, "identifier");
             primary = std::make_shared<DotExprNode>(line, col, primary, std::make_shared<IdentifierNode>(ident.line, ident.col, ident.text));
+            break;
+        }
+        case TokenType::PIPE: {
+            advance();
+            auto e = parse_primary();
+            primary = std::make_shared<PipeExprNode>(line, col, primary, e);
             break;
         }
         default: {

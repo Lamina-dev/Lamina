@@ -205,7 +205,7 @@ public:
             std::vector<std::shared_ptr<MirNode>> body;
             emit_target_ = &body;
 
-            auto body_val = process_block(func->block.get());
+            auto body_val = process_block(reinterpret_cast<BlockExprNode*>(func->block.get()));
             if (body_val) {
                 emit_expr(std::make_shared<MirRetExpr>(ensure_temp(std::move(body_val))));
             } else {

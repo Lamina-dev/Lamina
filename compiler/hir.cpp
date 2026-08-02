@@ -161,15 +161,15 @@ std::vector<Scope::Var> HirContext::check_module(const std::shared_ptr<Module> &
     }
     return result;
 }
-void HirContext::check_expr(ExprNode *expr) noexcept {
+void HirContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     if (!expr) return;
     switch (expr->kind) {
     case ASTKind::Literal: {
-        expr->type = inference_type(expr);
+        expr->type = inference_type(expr.get());
         break;
     }
     case ASTKind::Identifier: {
-        auto* node = reinterpret_cast<IdentifierNode*>(expr);
+        auto* node = reinterpret_cast<IdentifierNode*>(expr.get());
         const auto re = find_var(node->id);
         if (!re.has_value()) {
             throw_error(ErrorType::Analysis, "undefined var `" + node->id + "`", node->line, node->col);
@@ -179,8 +179,8 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         break;
     }
     case ASTKind::Unary: {
-        auto* node = reinterpret_cast<UnaryNode*>(expr);
-        check_expr(node->expr.get());
+        auto* node = reinterpret_cast<UnaryNode*>(expr.get());
+        check_expr(node->expr);
         const auto type = node->expr->type;
         if (type->kind != TypeKind::Basic) {
             throw_error(ErrorType::Analysis, "unary cannot applied to this type", expr->line, expr->col);
@@ -203,9 +203,9 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         break;
     }
     case ASTKind::Binary: {
-        auto* node = reinterpret_cast<BinaryNode*>(expr);
-        check_expr(node->lhs.get());
-        check_expr(node->rhs.get());
+        auto* node = reinterpret_cast<BinaryNode*>(expr.get());
+        check_expr(node->lhs);
+        check_expr(node->rhs);
         const auto lty = node->lhs->type;
         const auto rty = node->rhs->type;
         if (Type::is_null_type(lty.get()) || Type::is_null_type(rty.get())) break;
@@ -279,7 +279,7 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         break;
     }
     case ASTKind::Block: {
-        const auto node = reinterpret_cast<BlockExprNode*>(expr);
+        const auto node = reinterpret_cast<BlockExprNode*>(expr.get());
         scope_stack.emplace_back(Scope::ScopeType::Block);
         for (auto& s : node->stmts) check_stmt(s.get());
         expr->type = scope_stack.back().return_type;
@@ -287,8 +287,8 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         break;
     }
     case ASTKind::SuffixParen: {
-        const auto node = reinterpret_cast<SuffixParenNode*>(expr);
-        check_expr(node->expr.get());
+        const auto node = reinterpret_cast<SuffixParenNode*>(expr.get());
+        check_expr(node->expr);
         const auto left = node->expr->type;
         if (Type::is_null_type(left.get())) break;
         if (left->kind == TypeKind::Function) {
@@ -300,15 +300,15 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
             const auto len = func_ty->params_ty.size();
             for (auto i = 0; i < len; i++) {
                 const auto param = func_ty->params_ty[i];
-                check_expr(node->suffix->exprs[i].get());
+                check_expr(node->suffix->exprs[i]);
                 if (!param->equals(node->suffix->exprs[i]->type.get())) {
                     goto arg_type_mismatch;
                 }
             }
             node->type = std::reinterpret_pointer_cast<FunctionType>(left)->ret_ty;
         } else if (left->kind == TypeKind::NativeFunction) {
-            new (expr) NativeFuncCallExpr(node);
-            const auto node = reinterpret_cast<NativeFuncCallExpr*>(expr);
+            new (expr.get()) NativeFuncCallExpr(node);
+            const auto node = reinterpret_cast<NativeFuncCallExpr*>(expr.get());
             const auto func_ty = std::reinterpret_pointer_cast<NativeFunctionType>(left);
             bool has_va_list = false;
             size_t fixed_arg_cnt = func_ty->params_ty.size();
@@ -333,14 +333,14 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
             size_t i = 0;
             for (; i < fixed_arg_cnt; i++) {
                 const auto param = func_ty->params_ty[i];
-                check_expr(node->suffix->exprs[i].get());
+                check_expr(node->suffix->exprs[i]);
                 if (!param->equals(node->suffix->exprs[i]->type.get())) {
                     goto arg_type_mismatch;
                 }
             }
             for (; i < len; i++) {
                 // const auto param = func_ty->params_ty[i];
-                check_expr(node->suffix->exprs[i].get());
+                check_expr(node->suffix->exprs[i]);
             }
 
             node->type = std::reinterpret_pointer_cast<NativeFunctionType>(left)->ret_ty;
@@ -356,8 +356,8 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         break;
     }
     case ASTKind::SuffixBracket: {
-        const auto node = reinterpret_cast<SuffixBracketNode*>(expr);
-        check_expr(node->expr.get());
+        const auto node = reinterpret_cast<SuffixBracketNode*>(expr.get());
+        check_expr(node->expr);
         const auto left = inference_type(node->expr.get());
         if (left->kind != TypeKind::Array) {
             throw_error(ErrorType::Analysis, "must be array type but got `" + Type::to_string(left.get()) + "`", node->line, node->col);
@@ -367,16 +367,16 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         break;
     }
     case ASTKind::IfExpr: {
-        const auto node = reinterpret_cast<IfExprNode*>(expr);
-        check_expr(node->cond.get());
+        const auto node = reinterpret_cast<IfExprNode*>(expr.get());
+        check_expr(node->cond);
         if (node->cond->type->kind != TypeKind::Basic &&
             std::reinterpret_pointer_cast<BasicType>(node->cond->type)->type != runtime::ValueKind::Bool) {
             throw_error(ErrorType::Analysis, "must be bool type but got `" + Type::to_string(node->cond->type.get()), node->line, node->col);
             break;
         }
-        check_expr(node->then.get());
+        check_expr(node->then);
         if (node->els) {
-            check_expr(node->els.get());
+            check_expr(node->els);
             if ( node->then->have_ret_value() && node->els->have_ret_value() &&
                 !node->then->type->equals(node->els->type.get())) {
                 throw_error(ErrorType::Analysis, "if express then and else cannot type mismatch", node->line, node->col);
@@ -394,8 +394,8 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         break;
     }
     case ASTKind::DotExpr: {
-        const auto node = reinterpret_cast<DotExprNode*>(expr);
-        check_expr(node->expr.get());
+        const auto node = reinterpret_cast<DotExprNode*>(expr.get());
+        check_expr(node->expr);
         if (!Type::is_null_type(node->expr->type.get()) && node->expr->type->kind != TypeKind::Module) {
             throw_error(ErrorType::Analysis, "must be module type", node->line, node->col);
             break;
@@ -412,6 +412,50 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         }
         break;
     }
+    case ASTKind::PipeExpr: {
+        const auto node = reinterpret_cast<PipeExprNode*>(expr.get());
+        check_expr(node->lhs);
+        // check_expr(node->rhs);
+        std::shared_ptr<ExprNode> result;
+        const auto& rhs_ty = node->rhs->type;
+        const auto& lhs_ty = node->lhs->type;
+        if (node->rhs->kind == ASTKind::SuffixParen) {
+            const auto call_expr = reinterpret_cast<SuffixParenNode*>(node->rhs.get());
+            decltype(SuffixParenNode::suffix) suffix_paren;
+            suffix_paren->exprs.push_back(node->lhs);
+            suffix_paren->exprs.insert(suffix_paren->exprs.end(), call_expr->suffix->exprs.begin(), call_expr->suffix->exprs.end());
+            result = std::make_shared<SuffixParenNode>(node->line, node->col, call_expr->expr, std::move(suffix_paren));
+            check_expr(result);
+        } else {
+            check_expr(node->rhs);
+            if (rhs_ty->kind != TypeKind::Function) {
+                throw_error(ErrorType::Analysis, "`|>` op must be function type on right", node->line, node->col);
+                break;
+            }
+            const auto rhs_fty = std::reinterpret_pointer_cast<FunctionType>(rhs_ty);
+            if (rhs_fty->params_ty.empty() || !rhs_fty->params_ty[0]->equals(lhs_ty.get())) {
+                throw_error(
+                    ErrorType::Analysis,
+                    "`|>` op in right, function arg type and left type mismatch, ("
+                    + Type::to_string(lhs_ty.get())
+                    + " |> "
+                    + Type::to_string(rhs_ty.get())
+                    + ")",
+                    node->line, node->col
+                    );
+                break;
+            }
+            decltype(ExprsNode::exprs) exprs;
+            exprs.push_back(node->lhs);
+            result = std::make_shared<SuffixParenNode>(
+                node->line, node->col, node->rhs,
+                std::make_shared<ExprsNode>(node->line, node->col, exprs)
+                );
+            result->type = rhs_fty->ret_ty;
+        }
+        expr = result;
+        break;
+    }
     default: std::unreachable();
     }
 }
@@ -419,8 +463,8 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
 void HirContext::check_stmt(StmtNode* stmt) noexcept {
     switch (stmt->kind) {
     case ASTKind::ExprStmt: {
-        const auto* node = reinterpret_cast<ExprStmtNode*>(stmt);
-        check_expr(node->expr.get());
+        auto* node = reinterpret_cast<ExprStmtNode*>(stmt);
+        check_expr(node->expr);
         break;
     }
     case ASTKind::ImportStmt: {
@@ -498,12 +542,12 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
         scope_stack.push_back(scope);
 
         if (node->block->kind == ASTKind::Block) {
-            for (const auto* block = node->block.get();
+            for (const auto* block = reinterpret_cast<BlockExprNode*>(node->block.get());
                 auto& s : block->stmts) {
 
                 check_stmt(s.get());
             }
-        } else check_expr(node->block.get());
+        } else check_expr(node->block);
         if (!node->return_type->equals(scope_stack.back().return_type.get())) {
             node->return_type = scope_stack.back().return_type;
         }
@@ -524,7 +568,7 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
     case ASTKind::Return: {
         const auto node = reinterpret_cast<ReturnNode*>(stmt);
         if (!node->expr) break;
-        check_expr(node->expr.get());
+        check_expr(node->expr);
         node->expr->type = inference_type(node->expr.get());
         for (auto& s : scope_stack | std::views::reverse) {
             if (s.scope == Scope::ScopeType::Function) {
@@ -543,7 +587,7 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
     }
     case ASTKind::TailReturn: {
         const auto node = reinterpret_cast<TailReturnNode*>(stmt);
-        check_expr(node->expr.get());
+        check_expr(node->expr);
         if (Type::is_null_type(scope_stack.back().return_type.get()))
             scope_stack.back().return_type = node->expr->type;
         else {
@@ -557,7 +601,7 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
     }
     case ASTKind::VarDecl: {
         const auto node = reinterpret_cast<VarDeclNode*>(stmt);
-        check_expr(node->init_value.get());
+        check_expr(node->init_value);
         if (Type::is_null_type(node->type.get())) {
             if (!node->init_value) {
                 throw_error(ErrorType::Analysis, "the var `" + node->id + "` type not found", node->line, node->col);
@@ -572,8 +616,8 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
     }
     case ASTKind::AssignStmt: {
         const auto node = reinterpret_cast<AssignStmtNode*>(stmt);
-        check_expr(node->lhs.get());
-        check_expr(node->rhs.get());
+        check_expr(node->lhs);
+        check_expr(node->rhs);
         node->lhs->type = inference_type(node->lhs.get());
         node->rhs->type = inference_type(node->rhs.get());
         if (node->lhs->kind != ASTKind::Identifier) {
@@ -613,7 +657,7 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
     case ASTKind::LoopStmt: {
         const auto node = reinterpret_cast<LoopStmtNode*>(stmt);
         if (node->expr) {
-            check_expr(node->expr.get());
+            check_expr(node->expr);
             if (!Type::is_null_type(node->expr->type.get()) &&
                 !node->expr->type->equals(std::make_shared<BasicType>(runtime::ValueKind::Int).get())
                 ) {

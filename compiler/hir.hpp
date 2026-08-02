@@ -33,7 +33,7 @@ public:
 
     std::vector<Scope::Var> check_module(const std::shared_ptr<Module> &mod) noexcept;
 
-    void check_expr(ExprNode *expr) noexcept;
+    void check_expr(std::shared_ptr<ExprNode> &expr) noexcept;
 
     void check_stmt(StmtNode *stmt) noexcept;
 

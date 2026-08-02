@@ -254,7 +254,7 @@ AssignStmtNode::AssignStmtNode(const size_t line, const size_t col,
 
 std::shared_ptr<FunctionType> FuncImplNode::make_type() noexcept {
     decltype(FunctionType::params_ty) params_ty;
-    for (const auto &type: params->stmts | std::views::values) {
+    for (auto &type: params->stmts | std::views::values) {
         params_ty.push_back(type);
     }
     return std::make_shared<FunctionType>(params_ty, return_type);
