@@ -5,7 +5,7 @@
 #include "include/lmx.h"
 
 #include "compiler/ast_printer.hpp"
-#include "compiler/hir.hpp"
+#include "compiler/type_checker.hpp"
 #include "compiler/parser.hpp"
 #include "compiler/lexer.hpp"
 #include "runtime/vm.hpp"
@@ -53,7 +53,7 @@ void lmx_printASTFromString(LmState *state, FILE *file, const char *code, const 
     if (errd) return;
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return;
-    lmx::hir::HirContext().check_module(node);
+    lmx::hir::TypeCkContext().check_module(node);
     if (errd) return;
 
     const auto ast_str = lmx::AstPrinter::print(*node);
@@ -82,7 +82,7 @@ void lmx_printASTFromFile(LmState *state, FILE *file, const char *name) {
 
     auto save_main_module = lmx::main_module;
     lmx::main_module = node;
-    lmx::hir::HirContext().check_module(node);
+    lmx::hir::TypeCkContext().check_module(node);
 
     if (errd) return;
 
@@ -99,7 +99,7 @@ void lmx_printMIRFromString(LmState *state, FILE *file, const char *code, const 
     auto tokens = lmx::Lexer(c).tokenize(c);
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return;
-    lmx::hir::HirContext().check_module(node);
+    lmx::hir::TypeCkContext().check_module(node);
     if (errd) return;
 
     const auto mir = lmx::mir::MirBuilder::from_ast_module(node);
@@ -121,7 +121,7 @@ void lmx_printMIRFromFile(LmState *state, FILE *file, const char *name) {
     auto tokens = lmx::Lexer(c).tokenize(c);
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return;
-    lmx::hir::HirContext().check_module(node);
+    lmx::hir::TypeCkContext().check_module(node);
     if (errd) return;
 
     const auto mir = lmx::mir::MirBuilder::from_ast_module(node);
@@ -163,7 +163,7 @@ LmModule *lmx_doString(LmState *state, const char *code, const char* name) {
     const auto node = lmx::Parser(tokens).parse_module(name);
     if (errd) return nullptr;
 
-    lmx::hir::HirContext().check_module(node);
+    lmx::hir::TypeCkContext().check_module(node);
     if (errd) return nullptr;
 
     auto mir = lmx::mir::MirBuilder::from_ast_module(node);
@@ -199,7 +199,7 @@ LmModule *lmx_doFile(LmState *state, const char* name, bool is_main_module) {
         lmx::main_module = node;
     }
     if (errd) return nullptr;
-    lmx::hir::HirContext().check_module(node);
+    lmx::hir::TypeCkContext().check_module(node);
 #if !NDEBUG
     std::cout << lmx::AstPrinter::print(*node) << std::endl;
 #endif
@@ -234,5 +234,5 @@ void lmx_vmEval(LmState *state, LaminaVM *vm, LmValue *result, const char *code)
     std::string c = code;
     auto tks = lmx::Lexer(c).tokenize(c);
     const auto node = lmx::Parser(tks).parse_stmt();
-    lmx::hir::HirContext().check_stmt(node.get());
+    lmx::hir::TypeCkContext().check_stmt(node.get());
 }

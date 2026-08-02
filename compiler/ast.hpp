@@ -223,6 +223,7 @@ struct IdentifierNode : ExprNode {
 struct SuffixParenNode : ExprNode {
     std::shared_ptr<ExprNode> expr;
     std::shared_ptr<ExprsNode> suffix;
+    bool can_fast{false};
 
     explicit SuffixParenNode(size_t line, size_t col, std::shared_ptr<ExprNode> expr,
                              std::shared_ptr<ExprsNode> suffix) noexcept;
@@ -230,6 +231,7 @@ struct SuffixParenNode : ExprNode {
 struct NativeFuncCallExpr : ExprNode {
     std::shared_ptr<ExprNode> expr;
     std::shared_ptr<ExprsNode> suffix;
+    bool can_fast{true};
 
     explicit NativeFuncCallExpr(const SuffixParenNode* sp) noexcept;
 };

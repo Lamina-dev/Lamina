@@ -14,7 +14,7 @@ namespace lmx::hir {
 using HirNode = ASTNode;
 
 
-class HirContext {
+class TypeCkContext {
     std::vector<Scope> scope_stack;
 
     // Scope *parse_scope(ExprNode *node) noexcept;
@@ -27,9 +27,9 @@ class HirContext {
 
     std::vector<Scope::Var> &get_global() noexcept;
 
-    bool is_global_scope() const noexcept;
+    [[nodiscard]] bool is_global_scope() const noexcept;
 public:
-    explicit HirContext() noexcept;
+    explicit TypeCkContext() noexcept;
 
     std::vector<Scope::Var> check_module(const std::shared_ptr<Module> &mod) noexcept;
 
@@ -37,9 +37,7 @@ public:
 
     void check_stmt(StmtNode *stmt) noexcept;
 
-
-
-    void reset() noexcept;
+    // void reset() noexcept;
     std::shared_ptr<Type> inference_type(ExprNode *type) noexcept;
 };
 

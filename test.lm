@@ -1,5 +1,5 @@
 static "laminaCore"
-
+import std
 func printf(fmt text, ...) -> int = "printf"
 
 func println_int(n int) -> int {

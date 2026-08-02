@@ -2,7 +2,7 @@
 // Created by meian on 2026/7/5.
 //
 
-#include "hir.hpp"
+#include "type_checker.hpp"
 
 #include <fstream>
 #include <ranges>
@@ -19,7 +19,7 @@ Scope::Scope(std::string name) noexcept : name(std::move(name)) {}
 
 Scope::Scope(const ScopeType scope) noexcept : scope(scope) {}
 
-std::optional<Scope::Var *> HirContext::find_var(const std::string &name) noexcept {
+std::optional<Scope::Var *> TypeCkContext::find_var(const std::string &name) noexcept {
     for (auto& i : scope_stack | std::views::reverse) {
         for (auto& j : i.vars) {
             if (j.name == name) return &j;
@@ -28,11 +28,11 @@ std::optional<Scope::Var *> HirContext::find_var(const std::string &name) noexce
     return std::nullopt;
 }
 
-HirContext::HirContext() noexcept {
+TypeCkContext::TypeCkContext() noexcept {
     scope_stack.emplace_back("@GLOBAL");
 }
 
-std::shared_ptr<Type> HirContext::inference_type(ExprNode* type) noexcept {
+std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
     if (!type) return std::make_shared<UnknownType>();
     switch (type->kind) {
     case ASTKind::Literal: {
@@ -140,7 +140,7 @@ std::shared_ptr<Type> HirContext::inference_type(ExprNode* type) noexcept {
 //     scope_stack.clear();
 // }
 
-std::vector<Scope::Var> HirContext::check_module(const std::shared_ptr<Module> &mod) noexcept {
+std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module> &mod) noexcept {
     const auto save_cur_module = cur_module;
     cur_module = mod;
 
@@ -161,7 +161,7 @@ std::vector<Scope::Var> HirContext::check_module(const std::shared_ptr<Module> &
     }
     return result;
 }
-void HirContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
+void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     if (!expr) return;
     switch (expr->kind) {
     case ASTKind::Literal: {
@@ -460,7 +460,7 @@ void HirContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     }
 }
 
-void HirContext::check_stmt(StmtNode* stmt) noexcept {
+void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
     switch (stmt->kind) {
     case ASTKind::ExprStmt: {
         auto* node = reinterpret_cast<ExprStmtNode*>(stmt);
@@ -499,7 +499,7 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
             auto ast = Parser(tokens).parse_module(abs_path);
             if (errd) break;
 
-            exports = HirContext().check_module(ast);
+            exports = TypeCkContext().check_module(ast);
             if (errd) break;
             compiled = ast_to_binary(ast);
             if (errd) break;
@@ -676,23 +676,23 @@ void HirContext::check_stmt(StmtNode* stmt) noexcept {
     }
 }
 
-bool HirContext::is_global_scope() const noexcept {
+bool TypeCkContext::is_global_scope() const noexcept {
     return scope_stack.size() == 1;
 }
 
-void HirContext::new_var(std::string name, std::shared_ptr<Type> type, Scope *scope, bool is_mut) noexcept {
+void TypeCkContext::new_var(std::string name, std::shared_ptr<Type> type, Scope *scope, bool is_mut) noexcept {
     scope->vars.emplace_back(std::move(name), std::move(type), is_mut);
 }
 
-void HirContext::new_cur_scope_var(std::string name, std::shared_ptr<Type> type, bool is_mut) noexcept {
+void TypeCkContext::new_cur_scope_var(std::string name, std::shared_ptr<Type> type, bool is_mut) noexcept {
     scope_stack.back().vars.emplace_back(std::move(name), std::move(type), is_mut);
 }
 
-void HirContext::new_global_var(std::string name, std::shared_ptr<Type> type, bool is_mut) noexcept {
+void TypeCkContext::new_global_var(std::string name, std::shared_ptr<Type> type, bool is_mut) noexcept {
     scope_stack[0].vars.emplace_back(std::move(name), std::move(type), is_mut);
 }
 
-std::vector<Scope::Var> &HirContext::get_global() noexcept {
+std::vector<Scope::Var> &TypeCkContext::get_global() noexcept {
     return scope_stack[0].vars;
 }
 

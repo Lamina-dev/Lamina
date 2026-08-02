@@ -4,7 +4,7 @@ add_library(laminac OBJECT
     error.cpp
     lexer.cpp
     parser.cpp
-    hir.cpp
+        type_checker.cpp
     mir.cpp
     mir_builder.cpp
     mir_printer.cpp
