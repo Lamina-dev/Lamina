@@ -134,8 +134,6 @@ class Builder {
     std::shared_ptr<MirExpr> eval(ExprNode *expr);
 
     std::shared_ptr<MirExpr> process_block(const BlockExprNode *block) {
-        const auto save_temp_counter = temp_counter_;
-        const auto save_label_counter_ = label_counter_;
         std::shared_ptr<MirExpr> block_val;
         for (auto &stmt : block->stmts) {
             if (stmt->kind == ASTKind::TailReturn) {
@@ -145,8 +143,6 @@ class Builder {
                 process(stmt.get());
             }
         }
-        temp_counter_ = save_temp_counter;
-        label_counter_ = save_label_counter_;
         return block_val;
     }
 

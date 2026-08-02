@@ -250,6 +250,11 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         advance();
         return parse_if();
     }
+    case TokenType::NOT: {
+        advance();
+        auto e = parse_primary();
+        return std::make_shared<UnaryNode>(line, col, UnaryNode::Op::Not, e);
+    }
     case TokenType::END_OF_FILE: {
         return nullptr;
     }

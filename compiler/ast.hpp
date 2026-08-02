@@ -246,6 +246,7 @@ struct SuffixBracketNode : ExprNode {
 struct UnaryNode : ExprNode {
     enum class Op {
         Neg,
+        Not,
     };
     Op op;
     std::shared_ptr<ExprNode> expr;

@@ -540,7 +540,8 @@ void Assembler::asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) n
     case mir::MirNodeKind::TempAssign: {
         const auto n = reinterpret_cast<mir::MirTempAssign*>(node);
         auto r = asm_mir_expr(result, n->expr.get());
-        if (const auto found = find_var(n->name)) {
+        if (const auto found = find_var(n->name);
+            found.has_value()) {
             if ((*found)->reg != r) {
                 InstEmitter::emit(result, runtime::Opcode::MovRR, (*found)->reg, r);
                 reg.free(r);

@@ -180,14 +180,26 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
     }
     case ASTKind::Unary: {
         auto* node = reinterpret_cast<UnaryNode*>(expr);
-        const auto type = inference_type(node->expr.get());
-        if (type->kind != TypeKind::Basic) goto unary_type_mismatch;
-        if (const auto t2 = std::reinterpret_pointer_cast<BasicType>(type);
-            t2->type != runtime::ValueKind::Int && t2->type != runtime::ValueKind::Fraction) goto unary_type_mismatch;
+        check_expr(node->expr.get());
+        const auto type = node->expr->type;
+        if (type->kind != TypeKind::Basic) {
+            throw_error(ErrorType::Analysis, "unary cannot applied to this type", expr->line, expr->col);
+            break;
+        }
+        const auto t2 = std::reinterpret_pointer_cast<BasicType>(type);
+        if (node->op == UnaryNode::Op::Neg) {
+            if (
+            t2->type != runtime::ValueKind::Int && t2->type != runtime::ValueKind::Fraction) {
+                throw_error(ErrorType::Analysis, "unary`-` cannot applied to this type", expr->line, expr->col);
+                break;
+            }
+        } else if (node->op == UnaryNode::Op::Not) {
+            if (t2->type != runtime::ValueKind::Bool) {
+                throw_error(ErrorType::Analysis, "unary`!` cannot applied to this type", expr->line, expr->col);
+                break;
+            }
+        }
         node->type = type;
-        break;
-        unary_type_mismatch:
-        throw_error(ErrorType::Analysis, "unary`-` cannot applied to this type", expr->line, expr->col);
         break;
     }
     case ASTKind::Binary: {
@@ -244,7 +256,17 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         };
         {
             const auto t2 = std::reinterpret_pointer_cast<BasicType>(lty)->type;
-            const auto &type_map = op_types.at(t2);
+            const auto &type_map_it = op_types.find(t2);
+            if (type_map_it == op_types.end()) {
+                throw_error(
+                    ErrorType::Analysis,
+                    "binary operation type mismatch, (" +
+                    Type::to_string(lty.get()) + " " +
+                    BinaryNode::op_to_string(node->op) + " " + Type::to_string(rty.get()) + ")", expr->line, expr->col
+                    );
+                break;
+            }
+            const auto& type_map = type_map_it->second;
             if (const auto it = type_map.find(node->op); it != type_map.end()) {
                 node->type = std::make_shared<BasicType>(it->second);
             } else {
@@ -350,11 +372,13 @@ void HirContext::check_expr(ExprNode *expr) noexcept {
         if (node->cond->type->kind != TypeKind::Basic &&
             std::reinterpret_pointer_cast<BasicType>(node->cond->type)->type != runtime::ValueKind::Bool) {
             throw_error(ErrorType::Analysis, "must be bool type but got `" + Type::to_string(node->cond->type.get()), node->line, node->col);
+            break;
         }
         check_expr(node->then.get());
         if (node->els) {
             check_expr(node->els.get());
-            if (!node->then->type->equals(node->els->type.get())) {
+            if ( node->then->have_ret_value() && node->els->have_ret_value() &&
+                !node->then->type->equals(node->els->type.get())) {
                 throw_error(ErrorType::Analysis, "if express then and else cannot type mismatch", node->line, node->col);
                 break;
             }
