@@ -2,12 +2,19 @@ static "laminaCore"
 import std
 func printf(fmt text, ...) -> int = "printf"
 
-func println_int(n int) -> int {
-    printf("%lld\n", n)
+func println_int(n int, say text) {
+    printf("%lld, %s\n", n, say)
     n
 }
-func foo(a int) -> int {
+func foo(a int) {
     a + a
 }
 
-printf("%lld\n", 4 |> foo |> println_int |> foo |> foo |> println_int)
+printf("%lld\n",
+    4
+    |> foo
+    |> println_int("say1")
+    |> foo
+    |> foo
+    |> println_int("say2")
+)

@@ -75,6 +75,7 @@ bool NoneType::equals(Type *other) const noexcept {
 }
 
 std::string Type::to_string(const Type* kind) noexcept {
+    if (!kind) return "?";
     std::ostringstream ss;
     AstPrinter::print_type(ss, *kind);
     return ss.str();

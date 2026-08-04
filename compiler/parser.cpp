@@ -91,6 +91,19 @@ return node;
 
 #define PARSER_BINOP_L(last, logic,  ...) PARSER_BINOP(last, last, logic, __VA_ARGS__)
 
+std::shared_ptr<ExprNode> Parser::parse_pipe() noexcept {
+    auto line = cur().line, col = cur().col;
+    auto node = parse_logical();
+    //printf("|awaa %s\n", match(TokenType::PIPE) ? "true" : "false");
+    while (match(TokenType::PIPE)) {
+        advance();
+        auto rhs = parse_logical();
+        node = std::make_shared<PipeExprNode>(line, col, node, rhs);
+        line = cur().line, col = cur().col;
+    }
+    return node;
+}
+
 std::shared_ptr<ExprNode> Parser::parse_logical() noexcept {
     PARSER_BINOP_L(parse_equality, while,
         cur().type == TokenType::KW_OR ||
@@ -170,7 +183,82 @@ std::shared_ptr<ExprStmtNode> Parser::parse_param_name() noexcept {
 std::shared_ptr<ExprNode> Parser::parse_factor() noexcept {
     size_t line = cur().line, col = cur().col;
     auto primary = parse_primary();
-    while (match(TokenType::LPAREN) || match(TokenType::LBRACK) || match(TokenType::DOT) || match(TokenType::PIPE)) {
+    while (match(TokenType::NOT)) {
+        switch (cur().type) {
+        case TokenType::NOT: {
+            advance();
+            auto e = parse_factor();
+            primary = std::make_shared<UnaryNode>(line, col, UnaryNode::Op::Not, e);
+            break;
+        }
+        default:std::unreachable();
+        }
+    }
+    return primary;
+}
+std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
+    size_t line = cur().line, col = cur().col;
+    std::shared_ptr<ExprNode> primary;
+    switch (cur().type) {
+    case TokenType::NUM_LITERAL: {
+        auto num = cur().text;
+        advance();
+        if (match(TokenType::DOT) && peek_match(TokenType::NUM_LITERAL)) {
+            advance();
+            num += '.' + cur().text;
+            advance();
+            primary = std::make_shared<LiteralNode>(line, col, num, LiteralNode::Kind::Float);
+            break;
+        }
+        primary = std::make_shared<LiteralNode>(line, col, num, LiteralNode::Kind::Integer);
+        break;
+    }
+    case TokenType::STRING_LITERAL: {
+        auto str = cur().text;
+        advance();
+        primary = std::make_shared<LiteralNode>(line, col, str, LiteralNode::Kind::String);
+        break;
+    }
+    case TokenType::LPAREN: {
+        advance();
+        primary = parse_expr();
+        consume(TokenType::RPAREN, ")");
+        break;
+    }
+    case TokenType::IDENTIFIER: {
+        auto id = cur().text;
+        advance();
+        primary = std::make_shared<IdentifierNode>(line, col, id);
+        break;
+    }
+    case TokenType::TRUE_LITERAL:
+    case TokenType::FALSE_LITERAL: {
+        auto id = cur().text;
+        advance();
+        primary = std::make_shared<LiteralNode>(line, col, id, LiteralNode::Kind::Boolean);
+        break;
+    }
+    case TokenType::KW_IF: {
+        advance();
+        primary = parse_if();
+        break;
+    }
+    case TokenType::END_OF_FILE: {
+        primary = nullptr;
+        break;
+    }
+    case TokenType::LBRACE: {
+        primary = parse_block();
+        break;
+    }
+    default: {
+        throw_error(ErrorType::Parse, "`" + cur().text + "` is wrong primary token", cur().line, cur().col);
+        if (pos <= tokens.size()) advance();
+        return nullptr;
+    }
+    }
+
+    while (match(TokenType::LPAREN) || match(TokenType::LBRACK) || match(TokenType::DOT)) {
         switch (cur().type) {
         case TokenType::LPAREN: {
             size_t pline = cur().line, pcol = cur().col;
@@ -201,83 +289,19 @@ std::shared_ptr<ExprNode> Parser::parse_factor() noexcept {
             primary = std::make_shared<DotExprNode>(line, col, primary, std::make_shared<IdentifierNode>(ident.line, ident.col, ident.text));
             break;
         }
-        case TokenType::PIPE: {
-            advance();
-            auto e = parse_primary();
-            primary = std::make_shared<PipeExprNode>(line, col, primary, e);
-            break;
-        }
         default: {
             // 不会到达这里
-            throw_error(ErrorType::Parse, "`" + cur().text + "` is wrong factor token", cur().line, cur().col);
+            throw_error(ErrorType::Parse, "`" + cur().text + "` is wrong primary token", cur().line, cur().col);
             break;
         }
         }
     }
     return primary;
 }
-std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
-    size_t line = cur().line, col = cur().col;
-    switch (cur().type) {
-    case TokenType::NUM_LITERAL: {
-        auto num = cur().text;
-        advance();
-        if (match(TokenType::DOT) && peek_match(TokenType::NUM_LITERAL)) {
-            advance();
-            num += '.' + cur().text;
-            advance();
-            return std::make_shared<LiteralNode>(line, col, num, LiteralNode::Kind::Float);
-        }
-        return std::make_shared<LiteralNode>(line, col, num, LiteralNode::Kind::Integer);
-    }
-    case TokenType::STRING_LITERAL: {
-        auto str = cur().text;
-        advance();
-        return std::make_shared<LiteralNode>(line, col, str, LiteralNode::Kind::String);
-    }
-    case TokenType::LPAREN: {
-        advance();
-        auto e = parse_expr();
-        consume(TokenType::RPAREN, ")");
-        return e;
-    }
-    case TokenType::IDENTIFIER: {
-        auto id = cur().text;
-        advance();
-        return std::make_shared<IdentifierNode>(line, col, id);
-    }
-    case TokenType::TRUE_LITERAL:
-    case TokenType::FALSE_LITERAL: {
-        auto id = cur().text;
-        advance();
-        return std::make_shared<LiteralNode>(line, col, id, LiteralNode::Kind::Boolean);
-    }
-    case TokenType::KW_IF: {
-        advance();
-        return parse_if();
-    }
-    case TokenType::NOT: {
-        advance();
-        auto e = parse_primary();
-        return std::make_shared<UnaryNode>(line, col, UnaryNode::Op::Not, e);
-    }
-    case TokenType::END_OF_FILE: {
-        return nullptr;
-    }
-    case TokenType::LBRACE: {
-        return parse_block();
-    }
-    default: {
-        throw_error(ErrorType::Parse, "`" + cur().text + "` is wrong primary token", cur().line, cur().col);
-        if (pos <= tokens.size()) advance();
-        return nullptr;
-    }
-    }
-}
 
 std::shared_ptr<ExprNode> Parser::parse_expr() noexcept {
     auto line = cur().line, col = cur().col;
-    auto result = parse_logical();
+    auto result = parse_pipe();
     if (match(TokenType::KW_AS)) {
         advance();
         auto cast_type = parse_type();

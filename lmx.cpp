@@ -17,8 +17,8 @@
 
 #include "compiler/assembler.hpp"
 #include "compiler/error.hpp"
-#include "compiler/mir_builder.hpp"
-#include "compiler/mir_printer.hpp"
+#include "compiler/mir/mir_builder.hpp"
+#include "compiler/mir/mir_printer.hpp"
 
 LmState global_state;
 

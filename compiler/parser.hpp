@@ -41,6 +41,9 @@ class Parser {
     [[nodiscard]] bool match(TokenType t) const noexcept;
 
     [[nodiscard]] bool peek_match(TokenType t) const noexcept;
+
+    std::shared_ptr<ExprNode> parse_pipe() noexcept;
+
     [[nodiscard]] Token& cur() const noexcept;
     [[nodiscard]] Token& peek() const noexcept;
     std::vector<Token>& tokens;

@@ -4,8 +4,8 @@
 #include "utils.hpp"
 
 #include "../compiler/assembler.hpp"
-#include "../compiler/mir.hpp"
-#include "../compiler/mir_builder.hpp"
+#include "../compiler/mir/mir.hpp"
+#include "../compiler/mir/mir_builder.hpp"
 
 namespace lmx {
 

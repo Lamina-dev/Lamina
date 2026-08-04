@@ -302,7 +302,8 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 const auto param = func_ty->params_ty[i];
                 check_expr(node->suffix->exprs[i]);
                 if (!param->equals(node->suffix->exprs[i]->type.get())) {
-                    goto arg_type_mismatch;
+                    throw_error(ErrorType::Analysis, "type mismatch arg in function calling", node->line, node->col);
+                    break;
                 }
             }
             node->type = std::reinterpret_pointer_cast<FunctionType>(left)->ret_ty;
@@ -335,7 +336,8 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 const auto param = func_ty->params_ty[i];
                 check_expr(node->suffix->exprs[i]);
                 if (!param->equals(node->suffix->exprs[i]->type.get())) {
-                    goto arg_type_mismatch;
+                    throw_error(ErrorType::Analysis, "type mismatch arg in function calling", node->line, node->col);
+                    break;
                 }
             }
             for (; i < len; i++) {
@@ -350,8 +352,6 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         }
 
         break;
-        arg_type_mismatch:
-            throw_error(ErrorType::Analysis, "type mismatch arg in function calling", node->line, node->col);
         suffix_paren_break:
         break;
     }
@@ -417,29 +417,37 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         check_expr(node->lhs);
         // check_expr(node->rhs);
         std::shared_ptr<ExprNode> result;
-        const auto& rhs_ty = node->rhs->type;
-        const auto& lhs_ty = node->lhs->type;
+
         if (node->rhs->kind == ASTKind::SuffixParen) {
             const auto call_expr = reinterpret_cast<SuffixParenNode*>(node->rhs.get());
-            decltype(SuffixParenNode::suffix) suffix_paren;
-            suffix_paren->exprs.push_back(node->lhs);
-            suffix_paren->exprs.insert(suffix_paren->exprs.end(), call_expr->suffix->exprs.begin(), call_expr->suffix->exprs.end());
-            result = std::make_shared<SuffixParenNode>(node->line, node->col, call_expr->expr, std::move(suffix_paren));
+            decltype(ExprsNode::exprs) suffix_paren;
+            suffix_paren.push_back(node->lhs);
+            suffix_paren.insert(suffix_paren.end(), call_expr->suffix->exprs.begin(), call_expr->suffix->exprs.end());
+            result = std::make_shared<SuffixParenNode>(
+                node->line, node->col, call_expr->expr,
+                std::make_shared<ExprsNode>(node->line, node->col, std::move(suffix_paren))
+                );
             check_expr(result);
         } else {
             check_expr(node->rhs);
-            if (rhs_ty->kind != TypeKind::Function) {
+            const auto& lhs_ty = node->lhs->type;
+            const auto& rhs_ty = node->rhs->type;
+            if (rhs_ty == nullptr || rhs_ty->kind != TypeKind::Function) {
                 throw_error(ErrorType::Analysis, "`|>` op must be function type on right", node->line, node->col);
                 break;
             }
             const auto rhs_fty = std::reinterpret_pointer_cast<FunctionType>(rhs_ty);
-            if (rhs_fty->params_ty.empty() || !rhs_fty->params_ty[0]->equals(lhs_ty.get())) {
+            if (rhs_fty->params_ty.empty()) {
+                throw_error(ErrorType::Analysis, "`|>` op right function calling not arg(s)", node->line, node->col);
+                break;
+            }
+            if (!rhs_fty->params_ty[0]->equals(lhs_ty.get())) {
                 throw_error(
                     ErrorType::Analysis,
                     "`|>` op in right, function arg type and left type mismatch, ("
                     + Type::to_string(lhs_ty.get())
                     + " |> "
-                    + Type::to_string(rhs_ty.get())
+                    + Type::to_string(rhs_fty->params_ty[0].get())
                     + ")",
                     node->line, node->col
                     );

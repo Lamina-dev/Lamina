@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
-#include "ast.hpp"
-#include "../runtime/opcode.hpp"
+#include "../ast.hpp"
+#include "../../runtime/opcode.hpp"
 
 namespace lmx::runtime::Opcode {
 enum Opcode : uint8_t;

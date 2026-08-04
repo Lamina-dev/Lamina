@@ -13,8 +13,8 @@
 #include "error.hpp"
 #include "type_checker.hpp"
 #include "lexer.hpp"
-#include "mir.hpp"
-#include "mir_builder.hpp"
+#include "mir/mir.hpp"
+#include "mir/mir_builder.hpp"
 #include "parser.hpp"
 
 namespace lmx {

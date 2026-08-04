@@ -5,7 +5,7 @@
 #include "mir.hpp"
 #include <utility>
 
-#include "../runtime/opcode.hpp"
+#include "../../runtime/opcode.hpp"
 
 namespace lmx::mir {
 
