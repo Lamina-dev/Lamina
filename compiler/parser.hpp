@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "ast.hpp"
+#include "ast/ast.hpp"
 #include "lexer.hpp"
 
 namespace lmx {

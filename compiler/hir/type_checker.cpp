@@ -8,9 +8,9 @@
 #include <ranges>
 #include <map>
 
-#include "parser.hpp"
-#include "error.hpp"
-#include "../utils/utils.hpp"
+#include "../parser.hpp"
+#include "../error.hpp"
+#include "../../utils/utils.hpp"
 
 using namespace lmx;
 using namespace lmx::hir;

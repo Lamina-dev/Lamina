@@ -1,10 +1,10 @@
 add_library(laminac OBJECT
-    ast.cpp
-    ast_printer.cpp
+        ast/ast.cpp
+        ast/ast_printer.cpp
     error.cpp
     lexer.cpp
     parser.cpp
-        type_checker.cpp
+        hir/type_checker.cpp
         mir/mir.cpp
         mir/mir_builder.cpp
         mir/mir_printer.cpp

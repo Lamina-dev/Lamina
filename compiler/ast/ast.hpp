@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../runtime/object/value.hpp"
+#include "../../runtime/object/value.hpp"
 
 #include <memory>
 #include <optional>

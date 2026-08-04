@@ -1,7 +1,7 @@
 #pragma once
 #include <optional>
 
-#include "ast.hpp"
+#include "../ast/ast.hpp"
 
 namespace lmx::hir {
 /*

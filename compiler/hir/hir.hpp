@@ -181,11 +181,11 @@ public:
         return new_easy_ty<BoolType, Kind::Bool>();
     }
     [[nodiscard]] Type new_maybe_ty(const Type& data_ty) noexcept {
-        for (const auto& i : types) {
+        for (const auto& i : types)
             if (i->get_kind() == Kind::Maybe)
                 if (reinterpret_cast<const MaybeType&>(*i).data_ty->equals(data_ty))
                     return i;
-        }
+
         types.push_back(std::make_shared<MaybeType>(data_ty));
         return types.back();
     }
@@ -193,6 +193,14 @@ public:
 
 
 }
+
+struct HirModule {
+
+};
+
+struct HirSymTable {
+
+};
 
 struct HirNode {
 

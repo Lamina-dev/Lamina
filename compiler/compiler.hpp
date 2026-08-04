@@ -9,9 +9,9 @@
 #include <vector>
 
 #include "assembler.hpp"
-#include "ast.hpp"
+#include "ast/ast.hpp"
 #include "error.hpp"
-#include "type_checker.hpp"
+#include "hir/type_checker.hpp"
 #include "lexer.hpp"
 #include "mir/mir.hpp"
 #include "mir/mir_builder.hpp"

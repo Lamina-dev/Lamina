@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "../ast.hpp"
+#include "../ast/ast.hpp"
 #include "../../runtime/opcode.hpp"
 
 namespace lmx::runtime::Opcode {

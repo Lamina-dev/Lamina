@@ -4,8 +4,8 @@
 
 #include "include/lmx.h"
 
-#include "compiler/ast_printer.hpp"
-#include "compiler/type_checker.hpp"
+#include "compiler/ast/ast_printer.hpp"
+#include "compiler/hir/type_checker.hpp"
 #include "compiler/parser.hpp"
 #include "compiler/lexer.hpp"
 #include "runtime/vm.hpp"
