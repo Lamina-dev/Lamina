@@ -1,0 +1,5 @@
+import std
+
+func bar() {
+    std.int_to_frac
+}

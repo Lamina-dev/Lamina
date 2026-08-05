@@ -144,6 +144,10 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
     const auto save_cur_module = cur_module;
     cur_module = mod;
 
+    if (!mod->native_funcs.empty() && mod->lib_name.empty()) {
+        throw_error(ErrorType::Analysis, "module not `static` declare dynamic library, cannot declare native function", 0 , 0);
+
+    }
     for (const auto& n : mod->native_funcs) {
         new_global_var(n->func_id, n->make_type());
     }

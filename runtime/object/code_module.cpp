@@ -156,7 +156,8 @@ public:
             ifs.seekg(0, std::ios::beg);
             ifs.read(reinterpret_cast<std::istream::char_type *>(data.data()), static_cast<std::streamsize>(data.size()));
             ifs.close();
-            mod.push_back(std::make_unique<CodeModule>(std::move(data)));
+            auto* m = new CodeModule(std::move(data));
+            mod.push_back(m);
         }
         return true;
     }
@@ -164,10 +165,6 @@ public:
 }
 
 
-
-Object *CodeModule::clone() const noexcept {
-    return nullptr;
-}
 
 CodeModule::~CodeModule() noexcept {
     if (native_lib_handle) {

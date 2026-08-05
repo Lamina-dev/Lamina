@@ -393,7 +393,7 @@ int LaminaVM::run(CodeModule *prog) noexcept {
         VM_NEXT
     }
     VM_LABEL(GetModule) {
-        regs[ip[1]] = cur_frame->mod->imports[read_u16(ip + 2)].get();
+        regs[ip[1]] = cur_frame->mod->imports[read_u16(ip + 2)]->get();
         VM_NEXT
     }
     VM_LABEL(GetModuleAttr) {
