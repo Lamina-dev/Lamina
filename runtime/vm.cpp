@@ -61,7 +61,7 @@ static const void* dispatch[] = {\
     &&opFAdd, &&opFSub, &&opFMul, &&opFDiv, &&opFMod, &&opFNeg,\
     &&opMovRR,&&opCall, &&opAnd, &&opOr,\
     &&opFCmpEq, &&opFCmpNe, &&opFCmpLt, &&opFCmpLe, &&opFCmpGt, &&opFCmpGe, \
-    &&opGetModule, &&opGetModuleAttr,\
+    &&opGetModule, &&opGetModuleAttr, &&opGetFunc\
 };\
 goto *dispatch[*ip];
 
@@ -398,6 +398,10 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
     VM_LABEL(GetModuleAttr) {
         regs[ip[1]] = &reinterpret_cast<CodeModule*>(regs[0].obj)->funcs[read_u16(ip + 2)];
+        VM_NEXT
+    }
+    VM_LABEL(GetFunc) {
+        regs[ip[1]] = &cur_frame->mod->funcs[read_u16(ip + 2)];
         VM_NEXT
     }
 

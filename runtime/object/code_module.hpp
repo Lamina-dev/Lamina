@@ -58,7 +58,7 @@ public:
     std::vector<ConstantPoolInfo> cp;
     std::vector<FuncObj> funcs;
     std::vector<NativeFuncObj> native_funcs{};
-    std::vector<CodeModule*> imports;
+    std::vector<std::unique_ptr<CodeModule>> imports;
     std::vector<TypeInfo> types;
     const uint8_t* code{};
     size_t code_len{};

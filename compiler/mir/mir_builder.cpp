@@ -419,7 +419,7 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
                 arg_refs.push_back(ensure_temp(std::move(arg_val)));
             }
         }
-        if (call->expr->kind == ASTKind::Identifier) {
+        if (call->can_fast) {
             std::string func_name = reinterpret_cast<IdentifierNode *>(call->expr.get())->id;
             auto call_expr = std::make_shared<MirCallFastExpr>(std::move(func_name), std::move(arg_refs));
             return std::move(call_expr);

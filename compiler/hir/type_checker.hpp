@@ -17,9 +17,13 @@ using HirNode = ASTNode;
 class TypeCkContext {
     std::vector<Scope> scope_stack;
 
+    std::vector<Scope::Var> global_scope;
+
     // Scope *parse_scope(ExprNode *node) noexcept;
 
     std::optional<Scope::Var *> find_var(const std::string &name) noexcept;
+
+    std::optional<Scope::Var *> find_global(const std::string &name) noexcept;
 
     void new_var(std::string name, std::shared_ptr<Type> type, Scope *scope, bool is_mut = false) noexcept;
     void new_cur_scope_var(std::string name, std::shared_ptr<Type> type, bool is_mut = false) noexcept;

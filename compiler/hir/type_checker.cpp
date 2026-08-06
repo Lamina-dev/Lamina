@@ -27,6 +27,12 @@ std::optional<Scope::Var *> TypeCkContext::find_var(const std::string &name) noe
     }
     return std::nullopt;
 }
+std::optional<Scope::Var *> TypeCkContext::find_global(const std::string &name) noexcept {
+    for (auto& i : global_scope) {
+        if (i.name == name) return &i;
+    }
+    return std::nullopt;
+}
 
 TypeCkContext::TypeCkContext() noexcept {
     scope_stack.emplace_back("@GLOBAL");
@@ -174,12 +180,15 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     }
     case ASTKind::Identifier: {
         auto* node = reinterpret_cast<IdentifierNode*>(expr.get());
-        const auto re = find_var(node->id);
-        if (!re.has_value()) {
-            throw_error(ErrorType::Analysis, "undefined var `" + node->id + "`", node->line, node->col);
+        if (const auto re = find_var(node->id); re.has_value()) {
+            node->type = (*re)->type;
             break;
         }
-        node->type = (*re)->type;
+        if (const auto re = find_global(node->id); re.has_value()) {
+            node->type = (*re)->type;
+            break;
+        }
+        throw_error(ErrorType::Analysis, "undefined var `" + node->id + "`", node->line, node->col);
         break;
     }
     case ASTKind::Unary: {
@@ -292,6 +301,14 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     }
     case ASTKind::SuffixParen: {
         const auto node = reinterpret_cast<SuffixParenNode*>(expr.get());
+        if (node->expr->kind == ASTKind::Identifier) {
+            const auto id = reinterpret_cast<IdentifierNode*>(node->expr.get());
+            if (const auto re = find_global(id->id); re.has_value()) {
+                node->can_fast = true;
+            }
+        } else {
+            node->can_fast = false;
+        }
         check_expr(node->expr);
         const auto left = node->expr->type;
         if (Type::is_null_type(left.get())) break;
@@ -544,7 +561,7 @@ void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
         if (!is_global_scope()) throw_error(ErrorType::Analysis, "function only define in GlobalScope", stmt->line, stmt->col);
 
         new_global_var(node->func_id, node->make_type());
-        auto& ref = scope_stack[0].vars.back();
+        auto& ref = global_scope.back();
         Scope scope;
         scope.name = node->func_id;
         scope.return_type = node->return_type;
@@ -617,10 +634,12 @@ void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
         if (Type::is_null_type(node->type.get())) {
             if (!node->init_value) {
                 throw_error(ErrorType::Analysis, "the var `" + node->id + "` type not found", node->line, node->col);
+                break;
             } else node->type = node->init_value->type;
         } else {
             if (!node->type->equals(node->init_value->type.get())) {
                 throw_error(ErrorType::Analysis, "the var `" + node->id + "` type mismatch with the initialization type", node->line, node->col);
+                break;
             }
         }
         new_cur_scope_var(node->id, node->type, node->is_mutable);
@@ -701,10 +720,10 @@ void TypeCkContext::new_cur_scope_var(std::string name, std::shared_ptr<Type> ty
 }
 
 void TypeCkContext::new_global_var(std::string name, std::shared_ptr<Type> type, bool is_mut) noexcept {
-    scope_stack[0].vars.emplace_back(std::move(name), std::move(type), is_mut);
+    global_scope.emplace_back(std::move(name), std::move(type), is_mut);
 }
 
 std::vector<Scope::Var> &TypeCkContext::get_global() noexcept {
-    return scope_stack[0].vars;
+    return global_scope;
 }
 

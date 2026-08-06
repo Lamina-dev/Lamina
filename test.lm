@@ -1,34 +1,24 @@
 static "laminaCore"
-#import std.io
+import std.io
 func printf(fmt text, ...) -> int = "printf"
 
 
-var i = 0
-
-loop {
-    if (i >= 100000000) {
-        break
-    }
-    #printf("%lld\n", i)
-    i = i + 1
+func println_int(n int, say text) {
+    printf("%lld, %s\n", n, say)
+    n
+}
+func foo(a int) {
+    a + a
 }
 
+let foo_ref = foo
+printf("%lld\n",
+    4
+    |> foo_ref
+    |> println_int("say1")
+    |> foo_ref
+    |> foo_ref
+    |> println_int("say2")
+)
 
-#func println_int(n int, say text) {
-#    printf("%lld, %s\n", n, say)
-#    n
-#}
-#func foo(a int) {
-#    a + a
-#}
-#
-#printf("%lld\n",
-#    4
-#    |> foo
-#    |> println_int("say1")
-#    |> foo
-#    |> foo
-#    |> println_int("say2")
-#)
-#
-#printf("%.1f\n", io.bar()(5))
+printf("%.1f\n", io.bar()(5))

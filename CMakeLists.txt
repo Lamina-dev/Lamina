@@ -40,7 +40,7 @@ FetchContent_MakeAvailable(dyncall)
 #message(STATUS "cloning LmCAS")
 #FetchContent_Declare(
 #        LmCAS
-#        GIT_REPOSITORY https://github.com/Lamina-dev/LMCAS.git
+#        GIT_REPOSITORY git@github.com:Lamina-dev/LMCAS.git
 #        GIT_TAG main
 #        GIT_SHALLOW TRUE
 #        GIT_SUBMODULES_RECURSE ON

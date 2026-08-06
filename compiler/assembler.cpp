@@ -180,8 +180,8 @@ void Assembler::write_u64(std::vector<uint8_t>& buf, const uint64_t value) noexc
 
 std::optional<Assembler::Val*> Assembler::find_var(const std::string& name) noexcept {
     const auto it = vals.find(name);
-    if (it == vals.end()) return std::nullopt;
-    return &it->second;
+    if (it != vals.end()) return &it->second;
+    return std::nullopt;
 }
 
 std::optional<Assembler::GlobalVar*> Assembler::find_global(const std::string& name) noexcept {
@@ -221,16 +221,23 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
     switch (node->kind) {
     case mir::MirExprKind::Ref: {
         const auto e = reinterpret_cast<mir::MirRefExpr*>(node);
-        const auto v_opt = find_var(e->name);
-        //if (!v_opt) return 0;
-        const auto& v = *v_opt;
-        if (v->kind == Val::Kind::Reg) {
-            return v->reg;
+        if (const auto v_opt = find_var(e->name)) {
+            const auto& v = *v_opt;
+            if (v->kind == Val::Kind::Reg) {
+                return v->reg;
+            }
+            // Var kind – emit LGet to load from local variable
+            const auto r = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::LGet, r, v->var);
+            return r;
         }
-        // Var kind – emit LGet to load from local variable
-        const auto r = *reg.alloc();
-        InstEmitter::emit(insts, runtime::Opcode::LGet, r, v->var);
-        return r;
+        if (const auto v_opt = funcs.find(e->name); v_opt != funcs.end()) {
+            const auto func_idx = static_cast<uint16_t>(v_opt->second);
+            const auto r = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::GetFunc, r, func_idx);
+            return r;
+        }
+
     }
 
     case mir::MirExprKind::Literal: {

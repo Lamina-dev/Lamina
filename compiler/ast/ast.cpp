@@ -235,10 +235,22 @@ FuncImplNode::FuncImplNode(const size_t line, const size_t col,
     std::shared_ptr<ParamsDeclNode> params,
     std::shared_ptr<Type> return_type,
     std::shared_ptr<BlockExprNode> block) noexcept
-    : StmtNode(ASTKind::FuncImpl, line, col), func_id(std::move(func_id)),params(std::move(params)),return_type(std::move(return_type)), block(std::move(block)) {}
+    :
+    StmtNode(ASTKind::FuncImpl, line, col),
+    func_id(std::move(func_id)),
+    params(std::move(params)),
+    return_type(std::move(return_type)),
+    block(std::move(block)) {}
 
-IfExprNode::IfExprNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> cond, std::shared_ptr<ExprNode> then, std::shared_ptr<ExprNode> els) noexcept
-    : ExprNode(ASTKind::IfExpr, line, col), cond(std::move(cond)), then(std::move(then)), els(std::move(els)) {}
+IfExprNode::IfExprNode(const size_t line, const size_t col,
+    std::shared_ptr<ExprNode> cond,
+    std::shared_ptr<ExprNode> then,
+    std::shared_ptr<ExprNode> els) noexcept
+    :
+    ExprNode(ASTKind::IfExpr, line, col),
+    cond(std::move(cond)),
+    then(std::move(then)),
+    els(std::move(els)) {}
 
 AsExprNode::AsExprNode(const size_t line, const size_t col,
                        std::shared_ptr<ExprNode> expr,
