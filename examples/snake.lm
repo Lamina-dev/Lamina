@@ -1,0 +1,2270 @@
+static "snake_sdl"
+
+# ======================================================================
+#  Lamina Snake : 纯图形界面版 (SDL3 渲染)
+#  玩法  : 方向键 / WASD 转向, 空格或回车开始
+#          吃红色食物变长, 长到 maxlen(90) 获胜
+#          撞墙或咬到自己即死, 死后按 R 重新开始, Q/Esc 退出
+#  依赖  : 本目录下 libsnake_sdl.so (源码见 snake_sdl.c)
+#  运行  : LD_LIBRARY_PATH=examples ./cmake-build-release/lamina examples/snake.lm
+# ======================================================================
+
+# ---- 原生函数声明 (SDL3 + snake_sdl 辅助库) ----
+func malloc(n int) -> cptr = "malloc"
+func snprintf(buf cptr, n int, fmt text, ...) -> int = "snprintf"
+func rand() -> int = "rand"
+func srand(seed int) -> null = "srand"
+
+func SDL_Init(s int) -> bool = "SDL_Init"
+func SDL_CreateWindow(t text, w int, h int, wflag int) -> cptr = "SDL_CreateWindow"
+func SDL_CreateRenderer(win cptr, name int) -> cptr = "SDL_CreateRenderer"
+func SDL_SetWindowTitle(win cptr, t cptr) -> null = "SDL_SetWindowTitle"
+func SDL_RaiseWindow(win cptr) -> bool = "SDL_RaiseWindow"
+func SDL_SetRenderDrawColor(ren cptr, r int, g int, b int, a int) -> null = "SDL_SetRenderDrawColor"
+func SDL_RenderClear(ren cptr) -> null = "SDL_RenderClear"
+func SDL_RenderPresent(ren cptr) -> null = "SDL_RenderPresent"
+func SDL_Delay(ms int) -> null = "SDL_Delay"
+func SDL_GetTicks() -> int = "SDL_GetTicks"
+func SDL_DestroyRenderer(ren cptr) -> null = "SDL_DestroyRenderer"
+func SDL_DestroyWindow(win cptr) -> null = "SDL_DestroyWindow"
+func SDL_Quit() -> null = "SDL_Quit"
+
+func snake_key_pressed(sc int) -> bool = "snake_key_pressed"
+func snake_quit_pending() -> bool = "snake_quit_pending"
+func snake_fill_rect(ren cptr, x int, y int, w int, h int) -> null = "snake_fill_rect"
+
+# ---- 窗口标题封装 (vararg snprintf) ----
+func settitle(buf cptr, s int, l int) -> int {
+    snprintf(buf, 128, "Lamina Snake   score=%lld len=%lld   [Arrows/WASD] [Q quit]", s, l)
+}
+func setstart(buf cptr) -> int {
+    snprintf(buf, 128, "Lamina Snake   press a direction key to start ...")
+}
+func setover(buf cptr, s int) -> int {
+    snprintf(buf, 128, "GAME OVER   score=%lld   [R restart] [Q quit]", s)
+}
+func setwin(buf cptr, s int) -> int {
+    snprintf(buf, 128, "YOU WIN!   score=%lld   [R restart] [Q quit]", s)
+}
+
+# ---- 一局游戏: 返回 1 重新开始, 0 退出 ----
+func play(ren cptr, win cptr, tbuf cptr) -> int {
+    var cols = 30
+    var rows = 20
+    var maxlen = 90
+    var cell = 24
+    var len = 3
+    var score = 0
+    var dirx = 1
+    var diry = 0
+    var dead = false
+    var won = false
+    var quit = false
+    var started = false
+    var rest = false
+    var acc = 0
+    var step = 140
+    var last = SDL_GetTicks()
+    var now = 0
+    var dt = 0
+    var foodx = 0
+    var foody = 0
+    var px = 0
+    var py = 0
+    var K_UP = 82
+    var K_DOWN = 81
+    var K_LEFT = 80
+    var K_RIGHT = 79
+    var K_W = 26
+    var K_A = 4
+    var K_S = 22
+    var K_D = 7
+    var K_SPACE = 44
+    var K_RETURN = 40
+    var K_Q = 20
+    var K_ESC = 41
+    var K_R = 21
+    # 蛇身 90 段 (未启用的段停在 (0,0), 由 len 判定)
+    var seg0x = 15
+    var seg0y = 10
+    var seg1x = 14
+    var seg1y = 10
+    var seg2x = 13
+    var seg2y = 10
+    var seg3x = 0
+    var seg3y = 0
+    var seg4x = 0
+    var seg4y = 0
+    var seg5x = 0
+    var seg5y = 0
+    var seg6x = 0
+    var seg6y = 0
+    var seg7x = 0
+    var seg7y = 0
+    var seg8x = 0
+    var seg8y = 0
+    var seg9x = 0
+    var seg9y = 0
+    var seg10x = 0
+    var seg10y = 0
+    var seg11x = 0
+    var seg11y = 0
+    var seg12x = 0
+    var seg12y = 0
+    var seg13x = 0
+    var seg13y = 0
+    var seg14x = 0
+    var seg14y = 0
+    var seg15x = 0
+    var seg15y = 0
+    var seg16x = 0
+    var seg16y = 0
+    var seg17x = 0
+    var seg17y = 0
+    var seg18x = 0
+    var seg18y = 0
+    var seg19x = 0
+    var seg19y = 0
+    var seg20x = 0
+    var seg20y = 0
+    var seg21x = 0
+    var seg21y = 0
+    var seg22x = 0
+    var seg22y = 0
+    var seg23x = 0
+    var seg23y = 0
+    var seg24x = 0
+    var seg24y = 0
+    var seg25x = 0
+    var seg25y = 0
+    var seg26x = 0
+    var seg26y = 0
+    var seg27x = 0
+    var seg27y = 0
+    var seg28x = 0
+    var seg28y = 0
+    var seg29x = 0
+    var seg29y = 0
+    var seg30x = 0
+    var seg30y = 0
+    var seg31x = 0
+    var seg31y = 0
+    var seg32x = 0
+    var seg32y = 0
+    var seg33x = 0
+    var seg33y = 0
+    var seg34x = 0
+    var seg34y = 0
+    var seg35x = 0
+    var seg35y = 0
+    var seg36x = 0
+    var seg36y = 0
+    var seg37x = 0
+    var seg37y = 0
+    var seg38x = 0
+    var seg38y = 0
+    var seg39x = 0
+    var seg39y = 0
+    var seg40x = 0
+    var seg40y = 0
+    var seg41x = 0
+    var seg41y = 0
+    var seg42x = 0
+    var seg42y = 0
+    var seg43x = 0
+    var seg43y = 0
+    var seg44x = 0
+    var seg44y = 0
+    var seg45x = 0
+    var seg45y = 0
+    var seg46x = 0
+    var seg46y = 0
+    var seg47x = 0
+    var seg47y = 0
+    var seg48x = 0
+    var seg48y = 0
+    var seg49x = 0
+    var seg49y = 0
+    var seg50x = 0
+    var seg50y = 0
+    var seg51x = 0
+    var seg51y = 0
+    var seg52x = 0
+    var seg52y = 0
+    var seg53x = 0
+    var seg53y = 0
+    var seg54x = 0
+    var seg54y = 0
+    var seg55x = 0
+    var seg55y = 0
+    var seg56x = 0
+    var seg56y = 0
+    var seg57x = 0
+    var seg57y = 0
+    var seg58x = 0
+    var seg58y = 0
+    var seg59x = 0
+    var seg59y = 0
+    var seg60x = 0
+    var seg60y = 0
+    var seg61x = 0
+    var seg61y = 0
+    var seg62x = 0
+    var seg62y = 0
+    var seg63x = 0
+    var seg63y = 0
+    var seg64x = 0
+    var seg64y = 0
+    var seg65x = 0
+    var seg65y = 0
+    var seg66x = 0
+    var seg66y = 0
+    var seg67x = 0
+    var seg67y = 0
+    var seg68x = 0
+    var seg68y = 0
+    var seg69x = 0
+    var seg69y = 0
+    var seg70x = 0
+    var seg70y = 0
+    var seg71x = 0
+    var seg71y = 0
+    var seg72x = 0
+    var seg72y = 0
+    var seg73x = 0
+    var seg73y = 0
+    var seg74x = 0
+    var seg74y = 0
+    var seg75x = 0
+    var seg75y = 0
+    var seg76x = 0
+    var seg76y = 0
+    var seg77x = 0
+    var seg77y = 0
+    var seg78x = 0
+    var seg78y = 0
+    var seg79x = 0
+    var seg79y = 0
+    var seg80x = 0
+    var seg80y = 0
+    var seg81x = 0
+    var seg81y = 0
+    var seg82x = 0
+    var seg82y = 0
+    var seg83x = 0
+    var seg83y = 0
+    var seg84x = 0
+    var seg84y = 0
+    var seg85x = 0
+    var seg85y = 0
+    var seg86x = 0
+    var seg86y = 0
+    var seg87x = 0
+    var seg87y = 0
+    var seg88x = 0
+    var seg88y = 0
+    var seg89x = 0
+    var seg89y = 0
+    # 初始食物(避开蛇身)
+    loop {
+        foodx = rand() % cols
+        foody = rand() % rows
+                if len > 0 and foodx == seg0x and foody == seg0y { continue }
+                if len > 1 and foodx == seg1x and foody == seg1y { continue }
+                if len > 2 and foodx == seg2x and foody == seg2y { continue }
+                if len > 3 and foodx == seg3x and foody == seg3y { continue }
+                if len > 4 and foodx == seg4x and foody == seg4y { continue }
+                if len > 5 and foodx == seg5x and foody == seg5y { continue }
+                if len > 6 and foodx == seg6x and foody == seg6y { continue }
+                if len > 7 and foodx == seg7x and foody == seg7y { continue }
+                if len > 8 and foodx == seg8x and foody == seg8y { continue }
+                if len > 9 and foodx == seg9x and foody == seg9y { continue }
+                if len > 10 and foodx == seg10x and foody == seg10y { continue }
+                if len > 11 and foodx == seg11x and foody == seg11y { continue }
+                if len > 12 and foodx == seg12x and foody == seg12y { continue }
+                if len > 13 and foodx == seg13x and foody == seg13y { continue }
+                if len > 14 and foodx == seg14x and foody == seg14y { continue }
+                if len > 15 and foodx == seg15x and foody == seg15y { continue }
+                if len > 16 and foodx == seg16x and foody == seg16y { continue }
+                if len > 17 and foodx == seg17x and foody == seg17y { continue }
+                if len > 18 and foodx == seg18x and foody == seg18y { continue }
+                if len > 19 and foodx == seg19x and foody == seg19y { continue }
+                if len > 20 and foodx == seg20x and foody == seg20y { continue }
+                if len > 21 and foodx == seg21x and foody == seg21y { continue }
+                if len > 22 and foodx == seg22x and foody == seg22y { continue }
+                if len > 23 and foodx == seg23x and foody == seg23y { continue }
+                if len > 24 and foodx == seg24x and foody == seg24y { continue }
+                if len > 25 and foodx == seg25x and foody == seg25y { continue }
+                if len > 26 and foodx == seg26x and foody == seg26y { continue }
+                if len > 27 and foodx == seg27x and foody == seg27y { continue }
+                if len > 28 and foodx == seg28x and foody == seg28y { continue }
+                if len > 29 and foodx == seg29x and foody == seg29y { continue }
+                if len > 30 and foodx == seg30x and foody == seg30y { continue }
+                if len > 31 and foodx == seg31x and foody == seg31y { continue }
+                if len > 32 and foodx == seg32x and foody == seg32y { continue }
+                if len > 33 and foodx == seg33x and foody == seg33y { continue }
+                if len > 34 and foodx == seg34x and foody == seg34y { continue }
+                if len > 35 and foodx == seg35x and foody == seg35y { continue }
+                if len > 36 and foodx == seg36x and foody == seg36y { continue }
+                if len > 37 and foodx == seg37x and foody == seg37y { continue }
+                if len > 38 and foodx == seg38x and foody == seg38y { continue }
+                if len > 39 and foodx == seg39x and foody == seg39y { continue }
+                if len > 40 and foodx == seg40x and foody == seg40y { continue }
+                if len > 41 and foodx == seg41x and foody == seg41y { continue }
+                if len > 42 and foodx == seg42x and foody == seg42y { continue }
+                if len > 43 and foodx == seg43x and foody == seg43y { continue }
+                if len > 44 and foodx == seg44x and foody == seg44y { continue }
+                if len > 45 and foodx == seg45x and foody == seg45y { continue }
+                if len > 46 and foodx == seg46x and foody == seg46y { continue }
+                if len > 47 and foodx == seg47x and foody == seg47y { continue }
+                if len > 48 and foodx == seg48x and foody == seg48y { continue }
+                if len > 49 and foodx == seg49x and foody == seg49y { continue }
+                if len > 50 and foodx == seg50x and foody == seg50y { continue }
+                if len > 51 and foodx == seg51x and foody == seg51y { continue }
+                if len > 52 and foodx == seg52x and foody == seg52y { continue }
+                if len > 53 and foodx == seg53x and foody == seg53y { continue }
+                if len > 54 and foodx == seg54x and foody == seg54y { continue }
+                if len > 55 and foodx == seg55x and foody == seg55y { continue }
+                if len > 56 and foodx == seg56x and foody == seg56y { continue }
+                if len > 57 and foodx == seg57x and foody == seg57y { continue }
+                if len > 58 and foodx == seg58x and foody == seg58y { continue }
+                if len > 59 and foodx == seg59x and foody == seg59y { continue }
+                if len > 60 and foodx == seg60x and foody == seg60y { continue }
+                if len > 61 and foodx == seg61x and foody == seg61y { continue }
+                if len > 62 and foodx == seg62x and foody == seg62y { continue }
+                if len > 63 and foodx == seg63x and foody == seg63y { continue }
+                if len > 64 and foodx == seg64x and foody == seg64y { continue }
+                if len > 65 and foodx == seg65x and foody == seg65y { continue }
+                if len > 66 and foodx == seg66x and foody == seg66y { continue }
+                if len > 67 and foodx == seg67x and foody == seg67y { continue }
+                if len > 68 and foodx == seg68x and foody == seg68y { continue }
+                if len > 69 and foodx == seg69x and foody == seg69y { continue }
+                if len > 70 and foodx == seg70x and foody == seg70y { continue }
+                if len > 71 and foodx == seg71x and foody == seg71y { continue }
+                if len > 72 and foodx == seg72x and foody == seg72y { continue }
+                if len > 73 and foodx == seg73x and foody == seg73y { continue }
+                if len > 74 and foodx == seg74x and foody == seg74y { continue }
+                if len > 75 and foodx == seg75x and foody == seg75y { continue }
+                if len > 76 and foodx == seg76x and foody == seg76y { continue }
+                if len > 77 and foodx == seg77x and foody == seg77y { continue }
+                if len > 78 and foodx == seg78x and foody == seg78y { continue }
+                if len > 79 and foodx == seg79x and foody == seg79y { continue }
+                if len > 80 and foodx == seg80x and foody == seg80y { continue }
+                if len > 81 and foodx == seg81x and foody == seg81y { continue }
+                if len > 82 and foodx == seg82x and foody == seg82y { continue }
+                if len > 83 and foodx == seg83x and foody == seg83y { continue }
+                if len > 84 and foodx == seg84x and foody == seg84y { continue }
+                if len > 85 and foodx == seg85x and foody == seg85y { continue }
+                if len > 86 and foodx == seg86x and foody == seg86y { continue }
+                if len > 87 and foodx == seg87x and foody == seg87y { continue }
+                if len > 88 and foodx == seg88x and foody == seg88y { continue }
+                if len > 89 and foodx == seg89x and foody == seg89y { continue }
+        break
+    }
+    setstart(tbuf)
+    SDL_SetWindowTitle(win, tbuf)
+
+    loop {
+        now = SDL_GetTicks()
+        dt = now - last
+        if dt > 100 {
+            dt = 100
+        }
+        last = now
+        # ---- 方向输入 (每帧读取: 首个方向键同时开始游戏) ----
+        if snake_key_pressed(K_UP) or snake_key_pressed(K_W) {
+            if diry != 1 {
+                dirx = 0
+                diry = -1
+            }
+            started = true
+        } else {
+            if snake_key_pressed(K_DOWN) or snake_key_pressed(K_S) {
+                if diry != -1 {
+                    dirx = 0
+                    diry = 1
+                }
+                started = true
+            } else {
+                if snake_key_pressed(K_LEFT) or snake_key_pressed(K_A) {
+                    if dirx != 1 {
+                        dirx = -1
+                        diry = 0
+                    }
+                    started = true
+                } else {
+                    if snake_key_pressed(K_RIGHT) or snake_key_pressed(K_D) {
+                        if dirx != -1 {
+                            dirx = 1
+                            diry = 0
+                        }
+                        started = true
+                    }
+                }
+            }
+        }
+        if snake_key_pressed(K_SPACE) or snake_key_pressed(K_RETURN) {
+            started = true
+        }
+        if started {
+            step = 210 - len
+            if step < 60 {
+                step = 60
+            }
+            acc = acc + dt
+            if acc >= step {
+                acc = 0
+        seg89x = seg88x
+        seg89y = seg88y
+        seg88x = seg87x
+        seg88y = seg87y
+        seg87x = seg86x
+        seg87y = seg86y
+        seg86x = seg85x
+        seg86y = seg85y
+        seg85x = seg84x
+        seg85y = seg84y
+        seg84x = seg83x
+        seg84y = seg83y
+        seg83x = seg82x
+        seg83y = seg82y
+        seg82x = seg81x
+        seg82y = seg81y
+        seg81x = seg80x
+        seg81y = seg80y
+        seg80x = seg79x
+        seg80y = seg79y
+        seg79x = seg78x
+        seg79y = seg78y
+        seg78x = seg77x
+        seg78y = seg77y
+        seg77x = seg76x
+        seg77y = seg76y
+        seg76x = seg75x
+        seg76y = seg75y
+        seg75x = seg74x
+        seg75y = seg74y
+        seg74x = seg73x
+        seg74y = seg73y
+        seg73x = seg72x
+        seg73y = seg72y
+        seg72x = seg71x
+        seg72y = seg71y
+        seg71x = seg70x
+        seg71y = seg70y
+        seg70x = seg69x
+        seg70y = seg69y
+        seg69x = seg68x
+        seg69y = seg68y
+        seg68x = seg67x
+        seg68y = seg67y
+        seg67x = seg66x
+        seg67y = seg66y
+        seg66x = seg65x
+        seg66y = seg65y
+        seg65x = seg64x
+        seg65y = seg64y
+        seg64x = seg63x
+        seg64y = seg63y
+        seg63x = seg62x
+        seg63y = seg62y
+        seg62x = seg61x
+        seg62y = seg61y
+        seg61x = seg60x
+        seg61y = seg60y
+        seg60x = seg59x
+        seg60y = seg59y
+        seg59x = seg58x
+        seg59y = seg58y
+        seg58x = seg57x
+        seg58y = seg57y
+        seg57x = seg56x
+        seg57y = seg56y
+        seg56x = seg55x
+        seg56y = seg55y
+        seg55x = seg54x
+        seg55y = seg54y
+        seg54x = seg53x
+        seg54y = seg53y
+        seg53x = seg52x
+        seg53y = seg52y
+        seg52x = seg51x
+        seg52y = seg51y
+        seg51x = seg50x
+        seg51y = seg50y
+        seg50x = seg49x
+        seg50y = seg49y
+        seg49x = seg48x
+        seg49y = seg48y
+        seg48x = seg47x
+        seg48y = seg47y
+        seg47x = seg46x
+        seg47y = seg46y
+        seg46x = seg45x
+        seg46y = seg45y
+        seg45x = seg44x
+        seg45y = seg44y
+        seg44x = seg43x
+        seg44y = seg43y
+        seg43x = seg42x
+        seg43y = seg42y
+        seg42x = seg41x
+        seg42y = seg41y
+        seg41x = seg40x
+        seg41y = seg40y
+        seg40x = seg39x
+        seg40y = seg39y
+        seg39x = seg38x
+        seg39y = seg38y
+        seg38x = seg37x
+        seg38y = seg37y
+        seg37x = seg36x
+        seg37y = seg36y
+        seg36x = seg35x
+        seg36y = seg35y
+        seg35x = seg34x
+        seg35y = seg34y
+        seg34x = seg33x
+        seg34y = seg33y
+        seg33x = seg32x
+        seg33y = seg32y
+        seg32x = seg31x
+        seg32y = seg31y
+        seg31x = seg30x
+        seg31y = seg30y
+        seg30x = seg29x
+        seg30y = seg29y
+        seg29x = seg28x
+        seg29y = seg28y
+        seg28x = seg27x
+        seg28y = seg27y
+        seg27x = seg26x
+        seg27y = seg26y
+        seg26x = seg25x
+        seg26y = seg25y
+        seg25x = seg24x
+        seg25y = seg24y
+        seg24x = seg23x
+        seg24y = seg23y
+        seg23x = seg22x
+        seg23y = seg22y
+        seg22x = seg21x
+        seg22y = seg21y
+        seg21x = seg20x
+        seg21y = seg20y
+        seg20x = seg19x
+        seg20y = seg19y
+        seg19x = seg18x
+        seg19y = seg18y
+        seg18x = seg17x
+        seg18y = seg17y
+        seg17x = seg16x
+        seg17y = seg16y
+        seg16x = seg15x
+        seg16y = seg15y
+        seg15x = seg14x
+        seg15y = seg14y
+        seg14x = seg13x
+        seg14y = seg13y
+        seg13x = seg12x
+        seg13y = seg12y
+        seg12x = seg11x
+        seg12y = seg11y
+        seg11x = seg10x
+        seg11y = seg10y
+        seg10x = seg9x
+        seg10y = seg9y
+        seg9x = seg8x
+        seg9y = seg8y
+        seg8x = seg7x
+        seg8y = seg7y
+        seg7x = seg6x
+        seg7y = seg6y
+        seg6x = seg5x
+        seg6y = seg5y
+        seg5x = seg4x
+        seg5y = seg4y
+        seg4x = seg3x
+        seg4y = seg3y
+        seg3x = seg2x
+        seg3y = seg2y
+        seg2x = seg1x
+        seg2y = seg1y
+        seg1x = seg0x
+        seg1y = seg0y
+                seg0x = seg0x + dirx
+                seg0y = seg0y + diry
+                if seg0x < 0 or seg0x >= cols or seg0y < 0 or seg0y >= rows {
+                    dead = true
+                }
+        if len > 1 and seg0x == seg1x and seg0y == seg1y { dead = true }
+        if len > 2 and seg0x == seg2x and seg0y == seg2y { dead = true }
+        if len > 3 and seg0x == seg3x and seg0y == seg3y { dead = true }
+        if len > 4 and seg0x == seg4x and seg0y == seg4y { dead = true }
+        if len > 5 and seg0x == seg5x and seg0y == seg5y { dead = true }
+        if len > 6 and seg0x == seg6x and seg0y == seg6y { dead = true }
+        if len > 7 and seg0x == seg7x and seg0y == seg7y { dead = true }
+        if len > 8 and seg0x == seg8x and seg0y == seg8y { dead = true }
+        if len > 9 and seg0x == seg9x and seg0y == seg9y { dead = true }
+        if len > 10 and seg0x == seg10x and seg0y == seg10y { dead = true }
+        if len > 11 and seg0x == seg11x and seg0y == seg11y { dead = true }
+        if len > 12 and seg0x == seg12x and seg0y == seg12y { dead = true }
+        if len > 13 and seg0x == seg13x and seg0y == seg13y { dead = true }
+        if len > 14 and seg0x == seg14x and seg0y == seg14y { dead = true }
+        if len > 15 and seg0x == seg15x and seg0y == seg15y { dead = true }
+        if len > 16 and seg0x == seg16x and seg0y == seg16y { dead = true }
+        if len > 17 and seg0x == seg17x and seg0y == seg17y { dead = true }
+        if len > 18 and seg0x == seg18x and seg0y == seg18y { dead = true }
+        if len > 19 and seg0x == seg19x and seg0y == seg19y { dead = true }
+        if len > 20 and seg0x == seg20x and seg0y == seg20y { dead = true }
+        if len > 21 and seg0x == seg21x and seg0y == seg21y { dead = true }
+        if len > 22 and seg0x == seg22x and seg0y == seg22y { dead = true }
+        if len > 23 and seg0x == seg23x and seg0y == seg23y { dead = true }
+        if len > 24 and seg0x == seg24x and seg0y == seg24y { dead = true }
+        if len > 25 and seg0x == seg25x and seg0y == seg25y { dead = true }
+        if len > 26 and seg0x == seg26x and seg0y == seg26y { dead = true }
+        if len > 27 and seg0x == seg27x and seg0y == seg27y { dead = true }
+        if len > 28 and seg0x == seg28x and seg0y == seg28y { dead = true }
+        if len > 29 and seg0x == seg29x and seg0y == seg29y { dead = true }
+        if len > 30 and seg0x == seg30x and seg0y == seg30y { dead = true }
+        if len > 31 and seg0x == seg31x and seg0y == seg31y { dead = true }
+        if len > 32 and seg0x == seg32x and seg0y == seg32y { dead = true }
+        if len > 33 and seg0x == seg33x and seg0y == seg33y { dead = true }
+        if len > 34 and seg0x == seg34x and seg0y == seg34y { dead = true }
+        if len > 35 and seg0x == seg35x and seg0y == seg35y { dead = true }
+        if len > 36 and seg0x == seg36x and seg0y == seg36y { dead = true }
+        if len > 37 and seg0x == seg37x and seg0y == seg37y { dead = true }
+        if len > 38 and seg0x == seg38x and seg0y == seg38y { dead = true }
+        if len > 39 and seg0x == seg39x and seg0y == seg39y { dead = true }
+        if len > 40 and seg0x == seg40x and seg0y == seg40y { dead = true }
+        if len > 41 and seg0x == seg41x and seg0y == seg41y { dead = true }
+        if len > 42 and seg0x == seg42x and seg0y == seg42y { dead = true }
+        if len > 43 and seg0x == seg43x and seg0y == seg43y { dead = true }
+        if len > 44 and seg0x == seg44x and seg0y == seg44y { dead = true }
+        if len > 45 and seg0x == seg45x and seg0y == seg45y { dead = true }
+        if len > 46 and seg0x == seg46x and seg0y == seg46y { dead = true }
+        if len > 47 and seg0x == seg47x and seg0y == seg47y { dead = true }
+        if len > 48 and seg0x == seg48x and seg0y == seg48y { dead = true }
+        if len > 49 and seg0x == seg49x and seg0y == seg49y { dead = true }
+        if len > 50 and seg0x == seg50x and seg0y == seg50y { dead = true }
+        if len > 51 and seg0x == seg51x and seg0y == seg51y { dead = true }
+        if len > 52 and seg0x == seg52x and seg0y == seg52y { dead = true }
+        if len > 53 and seg0x == seg53x and seg0y == seg53y { dead = true }
+        if len > 54 and seg0x == seg54x and seg0y == seg54y { dead = true }
+        if len > 55 and seg0x == seg55x and seg0y == seg55y { dead = true }
+        if len > 56 and seg0x == seg56x and seg0y == seg56y { dead = true }
+        if len > 57 and seg0x == seg57x and seg0y == seg57y { dead = true }
+        if len > 58 and seg0x == seg58x and seg0y == seg58y { dead = true }
+        if len > 59 and seg0x == seg59x and seg0y == seg59y { dead = true }
+        if len > 60 and seg0x == seg60x and seg0y == seg60y { dead = true }
+        if len > 61 and seg0x == seg61x and seg0y == seg61y { dead = true }
+        if len > 62 and seg0x == seg62x and seg0y == seg62y { dead = true }
+        if len > 63 and seg0x == seg63x and seg0y == seg63y { dead = true }
+        if len > 64 and seg0x == seg64x and seg0y == seg64y { dead = true }
+        if len > 65 and seg0x == seg65x and seg0y == seg65y { dead = true }
+        if len > 66 and seg0x == seg66x and seg0y == seg66y { dead = true }
+        if len > 67 and seg0x == seg67x and seg0y == seg67y { dead = true }
+        if len > 68 and seg0x == seg68x and seg0y == seg68y { dead = true }
+        if len > 69 and seg0x == seg69x and seg0y == seg69y { dead = true }
+        if len > 70 and seg0x == seg70x and seg0y == seg70y { dead = true }
+        if len > 71 and seg0x == seg71x and seg0y == seg71y { dead = true }
+        if len > 72 and seg0x == seg72x and seg0y == seg72y { dead = true }
+        if len > 73 and seg0x == seg73x and seg0y == seg73y { dead = true }
+        if len > 74 and seg0x == seg74x and seg0y == seg74y { dead = true }
+        if len > 75 and seg0x == seg75x and seg0y == seg75y { dead = true }
+        if len > 76 and seg0x == seg76x and seg0y == seg76y { dead = true }
+        if len > 77 and seg0x == seg77x and seg0y == seg77y { dead = true }
+        if len > 78 and seg0x == seg78x and seg0y == seg78y { dead = true }
+        if len > 79 and seg0x == seg79x and seg0y == seg79y { dead = true }
+        if len > 80 and seg0x == seg80x and seg0y == seg80y { dead = true }
+        if len > 81 and seg0x == seg81x and seg0y == seg81y { dead = true }
+        if len > 82 and seg0x == seg82x and seg0y == seg82y { dead = true }
+        if len > 83 and seg0x == seg83x and seg0y == seg83y { dead = true }
+        if len > 84 and seg0x == seg84x and seg0y == seg84y { dead = true }
+        if len > 85 and seg0x == seg85x and seg0y == seg85y { dead = true }
+        if len > 86 and seg0x == seg86x and seg0y == seg86y { dead = true }
+        if len > 87 and seg0x == seg87x and seg0y == seg87y { dead = true }
+        if len > 88 and seg0x == seg88x and seg0y == seg88y { dead = true }
+        if len > 89 and seg0x == seg89x and seg0y == seg89y { dead = true }
+                if seg0x == foodx and seg0y == foody {
+                    len = len + 1
+                    score = score + 1
+                    if len >= maxlen {
+                        won = true
+                    } else {
+                        loop {
+                            foodx = rand() % cols
+                            foody = rand() % rows
+                if len > 0 and foodx == seg0x and foody == seg0y { continue }
+                if len > 1 and foodx == seg1x and foody == seg1y { continue }
+                if len > 2 and foodx == seg2x and foody == seg2y { continue }
+                if len > 3 and foodx == seg3x and foody == seg3y { continue }
+                if len > 4 and foodx == seg4x and foody == seg4y { continue }
+                if len > 5 and foodx == seg5x and foody == seg5y { continue }
+                if len > 6 and foodx == seg6x and foody == seg6y { continue }
+                if len > 7 and foodx == seg7x and foody == seg7y { continue }
+                if len > 8 and foodx == seg8x and foody == seg8y { continue }
+                if len > 9 and foodx == seg9x and foody == seg9y { continue }
+                if len > 10 and foodx == seg10x and foody == seg10y { continue }
+                if len > 11 and foodx == seg11x and foody == seg11y { continue }
+                if len > 12 and foodx == seg12x and foody == seg12y { continue }
+                if len > 13 and foodx == seg13x and foody == seg13y { continue }
+                if len > 14 and foodx == seg14x and foody == seg14y { continue }
+                if len > 15 and foodx == seg15x and foody == seg15y { continue }
+                if len > 16 and foodx == seg16x and foody == seg16y { continue }
+                if len > 17 and foodx == seg17x and foody == seg17y { continue }
+                if len > 18 and foodx == seg18x and foody == seg18y { continue }
+                if len > 19 and foodx == seg19x and foody == seg19y { continue }
+                if len > 20 and foodx == seg20x and foody == seg20y { continue }
+                if len > 21 and foodx == seg21x and foody == seg21y { continue }
+                if len > 22 and foodx == seg22x and foody == seg22y { continue }
+                if len > 23 and foodx == seg23x and foody == seg23y { continue }
+                if len > 24 and foodx == seg24x and foody == seg24y { continue }
+                if len > 25 and foodx == seg25x and foody == seg25y { continue }
+                if len > 26 and foodx == seg26x and foody == seg26y { continue }
+                if len > 27 and foodx == seg27x and foody == seg27y { continue }
+                if len > 28 and foodx == seg28x and foody == seg28y { continue }
+                if len > 29 and foodx == seg29x and foody == seg29y { continue }
+                if len > 30 and foodx == seg30x and foody == seg30y { continue }
+                if len > 31 and foodx == seg31x and foody == seg31y { continue }
+                if len > 32 and foodx == seg32x and foody == seg32y { continue }
+                if len > 33 and foodx == seg33x and foody == seg33y { continue }
+                if len > 34 and foodx == seg34x and foody == seg34y { continue }
+                if len > 35 and foodx == seg35x and foody == seg35y { continue }
+                if len > 36 and foodx == seg36x and foody == seg36y { continue }
+                if len > 37 and foodx == seg37x and foody == seg37y { continue }
+                if len > 38 and foodx == seg38x and foody == seg38y { continue }
+                if len > 39 and foodx == seg39x and foody == seg39y { continue }
+                if len > 40 and foodx == seg40x and foody == seg40y { continue }
+                if len > 41 and foodx == seg41x and foody == seg41y { continue }
+                if len > 42 and foodx == seg42x and foody == seg42y { continue }
+                if len > 43 and foodx == seg43x and foody == seg43y { continue }
+                if len > 44 and foodx == seg44x and foody == seg44y { continue }
+                if len > 45 and foodx == seg45x and foody == seg45y { continue }
+                if len > 46 and foodx == seg46x and foody == seg46y { continue }
+                if len > 47 and foodx == seg47x and foody == seg47y { continue }
+                if len > 48 and foodx == seg48x and foody == seg48y { continue }
+                if len > 49 and foodx == seg49x and foody == seg49y { continue }
+                if len > 50 and foodx == seg50x and foody == seg50y { continue }
+                if len > 51 and foodx == seg51x and foody == seg51y { continue }
+                if len > 52 and foodx == seg52x and foody == seg52y { continue }
+                if len > 53 and foodx == seg53x and foody == seg53y { continue }
+                if len > 54 and foodx == seg54x and foody == seg54y { continue }
+                if len > 55 and foodx == seg55x and foody == seg55y { continue }
+                if len > 56 and foodx == seg56x and foody == seg56y { continue }
+                if len > 57 and foodx == seg57x and foody == seg57y { continue }
+                if len > 58 and foodx == seg58x and foody == seg58y { continue }
+                if len > 59 and foodx == seg59x and foody == seg59y { continue }
+                if len > 60 and foodx == seg60x and foody == seg60y { continue }
+                if len > 61 and foodx == seg61x and foody == seg61y { continue }
+                if len > 62 and foodx == seg62x and foody == seg62y { continue }
+                if len > 63 and foodx == seg63x and foody == seg63y { continue }
+                if len > 64 and foodx == seg64x and foody == seg64y { continue }
+                if len > 65 and foodx == seg65x and foody == seg65y { continue }
+                if len > 66 and foodx == seg66x and foody == seg66y { continue }
+                if len > 67 and foodx == seg67x and foody == seg67y { continue }
+                if len > 68 and foodx == seg68x and foody == seg68y { continue }
+                if len > 69 and foodx == seg69x and foody == seg69y { continue }
+                if len > 70 and foodx == seg70x and foody == seg70y { continue }
+                if len > 71 and foodx == seg71x and foody == seg71y { continue }
+                if len > 72 and foodx == seg72x and foody == seg72y { continue }
+                if len > 73 and foodx == seg73x and foody == seg73y { continue }
+                if len > 74 and foodx == seg74x and foody == seg74y { continue }
+                if len > 75 and foodx == seg75x and foody == seg75y { continue }
+                if len > 76 and foodx == seg76x and foody == seg76y { continue }
+                if len > 77 and foodx == seg77x and foody == seg77y { continue }
+                if len > 78 and foodx == seg78x and foody == seg78y { continue }
+                if len > 79 and foodx == seg79x and foody == seg79y { continue }
+                if len > 80 and foodx == seg80x and foody == seg80y { continue }
+                if len > 81 and foodx == seg81x and foody == seg81y { continue }
+                if len > 82 and foodx == seg82x and foody == seg82y { continue }
+                if len > 83 and foodx == seg83x and foody == seg83y { continue }
+                if len > 84 and foodx == seg84x and foody == seg84y { continue }
+                if len > 85 and foodx == seg85x and foody == seg85y { continue }
+                if len > 86 and foodx == seg86x and foody == seg86y { continue }
+                if len > 87 and foodx == seg87x and foody == seg87y { continue }
+                if len > 88 and foodx == seg88x and foody == seg88y { continue }
+                if len > 89 and foodx == seg89x and foody == seg89y { continue }
+                            break
+                        }
+                    }
+                }
+                if dead {
+                    break
+                }
+                if won {
+                    break
+                }
+            }
+        }
+        if snake_key_pressed(K_Q) or snake_key_pressed(K_ESC) {
+            quit = true
+        }
+        if snake_quit_pending() {
+            quit = true
+        }
+    # ---- 渲染一帧 ----
+    SDL_SetRenderDrawColor(ren, 13, 15, 28, 255)
+    SDL_RenderClear(ren)
+    px = foodx * cell
+    py = foody * cell
+    SDL_SetRenderDrawColor(ren, 235, 70, 60, 255)
+    snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    SDL_SetRenderDrawColor(ren, 60, 190, 90, 255)
+    if len > 89 {
+        px = seg89x * cell
+        py = seg89y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 88 {
+        px = seg88x * cell
+        py = seg88y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 87 {
+        px = seg87x * cell
+        py = seg87y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 86 {
+        px = seg86x * cell
+        py = seg86y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 85 {
+        px = seg85x * cell
+        py = seg85y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 84 {
+        px = seg84x * cell
+        py = seg84y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 83 {
+        px = seg83x * cell
+        py = seg83y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 82 {
+        px = seg82x * cell
+        py = seg82y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 81 {
+        px = seg81x * cell
+        py = seg81y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 80 {
+        px = seg80x * cell
+        py = seg80y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 79 {
+        px = seg79x * cell
+        py = seg79y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 78 {
+        px = seg78x * cell
+        py = seg78y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 77 {
+        px = seg77x * cell
+        py = seg77y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 76 {
+        px = seg76x * cell
+        py = seg76y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 75 {
+        px = seg75x * cell
+        py = seg75y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 74 {
+        px = seg74x * cell
+        py = seg74y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 73 {
+        px = seg73x * cell
+        py = seg73y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 72 {
+        px = seg72x * cell
+        py = seg72y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 71 {
+        px = seg71x * cell
+        py = seg71y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 70 {
+        px = seg70x * cell
+        py = seg70y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 69 {
+        px = seg69x * cell
+        py = seg69y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 68 {
+        px = seg68x * cell
+        py = seg68y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 67 {
+        px = seg67x * cell
+        py = seg67y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 66 {
+        px = seg66x * cell
+        py = seg66y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 65 {
+        px = seg65x * cell
+        py = seg65y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 64 {
+        px = seg64x * cell
+        py = seg64y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 63 {
+        px = seg63x * cell
+        py = seg63y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 62 {
+        px = seg62x * cell
+        py = seg62y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 61 {
+        px = seg61x * cell
+        py = seg61y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 60 {
+        px = seg60x * cell
+        py = seg60y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 59 {
+        px = seg59x * cell
+        py = seg59y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 58 {
+        px = seg58x * cell
+        py = seg58y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 57 {
+        px = seg57x * cell
+        py = seg57y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 56 {
+        px = seg56x * cell
+        py = seg56y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 55 {
+        px = seg55x * cell
+        py = seg55y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 54 {
+        px = seg54x * cell
+        py = seg54y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 53 {
+        px = seg53x * cell
+        py = seg53y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 52 {
+        px = seg52x * cell
+        py = seg52y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 51 {
+        px = seg51x * cell
+        py = seg51y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 50 {
+        px = seg50x * cell
+        py = seg50y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 49 {
+        px = seg49x * cell
+        py = seg49y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 48 {
+        px = seg48x * cell
+        py = seg48y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 47 {
+        px = seg47x * cell
+        py = seg47y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 46 {
+        px = seg46x * cell
+        py = seg46y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 45 {
+        px = seg45x * cell
+        py = seg45y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 44 {
+        px = seg44x * cell
+        py = seg44y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 43 {
+        px = seg43x * cell
+        py = seg43y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 42 {
+        px = seg42x * cell
+        py = seg42y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 41 {
+        px = seg41x * cell
+        py = seg41y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 40 {
+        px = seg40x * cell
+        py = seg40y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 39 {
+        px = seg39x * cell
+        py = seg39y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 38 {
+        px = seg38x * cell
+        py = seg38y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 37 {
+        px = seg37x * cell
+        py = seg37y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 36 {
+        px = seg36x * cell
+        py = seg36y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 35 {
+        px = seg35x * cell
+        py = seg35y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 34 {
+        px = seg34x * cell
+        py = seg34y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 33 {
+        px = seg33x * cell
+        py = seg33y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 32 {
+        px = seg32x * cell
+        py = seg32y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 31 {
+        px = seg31x * cell
+        py = seg31y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 30 {
+        px = seg30x * cell
+        py = seg30y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 29 {
+        px = seg29x * cell
+        py = seg29y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 28 {
+        px = seg28x * cell
+        py = seg28y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 27 {
+        px = seg27x * cell
+        py = seg27y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 26 {
+        px = seg26x * cell
+        py = seg26y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 25 {
+        px = seg25x * cell
+        py = seg25y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 24 {
+        px = seg24x * cell
+        py = seg24y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 23 {
+        px = seg23x * cell
+        py = seg23y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 22 {
+        px = seg22x * cell
+        py = seg22y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 21 {
+        px = seg21x * cell
+        py = seg21y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 20 {
+        px = seg20x * cell
+        py = seg20y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 19 {
+        px = seg19x * cell
+        py = seg19y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 18 {
+        px = seg18x * cell
+        py = seg18y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 17 {
+        px = seg17x * cell
+        py = seg17y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 16 {
+        px = seg16x * cell
+        py = seg16y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 15 {
+        px = seg15x * cell
+        py = seg15y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 14 {
+        px = seg14x * cell
+        py = seg14y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 13 {
+        px = seg13x * cell
+        py = seg13y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 12 {
+        px = seg12x * cell
+        py = seg12y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 11 {
+        px = seg11x * cell
+        py = seg11y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 10 {
+        px = seg10x * cell
+        py = seg10y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 9 {
+        px = seg9x * cell
+        py = seg9y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 8 {
+        px = seg8x * cell
+        py = seg8y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 7 {
+        px = seg7x * cell
+        py = seg7y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 6 {
+        px = seg6x * cell
+        py = seg6y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 5 {
+        px = seg5x * cell
+        py = seg5y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 4 {
+        px = seg4x * cell
+        py = seg4y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 3 {
+        px = seg3x * cell
+        py = seg3y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 2 {
+        px = seg2x * cell
+        py = seg2y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 1 {
+        px = seg1x * cell
+        py = seg1y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    px = seg0x * cell
+    py = seg0y * cell
+    SDL_SetRenderDrawColor(ren, 150, 255, 170, 255)
+    snake_fill_rect(ren, px + 1, py + 1, cell - 2, cell - 2)
+    SDL_RenderPresent(ren)
+
+        settitle(tbuf, score, len)
+        SDL_SetWindowTitle(win, tbuf)
+        SDL_Delay(16)
+        if quit {
+            break
+        }
+    }
+    if quit {
+        return 0
+    }
+    if dead {
+        setover(tbuf, score)
+        SDL_SetWindowTitle(win, tbuf)
+        loop {
+            if snake_quit_pending() {
+                return 0
+            }
+            if snake_key_pressed(K_Q) or snake_key_pressed(K_ESC) {
+                return 0
+            }
+            if snake_key_pressed(K_R) {
+                rest = true
+                break
+            }
+    # ---- 渲染一帧 ----
+    SDL_SetRenderDrawColor(ren, 13, 15, 28, 255)
+    SDL_RenderClear(ren)
+    px = foodx * cell
+    py = foody * cell
+    SDL_SetRenderDrawColor(ren, 235, 70, 60, 255)
+    snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    SDL_SetRenderDrawColor(ren, 60, 190, 90, 255)
+    if len > 89 {
+        px = seg89x * cell
+        py = seg89y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 88 {
+        px = seg88x * cell
+        py = seg88y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 87 {
+        px = seg87x * cell
+        py = seg87y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 86 {
+        px = seg86x * cell
+        py = seg86y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 85 {
+        px = seg85x * cell
+        py = seg85y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 84 {
+        px = seg84x * cell
+        py = seg84y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 83 {
+        px = seg83x * cell
+        py = seg83y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 82 {
+        px = seg82x * cell
+        py = seg82y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 81 {
+        px = seg81x * cell
+        py = seg81y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 80 {
+        px = seg80x * cell
+        py = seg80y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 79 {
+        px = seg79x * cell
+        py = seg79y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 78 {
+        px = seg78x * cell
+        py = seg78y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 77 {
+        px = seg77x * cell
+        py = seg77y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 76 {
+        px = seg76x * cell
+        py = seg76y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 75 {
+        px = seg75x * cell
+        py = seg75y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 74 {
+        px = seg74x * cell
+        py = seg74y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 73 {
+        px = seg73x * cell
+        py = seg73y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 72 {
+        px = seg72x * cell
+        py = seg72y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 71 {
+        px = seg71x * cell
+        py = seg71y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 70 {
+        px = seg70x * cell
+        py = seg70y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 69 {
+        px = seg69x * cell
+        py = seg69y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 68 {
+        px = seg68x * cell
+        py = seg68y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 67 {
+        px = seg67x * cell
+        py = seg67y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 66 {
+        px = seg66x * cell
+        py = seg66y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 65 {
+        px = seg65x * cell
+        py = seg65y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 64 {
+        px = seg64x * cell
+        py = seg64y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 63 {
+        px = seg63x * cell
+        py = seg63y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 62 {
+        px = seg62x * cell
+        py = seg62y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 61 {
+        px = seg61x * cell
+        py = seg61y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 60 {
+        px = seg60x * cell
+        py = seg60y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 59 {
+        px = seg59x * cell
+        py = seg59y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 58 {
+        px = seg58x * cell
+        py = seg58y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 57 {
+        px = seg57x * cell
+        py = seg57y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 56 {
+        px = seg56x * cell
+        py = seg56y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 55 {
+        px = seg55x * cell
+        py = seg55y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 54 {
+        px = seg54x * cell
+        py = seg54y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 53 {
+        px = seg53x * cell
+        py = seg53y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 52 {
+        px = seg52x * cell
+        py = seg52y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 51 {
+        px = seg51x * cell
+        py = seg51y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 50 {
+        px = seg50x * cell
+        py = seg50y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 49 {
+        px = seg49x * cell
+        py = seg49y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 48 {
+        px = seg48x * cell
+        py = seg48y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 47 {
+        px = seg47x * cell
+        py = seg47y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 46 {
+        px = seg46x * cell
+        py = seg46y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 45 {
+        px = seg45x * cell
+        py = seg45y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 44 {
+        px = seg44x * cell
+        py = seg44y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 43 {
+        px = seg43x * cell
+        py = seg43y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 42 {
+        px = seg42x * cell
+        py = seg42y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 41 {
+        px = seg41x * cell
+        py = seg41y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 40 {
+        px = seg40x * cell
+        py = seg40y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 39 {
+        px = seg39x * cell
+        py = seg39y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 38 {
+        px = seg38x * cell
+        py = seg38y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 37 {
+        px = seg37x * cell
+        py = seg37y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 36 {
+        px = seg36x * cell
+        py = seg36y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 35 {
+        px = seg35x * cell
+        py = seg35y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 34 {
+        px = seg34x * cell
+        py = seg34y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 33 {
+        px = seg33x * cell
+        py = seg33y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 32 {
+        px = seg32x * cell
+        py = seg32y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 31 {
+        px = seg31x * cell
+        py = seg31y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 30 {
+        px = seg30x * cell
+        py = seg30y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 29 {
+        px = seg29x * cell
+        py = seg29y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 28 {
+        px = seg28x * cell
+        py = seg28y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 27 {
+        px = seg27x * cell
+        py = seg27y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 26 {
+        px = seg26x * cell
+        py = seg26y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 25 {
+        px = seg25x * cell
+        py = seg25y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 24 {
+        px = seg24x * cell
+        py = seg24y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 23 {
+        px = seg23x * cell
+        py = seg23y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 22 {
+        px = seg22x * cell
+        py = seg22y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 21 {
+        px = seg21x * cell
+        py = seg21y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 20 {
+        px = seg20x * cell
+        py = seg20y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 19 {
+        px = seg19x * cell
+        py = seg19y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 18 {
+        px = seg18x * cell
+        py = seg18y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 17 {
+        px = seg17x * cell
+        py = seg17y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 16 {
+        px = seg16x * cell
+        py = seg16y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 15 {
+        px = seg15x * cell
+        py = seg15y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 14 {
+        px = seg14x * cell
+        py = seg14y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 13 {
+        px = seg13x * cell
+        py = seg13y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 12 {
+        px = seg12x * cell
+        py = seg12y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 11 {
+        px = seg11x * cell
+        py = seg11y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 10 {
+        px = seg10x * cell
+        py = seg10y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 9 {
+        px = seg9x * cell
+        py = seg9y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 8 {
+        px = seg8x * cell
+        py = seg8y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 7 {
+        px = seg7x * cell
+        py = seg7y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 6 {
+        px = seg6x * cell
+        py = seg6y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 5 {
+        px = seg5x * cell
+        py = seg5y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 4 {
+        px = seg4x * cell
+        py = seg4y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 3 {
+        px = seg3x * cell
+        py = seg3y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 2 {
+        px = seg2x * cell
+        py = seg2y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 1 {
+        px = seg1x * cell
+        py = seg1y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    px = seg0x * cell
+    py = seg0y * cell
+    SDL_SetRenderDrawColor(ren, 150, 255, 170, 255)
+    snake_fill_rect(ren, px + 1, py + 1, cell - 2, cell - 2)
+    SDL_RenderPresent(ren)
+            px = cols * cell
+            py = rows * cell
+            SDL_SetRenderDrawColor(ren, 205, 55, 55, 255)
+            snake_fill_rect(ren, 0, 0, px, 6)
+            snake_fill_rect(ren, 0, py - 6, px, 6)
+            snake_fill_rect(ren, 0, 0, 6, py)
+            snake_fill_rect(ren, px - 6, 0, 6, py)
+            SDL_RenderPresent(ren)
+            SDL_Delay(16)
+        }
+        if rest {
+            return 1
+        }
+        return 0
+    }
+
+    if won {
+        setwin(tbuf, score)
+        SDL_SetWindowTitle(win, tbuf)
+        loop {
+            if snake_quit_pending() {
+                return 0
+            }
+            if snake_key_pressed(K_Q) or snake_key_pressed(K_ESC) {
+                return 0
+            }
+            if snake_key_pressed(K_R) {
+                rest = true
+                break
+            }
+    # ---- 渲染一帧 ----
+    SDL_SetRenderDrawColor(ren, 13, 15, 28, 255)
+    SDL_RenderClear(ren)
+    px = foodx * cell
+    py = foody * cell
+    SDL_SetRenderDrawColor(ren, 235, 70, 60, 255)
+    snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    SDL_SetRenderDrawColor(ren, 60, 190, 90, 255)
+    if len > 89 {
+        px = seg89x * cell
+        py = seg89y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 88 {
+        px = seg88x * cell
+        py = seg88y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 87 {
+        px = seg87x * cell
+        py = seg87y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 86 {
+        px = seg86x * cell
+        py = seg86y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 85 {
+        px = seg85x * cell
+        py = seg85y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 84 {
+        px = seg84x * cell
+        py = seg84y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 83 {
+        px = seg83x * cell
+        py = seg83y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 82 {
+        px = seg82x * cell
+        py = seg82y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 81 {
+        px = seg81x * cell
+        py = seg81y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 80 {
+        px = seg80x * cell
+        py = seg80y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 79 {
+        px = seg79x * cell
+        py = seg79y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 78 {
+        px = seg78x * cell
+        py = seg78y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 77 {
+        px = seg77x * cell
+        py = seg77y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 76 {
+        px = seg76x * cell
+        py = seg76y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 75 {
+        px = seg75x * cell
+        py = seg75y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 74 {
+        px = seg74x * cell
+        py = seg74y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 73 {
+        px = seg73x * cell
+        py = seg73y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 72 {
+        px = seg72x * cell
+        py = seg72y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 71 {
+        px = seg71x * cell
+        py = seg71y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 70 {
+        px = seg70x * cell
+        py = seg70y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 69 {
+        px = seg69x * cell
+        py = seg69y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 68 {
+        px = seg68x * cell
+        py = seg68y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 67 {
+        px = seg67x * cell
+        py = seg67y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 66 {
+        px = seg66x * cell
+        py = seg66y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 65 {
+        px = seg65x * cell
+        py = seg65y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 64 {
+        px = seg64x * cell
+        py = seg64y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 63 {
+        px = seg63x * cell
+        py = seg63y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 62 {
+        px = seg62x * cell
+        py = seg62y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 61 {
+        px = seg61x * cell
+        py = seg61y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 60 {
+        px = seg60x * cell
+        py = seg60y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 59 {
+        px = seg59x * cell
+        py = seg59y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 58 {
+        px = seg58x * cell
+        py = seg58y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 57 {
+        px = seg57x * cell
+        py = seg57y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 56 {
+        px = seg56x * cell
+        py = seg56y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 55 {
+        px = seg55x * cell
+        py = seg55y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 54 {
+        px = seg54x * cell
+        py = seg54y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 53 {
+        px = seg53x * cell
+        py = seg53y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 52 {
+        px = seg52x * cell
+        py = seg52y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 51 {
+        px = seg51x * cell
+        py = seg51y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 50 {
+        px = seg50x * cell
+        py = seg50y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 49 {
+        px = seg49x * cell
+        py = seg49y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 48 {
+        px = seg48x * cell
+        py = seg48y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 47 {
+        px = seg47x * cell
+        py = seg47y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 46 {
+        px = seg46x * cell
+        py = seg46y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 45 {
+        px = seg45x * cell
+        py = seg45y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 44 {
+        px = seg44x * cell
+        py = seg44y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 43 {
+        px = seg43x * cell
+        py = seg43y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 42 {
+        px = seg42x * cell
+        py = seg42y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 41 {
+        px = seg41x * cell
+        py = seg41y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 40 {
+        px = seg40x * cell
+        py = seg40y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 39 {
+        px = seg39x * cell
+        py = seg39y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 38 {
+        px = seg38x * cell
+        py = seg38y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 37 {
+        px = seg37x * cell
+        py = seg37y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 36 {
+        px = seg36x * cell
+        py = seg36y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 35 {
+        px = seg35x * cell
+        py = seg35y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 34 {
+        px = seg34x * cell
+        py = seg34y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 33 {
+        px = seg33x * cell
+        py = seg33y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 32 {
+        px = seg32x * cell
+        py = seg32y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 31 {
+        px = seg31x * cell
+        py = seg31y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 30 {
+        px = seg30x * cell
+        py = seg30y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 29 {
+        px = seg29x * cell
+        py = seg29y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 28 {
+        px = seg28x * cell
+        py = seg28y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 27 {
+        px = seg27x * cell
+        py = seg27y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 26 {
+        px = seg26x * cell
+        py = seg26y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 25 {
+        px = seg25x * cell
+        py = seg25y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 24 {
+        px = seg24x * cell
+        py = seg24y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 23 {
+        px = seg23x * cell
+        py = seg23y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 22 {
+        px = seg22x * cell
+        py = seg22y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 21 {
+        px = seg21x * cell
+        py = seg21y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 20 {
+        px = seg20x * cell
+        py = seg20y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 19 {
+        px = seg19x * cell
+        py = seg19y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 18 {
+        px = seg18x * cell
+        py = seg18y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 17 {
+        px = seg17x * cell
+        py = seg17y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 16 {
+        px = seg16x * cell
+        py = seg16y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 15 {
+        px = seg15x * cell
+        py = seg15y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 14 {
+        px = seg14x * cell
+        py = seg14y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 13 {
+        px = seg13x * cell
+        py = seg13y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 12 {
+        px = seg12x * cell
+        py = seg12y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 11 {
+        px = seg11x * cell
+        py = seg11y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 10 {
+        px = seg10x * cell
+        py = seg10y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 9 {
+        px = seg9x * cell
+        py = seg9y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 8 {
+        px = seg8x * cell
+        py = seg8y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 7 {
+        px = seg7x * cell
+        py = seg7y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 6 {
+        px = seg6x * cell
+        py = seg6y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 5 {
+        px = seg5x * cell
+        py = seg5y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 4 {
+        px = seg4x * cell
+        py = seg4y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 3 {
+        px = seg3x * cell
+        py = seg3y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 2 {
+        px = seg2x * cell
+        py = seg2y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    if len > 1 {
+        px = seg1x * cell
+        py = seg1y * cell
+        snake_fill_rect(ren, px + 2, py + 2, cell - 4, cell - 4)
+    }
+    px = seg0x * cell
+    py = seg0y * cell
+    SDL_SetRenderDrawColor(ren, 150, 255, 170, 255)
+    snake_fill_rect(ren, px + 1, py + 1, cell - 2, cell - 2)
+    SDL_RenderPresent(ren)
+            px = cols * cell
+            py = rows * cell
+            SDL_SetRenderDrawColor(ren, 230, 190, 50, 255)
+            snake_fill_rect(ren, 0, 0, px, 6)
+            snake_fill_rect(ren, 0, py - 6, px, 6)
+            snake_fill_rect(ren, 0, 0, 6, py)
+            snake_fill_rect(ren, px - 6, 0, 6, py)
+            SDL_RenderPresent(ren)
+            SDL_Delay(16)
+        }
+        if rest {
+            return 1
+        }
+        return 0
+    }
+
+    return 0
+}
+
+if SDL_Init(4) {
+    let win = SDL_CreateWindow("Lamina Snake", 720, 480, 0)
+    SDL_RaiseWindow(win)
+    let ren = SDL_CreateRenderer(win, 0)
+    var tbuf = malloc(128)
+    srand(SDL_GetTicks())
+    var again = 1
+    loop {
+        if again == 0 {
+            break
+        }
+        again = play(ren, win, tbuf)
+    }
+    SDL_DestroyRenderer(ren)
+    SDL_DestroyWindow(win)
+    SDL_Quit()
+}

@@ -3,9 +3,8 @@
 //
 
 #pragma once
-#include <cmath>
 
-#include "../runtime/object/value.hpp"
+#include "../../runtime/object/value.hpp"
 
 #include <memory>
 #include <optional>
@@ -62,6 +61,7 @@ enum class ASTKind {
     LoopStmt,
     ContinueStmt,
     ImportStmt,
+    PipeExpr,
 };
 
 enum class TypeKind {
@@ -180,6 +180,10 @@ struct ASTNode {
 struct ExprNode : ASTNode {
     std::shared_ptr<Type> type;
     explicit ExprNode(ASTKind kind, size_t line, size_t col) noexcept;
+
+    [[nodiscard]] LMX_INLINE bool have_ret_value() const noexcept {
+        return !Type::is_null_type(type.get()) && type->kind != TypeKind::None;
+    }
 };
 
 struct StmtNode : ASTNode {
@@ -219,6 +223,7 @@ struct IdentifierNode : ExprNode {
 struct SuffixParenNode : ExprNode {
     std::shared_ptr<ExprNode> expr;
     std::shared_ptr<ExprsNode> suffix;
+    bool can_fast{false};
 
     explicit SuffixParenNode(size_t line, size_t col, std::shared_ptr<ExprNode> expr,
                              std::shared_ptr<ExprsNode> suffix) noexcept;
@@ -226,6 +231,7 @@ struct SuffixParenNode : ExprNode {
 struct NativeFuncCallExpr : ExprNode {
     std::shared_ptr<ExprNode> expr;
     std::shared_ptr<ExprsNode> suffix;
+    bool can_fast{false};
 
     explicit NativeFuncCallExpr(const SuffixParenNode* sp) noexcept;
 };
@@ -242,6 +248,7 @@ struct SuffixBracketNode : ExprNode {
 struct UnaryNode : ExprNode {
     enum class Op {
         Neg,
+        Not,
     };
     Op op;
     std::shared_ptr<ExprNode> expr;
@@ -305,7 +312,7 @@ struct FuncImplNode : StmtNode {
     std::shared_ptr<ParamsDeclNode> params;
     std::shared_ptr<Type> return_type;
 
-    std::shared_ptr<BlockExprNode> block;
+    std::shared_ptr<ExprNode> block;
 
     explicit FuncImplNode(size_t line, size_t col,
         decltype(func_id) func_id,
@@ -392,6 +399,13 @@ struct ImportStmtNode : StmtNode {
     explicit ImportStmtNode(size_t line, size_t col, decltype(name) name) noexcept;
 };
 
+struct PipeExprNode : ExprNode {
+    std::shared_ptr<ExprNode> lhs;
+    std::shared_ptr<ExprNode> rhs;
+
+    explicit PipeExprNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> lhs, std::shared_ptr<ExprNode> rhs) noexcept
+        : ExprNode(ASTKind::PipeExpr, line, col), lhs(std::move(lhs)), rhs(std::move(rhs)) {};
+};
 
 struct Module {
     std::string name;
@@ -413,5 +427,7 @@ struct Module {
         return imports.contains(other_name);
     }
 };
+
+
 
 }

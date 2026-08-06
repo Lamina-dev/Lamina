@@ -64,16 +64,15 @@ public:
     size_t code_len{};
     std::vector<uint8_t> raw_data{};
     explicit CodeModule(std::vector<uint8_t>&& data) noexcept;
-    ~CodeModule() noexcept override;
+    ~CodeModule() noexcept;
 
-    [[nodiscard]] Object*       clone       () const noexcept override;
 
-    [[nodiscard]] std::string   to_string   () const noexcept override;
-    [[nodiscard]] std::string   type_info   () const noexcept override;
-    [[nodiscard]] bool          equals(const Object* other) const noexcept override;
+    [[nodiscard]] std::string   to_string   () const noexcept;
+    [[nodiscard]] std::string   type_info   () const noexcept;
+    [[nodiscard]] bool          equals(const Object* other) const noexcept;
 
-    [[nodiscard]] bool operator==(const Object& other) const noexcept override;
-    [[nodiscard]] bool operator!=(const Object& other) const noexcept override;
+    [[nodiscard]] bool operator==(const Object& other) const noexcept;
+    [[nodiscard]] bool operator!=(const Object& other) const noexcept;
 
     [[nodiscard]] std::string disassemble() const noexcept;
     void disassemble_to_file(FILE* out) const noexcept;

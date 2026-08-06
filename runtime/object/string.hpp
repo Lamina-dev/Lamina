@@ -12,13 +12,16 @@ class String : public Object {
     std::string data;
 public:
     explicit String() noexcept;
-    String(const std::string& data) noexcept;
-    String(std::string&& data) noexcept;
+
+    explicit String(const std::string& data) noexcept;
+
+    explicit String(std::string&& data) noexcept;
     explicit String(const std::string& data, size_t index) noexcept;
     explicit String(const char* data, size_t size) noexcept;
-    String(const char* data) noexcept;
 
-    ~String() noexcept override;
+    explicit String(const char* data) noexcept;
+
+    ~String() noexcept;
 
     friend std::ostream& operator<<(std::ostream &os, const String &d) noexcept {
         return os << d.data;
@@ -27,13 +30,12 @@ public:
     String& operator+=(const String& other) noexcept;
     String operator+(const String& other) const noexcept;
 
-    [[nodiscard]] bool operator==(const Object& other) const noexcept override;
-    [[nodiscard]] bool operator!=(const Object& other) const noexcept override;
+    [[nodiscard]] bool operator==(const Object& other) const noexcept;
+    [[nodiscard]] bool operator!=(const Object& other) const noexcept;
 
-    [[nodiscard]] Object* clone() const noexcept override;
-    [[nodiscard]] std::string to_string() const noexcept override;
-    [[nodiscard]] bool equals(const Object* other) const noexcept override;
-    [[nodiscard]] std::string type_info() const noexcept override;
+    [[nodiscard]] std::string to_string() const noexcept;
+    [[nodiscard]] bool equals(const Object* other) const noexcept;
+    [[nodiscard]] std::string type_info() const noexcept;
 
     [[nodiscard]] const char* c_str() const noexcept;
 };

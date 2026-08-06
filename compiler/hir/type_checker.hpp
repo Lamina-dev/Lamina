@@ -1,7 +1,7 @@
 #pragma once
 #include <optional>
 
-#include "ast.hpp"
+#include "../ast/ast.hpp"
 
 namespace lmx::hir {
 /*
@@ -14,12 +14,16 @@ namespace lmx::hir {
 using HirNode = ASTNode;
 
 
-class HirContext {
+class TypeCkContext {
     std::vector<Scope> scope_stack;
+
+    std::vector<Scope::Var> global_scope;
 
     // Scope *parse_scope(ExprNode *node) noexcept;
 
     std::optional<Scope::Var *> find_var(const std::string &name) noexcept;
+
+    std::optional<Scope::Var *> find_global(const std::string &name) noexcept;
 
     void new_var(std::string name, std::shared_ptr<Type> type, Scope *scope, bool is_mut = false) noexcept;
     void new_cur_scope_var(std::string name, std::shared_ptr<Type> type, bool is_mut = false) noexcept;
@@ -27,19 +31,17 @@ class HirContext {
 
     std::vector<Scope::Var> &get_global() noexcept;
 
-    bool is_global_scope() const noexcept;
+    [[nodiscard]] bool is_global_scope() const noexcept;
 public:
-    explicit HirContext() noexcept;
+    explicit TypeCkContext() noexcept;
 
     std::vector<Scope::Var> check_module(const std::shared_ptr<Module> &mod) noexcept;
 
-    void check_expr(ExprNode *expr) noexcept;
+    void check_expr(std::shared_ptr<ExprNode> &expr) noexcept;
 
     void check_stmt(StmtNode *stmt) noexcept;
 
-
-
-    void reset() noexcept;
+    // void reset() noexcept;
     std::shared_ptr<Type> inference_type(ExprNode *type) noexcept;
 };
 

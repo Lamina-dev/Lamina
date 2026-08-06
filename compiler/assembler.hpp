@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "mir.hpp"
+#include "mir/mir.hpp"
 #include "../runtime/opcode.hpp"
 #include "../runtime/vm.hpp"
 

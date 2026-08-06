@@ -15,7 +15,7 @@ LmGCAllocator::~LmGCAllocator() noexcept {
 }
 
 Object *LmGCAllocator::alloc_string(const char *str, const uint32_t len) noexcept {
-    const auto ptr = new String(std::string(str, len));
+    const auto ptr = new String(str, len);
     objects.push_back(ptr);
     return ptr;
 }

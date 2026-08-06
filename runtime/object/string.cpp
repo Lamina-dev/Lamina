@@ -21,9 +21,6 @@ String::String(const char *data) noexcept: Object(ObjectKind::String), data (dat
 
 String::~String() noexcept = default;
 
-Object *String::clone() const noexcept {
-    return new String(data);
-}
 
 const char *String::c_str() const noexcept {
     return data.c_str();

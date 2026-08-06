@@ -165,10 +165,6 @@ public:
 
 
 
-Object *CodeModule::clone() const noexcept {
-    return nullptr;
-}
-
 CodeModule::~CodeModule() noexcept {
     if (native_lib_handle) {
         dlFreeLibrary(native_lib_handle);
@@ -270,6 +266,8 @@ constexpr InstInfo INST_TABLE[] = {
     /* FCmpLe     */ {.name = "fcmp_le",   .fmt = InstInfo::RegRegReg},
     /* FCmpGt     */ {.name = "fcmp_gt",   .fmt = InstInfo::RegRegReg},
     /* FCmpGe     */ {.name = "fcmp_ge",   .fmt = InstInfo::RegRegReg},
+    /* GetModule  */ {.name = "get_module",  .fmt = InstInfo::RegImm16},
+    /* GetModuleAttr*/{.name = "get_module_attr", .fmt = InstInfo::RegImm16},
 };
 
 constexpr size_t INST_COUNT = std::size(INST_TABLE);

@@ -2,5 +2,3 @@
 # 不建议直接导入，该模块用于导入builtins动态库（C implement)
 
 static "laminaCore"
-
-func print(args text...) -> null = "lmx_std_print"

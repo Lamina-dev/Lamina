@@ -6,7 +6,6 @@
 namespace lmx {
 
 void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
-    if (!&type) return;
     switch (type.kind) {
     case TypeKind::Unknown:
         ss << "?";

@@ -148,9 +148,9 @@ public:
             switch (meta->ret_ty) {
             case ValueKind::Null:   regs[0] = dcCallPointer(call_vm, (DCpointer)meta->addr); break;
             case ValueKind::C_Ptr:  regs[0] = dcCallPointer(call_vm, (DCpointer)meta->addr); break;
-            case ValueKind::Obj:    regs[0] = (Object*)dcCallPointer(call_vm, (DCpointer)meta->addr); break;
-            case ValueKind::Int:    regs[0] = (LmInt)dcCallLongLong(call_vm, (DCpointer)meta->addr); break;
-            case ValueKind::Bool:   regs[0] = (bool)dcCallBool(call_vm, (DCpointer)meta->addr); break;
+            case ValueKind::Obj:    regs[0] = static_cast<Object *>(dcCallPointer(call_vm, (DCpointer) meta->addr)); break;
+            case ValueKind::Int:    regs[0] = static_cast<LmInt>(dcCallLongLong(call_vm, (DCpointer) meta->addr)); break;
+            case ValueKind::Bool:   regs[0] = static_cast<bool>(dcCallBool(call_vm, (DCpointer) meta->addr)); break;
             case ValueKind::Fraction: dcCallVoid(call_vm, (DCpointer)meta->addr); break;
             case ValueKind::C_VaList:
                 break;

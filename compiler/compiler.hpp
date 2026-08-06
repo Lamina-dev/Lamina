@@ -9,12 +9,12 @@
 #include <vector>
 
 #include "assembler.hpp"
-#include "ast.hpp"
+#include "ast/ast.hpp"
 #include "error.hpp"
-#include "hir.hpp"
+#include "hir/type_checker.hpp"
 #include "lexer.hpp"
-#include "mir.hpp"
-#include "mir_builder.hpp"
+#include "mir/mir.hpp"
+#include "mir/mir_builder.hpp"
 #include "parser.hpp"
 
 namespace lmx {
@@ -75,7 +75,7 @@ public:
 
     Compiler& sema() noexcept {
         if (state == State::Ast) {
-            hir::HirContext().check_module(module);
+            hir::TypeCkContext().check_module(module);
             if (!has_errd()) state = State::FullAst;
             else state = State::Err;
         }
@@ -163,7 +163,7 @@ public:
         if (has_errd()) return std::nullopt;
         parse(name);
         if (has_errd()) return std::nullopt;
-        auto result = hir::HirContext().check_module(module);
+        auto result = hir::TypeCkContext().check_module(module);
         if (!has_errd()) return result;
         return std::nullopt;
     }

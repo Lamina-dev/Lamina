@@ -3,7 +3,7 @@
 //
 
 #include "mir_printer.hpp"
-#include "../runtime/opcode.hpp"
+#include "../../runtime/opcode.hpp"
 
 #include <memory>
 #include <string>

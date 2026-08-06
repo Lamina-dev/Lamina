@@ -12,7 +12,7 @@
 namespace lmx::runtime {
 class GC;
 
-using GCObject = std::shared_ptr<Object>;
+// using GCObject = std::shared_ptr<Object>;
 class LmGCAllocator {
     std::list<Object*> objects;
 public:

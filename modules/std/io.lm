@@ -1,3 +1,5 @@
-func test(a int) -> int {
-    a + 1
+import std
+
+func bar() {
+    std.int_to_frac
 }
