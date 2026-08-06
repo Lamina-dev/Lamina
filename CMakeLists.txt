@@ -169,7 +169,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             -frename-registers -fprefetch-loop-arrays
             -fipa-pta
             -fno-stack-protector -fno-stack-clash-protection
-            -fcf-protection=none -fzero-init-padding-bits=unions
+            -fcf-protection=none #-fzero-init-padding-bits=unions
             -U_FORTIFY_SOURCE
     )
     set(LMX_LINK_FLAGS -flto -s -Wl,--gc-sections -Wl,-O3 -Wl,--as-needed)
