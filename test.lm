@@ -1,3 +1,20 @@
+static "laminaCore"
 
+func printf(fmt text, ...) -> int = "printf"
 
+loop 6 {
+    printf("aaa\n")
+}
 
+# {
+#   var n = 6
+#   loop {
+#       if n == 0 {
+#           break
+#       }
+#
+#       printf("aaa\n")
+#
+#       n = n - 1
+#   }
+# }

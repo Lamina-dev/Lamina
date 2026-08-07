@@ -19,6 +19,7 @@ struct Module;
  */
 LM_API extern const std::filesystem::path module_path;
 LM_API extern std::filesystem::path current_module_path;
+LM_API extern std::filesystem::path toolchain_module_path;
 LM_API extern std::shared_ptr<Module> main_module;
 
 inline constexpr auto file_suffix = ".lm";
@@ -27,7 +28,7 @@ inline constexpr auto file_default_mod = "module";
 
 inline constexpr auto module_cache_fold = "_lm_cache";
 
-LMX_INLINE std::optional<std::filesystem::path> find_module_path(std::filesystem::path real_path) {
+LMX_INLINE std::optional<std::filesystem::path> find_module_path(std::filesystem::path real_path) noexcept {
     namespace fs = std::filesystem;
     if (fs::path named = (real_path.string() + file_suffix);
         fs::is_regular_file(named)) {
@@ -56,7 +57,7 @@ LMX_INLINE std::optional<std::filesystem::path> find_module_path(std::filesystem
  * Notes:
  *     path.to.name ---> {prefix}/path/to/name
  */
-LMX_INLINE std::optional<std::pair<std::filesystem::path, std::filesystem::path>> find_module_name(const std::string& name) {
+LMX_INLINE std::optional<std::pair<std::filesystem::path, std::filesystem::path>> find_module_name(const std::string& name) noexcept {
     using RetTy = std::pair<std::filesystem::path, std::filesystem::path>;
     namespace fs = std::filesystem;
     std::string real_name;
@@ -82,4 +83,6 @@ LMX_INLINE std::optional<std::pair<std::filesystem::path, std::filesystem::path>
 
 std::vector<uint8_t> ast_to_binary(const std::shared_ptr<Module>& mod) noexcept;
 
+
+std::filesystem::path get_exe_dir() noexcept;
 }
