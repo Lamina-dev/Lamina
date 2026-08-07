@@ -11,6 +11,97 @@
 
 using namespace lmx;
 
+lmx::TypePool lmx::type_pool;
+
+std::shared_ptr<Type> TypePool::basic(const runtime::ValueKind v) noexcept {
+    for (const auto& t : types)
+        if (t->kind == TypeKind::Basic && static_cast<BasicType*>(t.get())->type == v) return t;
+    auto ty = std::make_shared<BasicType>(v);
+    types.push_back(ty);
+    return ty;
+}
+
+std::shared_ptr<Type> TypePool::string() noexcept {
+    for (const auto& t : types) if (t->kind == TypeKind::String) return t;
+    auto ty = std::make_shared<StringType>();
+    types.push_back(ty);
+    return ty;
+}
+
+std::shared_ptr<Type> TypePool::array(const std::shared_ptr<Type>& type, const size_t len) noexcept {
+    for (const auto& t : types)
+        if (t->kind == TypeKind::Array) {
+            const auto* a = static_cast<ArrayType*>(t.get());
+            if (a->len == len && a->type->equals(type.get())) return t;
+        }
+    auto ty = std::make_shared<ArrayType>(type, len);
+    types.push_back(ty);
+    return ty;
+}
+
+std::shared_ptr<Type> TypePool::function(std::vector<std::shared_ptr<Type>> params,
+                                         std::shared_ptr<Type> ret) noexcept {
+    for (const auto& t : types)
+        if (t->kind == TypeKind::Function) {
+            const auto* f = static_cast<FunctionType*>(t.get());
+            if (!f->ret_ty->equals(ret.get()) || f->params_ty.size() != params.size()) continue;
+            bool ok = true;
+            for (size_t i = 0; i < params.size(); i++)
+                if (!f->params_ty[i]->equals(params[i].get())) { ok = false; break; }
+            if (ok) return t;
+        }
+    auto ty = std::make_shared<FunctionType>(std::move(params), std::move(ret));
+    types.push_back(ty);
+    return ty;
+}
+
+std::shared_ptr<Type> TypePool::native_function(std::vector<std::shared_ptr<Type>> params,
+                                                std::shared_ptr<Type> ret,
+                                                std::string name) noexcept {
+    for (const auto& t : types)
+        if (t->kind == TypeKind::NativeFunction) {
+            const auto* f = static_cast<NativeFunctionType*>(t.get());
+            if (f->name != name || !f->ret_ty->equals(ret.get()) || f->params_ty.size() != params.size()) continue;
+            bool ok = true;
+            for (size_t i = 0; i < params.size(); i++)
+                if (!f->params_ty[i]->equals(params[i].get())) { ok = false; break; }
+            if (ok) return t;
+        }
+    auto ty = std::make_shared<NativeFunctionType>(std::move(params), std::move(ret), std::move(name));
+    types.push_back(ty);
+    return ty;
+}
+
+std::shared_ptr<Type> TypePool::named(std::string name) noexcept {
+    for (const auto& t : types)
+        if (t->kind == TypeKind::Named && static_cast<NamedType*>(t.get())->name == name) return t;
+    auto ty = std::make_shared<NamedType>(std::move(name));
+    types.push_back(ty);
+    return ty;
+}
+
+std::shared_ptr<Type> TypePool::module(std::string target_path, std::vector<hir::Scope::Var> exports) noexcept {
+    for (const auto& t : types)
+        if (t->kind == TypeKind::Module && static_cast<ModuleType*>(t.get())->target_path == target_path) return t;
+    auto ty = std::make_shared<ModuleType>(std::move(target_path), std::move(exports));
+    types.push_back(ty);
+    return ty;
+}
+
+std::shared_ptr<Type> TypePool::unknown() noexcept {
+    for (const auto& t : types) if (t->kind == TypeKind::Unknown) return t;
+    auto ty = std::make_shared<UnknownType>();
+    types.push_back(ty);
+    return ty;
+}
+
+std::shared_ptr<Type> TypePool::none() noexcept {
+    for (const auto& t : types) if (t->kind == TypeKind::None) return t;
+    auto ty = std::make_shared<NoneType>();
+    types.push_back(ty);
+    return ty;
+}
+
 Type::~Type() = default;
 
 BasicType::~BasicType() = default;
@@ -270,7 +361,7 @@ std::shared_ptr<FunctionType> FuncImplNode::make_type() noexcept {
     for (auto &type: params->stmts | std::views::values) {
         params_ty.push_back(type);
     }
-    return std::make_shared<FunctionType>(params_ty, return_type);
+    return std::reinterpret_pointer_cast<FunctionType>(type_pool.function(std::move(params_ty), return_type));
 }
 
 DotExprNode::DotExprNode(const size_t line, const size_t col, std::shared_ptr<ExprNode> expr, std::shared_ptr<IdentifierNode> rhs) noexcept
@@ -290,7 +381,8 @@ std::shared_ptr<NativeFunctionType> NativeFuncDeclNode::make_type() noexcept {
     for (const auto &type: params->stmts | std::views::values) {
         params_ty.push_back(type);
     }
-    return std::make_shared<NativeFunctionType>(params_ty, return_type, symbol);
+    return std::reinterpret_pointer_cast<NativeFunctionType>(
+        type_pool.native_function(std::move(params_ty), return_type, symbol));
 }
 
 NativeFuncCallExpr::NativeFuncCallExpr(const SuffixParenNode *sp) noexcept

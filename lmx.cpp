@@ -25,17 +25,18 @@ LmState global_state;
 LM_API LmState* lmx_newState() {
     auto* node = static_cast<LmLinkedNode *>(malloc(sizeof(LmLinkedNode)));
     memset(node, 0, sizeof(LmLinkedNode));
-    global_state = LmState {node};
+    global_state = LmState {.n = node, .vm = nullptr};
     return &global_state;
 }
 LM_API void lmx_deleteState(const LmState* state) {
     const LmLinkedNode* node = state->n;
-    while (node->last) {
-        if (node->ptr) free(node->ptr);
+    while (node != nullptr) {
+        if (node->ptr != nullptr) free(node->ptr);
         const auto last = node->last;
         free((void*)node);
         node = last;
     }
+    delete reinterpret_cast<lmx::runtime::LaminaVM*>(state->vm);
 }
 static LmLinkedNode* newLickedNode(LmLinkedNode* old) {
     auto* node = static_cast<LmLinkedNode *>(malloc(sizeof(LmLinkedNode)));
@@ -135,10 +136,10 @@ void lmx_printMIRFromFile(LmState *state, FILE *file, const char *name) {
 }
 
 LaminaVM* lmx_newLaminaVM(LmState* state, int argc, char** argv) {
-    auto* vm = static_cast<LaminaVM*>(malloc(sizeof(lmx::runtime::LaminaVM)));
-    new (vm) lmx::runtime::LaminaVM(argc, argv);
-    lmx_state_addNode(state, vm);
-    return vm;
+    auto* vm = new lmx::runtime::LaminaVM(argc, argv);
+    if (state->vm) delete reinterpret_cast<lmx::runtime::LaminaVM*>(state->vm);
+    state->vm = reinterpret_cast<LaminaVM*>(vm);
+    return state->vm;
 }
 
 bool lmx_moduleToFile(LmState *state, LmModule *module, const char *name) {

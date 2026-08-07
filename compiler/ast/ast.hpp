@@ -428,6 +428,30 @@ struct Module {
     }
 };
 
+/*
+ * 类型池：保证每个类型只有一个实例（interned）。
+ * parse / hir / tyck 阶段统一从这里获取类型，不做裸 make_shared。
+ */
+class TypePool {
+    std::vector<std::shared_ptr<Type>> types;
+public:
+    [[nodiscard]] std::shared_ptr<Type> basic(runtime::ValueKind v) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> string() noexcept;
+    [[nodiscard]] std::shared_ptr<Type> array(const std::shared_ptr<Type>& type, size_t len) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> function(std::vector<std::shared_ptr<Type>> params,
+                                                 std::shared_ptr<Type> ret) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> native_function(std::vector<std::shared_ptr<Type>> params,
+                                                        std::shared_ptr<Type> ret,
+                                                        std::string name) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> named(std::string name) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> module(std::string target_path,
+                                               std::vector<hir::Scope::Var> exports) noexcept;
 
+    [[nodiscard]] std::shared_ptr<Type> unknown() noexcept;
+    [[nodiscard]] std::shared_ptr<Type> none() noexcept;
+};
+
+// 编译器前端共享的类型池，parse / hir / tyck 统一使用
+extern TypePool type_pool;
 
 }

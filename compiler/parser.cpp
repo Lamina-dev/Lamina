@@ -435,7 +435,7 @@ std::shared_ptr<StmtNode> Parser::parse_var_decl() noexcept {
     // consume(TokenType::COLON, ":");
     std::shared_ptr<Type> type;
     if (!match(TokenType::ASSIGN)) type = parse_type();
-    else type = std::make_shared<UnknownType>();
+    else type = type_pool.unknown();
 
     return std::make_shared<VarDeclNode>(line, col, id, type, is_mutable);
 }
@@ -503,7 +503,7 @@ std::shared_ptr<StmtNode> Parser::parse_func() noexcept {
             auto pid = cur().text;
             if (cur().type == TokenType::DOT_DOT_DOT) {
                 advance();
-                params.emplace_back("#", std::make_shared<BasicType>(runtime::ValueKind::C_VaList));
+                params.emplace_back("#", type_pool.basic(runtime::ValueKind::C_VaList));
             } else {
                 advance();
                 params.emplace_back(pid, parse_type());
@@ -518,7 +518,7 @@ std::shared_ptr<StmtNode> Parser::parse_func() noexcept {
         advance();
         return_type = parse_type();
     }
-    else return_type = std::make_shared<UnknownType>();
+    else return_type = type_pool.unknown();
     if (match(TokenType::ASSIGN)) {
         if (Type::is_null_type(return_type.get())) {
             throw_error(ErrorType::Parse, "native function declare must be have return_type declare", line, col);
@@ -553,11 +553,11 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
             {"cptr", runtime::ValueKind::C_Ptr}
         };
         if (const auto it = basic_types.find(id); it != basic_types.end())
-            return std::make_shared<BasicType>(it->second);
+            return type_pool.basic(it->second);
         if (id == "text") {
-            return std::make_shared<StringType>();
+            return type_pool.string();
         }
-        return std::make_shared<NamedType>(id);
+        return type_pool.named(id);
     }
     default: {
         throw_error(ErrorType::Parse, "wrong type decl: `" + cur().text + "`", cur().line, cur().col);

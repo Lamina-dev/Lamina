@@ -39,7 +39,7 @@ public:
 
     void check_expr(std::shared_ptr<ExprNode> &expr) noexcept;
 
-    void check_stmt(StmtNode *stmt) noexcept;
+    void check_stmt(std::shared_ptr<StmtNode> &stmt) noexcept;
 
     // void reset() noexcept;
     std::shared_ptr<Type> inference_type(ExprNode *type) noexcept;

@@ -48,8 +48,12 @@ struct LmLinkedNode {
     void* ptr;
     LmLinkedNode* last;
 };
+
+struct LaminaVM;
+typedef struct LaminaVM LaminaVM;
 struct LmState {
     LmLinkedNode* n;
+    LaminaVM* vm;
 };
 typedef struct LmState LmState;
 
@@ -68,8 +72,7 @@ typedef int64_t LmInt;
 struct LmModule;
 typedef struct LmModule LmModule;
 
-struct LaminaVM;
-typedef struct LaminaVM LaminaVM;
+
 
 
 /*
