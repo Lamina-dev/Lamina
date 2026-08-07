@@ -234,6 +234,6 @@ int lmx_vmRunModule(LmState* state, LaminaVM* vm, LmModule* module) {
 void lmx_vmEval(LmState *state, LaminaVM *vm, LmValue *result, const char *code) {
     std::string c = code;
     auto tks = lmx::Lexer(c).tokenize(c);
-    const auto node = lmx::Parser(tks).parse_stmt();
-    lmx::hir::TypeCkContext().check_stmt(node.get());
+    auto node = lmx::Parser(tks).parse_stmt();
+    lmx::hir::TypeCkContext().check_stmt(node);
 }

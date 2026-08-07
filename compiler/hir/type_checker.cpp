@@ -145,6 +145,8 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
 static std::shared_ptr<StmtNode> sugar_loop_count(const std::shared_ptr<LoopStmtNode>& stmt) noexcept {
     std::string name = "@loop_cnt_id";
     auto var_cnt = std::make_shared<VarDeclNode>(0, 0, name, type_pool.basic(runtime::ValueKind::Int), true);
+    var_cnt->init_value = std::move(stmt->expr);
+
 
     const auto lhs = std::make_shared<IdentifierNode>(0, 0, name);
     const auto rhs = std::make_shared<LiteralNode>(0, 0, "0", LiteralNode::Kind::Integer);
@@ -157,6 +159,9 @@ static std::shared_ptr<StmtNode> sugar_loop_count(const std::shared_ptr<LoopStmt
 
     stmt->body.insert(stmt->body.begin(), std::make_shared<ExprStmtNode>(0, 0, break_if));
 
+    const auto one = std::make_shared<LiteralNode>(0, 0, "1", LiteralNode::Kind::Integer);
+    const auto dec_cnt = std::make_shared<AssignStmtNode>(0, 0, lhs, std::make_shared<BinaryNode>(0, 0, lhs, BinaryNode::Op::Sub, one));
+    stmt->body.insert(stmt->body.end(), dec_cnt);
     decltype(BlockExprNode::stmts) block{var_cnt, stmt};
     auto result = std::make_shared<ExprStmtNode>(
         stmt->line, stmt->col, std::make_shared<BlockExprNode>(stmt->line, stmt->col, std::move(block)));
