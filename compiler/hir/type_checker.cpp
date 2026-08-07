@@ -39,22 +39,22 @@ TypeCkContext::TypeCkContext() noexcept {
 }
 
 std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
-    if (!type) return std::make_shared<UnknownType>();
+    if (!type) return type_pool.unknown();
     switch (type->kind) {
     case ASTKind::Literal: {
         const auto node = reinterpret_cast<LiteralNode*>(type);
         switch (node->kind) {
         case LiteralNode::Kind::Integer: {
-            return std::make_shared<BasicType>(runtime::ValueKind::Int);
+            return type_pool.basic(runtime::ValueKind::Int);
         }
         case LiteralNode::Kind::Float: {
-            return std::make_shared<BasicType>(runtime::ValueKind::Fraction);
+            return type_pool.basic(runtime::ValueKind::Fraction);
         }
         case LiteralNode::Kind::String: {
-            return std::make_shared<StringType>();
+            return type_pool.string();
         }
         case LiteralNode::Kind::Boolean: {
-            return std::make_shared<BasicType>(runtime::ValueKind::Bool);
+            return type_pool.basic(runtime::ValueKind::Bool);
         }
         }
         break;
@@ -74,7 +74,7 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
             if (const auto t2 = std::reinterpret_pointer_cast<BasicType>(t)->type;
                 t2 == runtime::ValueKind::Int || t2 == runtime::ValueKind::Fraction) {
 
-                return std::make_shared<BasicType>(t2);
+                return type_pool.basic(t2);
             }
         }
         break;
@@ -98,7 +98,7 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
                 ) return tail_ret->expr->type;
             return inference_type(tail_ret->expr.get());
         } //否则就是Block没有返回值
-        return std::make_shared<NoneType>();
+        return type_pool.none();
         break;
     }
     case ASTKind::SuffixParen: {
@@ -138,8 +138,31 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
     }
     default: std::unreachable();
     }
-    return std::make_shared<UnknownType>();
+    return type_pool.unknown();
 }
+
+
+static std::shared_ptr<StmtNode> sugar_loop_count(const std::shared_ptr<LoopStmtNode>& stmt) noexcept {
+    std::string name = "@loop_cnt_id";
+    auto var_cnt = std::make_shared<VarDeclNode>(0, 0, name, type_pool.basic(runtime::ValueKind::Int), true);
+
+    const auto lhs = std::make_shared<IdentifierNode>(0, 0, name);
+    const auto rhs = std::make_shared<LiteralNode>(0, 0, "0", LiteralNode::Kind::Integer);
+    auto break_cond = std::make_shared<BinaryNode>(0, 0, lhs, BinaryNode::Op::Eq, rhs);
+
+    auto break_stmt_block = std::make_shared<BlockExprNode>(0, 0, decltype(BlockExprNode::stmts){std::make_shared<BreakStmtNode>(0, 0)});
+
+    auto break_if = std::make_shared<IfExprNode>(0, 0, break_cond, break_stmt_block, nullptr);
+    // if `@loop_cnt_id` == 0 { break }
+
+    stmt->body.insert(stmt->body.begin(), std::make_shared<ExprStmtNode>(0, 0, break_if));
+
+    decltype(BlockExprNode::stmts) block{var_cnt, stmt};
+    auto result = std::make_shared<ExprStmtNode>(
+        stmt->line, stmt->col, std::make_shared<BlockExprNode>(stmt->line, stmt->col, std::move(block)));
+    return result;
+}
+
 
 
 // void HirContext::reset() noexcept {
@@ -159,7 +182,7 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
     }
     // reset();
     for (auto& node : mod->decls) {
-        check_stmt(node.get());
+        check_stmt(node);
     }
 
     cur_module = save_cur_module;
@@ -281,7 +304,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             }
             const auto& type_map = type_map_it->second;
             if (const auto it = type_map.find(node->op); it != type_map.end()) {
-                node->type = std::make_shared<BasicType>(it->second);
+                node->type = type_pool.basic(it->second);
             } else {
                 goto binary_type_mismatch;
             }
@@ -294,7 +317,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     case ASTKind::Block: {
         const auto node = reinterpret_cast<BlockExprNode*>(expr.get());
         scope_stack.emplace_back(Scope::ScopeType::Block);
-        for (auto& s : node->stmts) check_stmt(s.get());
+        for (auto& s : node->stmts) check_stmt(s);
         expr->type = scope_stack.back().return_type;
         scope_stack.pop_back();
         break;
@@ -493,15 +516,15 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     }
 }
 
-void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
+void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
     switch (stmt->kind) {
     case ASTKind::ExprStmt: {
-        auto* node = reinterpret_cast<ExprStmtNode*>(stmt);
+        auto* node = reinterpret_cast<ExprStmtNode*>(stmt.get());
         check_expr(node->expr);
         break;
     }
     case ASTKind::ImportStmt: {
-        const auto* node = reinterpret_cast<ImportStmtNode*>(stmt);
+        const auto* node = reinterpret_cast<ImportStmtNode*>(stmt.get());
         const auto found = find_module_name(node->name);
         if (!found) {
             throw_error(ErrorType::Analysis, "no module is called `" + node->name + "`", node->line, node->col);
@@ -550,7 +573,8 @@ void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
         std::ofstream ofs(output_path);
         ofs.write(reinterpret_cast<const char*>(compiled.data()), static_cast<std::streamsize>(compiled.size()));
         ofs.close();
-        auto mod_ty = std::make_shared<ModuleType>(output_path, std::move(exports));
+        auto mod_ty = std::reinterpret_pointer_cast<ModuleType>(
+            type_pool.module(output_path.string(), std::move(exports)));
         new_global_var(path.filename(), mod_ty);
 
         cur_module->imports[abs_path.string()] = mod_ty;
@@ -561,7 +585,7 @@ void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
     //case ASTKind::ParamsDeclNode:
     //    break;
     case ASTKind::FuncImpl: {
-        auto* node = reinterpret_cast<FuncImplNode*>(stmt);
+        auto* node = reinterpret_cast<FuncImplNode*>(stmt.get());
         if (!is_global_scope()) throw_error(ErrorType::Analysis, "function only define in GlobalScope", stmt->line, stmt->col);
 
         new_global_var(node->func_id, node->make_type());
@@ -575,10 +599,10 @@ void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
         scope_stack.push_back(scope);
 
         if (node->block->kind == ASTKind::Block) {
-            for (const auto* block = reinterpret_cast<BlockExprNode*>(node->block.get());
+            for (auto* block = reinterpret_cast<BlockExprNode*>(node->block.get());
                 auto& s : block->stmts) {
 
-                check_stmt(s.get());
+                check_stmt(s);
             }
         } else check_expr(node->block);
         if (!node->return_type->equals(scope_stack.back().return_type.get())) {
@@ -599,7 +623,7 @@ void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
         break;
     }
     case ASTKind::Return: {
-        const auto node = reinterpret_cast<ReturnNode*>(stmt);
+        const auto node = reinterpret_cast<ReturnNode*>(stmt.get());
         if (!node->expr) break;
         check_expr(node->expr);
         node->expr->type = inference_type(node->expr.get());
@@ -619,7 +643,7 @@ void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
         break;
     }
     case ASTKind::TailReturn: {
-        const auto node = reinterpret_cast<TailReturnNode*>(stmt);
+        const auto node = reinterpret_cast<TailReturnNode*>(stmt.get());
         check_expr(node->expr);
         if (Type::is_null_type(scope_stack.back().return_type.get()))
             scope_stack.back().return_type = node->expr->type;
@@ -633,7 +657,7 @@ void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
         break;
     }
     case ASTKind::VarDecl: {
-        const auto node = reinterpret_cast<VarDeclNode*>(stmt);
+        const auto node = reinterpret_cast<VarDeclNode*>(stmt.get());
         check_expr(node->init_value);
         if (Type::is_null_type(node->type.get())) {
             if (!node->init_value) {
@@ -650,7 +674,7 @@ void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
         break;
     }
     case ASTKind::AssignStmt: {
-        const auto node = reinterpret_cast<AssignStmtNode*>(stmt);
+        const auto node = reinterpret_cast<AssignStmtNode*>(stmt.get());
         check_expr(node->lhs);
         check_expr(node->rhs);
         node->lhs->type = inference_type(node->lhs.get());
@@ -690,21 +714,25 @@ void TypeCkContext::check_stmt(StmtNode* stmt) noexcept {
         break;
     }
     case ASTKind::LoopStmt: {
-        const auto node = reinterpret_cast<LoopStmtNode*>(stmt);
+        auto node = std::reinterpret_pointer_cast<LoopStmtNode>(stmt);
         if (node->expr) {
             check_expr(node->expr);
             if (!Type::is_null_type(node->expr->type.get()) &&
-                !node->expr->type->equals(std::make_shared<BasicType>(runtime::ValueKind::Int).get())
+                !node->expr->type->equals(type_pool.basic(runtime::ValueKind::Int).get())
                 ) {
+
                 throw_error(ErrorType::Analysis, "loop condition type must be int", node->line, node->col);
                 break;
                 }
         }
         scope_stack.emplace_back(Scope::ScopeType::Loop);
         for (auto& s : node->body) {
-            check_stmt(s.get());
+            check_stmt(s);
         }
         scope_stack.pop_back();
+        if (node->expr) {
+            stmt = sugar_loop_count(node);
+        }
         break;
     }
     default: std::unreachable();

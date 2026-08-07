@@ -10,7 +10,7 @@ using namespace lmx::runtime;
 
 LmGCAllocator::~LmGCAllocator() noexcept {
     for (const auto& obj : objects) {
-        delete obj;
+        obj->release();
     }
 }
 
