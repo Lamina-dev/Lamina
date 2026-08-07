@@ -315,7 +315,13 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         if (left->kind == TypeKind::Function) {
             const auto func_ty = std::reinterpret_pointer_cast<FunctionType>(left);
             if (func_ty->params_ty.size() != node->suffix->exprs.size()) {
-                throw_error(ErrorType::Analysis, "mismatch args count in function calling", node->line, node->col);
+                throw_error(ErrorType::Analysis,
+                    "mismatch args count in function calling, (param(s)"
+                    + std::to_string(func_ty->params_ty.size()) +
+                    " != arg(s)" +
+                    std::to_string(node->suffix->exprs.size()) + ")",
+                    node->line, node->col
+                    );
                 break;
             }
             const auto len = func_ty->params_ty.size();
@@ -323,7 +329,11 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 const auto param = func_ty->params_ty[i];
                 check_expr(node->suffix->exprs[i]);
                 if (!param->equals(node->suffix->exprs[i]->type.get())) {
-                    throw_error(ErrorType::Analysis, "type mismatch arg in function calling", node->line, node->col);
+                    throw_error(ErrorType::Analysis,
+                        "type mismatch arg in function calling in arg(s) " + std::to_string(i) +
+                        ": (" + Type::to_string(node->suffix->exprs[i]->type.get()) +
+                        " != " + Type::to_string(node->suffix->exprs[i]->type.get()) + ")"
+                        , node->line, node->col);
                     break;
                 }
             }
@@ -348,7 +358,13 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             }
 
             if (!has_va_list && func_ty->params_ty.size() != node->suffix->exprs.size()) {
-                throw_error(ErrorType::Analysis, "mismatch args count in function calling", node->line, node->col);
+                throw_error(ErrorType::Analysis,
+                    "mismatch args count in function calling,(param(s): "
+                    + std::to_string(func_ty->params_ty.size()) +
+                    " != arg(s): " +
+                    std::to_string(node->suffix->exprs.size()) + ")",
+                    node->line, node->col
+                    );
                 break;
             }
             const auto len = node->suffix->exprs.size();
@@ -436,52 +452,40 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     case ASTKind::PipeExpr: {
         const auto node = reinterpret_cast<PipeExprNode*>(expr.get());
         check_expr(node->lhs);
-        // check_expr(node->rhs);
+        check_expr(node->rhs);
         std::shared_ptr<ExprNode> result;
 
-        if (node->rhs->kind == ASTKind::SuffixParen) {
-            const auto call_expr = reinterpret_cast<SuffixParenNode*>(node->rhs.get());
-            decltype(ExprsNode::exprs) suffix_paren;
-            suffix_paren.push_back(node->lhs);
-            suffix_paren.insert(suffix_paren.end(), call_expr->suffix->exprs.begin(), call_expr->suffix->exprs.end());
-            result = std::make_shared<SuffixParenNode>(
-                node->line, node->col, call_expr->expr,
-                std::make_shared<ExprsNode>(node->line, node->col, std::move(suffix_paren))
-                );
-            check_expr(result);
-        } else {
-            check_expr(node->rhs);
-            const auto& lhs_ty = node->lhs->type;
-            const auto& rhs_ty = node->rhs->type;
-            if (rhs_ty == nullptr || rhs_ty->kind != TypeKind::Function) {
-                throw_error(ErrorType::Analysis, "`|>` op must be function type on right", node->line, node->col);
-                break;
-            }
-            const auto rhs_fty = std::reinterpret_pointer_cast<FunctionType>(rhs_ty);
-            if (rhs_fty->params_ty.empty()) {
-                throw_error(ErrorType::Analysis, "`|>` op right function calling not arg(s)", node->line, node->col);
-                break;
-            }
-            if (!rhs_fty->params_ty[0]->equals(lhs_ty.get())) {
-                throw_error(
-                    ErrorType::Analysis,
-                    "`|>` op in right, function arg type and left type mismatch, ("
-                    + Type::to_string(lhs_ty.get())
-                    + " |> "
-                    + Type::to_string(rhs_fty->params_ty[0].get())
-                    + ")",
-                    node->line, node->col
-                    );
-                break;
-            }
-            decltype(ExprsNode::exprs) exprs;
-            exprs.push_back(node->lhs);
-            result = std::make_shared<SuffixParenNode>(
-                node->line, node->col, node->rhs,
-                std::make_shared<ExprsNode>(node->line, node->col, exprs)
-                );
-            result->type = rhs_fty->ret_ty;
+        const auto& lhs_ty = node->lhs->type;
+        const auto& rhs_ty = node->rhs->type;
+        if (rhs_ty == nullptr || rhs_ty->kind != TypeKind::Function) {
+            throw_error(ErrorType::Analysis, "`|>` op not return func on right", node->line, node->col);
+            break;
         }
+        const auto rhs_fty = std::reinterpret_pointer_cast<FunctionType>(rhs_ty);
+        if (rhs_fty->params_ty.empty()) {
+            throw_error(ErrorType::Analysis, "`|>` op right function calling not arg(1)", node->line, node->col);
+            break;
+        }
+        if (!rhs_fty->params_ty[0]->equals(lhs_ty.get())) {
+            throw_error(
+                ErrorType::Analysis,
+                "`|>` op in right, function arg type and left type mismatch, ("
+                + Type::to_string(lhs_ty.get())
+                + " |> "
+                + Type::to_string(rhs_fty->params_ty[0].get())
+                + ")",
+                node->line, node->col
+                );
+            break;
+        }
+        decltype(ExprsNode::exprs) exprs;
+        exprs.push_back(node->lhs);
+        result = std::make_shared<SuffixParenNode>(
+            node->line, node->col, node->rhs,
+            std::make_shared<ExprsNode>(node->line, node->col, exprs)
+            );
+        result->type = rhs_fty->ret_ty;
+
         expr = result;
         break;
     }

@@ -2,23 +2,25 @@ static "laminaCore"
 import std.io
 func printf(fmt text, ...) -> int = "printf"
 
-
-func println_int(n int, say text) {
-    printf("%lld, %s\n", n, say)
-    n
-}
 func foo(a int) {
     a + a
+}
+
+func println_int(n int) {
+    printf("%lld\n", n)
+    foo
 }
 
 let foo_ref = foo
 printf("%lld\n",
     4
     |> foo_ref
-    |> println_int("say1")
+    |> println_int(1)
     |> foo_ref
     |> foo_ref
-    |> println_int("say2")
+    |> println_int(2)
 )
 
 printf("%.1f\n", io.bar()(5))
+
+
