@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26)
 project(Lamina LANGUAGES CXX)
 
 #set(FETCHCONTENT_FULLY_DISCONNECTED ON)
-
+set(BUILD_TESTING OFF)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 if (MSVC)
     message(FATAL_ERROR "MSVC is not supported, use clang-cl or other compilers in Windows")
@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include_directories(include)
 include_directories(${CMAKE_BINARY_DIR}/_deps/dyncall-src)
-include_directories(${CMAKE_BINARY_DIR}/_deps/LMCAS/include)
+include_directories(${CMAKE_BINARY_DIR}/_deps/lmcas-src/include)
 add_subdirectory(runtime)
 add_subdirectory(compiler)
 
@@ -37,7 +37,6 @@ FetchContent_Declare(
         FIND_PACKAGE_ARGS 11 CONFIG
 )
 FetchContent_MakeAvailable(dyncall)
-
 
 
 
@@ -71,12 +70,16 @@ FetchContent_Declare(
         GIT_SUBMODULES "LMMC"
         #GIT_SUBMODULES_RECURSE ON
         #EXCLUDE_FROM_ALL TRUE
+
 )
 FetchContent_MakeAvailable(LmCAS)
 target_link_libraries(laminaCore PRIVATE
     lmcas
 )
 
+if(TARGET LammpCore AND UNIX AND NOT APPLE)
+    target_link_options(LammpCore PRIVATE -Wl,-Bsymbolic-functions)
+endif()
 
 target_compile_definitions(laminaCore PRIVATE LMX_DLL)
 target_compile_definitions(laminaCore PRIVATE LMX_BUILD)

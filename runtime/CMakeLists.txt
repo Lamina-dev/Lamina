@@ -7,6 +7,7 @@ add_library(lamina_runtime OBJECT
     object/value.cpp
     object/code_module.cpp
     gc.cpp
+    object/lsr_ExprObj.cpp
 )
 
 
