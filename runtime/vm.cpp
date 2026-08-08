@@ -16,7 +16,8 @@
 namespace lmx::runtime {
 LaminaVM::LaminaVM(const int argc, char **argv) noexcept :
     // cp(cp),
-    stack(new Value[LMX_VM_REG_COUNT /* LMX_CALLSTACK_MAX_COUNT*/]),
+    stack(new Value[LMX_VM_REG_COUNT * LMX_CALLSTACK_MAX_COUNT]),
+    regs(stack),
     //local_vars_bp(new Value[LMX_LOCAL_VAR_COUNT * LMX_CALLSTACK_MAX_COUNT]),
     //local_vars_curp(local_vars_bp),
     // global_vars(/*new Value[65536]*/nullptr),
@@ -33,7 +34,7 @@ LaminaVM::~LaminaVM() noexcept {
     dcFree(call_vm);
 }
 
-Value &LaminaVM::get_reg(const uint8_t reg) noexcept {
+Value &LaminaVM::get_reg(const uint8_t reg) const noexcept {
     return regs[reg];
 }
 
@@ -232,12 +233,20 @@ int LaminaVM::run(CodeModule *prog) noexcept {
             i--;
         }
         cur_frame->local_vars[0] = regs[LMX_VM_REG_COUNT - 1];
+
+        regs += LMX_VM_REG_COUNT;
+
         ip = func->addr;
         VM_NEXT_RAW
     }
 
     VM_LABEL(Ret) {
         ip = pop_frame(this);
+
+        const auto r0 = regs;
+
+        regs -= LMX_VM_REG_COUNT;
+        regs[0] = *r0;
         VM_NEXT_RAW
     }
 
@@ -357,6 +366,9 @@ int LaminaVM::run(CodeModule *prog) noexcept {
             i--;
         }
         cur_frame->local_vars[0] = regs[LMX_VM_REG_COUNT - 1];
+
+        regs += LMX_VM_REG_COUNT;
+
         ip = func->addr;
         VM_NEXT_RAW
     }
