@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.26)
 project(Lamina LANGUAGES CXX)
 
-set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+#set(FETCHCONTENT_FULLY_DISCONNECTED ON)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 if (MSVC)
@@ -20,13 +20,14 @@ option(LMX_BUILD_STATIC "Build laminac and lamina_runtime as standalone static l
 
 add_executable(lamina main.cpp)
 
+
 include(FetchContent)
 
 set(DYNCALL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(DYNCALL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 
-message(STATUS "cloning dyncall")
+message(STATUS "downloading dyncall")
 FetchContent_Declare(
         dyncall
         GIT_REPOSITORY https://github.com/ugexe/dyncall.git
@@ -37,16 +38,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(dyncall)
 
-#message(STATUS "cloning LmCAS")
-#FetchContent_Declare(
-#        LmCAS
-#        GIT_REPOSITORY git@github.com:Lamina-dev/LMCAS.git
-#        GIT_TAG main
-#        GIT_SHALLOW TRUE
-#        GIT_SUBMODULES_RECURSE ON
-#        EXCLUDE_FROM_ALL TRUE
-#)
-#FetchContent_MakeAvailable(LmCAS)
+
 
 
 if (UNIX)
@@ -69,9 +61,21 @@ target_link_libraries(laminaCore PRIVATE
         dynload_s
 )
 #message( ${CMAKE_BINARY_DIR}/_deps/dyncall-src)
-#target_link_libraries(laminaCore PRIVATE
-#    lmcas
-#)
+
+message(STATUS "cloning LmCAS")
+FetchContent_Declare(
+        LmCAS
+        GIT_REPOSITORY git@github.com:Lamina-dev/LMCAS.git
+        GIT_TAG lmcas-2-current
+        GIT_SHALLOW TRUE
+        GIT_SUBMODULES "LMMC"
+        #GIT_SUBMODULES_RECURSE ON
+        #EXCLUDE_FROM_ALL TRUE
+)
+FetchContent_MakeAvailable(LmCAS)
+target_link_libraries(laminaCore PRIVATE
+    lmcas
+)
 
 
 target_compile_definitions(laminaCore PRIVATE LMX_DLL)
