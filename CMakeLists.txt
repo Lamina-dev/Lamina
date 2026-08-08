@@ -65,7 +65,7 @@ target_link_libraries(laminaCore PRIVATE
 message(STATUS "cloning LmCAS")
 FetchContent_Declare(
         LmCAS
-        GIT_REPOSITORY https://github.com:Lamina-dev/LMCAS.git
+        GIT_REPOSITORY https://github.com/Lamina-dev/LMCAS.git
         GIT_TAG lmcas-2-current
         GIT_SHALLOW TRUE
         GIT_SUBMODULES "LMMC"
