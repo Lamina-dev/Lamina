@@ -411,19 +411,23 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
                 }
                 reg.free(rr);
             }
+            /*
             auto using_regs = reg.get_all_using();
             for (const auto r : using_regs) {
                 InstEmitter::emit(insts, runtime::Opcode::Push, r);
             }
+            */
 
             const auto func_it = funcs.find(c.name);
             if (func_it == funcs.end()) return 0;
             const auto func_idx = static_cast<uint16_t>(func_it->second);
 
             InstEmitter::emit(insts, runtime::Opcode::CallFast, func_idx, argc);
+
+            /*
             for (const auto r : using_regs | std::views::reverse) {
                 InstEmitter::emit(insts, runtime::Opcode::Pop, r);
-            }
+            }*/
             return 0;
         }
         case runtime::Opcode::CCall: {
@@ -466,17 +470,22 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
                 }
                 reg.free(rr);
             }
+            /*
             auto using_regs = reg.get_all_using();
             for (const auto r : using_regs) {
                 InstEmitter::emit(insts, runtime::Opcode::Push, r);
             }
+            */
 
             const auto func_it = asm_mir_expr(insts, c.func.get());
 
             InstEmitter::emit(insts, runtime::Opcode::Call, func_it, argc);
+
+            /*
             for (const auto r : using_regs | std::views::reverse) {
                 InstEmitter::emit(insts, runtime::Opcode::Pop, r);
-            }
+            }*/
+
             reg.free(func_it);
             return 0;
         }

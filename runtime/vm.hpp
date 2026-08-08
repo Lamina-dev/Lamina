@@ -31,10 +31,9 @@ struct Frame {
     ~Frame() noexcept;
 };
 class LaminaVM {
-
     std::vector<Frame*> free_frames;
-    Value regs[LMX_VM_REG_COUNT];
     Value* stack;
+    Value* regs;
     // Value* local_vars_bp;
     // Value* local_vars_curp;
     // Value* global_vars;
@@ -92,7 +91,7 @@ public:
     ~LaminaVM() noexcept;
 
     int run(CodeModule* prog) noexcept;
-    Value& get_reg(uint8_t reg) noexcept;
+    Value& get_reg(uint8_t reg) const noexcept;
 
     friend LMX_INLINE void new_frame(LaminaVM* vm, CodeModule* mod, const uint8_t *ret_addr) noexcept {
         if (vm->free_frames.empty()) {
@@ -115,6 +114,7 @@ public:
         // auto i = 0;
         vm->free_frames.push_back(cur_frame);
         vm->cur_frame = cur_frame->last;
+
         return cur_frame->ret_addr;
     }
 
