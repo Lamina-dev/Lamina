@@ -1,6 +1,6 @@
 static "laminaCore"
 
-func printf(fmt text, ...) -> int = "printf"
+func printf(fmt text, ...) -> int = "lmx_printf"
 
 func int_to_frac(n int) -> frac {
     n / 1

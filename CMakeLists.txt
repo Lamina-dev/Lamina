@@ -56,6 +56,7 @@ add_library(laminaCore SHARED
     $<TARGET_OBJECTS:lamina_runtime>
         utils/utils.cpp
 )
+set_target_properties(laminaCore PROPERTIES PREFIX "")
 target_link_libraries(laminaCore PRIVATE
         dyncall_s
         dynload_s

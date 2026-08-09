@@ -13,6 +13,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <cstdarg>
 #include <fstream>
 
 #include "compiler/assembler.hpp"
@@ -21,6 +22,22 @@
 #include "compiler/mir/mir_printer.hpp"
 
 LmState global_state;
+
+extern "C" LM_API int lmx_printf(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    const int result = vprintf(fmt, args);
+    va_end(args);
+    return result;
+}
+
+extern "C" LM_API int printf(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    const int result = vprintf(fmt, args);
+    va_end(args);
+    return result;
+}
 
 LM_API LmState* lmx_newState() {
     auto* node = static_cast<LmLinkedNode *>(malloc(sizeof(LmLinkedNode)));
