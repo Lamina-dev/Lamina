@@ -61,7 +61,7 @@ jobs:
       - name: Configure CMake
         run: |
           if [ "${{ runner.os }}" = "Windows" ]; then
-            cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
+            cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -T ClangCL
           else
             cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON
           fi
