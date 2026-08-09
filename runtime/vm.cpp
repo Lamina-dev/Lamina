@@ -91,7 +91,7 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     std::cout << prog->disassemble() << std::endl;
 #endif
     // return 0;
-    // const auto start = std::chrono::high_resolution_clock::now();
+    //const auto start = std::chrono::high_resolution_clock::now();
     VM_DISPATCH
 
 
@@ -167,8 +167,8 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
 
     VM_LABEL(Halt) {
-        // const auto end = std::chrono::high_resolution_clock::now();
-        // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start) << std::endl;
+        //const auto end = std::chrono::high_resolution_clock::now();
+        //std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start) << std::endl;
         return 0;
     }
 

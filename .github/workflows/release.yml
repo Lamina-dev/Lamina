@@ -15,7 +15,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: ubuntu-latest
             archive: linux-x64
@@ -27,19 +27,45 @@ jobs:
             ext: ''
             so_ext: .dylib
             lib_ext: .a
-#          - os: windows-latest
-#            archive: windows-x64
-#            ext: .exe
-#            so_ext: .dll
-#            lib_ext: .lib
+          - os: windows-latest
+            archive: windows-x64
+            ext: .exe
+            so_ext: .dll
+            lib_ext: .lib
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install NASM (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y nasm
+
+      - name: Install NASM (macOS)
+        if: runner.os == 'macOS'
+        run: brew install nasm
+
+      - name: Install NASM (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          curl -fsSL -o nasm.zip "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/win64/nasm-2.16.03-win64.zip"
+          unzip -o nasm.zip
+          echo "$GITHUB_WORKSPACE/nasm-2.16.03/" >> "$GITHUB_PATH"
+
+      - name: Set up MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
+          else
+            cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON
+          fi
+        shell: bash
 
       - name: Build
         run: cmake --build build --config Release
@@ -71,4 +97,3 @@ jobs:
         with:
           name: lamina-${{ matrix.archive }}
           path: package/
-
