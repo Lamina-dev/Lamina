@@ -4,7 +4,7 @@ project(Lamina LANGUAGES CXX)
 #set(FETCHCONTENT_FULLY_DISCONNECTED ON)
 set(BUILD_TESTING OFF)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-if (MSVC)
+if (MSVC AND NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
     message(FATAL_ERROR "MSVC is not supported, use clang-cl or other compilers in Windows")
 endif ()
 
