@@ -27,11 +27,11 @@ jobs:
 #            ext: ''
 #            so_ext: .dylib
 #            lib_ext: .a
-          - os: windows-latest
-            archive: windows-x64
-            ext: .exe
-            so_ext: .dll
-            lib_ext: .lib
+#          - os: windows-latest
+#            archive: windows-x64
+#            ext: .exe
+#            so_ext: .dll
+#            lib_ext: .lib
 
     runs-on: ${{ matrix.os }}
 
@@ -46,17 +46,17 @@ jobs:
 #        if: runner.os == 'macOS'
 #        run: brew install nasm
 
-      - name: Install NASM (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          curl -fsSL -o nasm.zip "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/win64/nasm-2.16.03-win64.zip"
-          unzip -o nasm.zip
-          echo "$GITHUB_WORKSPACE/nasm-2.16.03/" >> "$GITHUB_PATH"
+#      - name: Install NASM (Windows)
+#        if: runner.os == 'Windows'
+#        shell: bash
+#        run: |
+#          curl -fsSL -o nasm.zip "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/win64/nasm-2.16.03-win64.zip"
+#          unzip -o nasm.zip
+#          echo "$GITHUB_WORKSPACE/nasm-2.16.03/" >> "$GITHUB_PATH"
 
-      - name: Set up MSVC environment
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
+#      - name: Set up MSVC environment
+#        if: runner.os == 'Windows'
+#        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure CMake
         run: |
@@ -87,10 +87,10 @@ jobs:
             cp "$f" package/lib/
           done < <(find build -maxdepth 3 \( -name "laminac${{ matrix.lib_ext }}" -o -name "lamina_runtime${{ matrix.lib_ext }}" \) -type f)
 
-          # On Windows, also grab import lib for laminaCore
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            cp "$(find build -maxdepth 3 -name "laminaCore.lib" -type f | head -1)" package/lib/
-          fi
+#          # On Windows, also grab import lib for laminaCore
+#          if [ "${{ runner.os }}" = "Windows" ]; then
+#            cp "$(find build -maxdepth 3 -name "laminaCore.lib" -type f | head -1)" package/lib/
+#          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
