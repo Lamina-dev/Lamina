@@ -34,8 +34,8 @@ FetchContent_Declare(
         GIT_TAG r1.4
         GIT_SHALLOW TRUE
         EXCLUDE_FROM_ALL TRUE
-        FIND_PACKAGE_ARGS 11 CONFIG
         PATCH_COMMAND ${CMAKE_COMMAND} -DDYNCALL_SRC=<SOURCE_DIR> -P ${CMAKE_SOURCE_DIR}/scripts/patch_dyncall.cmake
+        FIND_PACKAGE_ARGS 11 CONFIG
 )
 FetchContent_MakeAvailable(dyncall)
 
