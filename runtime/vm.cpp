@@ -329,27 +329,27 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
 
     VM_LABEL(FAdd) {
-        new (&regs[ip[1]]) Value(regs[ip[2]].frac_val + regs[ip[3]].frac_val);
+        regs[ip[1]] = regs[ip[2]].frac_val + regs[ip[3]].frac_val;
         VM_NEXT
     }
 
     VM_LABEL(FSub) {
-        new (&regs[ip[1]]) Value(regs[ip[2]].frac_val - regs[ip[3]].frac_val);
+        regs[ip[1]] = regs[ip[2]].frac_val - regs[ip[3]].frac_val;
         VM_NEXT
     }
 
     VM_LABEL(FMul) {
-        new (&regs[ip[1]]) Value(regs[ip[2]].frac_val * regs[ip[3]].frac_val);
+        regs[ip[1]] = regs[ip[2]].frac_val * regs[ip[3]].frac_val;
         VM_NEXT
     }
 
     VM_LABEL(FDiv) {
-        new (&regs[ip[1]]) Value(regs[ip[2]].frac_val / regs[ip[3]].frac_val);
+        regs[ip[1]] = regs[ip[2]].frac_val / regs[ip[3]].frac_val;
         VM_NEXT
     }
 
     VM_LABEL(FMod) {
-        new (&regs[ip[1]]) Value(regs[ip[2]].frac_val % regs[ip[3]].frac_val);
+        regs[ip[1]] = regs[ip[2]].frac_val % regs[ip[3]].frac_val;
         VM_NEXT
     }
 
