@@ -862,7 +862,7 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
                 for (; it != p.end(); ++it) {
                     result /= *it;
                 }
-                return result;
+                return result.string();
             }
         }
         return {};

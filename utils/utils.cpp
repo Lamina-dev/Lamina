@@ -21,7 +21,7 @@ std::filesystem::path get_exe_dir() noexcept {
     char* res;
 #if defined(_WIN32) || defined(_WIN64)
     char buffer[MAX_PATH];
-    GetModuleFilenameA(NULL, buffer, MAX_PATH);
+    GetModuleFileNameA(NULL, buffer, MAX_PATH);
     res = buffer;
 #elif defined(__unix__)
     char buffer[PATH_MAX];

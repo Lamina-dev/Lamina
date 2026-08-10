@@ -14,7 +14,7 @@
 #endif
 #ifdef LMX_DLL
     #if defined(_WIN32) || defined(_WIN64)
-        #ifdef LMC_BUILD
+        #ifdef LMX_BUILD
             #define LM_API __declspec(dllexport)
         #else
             #define LM_API __declspec(dllimport)

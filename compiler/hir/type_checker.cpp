@@ -536,8 +536,9 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
             break;
         }
         const auto [path, abs_path] = *found;
+        const auto abs_path_string = abs_path.string();
 
-        if (cur_module->module_is_imported(abs_path)) {
+        if (cur_module->module_is_imported(abs_path_string)) {
             break;
         }
 
@@ -557,7 +558,7 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
             auto tokens = Lexer(code).tokenize(code);
             if (errd) break;
 
-            auto ast = Parser(tokens).parse_module(abs_path);
+            auto ast = Parser(tokens).parse_module(abs_path_string);
             if (errd) break;
 
             exports = TypeCkContext().check_module(ast);
@@ -579,10 +580,10 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
         ofs.write(reinterpret_cast<const char*>(compiled.data()), static_cast<std::streamsize>(compiled.size()));
         ofs.close();
         auto mod_ty = std::reinterpret_pointer_cast<ModuleType>(
-            type_pool.module(output_path.string(), std::move(exports)));
-        new_global_var(path.filename(), mod_ty);
+        type_pool.module(output_path.string(), std::move(exports)));
+        new_global_var(path.filename().string(), mod_ty);
 
-        cur_module->imports[abs_path.string()] = mod_ty;
+        cur_module->imports[abs_path_string] = mod_ty;
         break;
     }
     //case ASTKind::Exprs:
