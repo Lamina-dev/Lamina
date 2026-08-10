@@ -580,7 +580,7 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
         ofs.write(reinterpret_cast<const char*>(compiled.data()), static_cast<std::streamsize>(compiled.size()));
         ofs.close();
         auto mod_ty = std::reinterpret_pointer_cast<ModuleType>(
-            type_pool.module(output_path.string(), std::move(exports)));
+        type_pool.module(output_path.string(), std::move(exports)));
         new_global_var(path.filename().string(), mod_ty);
 
         cur_module->imports[abs_path_string] = mod_ty;
