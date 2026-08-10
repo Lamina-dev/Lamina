@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.26)
 project(Lamina LANGUAGES CXX)
 
-#set(FETCHCONTENT_FULLY_DISCONNECTED ON)
+set(FETCHCONTENT_FULLY_DISCONNECTED ON)
 set(BUILD_TESTING OFF)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 if (MSVC AND NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
@@ -56,7 +56,9 @@ add_library(laminaCore SHARED
     $<TARGET_OBJECTS:lamina_runtime>
         utils/utils.cpp
 )
-set_target_properties(laminaCore PROPERTIES PREFIX "")
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set_target_properties(laminaCore PROPERTIES PREFIX "")
+endif ()
 target_link_libraries(laminaCore PRIVATE
         dyncall_s
         dynload_s

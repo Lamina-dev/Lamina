@@ -8,7 +8,8 @@ namespace lmx::runtime {
 enum class RuntimeErrorType {
     ModuleLoad,
     CanNotCalling,
-    IndexOutOfRange
+    IndexOutOfRange,
+    Construct,
 };
 constexpr const char* error_str[] = {
     "ModuleLoaderError", "CanNotCalling", "IndexOutOfRange"

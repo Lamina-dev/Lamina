@@ -57,7 +57,7 @@ LMX_INLINE std::optional<std::filesystem::path> find_module_path(std::filesystem
  * Notes:
  *     path.to.name ---> {prefix}/path/to/name
  */
-LMX_INLINE std::optional<std::pair<std::filesystem::path, std::filesystem::path>> find_module_name(const std::string& name) noexcept {
+LMX_INLINE std::optional<std::pair<std::filesystem::path, std::filesystem::path>>  find_module_name(const std::string& name) noexcept {
     using RetTy = std::pair<std::filesystem::path, std::filesystem::path>;
     namespace fs = std::filesystem;
     std::string real_name;
