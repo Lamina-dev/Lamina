@@ -13,6 +13,8 @@
 #include <ostream>
 #include <ranges>
 
+#include "object/array.hpp"
+
 namespace lmx::runtime {
 LaminaVM::LaminaVM(const int argc, char **argv) noexcept :
     // cp(cp),
@@ -38,7 +40,7 @@ Value &LaminaVM::get_reg(const uint8_t reg) const noexcept {
     return regs[reg];
 }
 
-Frame::Frame(Frame* last, CodeModule* mod ,const uint8_t *ret_addr) noexcept
+Frame::Frame(Frame* last, CodeModuleObj* mod ,const uint8_t *ret_addr) noexcept
     : last(last), mod(mod), ret_addr(ret_addr)
 //, local_vars(local_vars)
 {}
@@ -50,10 +52,10 @@ Frame::~Frame() noexcept = default;
 static const void* dispatch[] = {\
     &&opNop, &&opNew,\
     &&opGetTrue, &&opGetFalse, &&opGetNull,\
-    &&opIConst, &&opCConst, &&opPop, &&opPush, &&opHalt,\
+    &&opIConst, &&opCConst, &&opNewArray, &&opArrLoad, &&opHalt,\
     &&opIAdd, &&opISub, &&opIMul, &&opIDiv, &&opIMod, &&opIPow, &&opINeg,\
     &&opFuncCreate,\
-    &&opCallVirtual, &&opCCall, &&opCallFast, &&opRet,\
+    &&opArrStore, &&opCCall, &&opCallFast, &&opRet,\
     &&opGoto,\
     &&opICmpEq, &&opICmpNe, &&opICmpLt, &&opICmpLe, &&opICmpGt, &&opICmpGe,\
     &&opIfTrue, &&opIfFalse,\
@@ -83,7 +85,7 @@ LMX_INLINE static constexpr int16_t read_i16(const uint8_t* p) {
 LMX_INLINE static constexpr uint16_t read_u16(const uint8_t* p) {
     return static_cast<uint16_t>(p[0] | (p[1] << 8));
 };
-int LaminaVM::run(CodeModule *prog) noexcept {
+int LaminaVM::run(CodeModuleObj *prog) noexcept {
     cur_frame = new Frame(nullptr, prog, nullptr);
     const uint8_t* ip = prog->code;
     // assert((reinterpret_cast<uint64_t>(ip) % 4) == 0);
@@ -156,13 +158,13 @@ int LaminaVM::run(CodeModule *prog) noexcept {
         // VM_NEXT
     }
 
-    VM_LABEL(Pop) {
-        regs[ip[1]] = *--stack;
+    VM_LABEL(NewArray) {
+        regs[ip[1]] = allocator.alloc_array(read_u16(ip + 2));
         VM_NEXT
     }
 
-    VM_LABEL(Push) {
-        *stack++ = regs[ip[1]];
+    VM_LABEL(ArrLoad) {
+        regs[ip[1]] = reinterpret_cast<ArrayObj*>(regs[ip[2]].obj)->at(regs[ip[3]].int_val);
         VM_NEXT
     }
 
@@ -215,7 +217,8 @@ int LaminaVM::run(CodeModule *prog) noexcept {
         VM_NEXT
     }
 
-    VM_LABEL(CallVirtual) {
+    VM_LABEL(ArrStore) {
+        reinterpret_cast<ArrayObj*>(regs[ip[1]].obj)->store(regs[ip[2]].int_val, std::move(regs[ip[3]]));
         VM_NEXT
     }
 
@@ -409,7 +412,7 @@ int LaminaVM::run(CodeModule *prog) noexcept {
         VM_NEXT
     }
     VM_LABEL(GetModuleAttr) {
-        regs[ip[1]] = &reinterpret_cast<CodeModule*>(regs[0].obj)->funcs[read_u16(ip + 2)];
+        regs[ip[1]] = &reinterpret_cast<CodeModuleObj*>(regs[0].obj)->funcs[read_u16(ip + 2)];
         VM_NEXT
     }
     VM_LABEL(GetFunc) {

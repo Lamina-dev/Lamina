@@ -30,6 +30,8 @@ struct Value {
     explicit Value(bool val)    noexcept;
     explicit Value(int num, int den);
     explicit Value(const Fraction& frac) noexcept;
+    explicit Value(const Value&) = default;
+    explicit Value(Value&&) = default;
 
     Object* operator->() const noexcept;
 
@@ -39,7 +41,7 @@ struct Value {
     Value& operator=(bool bool_val)     noexcept;
     Value& operator=(const Value& other)noexcept;
     Value& operator=(Value&& other)     noexcept;
-    Value &operator=(const Fraction& fraction);
+    Value& operator=(const Fraction& fraction);
     Value& operator=(std::nullptr_t)    noexcept;
 
     Value operator+(const Value& other) const noexcept;

@@ -17,6 +17,7 @@ class LmGCAllocator {
     std::list<Object*> objects;
 public:
     Object* alloc_string(const char *str, uint32_t len) noexcept;
+    Object* alloc_array(size_t len) noexcept;
 
     ~LmGCAllocator() noexcept;
 };

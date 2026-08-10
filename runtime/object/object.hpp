@@ -3,7 +3,7 @@
 #include <string>
 
 namespace lmx::runtime {
-class CodeModule;
+class CodeModuleObj;
 
 namespace ObjectKind {
 enum  {

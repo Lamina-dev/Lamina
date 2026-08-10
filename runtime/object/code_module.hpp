@@ -14,12 +14,12 @@
 
 
 namespace lmx::runtime {
-class CodeModule;
+class CodeModuleObj;
 struct FuncObj {
-    CodeModule* mod;
+    CodeModuleObj* mod;
     const uint8_t* addr;
     uint32_t bytecode_len;
-    explicit FuncObj(CodeModule* mod, const uint8_t* addr, uint32_t bytecode_len = 0) noexcept;
+    explicit FuncObj(CodeModuleObj* mod, const uint8_t* addr, uint32_t bytecode_len = 0) noexcept;
 };
 struct NativeFuncObj {
     // CodeModule* mod;
@@ -52,19 +52,19 @@ constexpr auto lib_suffix = ".dylib";
 #endif
 // constexpr auto runtime_lib_name = std::string(lib_prefix) + "Lamina" + lib_suffix;
 
-class CodeModule : public Object {
+class CodeModuleObj : public Object {
 public:
     DLLib* native_lib_handle{};
     std::vector<ConstantPoolInfo> cp;
     std::vector<FuncObj> funcs;
     std::vector<NativeFuncObj> native_funcs{};
-    std::vector<std::unique_ptr<CodeModule>> imports;
+    std::vector<std::unique_ptr<CodeModuleObj>> imports;
     std::vector<TypeInfo> types;
     const uint8_t* code{};
     size_t code_len{};
     std::vector<uint8_t> raw_data{};
-    explicit CodeModule(std::vector<uint8_t>&& data) noexcept;
-    ~CodeModule() noexcept;
+    explicit CodeModuleObj(std::vector<uint8_t>&& data) noexcept;
+    ~CodeModuleObj() noexcept;
 
 
     [[nodiscard]] std::string   to_string   () const noexcept;

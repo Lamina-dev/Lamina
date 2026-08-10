@@ -20,7 +20,7 @@ std::string MirPrinter::opcode_name(const runtime::Opcode::Opcode op) {
     case runtime::Opcode::GetNull:    return "get_null";
     case runtime::Opcode::IConst:     return "iconst";
     case runtime::Opcode::CConst:     return "cconst";
-    case runtime::Opcode::Pop:        return "pop";
+    case runtime::Opcode::NewArray:        return "new_array";
     case runtime::Opcode::Halt:       return "halt";
     case runtime::Opcode::IAdd:       return "iadd";
     case runtime::Opcode::ISub:       return "isub";
@@ -30,7 +30,7 @@ std::string MirPrinter::opcode_name(const runtime::Opcode::Opcode op) {
     case runtime::Opcode::IPow:       return "ipow";
     case runtime::Opcode::INeg:       return "ineg";
     case runtime::Opcode::FuncCreate: return "func_create";
-    case runtime::Opcode::CallVirtual: return "call_virtual";
+    case runtime::Opcode::ArrStore: return "arr_store";
     case runtime::Opcode::CCall:       return "ccall";
     case runtime::Opcode::CallFast:    return "call_fast";
     case runtime::Opcode::Ret:         return "ret";
@@ -54,7 +54,7 @@ std::string MirPrinter::opcode_name(const runtime::Opcode::Opcode op) {
     case runtime::Opcode::FDiv:        return "fdiv";
     case runtime::Opcode::FMod:       return "fmodi";
     case runtime::Opcode::FNeg:        return "fneg";
-    case runtime::Opcode::Push:        return "push";
+    case runtime::Opcode::ArrLoad:        return "arr_load";
     case runtime::Opcode::MovRR:       return "movrr";
     case runtime::Opcode::Call:        return "call";
     case runtime::Opcode::And:         return "and";

@@ -19,7 +19,7 @@
 
 using namespace lmx::runtime;
 
-FuncObj::FuncObj(CodeModule *mod, const uint8_t *addr, const uint32_t bytecode_len) noexcept
+FuncObj::FuncObj(CodeModuleObj *mod, const uint8_t *addr, const uint32_t bytecode_len) noexcept
    : mod(mod), addr(addr), bytecode_len(bytecode_len) {}
 
 NativeFuncObj::NativeFuncObj(
@@ -65,7 +65,7 @@ public:
 
         p += strlen(lib_name) + 1;
         if (handle == nullptr) {
-            VM_ERROR(VM_ERROR_ModLoad + ": `" + real_name + "` not found.");
+            VM_ERROR(RuntimeErrorType::ModuleLoad, "`" + real_name + "` not found.");
             return false;
         }
 
@@ -119,7 +119,7 @@ public:
         }
         return true;
     }
-    static bool load_funcs(CodeModule* mod, std::vector<FuncObj>& result, const uint8_t*& p) noexcept {
+    static bool load_funcs(CodeModuleObj* mod, std::vector<FuncObj>& result, const uint8_t*& p) noexcept {
         const auto over = p + *reinterpret_cast<const uint64_t*>(p) + sizeof(uint64_t);
         p += sizeof(uint64_t);
         while (p != over) {
@@ -139,7 +139,7 @@ public:
         return true;
     }
 
-    static bool load_imports(decltype(CodeModule::imports)& mod, const uint8_t*& p) noexcept {
+    static bool load_imports(decltype(CodeModuleObj::imports)& mod, const uint8_t*& p) noexcept {
         const auto over = p + *reinterpret_cast<const uint64_t*>(p) + sizeof(uint64_t);
         p += sizeof(uint64_t);
         while (p != over) {
@@ -156,7 +156,7 @@ public:
             ifs.seekg(0, std::ios::beg);
             ifs.read(reinterpret_cast<std::istream::char_type *>(data.data()), static_cast<std::streamsize>(data.size()));
             ifs.close();
-            mod.push_back(std::make_unique<CodeModule>(std::move(data)));
+            mod.push_back(std::make_unique<CodeModuleObj>(std::move(data)));
         }
         return true;
     }
@@ -165,14 +165,14 @@ public:
 
 
 
-CodeModule::~CodeModule() noexcept {
+CodeModuleObj::~CodeModuleObj() noexcept {
     if (native_lib_handle) {
         dlFreeLibrary(native_lib_handle);
     }
 }
 
 
-CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind::Code), raw_data(std::move(data)) {
+CodeModuleObj::CodeModuleObj(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind::Code), raw_data(std::move(data)) {
 
     const uint8_t* binary = raw_data.data();
     ModuleLoader::check_magic(binary);
@@ -184,23 +184,23 @@ CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind
     ModuleLoader::load_entry_code(code, code_len, binary);
 }
 
-std::string CodeModule::to_string() const noexcept {
+std::string CodeModuleObj::to_string() const noexcept {
     return type_info();
 }
 
-std::string CodeModule::type_info() const noexcept {
+std::string CodeModuleObj::type_info() const noexcept {
     return "code";
 }
 
-bool CodeModule::equals(const Object *other) const noexcept {
+bool CodeModuleObj::equals(const Object *other) const noexcept {
     return false;
 }
 
-bool CodeModule::operator==(const Object &other) const noexcept {
+bool CodeModuleObj::operator==(const Object &other) const noexcept {
     return false;
 }
 
-bool CodeModule::operator!=(const Object &other) const noexcept {
+bool CodeModuleObj::operator!=(const Object &other) const noexcept {
     return false;
 }
 
@@ -341,7 +341,7 @@ static const char* value_kind_name(ValueKind kind) noexcept {
     }
 }
 
-std::string CodeModule::disassemble() const noexcept {
+std::string CodeModuleObj::disassemble() const noexcept {
     std::ostringstream out;
     out << "Module: " << funcs.size() << " function(s), "
         << cp.size() << " constant(s), "
@@ -413,7 +413,7 @@ std::string CodeModule::disassemble() const noexcept {
     return out.str();
 }
 
-void CodeModule::disassemble_to_file(FILE* out) const noexcept {
+void CodeModuleObj::disassemble_to_file(FILE* out) const noexcept {
     const auto s = disassemble();
     std::fwrite(s.c_str(), 1, s.size(), out);
 }

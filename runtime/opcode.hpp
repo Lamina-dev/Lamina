@@ -17,14 +17,14 @@ enum Opcode : uint8_t {
 
     IConst,     // reg(1) imm(2)
     CConst,     // reg(1) constant_tag_idx(2)
-    Pop,        // reg(1)
-    Push,       // reg(1)
+    NewArray,   // reg(1) len(2)
+    ArrLoad,       // reg(1) reg(1) reg(1)
     Halt,
     IAdd, ISub, IMul, IDiv, IMod, IPow, INeg,    // reg(1) reg(1) reg(1)
 
     FuncCreate,     // reg(1) constant_tag_idx(2)
 
-    CallVirtual, //  reg(1) idx(1) arg_count(1)
+    ArrStore, //  reg(1) reg(1) reg(1)
     CCall,       // type_cpidx(2) arg_count(1)
     CallFast,    // idx(2) arg_count(1)
     Ret,    // reg(1)

@@ -60,8 +60,6 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     switch (op) {
     case runtime::Opcode::Nop:
     case runtime::Opcode::Halt:
-    case runtime::Opcode::FuncCreate:
-    case runtime::Opcode::CallVirtual:
     case runtime::Opcode::CCall:
     case runtime::Opcode::CallFast:
     case runtime::Opcode::Ret:
@@ -69,8 +67,8 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::IfTrue:
     case runtime::Opcode::IfFalse:
     case runtime::Opcode::Call:
-    case runtime::Opcode::Push:
         return false;
+    case runtime::Opcode::FuncCreate:
     case runtime::Opcode::New:
     case runtime::Opcode::GetTrue:
     case runtime::Opcode::GetFalse:
@@ -101,7 +99,6 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::FMod:
     case runtime::Opcode::FNeg:
     case runtime::Opcode::MovRR:
-    case runtime::Opcode::Pop:
     case runtime::Opcode::And:
     case runtime::Opcode::Or:
     case runtime::Opcode::FCmpEq:
@@ -112,9 +109,12 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::FCmpGe:
     case runtime::Opcode::GetModule:
     case runtime::Opcode::GetModuleAttr:
+    case runtime::Opcode::NewArray:
+    case runtime::Opcode::ArrLoad:
+    case runtime::Opcode::ArrStore:
+    case runtime::Opcode::GetFunc:
         return true;
         break;
-
     }
     return false;
 }
@@ -124,7 +124,6 @@ bool InstEmitter::inst_is_call(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::CCall:
     case runtime::Opcode::CallFast:
     case runtime::Opcode::Call:
-    case runtime::Opcode::CallVirtual:
         return true;
     default:
         return false;
@@ -442,19 +441,19 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
                 }
                 reg.free(rr);
             }
-            auto using_regs = reg.get_all_using();
-            for (const auto r : using_regs) {
-                InstEmitter::emit(insts, runtime::Opcode::Push, r);
-            }
+            // auto using_regs = reg.get_all_using();
+            // for (const auto r : using_regs) {
+            //     InstEmitter::emit(insts, runtime::Opcode::Push, r);
+            // }
 
             const auto func_it = native_funcs.find(c.name);
             // if (func_it == native_funcs.end()) return 0;
             const auto func_idx = static_cast<uint16_t>(func_it->second);
 
             InstEmitter::emit(insts, runtime::Opcode::CCall, func_idx, argc);
-            for (const auto r : using_regs | std::views::reverse) {
-                InstEmitter::emit(insts, runtime::Opcode::Pop, r);
-            }
+            // for (const auto r : using_regs | std::views::reverse) {
+            //     InstEmitter::emit(insts, runtime::Opcode::Pop, r);
+            // }
             return 0;
         }
         case runtime::Opcode::Call: {
