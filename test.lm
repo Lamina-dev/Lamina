@@ -2,9 +2,7 @@ static "laminaCore"
 
 func printf(fmt text, ...) -> int = "printf"
 
-loop 6 {
-    printf("aaa\n")
-}
+printf("%f\n", -1.0)
 
 # {
 #   var n = 6

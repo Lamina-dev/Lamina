@@ -190,7 +190,9 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
 
     VM_LABEL(IDiv) {
-        new (&regs[ip[1]]) Value (regs[ip[2]].int_val, regs[ip[3]].int_val);
+        new (&regs[ip[1]]) Value (
+            static_cast<decltype(Fraction::num)>(regs[ip[2]].int_val),
+            static_cast<decltype(Fraction::den)>(regs[ip[3]].int_val));
         VM_NEXT
     }
 
@@ -352,7 +354,7 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
 
     VM_LABEL(FNeg) {
-        regs[ip[1]].frac_val = -regs[ip[2]].frac_val;
+        regs[ip[1]] = -regs[ip[2]].frac_val;
         VM_NEXT
     }
     VM_LABEL(MovRR) {
