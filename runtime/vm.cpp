@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstdlib>
 
 #include "object/fraction.hpp"
 #include <cmath>
@@ -16,8 +17,9 @@
 namespace lmx::runtime {
 LaminaVM::LaminaVM(const int argc, char **argv) noexcept :
     // cp(cp),
-    stack(new Value[LMX_VM_REG_COUNT * LMX_CALLSTACK_MAX_COUNT]),
-    regs(stack),
+    stack_storage(new Value[LMX_VM_REG_COUNT * LMX_CALLSTACK_MAX_COUNT * 2]),
+    stack(stack_storage + LMX_VM_REG_COUNT * LMX_CALLSTACK_MAX_COUNT),
+    regs(stack_storage),
     //local_vars_bp(new Value[LMX_LOCAL_VAR_COUNT * LMX_CALLSTACK_MAX_COUNT]),
     //local_vars_curp(local_vars_bp),
     // global_vars(/*new Value[65536]*/nullptr),
@@ -26,7 +28,7 @@ LaminaVM::LaminaVM(const int argc, char **argv) noexcept :
     call_vm(dcNewCallVM(4096)) {}
 
 LaminaVM::~LaminaVM() noexcept {
-    delete[] stack;
+    delete[] stack_storage;
     // delete[] global_vars;
     //delete[] local_vars_bp;
     for (const auto frames : free_frames) delete frames;
@@ -88,7 +90,10 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     const uint8_t* ip = prog->code;
     // assert((reinterpret_cast<uint64_t>(ip) % 4) == 0);
 #if !NDEBUG
-    std::cout << prog->disassemble() << std::endl;
+    const char* debug_dump = std::getenv("LMX_DEBUG_DUMP");
+    if (debug_dump && debug_dump[0] != '\0' && debug_dump[0] != '0') {
+        std::cout << prog->disassemble() << std::endl;
+    }
 #endif
     // return 0;
     //const auto start = std::chrono::high_resolution_clock::now();
@@ -157,7 +162,9 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
 
     VM_LABEL(Pop) {
-        regs[ip[1]] = *--stack;
+        Value* slot = --stack;
+        regs[ip[1]] = *slot;
+        *slot = nullptr;
         VM_NEXT
     }
 

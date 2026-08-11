@@ -9,9 +9,7 @@
 using namespace lmx::runtime;
 
 LmGCAllocator::~LmGCAllocator() noexcept {
-    for (const auto& obj : objects) {
-        obj->release();
-    }
+    objects.clear();
 }
 
 Object *LmGCAllocator::alloc_string(const char *str, const uint32_t len) noexcept {

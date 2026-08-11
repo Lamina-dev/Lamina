@@ -9,26 +9,174 @@
 #include "compiler/parser.hpp"
 #include "compiler/lexer.hpp"
 #include "runtime/vm.hpp"
+#include "runtime/object/lsr_ExprObj.hpp"
+#include "runtime/object/string.hpp"
 
+#include <cmath>
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
 #include <cstdarg>
 #include <fstream>
+#include <limits>
+#include <utility>
 
 #include "compiler/assembler.hpp"
 #include "compiler/error.hpp"
 #include "compiler/mir/mir_builder.hpp"
 #include "compiler/mir/mir_printer.hpp"
+#include "lmmc/numeric.h"
 
 LmState global_state;
+
+namespace {
+
+using lmx::runtime::ExprObj;
+using lmx::runtime::String;
+
+bool debug_dump_enabled() noexcept {
+    const char* value = std::getenv("LMX_DEBUG_DUMP");
+    return value && value[0] != '\0' && value[0] != '0';
+}
+
+std::string cas_error_text(const lamina::CasError& error) {
+    std::string result = "CasError(";
+    result += lamina::lsr::error_name(error);
+    if (!error.operation.empty()) {
+        result += " in ";
+        result += error.operation;
+    }
+    if (!error.message.empty()) {
+        result += ": ";
+        result += error.message;
+    }
+    result += ")";
+    return result;
+}
+
+ExprObj* expr_error(std::string message) {
+    return new ExprObj(std::move(message));
+}
+
+ExprObj* expr_from_result(const lamina::lsr::ExprResult& result) {
+    if (!result) return expr_error(cas_error_text(result.error()));
+    return new ExprObj(result.value());
+}
+
+const lamina::lsr::ExprPtr* checked_expr(ExprObj* expr, std::string& error) {
+    if (!expr) {
+        error = "CasError(InvalidArgument: null expr)";
+        return nullptr;
+    }
+    if (!expr->ok()) {
+        error = expr->error();
+        return nullptr;
+    }
+    return &expr->expr();
+}
+
+double lmmc_real_result(lmmc_status_t status, lmmc_real_t value) {
+    if (status != LMMC_STATUS_OK) return std::numeric_limits<double>::quiet_NaN();
+    return value;
+}
+
+double expr_to_real(ExprObj* expr) {
+    std::string error;
+    const auto* value = checked_expr(expr, error);
+    if (!value) return std::numeric_limits<double>::quiet_NaN();
+    const auto evaluated = lamina::lsr::evalf(**value);
+    if (!evaluated) return std::numeric_limits<double>::quiet_NaN();
+    return evaluated.value().value;
+}
+
+} // namespace
 
 extern "C" LM_API int lmx_printf(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    const int result = vprintf(fmt, args);
+    const int result = vprintf(fmt ? fmt : "", args);
     va_end(args);
     return result;
+}
+
+extern "C" LM_API ExprObj* cas_sym(const char* name) {
+    return expr_from_result(lamina::lsr::sym(name ? name : ""));
+}
+
+extern "C" LM_API ExprObj* cas_parse(const char* source) {
+    return expr_from_result(lamina::lsr::parse_expr(source ? source : ""));
+}
+
+extern "C" LM_API ExprObj* cas_simplify(ExprObj* expr) {
+    std::string error;
+    const auto* value = checked_expr(expr, error);
+    if (!value) return expr_error(std::move(error));
+    return expr_from_result(lamina::lsr::simplify(*value));
+}
+
+extern "C" LM_API ExprObj* cas_expand(ExprObj* expr) {
+    std::string error;
+    const auto* value = checked_expr(expr, error);
+    if (!value) return expr_error(std::move(error));
+    return expr_from_result(lamina::lsr::expand(*value));
+}
+
+extern "C" LM_API ExprObj* cas_diff(ExprObj* expr, const char* variable) {
+    std::string error;
+    const auto* value = checked_expr(expr, error);
+    if (!value) return expr_error(std::move(error));
+    return expr_from_result(lamina::lsr::differentiate(*value, variable ? variable : ""));
+}
+
+extern "C" LM_API double cas_evalf(ExprObj* expr) {
+    std::string error;
+    const auto* value = checked_expr(expr, error);
+    if (!value) return std::numeric_limits<double>::quiet_NaN();
+    const auto result = lamina::lsr::evalf(**value);
+    if (!result) return std::numeric_limits<double>::quiet_NaN();
+    return result.value().value;
+}
+
+extern "C" LM_API bool cas_is_ok(ExprObj* expr) {
+    return expr && expr->ok();
+}
+
+extern "C" LM_API String* cas_to_text(ExprObj* expr) {
+    if (!expr) return new String("CasError(InvalidArgument: null expr)");
+    return new String(expr->to_string());
+}
+
+extern "C" LM_API String* cas_error(ExprObj* expr) {
+    if (!expr) return new String("CasError(InvalidArgument: null expr)");
+    if (expr->ok()) return new String("");
+    return new String(expr->error());
+}
+
+extern "C" LM_API double lmmc_num_hypot(ExprObj* lhs, ExprObj* rhs) {
+    const double x = expr_to_real(lhs);
+    const double y = expr_to_real(rhs);
+    if (!std::isfinite(x) || !std::isfinite(y)) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    lmmc_real_t out = 0.0;
+    const auto status = lmmc_hypot(x, y, &out);
+    return lmmc_real_result(status, out);
+}
+
+extern "C" LM_API double lmmc_num_log2(ExprObj* expr) {
+    const double x = expr_to_real(expr);
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    lmmc_real_t out = 0.0;
+    const auto status = lmmc_log2(x, &out);
+    return lmmc_real_result(status, out);
+}
+
+extern "C" LM_API double lmmc_num_exp2(ExprObj* expr) {
+    const double x = expr_to_real(expr);
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    lmmc_real_t out = 0.0;
+    const auto status = lmmc_exp2(x, &out);
+    return lmmc_real_result(status, out);
 }
 
 extern "C" LM_API int printf(const char* fmt, ...) {
@@ -219,13 +367,17 @@ LmModule *lmx_doFile(LmState *state, const char* name, bool is_main_module) {
     if (errd) return nullptr;
     lmx::hir::TypeCkContext().check_module(node);
 #if !NDEBUG
-    std::cout << lmx::AstPrinter::print(*node) << std::endl;
+    if (debug_dump_enabled()) {
+        std::cout << lmx::AstPrinter::print(*node) << std::endl;
+    }
 #endif
     if (errd) return nullptr;
 
     auto mir = lmx::mir::MirBuilder::from_ast_module(node);
 #if !NDEBUG
-    std::cout << lmx::mir::MirPrinter::print(mir) << std::endl;
+    if (debug_dump_enabled()) {
+        std::cout << lmx::mir::MirPrinter::print(mir) << std::endl;
+    }
 #endif
     if (errd) return nullptr;
     auto binary = lmx::Assembler().asm_module(&mir);

@@ -4,6 +4,7 @@
 #include "object.hpp"
 #include "code_module.hpp"
 #include "string.hpp"
+#include "lsr_ExprObj.hpp"
 
 using namespace lmx::runtime;
 
@@ -33,6 +34,9 @@ std::string Object::to_string(Object *obj) noexcept {
     }
     case ObjectKind::Array : {
         return "";
+    }
+    case ObjectKind::Expr: {
+        return reinterpret_cast<ExprObj*>(obj)->to_string();
     }
     default: {
         return "";
@@ -76,6 +80,10 @@ void Object::release() noexcept {
             return;
         }
         case ObjectKind::Array : {
+            return;
+        }
+        case ObjectKind::Expr: {
+            delete reinterpret_cast<ExprObj*>(this);
             return;
         }
         default: {

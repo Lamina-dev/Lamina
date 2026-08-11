@@ -78,6 +78,14 @@ LMX_INLINE std::optional<std::pair<std::filesystem::path, std::filesystem::path>
         ) {
         return std::make_pair(fs::path(real_name), *result);
     }
+    if (auto result = find_module_path(fs::current_path() / "modules" / real_name);
+        result.has_value()) {
+        return std::make_pair(fs::path(real_name), *result);
+    }
+    if (auto result = find_module_path(toolchain_module_path / real_name);
+        result.has_value()) {
+        return std::make_pair(fs::path(real_name), *result);
+    }
     return std::nullopt;
 }
 

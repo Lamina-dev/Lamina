@@ -61,6 +61,7 @@ enum class ASTKind {
     LoopStmt,
     ContinueStmt,
     ImportStmt,
+    SymDecl,
     PipeExpr,
 };
 
@@ -397,6 +398,12 @@ struct ImportStmtNode : StmtNode {
     std::string name;
 
     explicit ImportStmtNode(size_t line, size_t col, decltype(name) name) noexcept;
+};
+
+struct SymDeclNode : StmtNode {
+    std::vector<std::string> ids;
+
+    explicit SymDeclNode(size_t line, size_t col, std::vector<std::string> ids) noexcept;
 };
 
 struct PipeExprNode : ExprNode {

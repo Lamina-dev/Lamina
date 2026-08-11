@@ -32,6 +32,7 @@ struct Frame {
 };
 class LaminaVM {
     std::vector<Frame*> free_frames;
+    Value* stack_storage;
     Value* stack;
     Value* regs;
     // Value* local_vars_bp;
@@ -77,6 +78,14 @@ class LaminaVM {
             dcArgDouble(call_vm, v->frac_val.to_float());
             break;
         }
+        case ValueKind::Real: {
+            dcArgDouble(call_vm, v->real_val);
+            break;
+        }
+        case ValueKind::Expr: {
+            dcArgPointer(call_vm, (DCpointer)v->obj);
+            break;
+        }
         case ValueKind::C_VaList: {
             return;
         }
@@ -84,6 +93,16 @@ class LaminaVM {
     }
     LMX_INLINE static void native_arg(DCCallVM* call_vm, const Value* v) noexcept {
         return native_arg(call_vm, v->kind, v);
+    }
+
+    LMX_INLINE static int native_call_mode() noexcept {
+#if (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
+        return DC_CALL_C_X64_WIN64;
+#elif (defined(_WIN32) || defined(_WIN64)) && defined(__x86_64__)
+        return DC_CALL_C_X64_WIN64;
+#else
+        return DC_CALL_C_DEFAULT;
+#endif
     }
 public:
     explicit LaminaVM() noexcept = delete;
@@ -125,7 +144,7 @@ public:
         }
         const auto* meta = &mod->native_funcs[idx];
         dcReset(call_vm);
-        dcMode(call_vm, DC_CALL_C_DEFAULT);
+        dcMode(call_vm, native_call_mode());
         uint8_t va_list_len = 0;
         uint8_t i = 0;
         for (; i < argc; ++i) {
@@ -151,6 +170,12 @@ public:
             case ValueKind::Obj:    regs[0] = static_cast<Object *>(dcCallPointer(call_vm, (DCpointer) meta->addr)); break;
             case ValueKind::Int:    regs[0] = static_cast<LmInt>(dcCallLongLong(call_vm, (DCpointer) meta->addr)); break;
             case ValueKind::Bool:   regs[0] = static_cast<bool>(dcCallBool(call_vm, (DCpointer) meta->addr)); break;
+            case ValueKind::Real:   regs[0] = dcCallDouble(call_vm, (DCpointer) meta->addr); break;
+            case ValueKind::Expr:
+                regs[0].~Value();
+                regs[0].kind = ValueKind::Expr;
+                regs[0].obj = static_cast<Object *>(dcCallPointer(call_vm, (DCpointer) meta->addr));
+                break;
             case ValueKind::Fraction: dcCallVoid(call_vm, (DCpointer)meta->addr); break;
             case ValueKind::C_VaList:
                 break;

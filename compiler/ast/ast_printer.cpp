@@ -21,6 +21,8 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
             case runtime::ValueKind::Int:    ss << "Int"; break;
             case runtime::ValueKind::Bool:   ss << "Bool"; break;
             case runtime::ValueKind::Fraction: ss << "Frac"; break;
+            case runtime::ValueKind::Real: ss << "Real"; break;
+            case runtime::ValueKind::Expr: ss << "Expr"; break;
             case runtime::ValueKind::C_VaList: ss << "..."; break;
         }
         break;
@@ -345,6 +347,16 @@ void AstPrinter::print_stmt(std::ostringstream &ss, const StmtNode &node,
         case ASTKind::ImportStmt: {
             auto &imp = static_cast<const ImportStmtNode &>(node);
             ss << line_prefix << "Import " << imp.name << "\n";
+            break;
+        }
+        case ASTKind::SymDecl: {
+            auto &sym = static_cast<const SymDeclNode &>(node);
+            ss << line_prefix << "sym ";
+            for (size_t i = 0; i < sym.ids.size(); ++i) {
+                if (i > 0) ss << ", ";
+                ss << sym.ids[i];
+            }
+            ss << "\n";
             break;
         }
         default:

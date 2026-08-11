@@ -353,6 +353,19 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
         advance();
         return parse_import();
     }
+    case TokenType::KW_SYM: {
+        const auto line = cur().line, col = cur().col;
+        advance();
+        std::vector<std::string> ids;
+        do {
+            auto name = cur().text;
+            consume(TokenType::IDENTIFIER, "identifier");
+            ids.push_back(std::move(name));
+            if (!match(TokenType::COMMA)) break;
+            advance();
+        } while (true);
+        return std::make_shared<SymDeclNode>(line, col, std::move(ids));
+    }
     default: {
         size_t line = cur().line, col = cur().col;
         auto expr = parse_expr();
@@ -550,6 +563,7 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
         static const std::unordered_map<std::string, runtime::ValueKind> basic_types = {
             {"int", runtime::ValueKind::Int}, {"bool", runtime::ValueKind::Bool},
             {"null", runtime::ValueKind::Null}, {"frac", runtime::ValueKind::Fraction},
+            {"real", runtime::ValueKind::Real}, {"expr", runtime::ValueKind::Expr},
             {"cptr", runtime::ValueKind::C_Ptr}
         };
         if (const auto it = basic_types.find(id); it != basic_types.end())

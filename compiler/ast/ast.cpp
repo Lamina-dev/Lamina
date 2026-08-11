@@ -396,3 +396,6 @@ ContinueStmtNode::ContinueStmtNode(const size_t line, const size_t col) noexcept
 
 ImportStmtNode::ImportStmtNode(size_t line, size_t col, decltype(name) name) noexcept
     : StmtNode(ASTKind::ImportStmt, line, col), name(std::move(name)) {}
+
+SymDeclNode::SymDeclNode(size_t line, size_t col, std::vector<std::string> ids) noexcept
+    : StmtNode(ASTKind::SymDecl, line, col), ids(std::move(ids)) {}
