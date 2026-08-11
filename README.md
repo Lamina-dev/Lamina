@@ -116,7 +116,7 @@ MIR（compiler/mir/，定义见 docs/mir.md）
 - `Value`（`runtime/object/value.hpp`）：带 kind 标签的联合，覆盖
   `Null / C_Ptr / Obj / Int / Bool / Fraction / C_VaList`。
 - `Object` 体系（`runtime/object/`）：引用计数对象，`Value::obj` 通过 `get()/release()` 维护引用。
-- `LaminaVM`（`runtime/vm.cpp`）：寄存器机，帧管理（`Frame` + 空闲帧池）、
+- `LaminaVM`（`runtime/vm.cpp`）：、
   整数/分数运算指令、数组读写、函数创建与调用、模块加载、原生调用（`native_call`）。
 
 ## 目录结构
@@ -141,7 +141,7 @@ modules/std/      标准库占位模块（LSR-004 尚未实现）
 examples/         示例：fib / 99 / bernoulli / pipe / sdl / snake
 docs/             设计文档：binary.md（字节码格式）、mir.md（MIR 定义）
 include/lmx.h     运行时 C ABI（发行包中的公开头）
-lmx.cpp           C ABI 实现，内建 printf / lmx_printf
+lmx.cpp           C ABI 实现，内建函数
 main.cpp          lamina CLI
 ```
 
@@ -159,24 +159,21 @@ main.cpp          lamina CLI
 > 状态列使用 LSR-001 定义的三态（Draft / Accepted / Applied）；"实现进度"为本仓库当前完成度。
 > LSR 001 为流程规范，不涉及语言实现。
 
-| LSR | 标题 | 状态 | 实现进度 |
-| --- | --- | --- | --- |
-| LSR 000 | 核心语言规范（草案） | Draft | **部分实现**，覆盖核心子集：变量/函数/控制流/模块/数组/整数与分数运算/FFI；向量矩阵、量纲、集合、`Expr` 等未实现（见上文"与 LSR 000 的差距"） |
-| LSR 001 | LSR 流程规范 | Applied | 不适用（流程文档，本仓库遵循其状态机约定） |
-| LSR 002 | 标准常量 | Draft | 未实现（无 `std.constants` 导出） |
-| LSR 003 | C 扩展与插件 | Draft | **部分实现**：`static "lib"` 绑定 + `func f(...) -> t = "sym"` FFI 机制已具备（见 `examples/sdl.lm`、`snake.lm`）；扩展标准布局、打包约定与 `lmx.h` 头分发尚未落地 |
-| LSR 004 | 标准库 | Draft | 未实现（`modules/std` 仅为占位，`std.math` / `std.linalg` / `std.stats` / `std.random` / `std.units` / `std.io` 模块均未建立） |
-| LSR 005 | 模式匹配 | Draft | 未实现（无 `match` 语法；`=>` token 已词法化但未使用） |
-| LSR 006 | Lambda 与类型推导 | Draft | 未实现（无 lambda；`->` 仅用于函数返回类型） |
-| LSR 007 | `===` 数学等价判定 | Draft | 未实现（无 `Expr`，无 CAS 化简流程） |
-| LSR 008 | 量纲剥离 | Draft | 未实现（量纲系统整体缺失，`as` 尚为 TODO） |
-| LSR 009 | 集合与多结果返回 | Draft | 未实现 |
-| LSR 010 | 虚数单位与复数 | Draft | 未实现（无 `complex` 类型与 `i` 字面量） |
-| LSR 011 | 代数数据类型 | Draft | 未实现 |
-| LSR 012 | 元组类型 | Draft | 未实现 |
-| LSR 013 | 集合类型 | Draft | 未实现 |
-| LSR 015 | LAMMP 接口 | Draft | 未实现（无任意精度库接入） |
+| LSR     | 标题                 | 状态    | 实现进度                                                                                                                                                           |
+|---------|----------------------|---------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| LSR 000 | 核心语言规范（草案） | Draft   | **部分实现**，覆盖核心子集：变量/函数/控制流/模块/数组/整数与分数运算/FFI；向量矩阵、量纲、集合、`Expr` 等未实现（见上文"与 LSR 000 的差距"）                      |
+| LSR 001 | LSR 流程规范         | Applied | 不适用（流程文档，本仓库遵循其状态机约定）                                                                                                                         |
+| LSR 002 | 标准常量             | Draft   | 未实现（无 `std.constants` 导出）                                                                                                                                  |
+| LSR 003 | C 扩展与插件         | Draft   | **部分实现**：`static "lib"` 绑定 + `func f(...) -> t = "sym"` FFI 机制已具备（见 `examples/sdl.lm`、`snake.lm`）；扩展标准布局、打包约定与 `lmx.h` 头分发尚未落地 |
+| LSR 004 | 标准库               | Draft   | 未实现（`modules/std` 仅为占位，`std.math` / `std.linalg` / `std.stats` / `std.random` / `std.units` / `std.io` 模块均未建立）                                     |
+| LSR 005 | 模式匹配             | Draft   | 未实现（无 `match` 语法；`=>` token 已词法化但未使用）                                                                                                             |
+| LSR 006 | Lambda 与类型推导    | Draft   | 未实现（无 lambda；`->` 仅用于函数返回类型）                                                                                                                       |
+| LSR 007 | `===` 数学等价判定   | Draft   | 未实现（无 `Expr`，无 CAS 化简流程）                                                                                                                               |
+| LSR 008 | 量纲剥离             | Draft   | 未实现（量纲系统整体缺失，`as` 尚为 TODO）                                                                                                                         |
+| LSR 009 | 集合与多结果返回     | Draft   | 未实现                                                                                                                                                             |
+| LSR 010 | 虚数单位与复数       | Draft   | 未实现（无 `complex` 类型与 `i` 字面量）                                                                                                                           |
+| LSR 011 | 代数数据类型         | Draft   | 未实现                                                                                                                                                             |
+| LSR 012 | 元组类型             | Draft   | 未实现                                                                                                                                                             |
+| LSR 013 | 集合类型             | Draft   | 未实现                                                                                                                                                             |
+| LSR 015 | LAMMP 接口           | Draft   | 未实现（无任意精度库接入）                                                                                                                                         |
 
-**结论**：当前实现聚焦 LSR 000 的"静态、模块化、数学"最小闭环（有理数精确计算 + FFI +
-模块系统），为编译器/虚拟机基础设施提供了可扩展的骨架；规范中的高级类型系统
-（量纲、集合、复数、ADT、元组、Lambda、match、CAS）与标准库体系尚待逐项落地。
