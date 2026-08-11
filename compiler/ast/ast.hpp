@@ -72,9 +72,15 @@ enum class TypeKind {
 struct Type {
     TypeKind kind;
 
-    explicit Type(const TypeKind kind) : kind(kind) {
+protected:
+    /*
+     * 类型实例唯一性保证：构造函数仅供 TypePool 访问（friend），
+     * 禁止任何其它代码裸建 Type，确保相同类型全局只有一个实例。
+     */
+    explicit Type(const TypeKind kind) noexcept : kind(kind) {
     }
 
+public:
     virtual ~Type();
 
     [[nodiscard]] virtual bool equals(Type *other) const noexcept = 0;
@@ -87,11 +93,15 @@ struct Type {
 };
 
 struct ModuleType : Type {
+    friend class TypePool;
+
     std::string target_path;
     std::vector<hir::Scope::Var> exports;
+private:
     explicit ModuleType(std::string target_path, std::vector<hir::Scope::Var> exports) noexcept
     : Type(TypeKind::Module), target_path(std::move(target_path)), exports(std::move(exports)) {}
 
+public:
     bool equals(Type *other) const noexcept override;
 
     std::optional<hir::Scope::Var*> find_var(const std::string& n) noexcept {
@@ -109,63 +119,88 @@ struct ModuleType : Type {
 };
 
 struct UnknownType : Type {
+    friend class TypePool;
+private:
     explicit UnknownType() : Type(TypeKind::Unknown) {}
 
+public:
     bool equals(Type *other) const noexcept override;
 };
 struct NoneType : Type {
+    friend class TypePool;
+private:
     explicit NoneType() : Type(TypeKind::None) {}
+
+public:
     bool equals(Type *other) const noexcept override;
 };
 
 struct BasicType : Type {
-    runtime::ValueKind type;
+    friend class TypePool;
 
+    runtime::ValueKind type;
+private:
     explicit BasicType(const runtime::ValueKind type) noexcept : Type(TypeKind::Basic), type(type) {
     }
 
+public:
     ~BasicType() override;
 
     bool equals(Type *other) const noexcept override;
 };
 
 struct StringType : Type {
+    friend class TypePool;
+private:
     explicit StringType() noexcept : Type(TypeKind::String) {}
 
+public:
     bool equals(Type *other) const noexcept override;
 };
 struct FunctionType : Type {
+    friend class TypePool;
+
     std::vector<std::shared_ptr<Type>> params_ty;
     std::shared_ptr<Type> ret_ty;
-
+private:
     explicit FunctionType(std::vector<std::shared_ptr<Type>> params_ty, std::shared_ptr<Type> ret_ty) noexcept;
+public:
     bool equals(Type *other) const noexcept override;
 };
 struct NativeFunctionType : Type {
+    friend class TypePool;
+
     std::vector<std::shared_ptr<Type>> params_ty;
     std::shared_ptr<Type> ret_ty;
     std::string name;
-
+private:
     explicit NativeFunctionType(std::vector<std::shared_ptr<Type>> params_ty, std::shared_ptr<Type> ret_ty, std::string name) noexcept;
+public:
     bool equals(Type *other) const noexcept override;
 
     [[nodiscard]] bool have_va_list() const noexcept;
 };
 struct NamedType : Type {
-    std::string name;
+    friend class TypePool;
 
+    std::string name;
+private:
     explicit NamedType(std::string name) noexcept : Type(TypeKind::Named), name(std::move(name)) {
     }
 
+public:
     bool equals(Type *other) const noexcept override{return false;}
 };
 
 struct ArrayType : Type {
-    std::shared_ptr<Type> type;
+    friend class TypePool;
 
+    std::shared_ptr<Type> type;
+private:
     explicit ArrayType(const std::shared_ptr<Type> &type)
         : Type(TypeKind::Array), type(type) {}
 
+public:
     ~ArrayType() override;
 
     bool equals(Type *other) const noexcept override;

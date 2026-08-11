@@ -16,14 +16,14 @@ lmx::TypePool lmx::type_pool;
 std::shared_ptr<Type> TypePool::basic(const runtime::ValueKind v) noexcept {
     for (const auto& t : types)
         if (t->kind == TypeKind::Basic && static_cast<BasicType*>(t.get())->type == v) return t;
-    auto ty = std::make_shared<BasicType>(v);
+    auto ty = std::shared_ptr<Type>(new BasicType(v));
     types.push_back(ty);
     return ty;
 }
 
 std::shared_ptr<Type> TypePool::string() noexcept {
     for (const auto& t : types) if (t->kind == TypeKind::String) return t;
-    auto ty = std::make_shared<StringType>();
+    auto ty = std::shared_ptr<Type>(new StringType());
     types.push_back(ty);
     return ty;
 }
@@ -34,7 +34,7 @@ std::shared_ptr<Type> TypePool::array(const std::shared_ptr<Type>& type) noexcep
             const auto* a = static_cast<ArrayType*>(t.get());
             if (a->type->equals(type.get())) return t;
         }
-    auto ty = std::make_shared<ArrayType>(type);
+    auto ty = std::shared_ptr<Type>(new ArrayType(type));
     types.push_back(ty);
     return ty;
 }
@@ -50,7 +50,7 @@ std::shared_ptr<Type> TypePool::function(std::vector<std::shared_ptr<Type>> para
                 if (!f->params_ty[i]->equals(params[i].get())) { ok = false; break; }
             if (ok) return t;
         }
-    auto ty = std::make_shared<FunctionType>(std::move(params), std::move(ret));
+    auto ty = std::shared_ptr<Type>(new FunctionType(std::move(params), std::move(ret)));
     types.push_back(ty);
     return ty;
 }
@@ -67,7 +67,7 @@ std::shared_ptr<Type> TypePool::native_function(std::vector<std::shared_ptr<Type
                 if (!f->params_ty[i]->equals(params[i].get())) { ok = false; break; }
             if (ok) return t;
         }
-    auto ty = std::make_shared<NativeFunctionType>(std::move(params), std::move(ret), std::move(name));
+    auto ty = std::shared_ptr<Type>(new NativeFunctionType(std::move(params), std::move(ret), std::move(name)));
     types.push_back(ty);
     return ty;
 }
@@ -75,7 +75,7 @@ std::shared_ptr<Type> TypePool::native_function(std::vector<std::shared_ptr<Type
 std::shared_ptr<Type> TypePool::named(std::string name) noexcept {
     for (const auto& t : types)
         if (t->kind == TypeKind::Named && static_cast<NamedType*>(t.get())->name == name) return t;
-    auto ty = std::make_shared<NamedType>(std::move(name));
+    auto ty = std::shared_ptr<Type>(new NamedType(std::move(name)));
     types.push_back(ty);
     return ty;
 }
@@ -83,21 +83,21 @@ std::shared_ptr<Type> TypePool::named(std::string name) noexcept {
 std::shared_ptr<Type> TypePool::module(std::string target_path, std::vector<hir::Scope::Var> exports) noexcept {
     for (const auto& t : types)
         if (t->kind == TypeKind::Module && static_cast<ModuleType*>(t.get())->target_path == target_path) return t;
-    auto ty = std::make_shared<ModuleType>(std::move(target_path), std::move(exports));
+    auto ty = std::shared_ptr<Type>(new ModuleType(std::move(target_path), std::move(exports)));
     types.push_back(ty);
     return ty;
 }
 
 std::shared_ptr<Type> TypePool::unknown() noexcept {
     for (const auto& t : types) if (t->kind == TypeKind::Unknown) return t;
-    auto ty = std::make_shared<UnknownType>();
+    auto ty = std::shared_ptr<Type>(new UnknownType());
     types.push_back(ty);
     return ty;
 }
 
 std::shared_ptr<Type> TypePool::none() noexcept {
     for (const auto& t : types) if (t->kind == TypeKind::None) return t;
-    auto ty = std::make_shared<NoneType>();
+    auto ty = std::shared_ptr<Type>(new NoneType());
     types.push_back(ty);
     return ty;
 }
