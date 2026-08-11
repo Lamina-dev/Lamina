@@ -10,9 +10,45 @@ endif ()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+find_package(Git QUIET)
+
+function(lmx_ensure_submodule name path marker)
+    if(EXISTS "${path}/${marker}")
+        return()
+    endif()
+
+    if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
+        message(STATUS "Initializing ${name} submodule")
+        file(RELATIVE_PATH submodule_path "${CMAKE_SOURCE_DIR}" "${path}")
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" submodule update --init --recursive -- "${submodule_path}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            RESULT_VARIABLE submodule_result
+        )
+        if(NOT submodule_result EQUAL 0)
+            message(FATAL_ERROR "Failed to initialize ${name} submodule at ${path}")
+        endif()
+    endif()
+
+    if(NOT EXISTS "${path}/${marker}")
+        message(FATAL_ERROR "${name} dependency not found at ${path}. Run git submodule update --init --recursive.")
+    endif()
+endfunction()
+
+set(LMX_DYNCALL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/dyncall" CACHE PATH "Path to dyncall source tree")
+set(LMX_LMCAS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/LMCAS" CACHE PATH "Path to LMCAS source tree")
+
+lmx_ensure_submodule(dyncall "${LMX_DYNCALL_SOURCE_DIR}" "CMakeLists.txt")
+lmx_ensure_submodule(LMCAS "${LMX_LMCAS_SOURCE_DIR}" "CMakeLists.txt")
+lmx_ensure_submodule(LMCAS "${LMX_LMCAS_SOURCE_DIR}/LMMC" "CMakeLists.txt")
+lmx_ensure_submodule(LAMMP "${LMX_LMCAS_SOURCE_DIR}/LMMC/LAMMP" "CMakeLists.txt")
+
 include_directories(include)
-include_directories(${CMAKE_BINARY_DIR}/_deps/dyncall-src)
-include_directories(${CMAKE_BINARY_DIR}/_deps/lmcas-src/include)
+include_directories(${LMX_DYNCALL_SOURCE_DIR})
+include_directories(${LMX_LMCAS_SOURCE_DIR}/include)
+include_directories(${LMX_LMCAS_SOURCE_DIR}/LMMC/include)
+include_directories(${LMX_LMCAS_SOURCE_DIR}/LMMC/LAMMP/include)
 add_subdirectory(runtime)
 add_subdirectory(compiler)
 
@@ -21,23 +57,13 @@ option(LMX_BUILD_STATIC "Build laminac and lamina_runtime as standalone static l
 add_executable(lamina main.cpp)
 
 
-include(FetchContent)
-
-set(DYNCALL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(DYNCALL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-
-
-message(STATUS "downloading dyncall")
-FetchContent_Declare(
-        dyncall
-        GIT_REPOSITORY https://github.com/ugexe/dyncall.git
-        GIT_TAG r1.4
-        GIT_SHALLOW TRUE
-        EXCLUDE_FROM_ALL TRUE
-        PATCH_COMMAND ${CMAKE_COMMAND} -DDYNCALL_SRC=<SOURCE_DIR> -P ${CMAKE_SOURCE_DIR}/scripts/patch_dyncall.cmake
-        FIND_PACKAGE_ARGS 11 CONFIG
-)
-FetchContent_MakeAvailable(dyncall)
+if(NOT DEFINED DYNCALL_BUILD_TESTS)
+    set(DYNCALL_BUILD_TESTS OFF CACHE BOOL "Build dyncall tests")
+endif()
+if(NOT DEFINED DYNCALL_BUILD_EXAMPLES)
+    set(DYNCALL_BUILD_EXAMPLES OFF CACHE BOOL "Build dyncall examples")
+endif()
+add_subdirectory("${LMX_DYNCALL_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external/dyncall" EXCLUDE_FROM_ALL)
 
 
 
@@ -63,20 +89,9 @@ target_link_libraries(laminaCore PRIVATE
         dyncall_s
         dynload_s
 )
-#message( ${CMAKE_BINARY_DIR}/_deps/dyncall-src)
+#message( ${LMX_DYNCALL_SOURCE_DIR})
 
-message(STATUS "cloning LmCAS")
-FetchContent_Declare(
-        LmCAS
-        GIT_REPOSITORY https://github.com/Lamina-dev/LMCAS.git
-        GIT_TAG lmcas-2-current
-        GIT_SHALLOW TRUE
-        GIT_SUBMODULES "LMMC"
-        #GIT_SUBMODULES_RECURSE ON
-        #EXCLUDE_FROM_ALL TRUE
-
-)
-FetchContent_MakeAvailable(LmCAS)
+add_subdirectory("${LMX_LMCAS_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external/LMCAS" EXCLUDE_FROM_ALL)
 target_link_libraries(laminaCore PRIVATE
     lmcas
 )
