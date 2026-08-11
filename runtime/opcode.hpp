@@ -16,7 +16,7 @@ enum Opcode : uint8_t {
     GetNull,    // reg(1)
 
     IConst,     // reg(1) imm(2)
-    CConst,     // reg(1) constant_tag_idx(2)
+    NewTuple,     // reg(1) count(1)
     NewArray,   // reg(1) len(2)
     ArrLoad,       // reg(1) reg(1) reg(1)
     Halt,
@@ -41,7 +41,8 @@ enum Opcode : uint8_t {
     And, Or,
     FCmpEq, FCmpNe, FCmpLt, FCmpLe, FCmpGt, FCmpGe,  // reg(1) reg(1) reg(1)
 
-    GetModule, GetModuleAttr, GetFunc
+    GetModule, GetModuleAttr, GetFunc,
+    TupleGet, TupleSet,
 };
 
 }

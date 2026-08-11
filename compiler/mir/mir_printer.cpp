@@ -19,7 +19,7 @@ std::string MirPrinter::opcode_name(const runtime::Opcode::Opcode op) {
     case runtime::Opcode::GetFalse:   return "get_false";
     case runtime::Opcode::GetNull:    return "get_null";
     case runtime::Opcode::IConst:     return "iconst";
-    case runtime::Opcode::CConst:     return "cconst";
+    case runtime::Opcode::NewTuple:     return "new_tuple";
     case runtime::Opcode::NewArray:        return "new_array";
     case runtime::Opcode::Halt:       return "halt";
     case runtime::Opcode::IAdd:       return "iadd";

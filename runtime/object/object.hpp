@@ -6,7 +6,7 @@ namespace lmx::runtime {
 class CodeModuleObj;
 
 namespace ObjectKind {
-enum  {
+enum {
     Object,
     Code  ,
     String,
@@ -15,6 +15,7 @@ enum  {
     Matrix,
     Array ,
     Expr,
+    Tuple,
 };
 }
 class Object {
@@ -32,7 +33,9 @@ public:
     [[nodiscard]] Object*       get() noexcept;
     void release() noexcept;
 
-
+    [[nodiscard]] uint32_t get_rc() const noexcept {
+        return rc;
+    }
     [[nodiscard]] static std::string to_string(Object* obj) noexcept;
 };
 }

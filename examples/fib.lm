@@ -10,6 +10,6 @@ func fib(n int) -> int {
     }
 }
 
-let v = fib(42)
+let v = fib(35)
 
 printf("%lld\n", v)

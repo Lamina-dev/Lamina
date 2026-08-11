@@ -106,7 +106,7 @@ void build_constant(LmGCAllocator &allocator, const ConstantPoolInfo &c, Value &
 static const void* dispatch[] = {\
     &&opNop, &&opNew,\
     &&opGetTrue, &&opGetFalse, &&opGetNull,\
-    &&opIConst, &&opCConst, &&opNewArray, &&opArrLoad, &&opHalt,\
+    &&opIConst, &&opNewTuple, &&opNewArray, &&opArrLoad, &&opHalt,\
     &&opIAdd, &&opISub, &&opIMul, &&opIDiv, &&opIMod, &&opIPow, &&opINeg,\
     &&opFuncCreate,\
     &&opArrStore, &&opCCall, &&opCallFast, &&opRet,\
@@ -118,7 +118,8 @@ static const void* dispatch[] = {\
     &&opFAdd, &&opFSub, &&opFMul, &&opFDiv, &&opFMod, &&opFNeg,\
     &&opMovRR,&&opCall, &&opAnd, &&opOr,\
     &&opFCmpEq, &&opFCmpNe, &&opFCmpLt, &&opFCmpLe, &&opFCmpGt, &&opFCmpGe, \
-    &&opGetModule, &&opGetModuleAttr, &&opGetFunc\
+    &&opGetModule, &&opGetModuleAttr, &&opGetFunc,\
+    &&opTupleGet, &&opTupleSet\
 };\
 goto *dispatch[*ip];
 
@@ -182,20 +183,9 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
         VM_NEXT
     }
 
-    VM_LABEL(CConst) {
-        // 抛弃
-        // switch (uint16_t idx = read_u16(ip + 2); cp[idx].id) {
-        //     case ConstantId::Int:
-        //         new (&regs[ip[1]]) Value(cp[idx].int_value);
-        //         break;
-        //     case ConstantId::Str:
-        //         new (&regs[ip[1]]) Value(cp[idx].str);
-        //         break;
-        //     default:
-        //         new (&regs[ip[1]]) Value();
-        //         break;
-        // }
-        // VM_NEXT
+    VM_LABEL(NewTuple) {
+        // regs[ip[1]] = TupleValue{static_cast<Value *>(operator new[](ip[2] * sizeof(Value)))};
+        VM_NEXT
     }
 
     VM_LABEL(NewArray) {
@@ -458,6 +448,12 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
     VM_LABEL(GetFunc) {
         regs[ip[1]] = &cur_frame->mod->funcs[read_u16(ip + 2)];
+        VM_NEXT
+    }
+    VM_LABEL(TupleGet) {
+        VM_NEXT
+    }
+    VM_LABEL(TupleSet) {
         VM_NEXT
     }
 

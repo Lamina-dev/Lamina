@@ -81,7 +81,7 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::IPow:
     case runtime::Opcode::INeg:
     case runtime::Opcode::IConst:
-    case runtime::Opcode::CConst:
+    case runtime::Opcode::NewTuple:
     case runtime::Opcode::ICmpEq:
     case runtime::Opcode::ICmpNe:
     case runtime::Opcode::ICmpLt:
