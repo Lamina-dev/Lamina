@@ -1,0 +1,8 @@
+[submodule "external/LMCAS"]
+	path = external/LMCAS
+	url = https://github.com/Lamina-dev/LMCAS.git
+	branch = lmcas-2-current
+[submodule "external/dyncall"]
+	path = external/dyncall
+	url = https://github.com/ugexe/dyncall.git
+	ignore = untracked
