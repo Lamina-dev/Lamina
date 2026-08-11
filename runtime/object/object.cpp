@@ -5,6 +5,7 @@
 
 #include "array.hpp"
 #include "code_module.hpp"
+#include "lsr_expr_obj.hpp"
 #include "StringObj.hpp"
 #include "tuple.hpp"
 
@@ -37,6 +38,9 @@ std::string Object::to_string(Object *obj) noexcept {
     }
     case ObjectKind::Tuple: {
         return TupleObj::to_string();
+    }
+    case ObjectKind::Expr: {
+        return reinterpret_cast<ExprObj*>(obj)->to_string();
     }
     default: {};
     }
@@ -80,6 +84,10 @@ void Object::release() noexcept {
         }
         case ObjectKind::Array : {
             delete reinterpret_cast<ArrayObj*>(this);
+            return;
+        }
+        case ObjectKind::Expr: {
+            delete reinterpret_cast<ExprObj*>(this);
             return;
         }
         default: {

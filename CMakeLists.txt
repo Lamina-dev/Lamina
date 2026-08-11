@@ -114,6 +114,20 @@ set_target_properties(laminac PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(lamina PRIVATE laminaCore)
 
+if(WIN32)
+    add_custom_command(TARGET lamina POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:laminaCore>
+            $<TARGET_FILE_DIR:lamina>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:lmcas>
+            $<TARGET_FILE_DIR:lamina>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:LammpCore>
+            $<TARGET_FILE_DIR:lamina>
+    )
+endif()
+
 
 function(disable_exceptions_rtti target)
     target_compile_options(${target} PRIVATE

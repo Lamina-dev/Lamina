@@ -15,6 +15,28 @@
 using namespace lmx;
 using namespace lmx::hir;
 
+namespace {
+
+bool is_basic_type(const std::shared_ptr<Type>& type, runtime::ValueKind kind) noexcept {
+    return type && type->kind == TypeKind::Basic &&
+           std::reinterpret_pointer_cast<BasicType>(type)->type == kind;
+}
+
+bool is_numeric_or_expr_type(const std::shared_ptr<Type>& type) noexcept {
+    if (!type || type->kind != TypeKind::Basic) return false;
+    const auto kind = std::reinterpret_pointer_cast<BasicType>(type)->type;
+    return kind == runtime::ValueKind::Int ||
+           kind == runtime::ValueKind::Fraction ||
+           kind == runtime::ValueKind::Real ||
+           kind == runtime::ValueKind::Expr;
+}
+
+bool is_expr_type(const std::shared_ptr<Type>& type) noexcept {
+    return is_basic_type(type, runtime::ValueKind::Expr);
+}
+
+} // namespace
+
 Scope::Scope(std::string name) noexcept : name(std::move(name)) {}
 
 Scope::Scope(const ScopeType scope) noexcept : scope(scope) {}
@@ -61,6 +83,9 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
     }
     case ASTKind::Identifier: {
         const auto node = reinterpret_cast<IdentifierNode*>(type);
+        if (node->id == "i" || node->id == "I") {
+            return type_pool.basic(runtime::ValueKind::Expr);
+        }
         if (node->type && node->type->kind != TypeKind::Unknown) return node->type;
         if (find_var(node->id).has_value())return (*find_var(node->id))->type;
         break;
@@ -83,6 +108,11 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
         const auto node = reinterpret_cast<BinaryNode*>(type);
         auto left_ty = inference_type(node->lhs.get());
         const auto right_ty = inference_type(node->rhs.get());
+        if ((is_expr_type(left_ty) || is_expr_type(right_ty)) &&
+            is_numeric_or_expr_type(left_ty) &&
+            is_numeric_or_expr_type(right_ty)) {
+            return type_pool.basic(runtime::ValueKind::Expr);
+        }
         if (left_ty->equals(right_ty.get())) return left_ty;
         break;
     }
@@ -229,7 +259,10 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
     std::vector<Scope::Var> result;
 
     for (const auto& v : get_global()) {
-        if (v.type->kind == TypeKind::Function) result.push_back(v);
+        if (v.type->kind == TypeKind::Function ||
+            v.type->kind == TypeKind::NativeFunction) {
+            result.push_back(v);
+        }
     }
     return result;
 }
@@ -242,6 +275,10 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     }
     case ASTKind::Identifier: {
         auto* node = reinterpret_cast<IdentifierNode*>(expr.get());
+        if (node->id == "i" || node->id == "I") {
+            node->type = type_pool.basic(runtime::ValueKind::Expr);
+            break;
+        }
         if (const auto re = find_var(node->id); re.has_value()) {
             node->type = (*re)->type;
             break;
@@ -264,7 +301,9 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         const auto t2 = std::reinterpret_pointer_cast<BasicType>(type);
         if (node->op == UnaryNode::Op::Neg) {
             if (
-            t2->type != runtime::ValueKind::Int && t2->type != runtime::ValueKind::Fraction) {
+            t2->type != runtime::ValueKind::Int &&
+            t2->type != runtime::ValueKind::Fraction &&
+            t2->type != runtime::ValueKind::Expr) {
                 throw_error(ErrorType::Analysis, "unary`-` cannot applied to this type", expr->line, expr->col);
                 break;
             }
@@ -284,6 +323,23 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         const auto lty = node->lhs->type;
         const auto rty = node->rhs->type;
         if (Type::is_null_type(lty.get()) || Type::is_null_type(rty.get())) break;
+        if ((is_expr_type(lty) || is_expr_type(rty)) &&
+            is_numeric_or_expr_type(lty) &&
+            is_numeric_or_expr_type(rty)) {
+            static const std::map<BinaryNode::Op, bool> expr_ops = {
+                {BinaryNode::Op::Add, true},
+                {BinaryNode::Op::Sub, true},
+                {BinaryNode::Op::Mul, true},
+                {BinaryNode::Op::Div, true},
+                {BinaryNode::Op::Pow, true},
+                {BinaryNode::Op::Eq, true},
+            };
+            if (expr_ops.contains(node->op)) {
+                node->type = type_pool.basic(runtime::ValueKind::Expr);
+                break;
+            }
+            goto binary_type_mismatch;
+        }
         if (!lty->equals(rty.get())) {
             throw_error(
                 ErrorType::Analysis,
@@ -676,6 +732,21 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
         cur_module->imports[abs_path_string] = mod_ty;
         break;
     }
+    case ASTKind::SymDecl: {
+        const auto* node = reinterpret_cast<SymDeclNode*>(stmt.get());
+        for (const auto& id : node->ids) {
+            if (id == "i" || id == "I") {
+                throw_error(ErrorType::Analysis, "ImaginaryUnitReserved", node->line, node->col);
+                break;
+            }
+            if (is_global_scope()) {
+                new_global_var(id, type_pool.basic(runtime::ValueKind::Expr));
+            } else {
+                new_cur_scope_var(id, type_pool.basic(runtime::ValueKind::Expr));
+            }
+        }
+        break;
+    }
     //case ASTKind::Exprs:
     //    break;
     //case ASTKind::ParamsDeclNode:
@@ -754,6 +825,10 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
     }
     case ASTKind::VarDecl: {
         const auto node = reinterpret_cast<VarDeclNode*>(stmt.get());
+        if (node->id == "i" || node->id == "I") {
+            throw_error(ErrorType::Analysis, "ImaginaryUnitReserved", node->line, node->col);
+            break;
+        }
         check_expr(node->init_value);
         if (Type::is_null_type(node->type.get())) {
             if (!node->init_value) {

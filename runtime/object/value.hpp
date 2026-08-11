@@ -9,7 +9,7 @@
 
 namespace lmx::runtime {
 enum class ValueKind : uint8_t {
-    Null, C_Ptr, Obj, Int, Bool, Fraction, C_VaList
+    Null, C_Ptr, Obj, Int, Bool, Fraction, Real, Expr, C_VaList
 };
 
 struct Value;
@@ -23,12 +23,14 @@ struct Value {
         LmInt int_val;
         bool bool_val;
         Fraction frac_val;
+        double real_val;
     };
 
     LMX_INLINE explicit Value()            noexcept;
     LMX_INLINE explicit Value(void* ptr)   noexcept;
     LMX_INLINE explicit Value(Object* obj) noexcept;
     LMX_INLINE explicit Value(LmInt val)   noexcept;
+    LMX_INLINE explicit Value(double val)  noexcept;
     LMX_INLINE explicit Value(bool val)    noexcept;
     LMX_INLINE explicit Value(int num, int den) noexcept;
     LMX_INLINE explicit Value(const Fraction& frac) noexcept;
@@ -40,6 +42,7 @@ struct Value {
     LMX_INLINE Value& operator=(void* c_ptr)       noexcept;
     LMX_INLINE Value& operator=(Object* obj)       noexcept;
     LMX_INLINE Value& operator=(LmInt int_val)     noexcept;
+    LMX_INLINE Value& operator=(double real_val)   noexcept;
     LMX_INLINE Value& operator=(bool bool_val)     noexcept;
     LMX_INLINE Value& operator=(const Value& other)noexcept;
     LMX_INLINE Value& operator=(Value&& other)     noexcept;
@@ -84,6 +87,8 @@ LMX_INLINE Value::Value(void *c_ptr) noexcept : kind(ValueKind::C_Ptr), c_ptr(c_
 
 LMX_INLINE Value::Value(const LmInt int_val) noexcept : kind(ValueKind::Int), int_val(int_val) {}
 
+LMX_INLINE Value::Value(const double real_val) noexcept : kind(ValueKind::Real), real_val(real_val) {}
+
 LMX_INLINE Value::Value(Object *obj) noexcept : kind(ValueKind::Obj), obj(obj) {}
 
 LMX_INLINE Value::Value(const int num, const int den) noexcept : kind(ValueKind::Fraction), frac_val(num, den) {}
@@ -124,6 +129,13 @@ LMX_INLINE Value &Value::operator=(const LmInt val) noexcept {
     // assert(this->kind == ValueKind::Int);
     this->kind = ValueKind::Int;
     this->int_val = val;
+    return *this;
+}
+
+LMX_INLINE Value &Value::operator=(const double val) noexcept {
+    VALUE_DESTRUCT_UNSAFE(this);
+    this->kind = ValueKind::Real;
+    this->real_val = val;
     return *this;
 }
 
@@ -241,9 +253,10 @@ LMX_INLINE Value::operator bool() const noexcept {
 LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
     VALUE_DESTRUCT_UNSAFE(this);
     switch (other.kind) {
-    case ValueKind::Obj: {
+    case ValueKind::Obj:
+    case ValueKind::Expr: {
         this->obj = other.obj->get();
-        this->kind = ValueKind::Obj;
+        this->kind = other.kind;
         break;
     }
     default: {
@@ -259,7 +272,8 @@ LMX_INLINE Value &Value::operator=(Value &&other) noexcept = default;
 
 LMX_INLINE Value::~Value() noexcept {
     switch (this->kind) {
-    case ValueKind::Obj: {
+    case ValueKind::Obj:
+    case ValueKind::Expr: {
         this->obj->release();
         break;
     }

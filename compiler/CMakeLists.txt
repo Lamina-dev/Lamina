@@ -11,7 +11,6 @@ add_library(laminac OBJECT
     assembler.cpp
     compiler.cpp
     compiler.hpp
-    cas/cas_parse.cpp
         hir/hir.cpp
         hir/hir.hpp
 )

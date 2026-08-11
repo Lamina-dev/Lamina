@@ -380,6 +380,8 @@ static const char* value_kind_name(ValueKind kind) noexcept {
     case ValueKind::Int:      return "Int";
     case ValueKind::Bool:     return "Bool";
     case ValueKind::Fraction: return "Frac";
+    case ValueKind::Real:     return "Real";
+    case ValueKind::Expr:     return "Expr";
     case ValueKind::C_VaList: return "CVaList";
     default:                  return "?";
     }
