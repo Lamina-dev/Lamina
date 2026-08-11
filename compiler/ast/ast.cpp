@@ -28,13 +28,13 @@ std::shared_ptr<Type> TypePool::string() noexcept {
     return ty;
 }
 
-std::shared_ptr<Type> TypePool::array(const std::shared_ptr<Type>& type, const size_t len) noexcept {
+std::shared_ptr<Type> TypePool::array(const std::shared_ptr<Type>& type) noexcept {
     for (const auto& t : types)
         if (t->kind == TypeKind::Array) {
             const auto* a = static_cast<ArrayType*>(t.get());
-            if (a->len == len && a->type->equals(type.get())) return t;
+            if (a->type->equals(type.get())) return t;
         }
-    auto ty = std::make_shared<ArrayType>(type, len);
+    auto ty = std::make_shared<ArrayType>(type);
     types.push_back(ty);
     return ty;
 }
@@ -127,8 +127,7 @@ bool ArrayType::equals(Type *other) const noexcept {
     if (!other) return false;
     if (other->kind != this->kind) return false;
     const auto *o = reinterpret_cast<ArrayType *>(other);
-    if (this->type->equals(o->type.get())) return false;
-    if (this->len != o->len) return false;
+    if (!this->type->equals(o->type.get())) return false;
     return true;
 }
 
@@ -396,3 +395,6 @@ ContinueStmtNode::ContinueStmtNode(const size_t line, const size_t col) noexcept
 
 ImportStmtNode::ImportStmtNode(size_t line, size_t col, decltype(name) name) noexcept
     : StmtNode(ASTKind::ImportStmt, line, col), name(std::move(name)) {}
+
+ArrayLiteralNode::ArrayLiteralNode(const size_t line, const size_t col, decltype(exprs) exprs) noexcept
+    : ExprNode(ASTKind::ArrayLiteral, line, col), exprs(std::move(exprs)) {}

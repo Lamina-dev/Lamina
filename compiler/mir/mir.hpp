@@ -17,7 +17,7 @@ enum Opcode : uint8_t;
 namespace lmx::mir {
 
 enum class MirNodeKind {
-    TempAssign, Assign, Label, Expr, Func, NativeFunc
+    TempAssign, Assign, ArrStore, Label, Expr, Func, NativeFunc
 };
 struct MirNode {
     MirNodeKind kind;
@@ -25,7 +25,7 @@ struct MirNode {
     explicit MirNode(MirNodeKind kind) noexcept;
 };
 enum class MirExprKind {
-    Ref, Literal, Operate,
+    Ref, Literal, Operate, Array,
 };
 struct MirExpr {
     MirExprKind kind;
@@ -233,6 +233,17 @@ struct MirAssign : MirNode {
     std::shared_ptr<MirExpr> expr;
     explicit MirAssign(std::string name, std::shared_ptr<MirExpr> expr) noexcept;
 };
+struct MirArrLoadExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> target;
+    std::shared_ptr<MirExpr> index;
+    explicit MirArrLoadExpr(std::shared_ptr<MirExpr> target, std::shared_ptr<MirExpr> index) noexcept;
+};
+struct MirArrStore : MirNode {
+    std::shared_ptr<MirExpr> target;
+    std::shared_ptr<MirExpr> index;
+    std::shared_ptr<MirExpr> value;
+    explicit MirArrStore(std::shared_ptr<MirExpr> target, std::shared_ptr<MirExpr> index, std::shared_ptr<MirExpr> value) noexcept;
+};
 struct MirGetModuleExpr : MirOperateExpr {
     std::string name;
     explicit MirGetModuleExpr(std::string name) noexcept;
@@ -251,4 +262,17 @@ struct MirModule {
     std::vector<std::shared_ptr<MirNode>> nodes;
     std::unordered_map<std::string, std::shared_ptr<ModuleType>> imports;
 };
+
+/*
+ * 数组构造。is_constant 为 true 表示元素均为可入池字面量
+ * (Int/Frac/Str)，汇编时可整体编码进常量池；否则用
+ * NewArray + ArrStore 指令逐元素构造。
+ */
+struct MirArrayExpr : MirExpr {
+    bool is_constant;
+    std::vector<std::shared_ptr<MirExpr>> elements;
+
+    explicit MirArrayExpr(bool is_constant, std::vector<std::shared_ptr<MirExpr>> elements) noexcept;
+};
+
 }

@@ -115,6 +115,37 @@ public:
                 p += result.back().str->length;
                 break;
             }
+            case ConstantId::Arr: {
+                auto* ai = reinterpret_cast<ArrayInfo*>(const_cast<uint8_t*>(p));
+                const auto len = ai->len;
+                p += sizeof(uint32_t) + len * sizeof(ConstantPoolInfo);
+                // 修正 Frac/Str 元素指针，使其指向紧随 infos[] 的数据段
+                auto* data = const_cast<uint8_t*>(p);
+                for (uint32_t i = 0; i < len; i++) {
+                    auto* e = &ai->infos[i];
+                    switch (e->id) {
+                    case ConstantId::Int:
+                        break;
+                    case ConstantId::Frac: {
+                        ::new (static_cast<void*>(e)) ConstantPoolInfo(
+                            reinterpret_cast<const FracInfo*>(data));
+                        data += sizeof(FracInfo);
+                        break;
+                    }
+                    case ConstantId::Str: {
+                        const auto* si = reinterpret_cast<const StringInfo*>(data);
+                        ::new (static_cast<void*>(e)) ConstantPoolInfo(si);
+                        data += sizeof(StringInfo) + si->length;
+                        break;
+                    }
+                    default:
+                        break;
+                    }
+                }
+                result.emplace_back(const_cast<const ArrayInfo*>(ai));
+                p = data;
+                break;
+            }
             }
         }
         return true;
@@ -222,8 +253,8 @@ constexpr InstInfo INST_TABLE[] = {
     /* GetNull    */ {.name = "get_null",  .fmt = InstInfo::Reg},
     /* IConst     */ {.name = "iconst",    .fmt = InstInfo::RegImm16},
     /* CConst     */ {.name = "cconst",    .fmt = InstInfo::RegImm16},
-    /* Pop        */ {.name = "pop",       .fmt = InstInfo::Reg},
-    /* Push       */ {.name = "push",      .fmt = InstInfo::Reg},
+    /* NewArrar   */ {.name = "new_array",       .fmt = InstInfo::RegImm16},
+    /* ArrLoad    */ {.name = "arr_load",      .fmt = InstInfo::RegRegReg},
     /* Halt       */ {.name = "halt",      .fmt = InstInfo::None},
     /* IAdd       */ {.name = "iadd",      .fmt = InstInfo::RegRegReg},
     /* ISub       */ {.name = "isub",      .fmt = InstInfo::RegRegReg},
@@ -233,7 +264,7 @@ constexpr InstInfo INST_TABLE[] = {
     /* IPow       */ {.name = "ipow",      .fmt = InstInfo::RegRegReg},
     /* INeg       */ {.name = "ineg",      .fmt = InstInfo::RegReg},
     /* FuncCreate */ {.name = "func_create", .fmt = InstInfo::RegImm16},
-    /* CallVirtual*/ {.name = "call_virtual",.fmt = InstInfo::RegIdx},
+    /* ArrStore   */ {.name = "arr_store",.fmt = InstInfo::RegRegReg},
     /* CCall      */ {.name = "ccall",     .fmt = InstInfo::Imm16Reg},
     /* CallFast   */ {.name = "call_fast", .fmt = InstInfo::Imm16Reg},
     /* Ret        */ {.name = "ret",       .fmt = InstInfo::Reg},
@@ -402,10 +433,33 @@ std::string CodeModuleObj::disassemble() const noexcept {
             case ConstantId::Frac:
                 out << "  #" << i << ": frac " << c.frac_info->num << "/" << c.frac_info->den << "\n";
                 break;
-            case ConstantId::Str:
+            case ConstantId::Str: {
                 const std::string str(c.str->str, c.str->length);
                 out << "  #" << i << ": str \"" << str << "\"\n";
                 break;
+            }
+            case ConstantId::Arr: {
+                out << "  #" << i << ": arr len=" << c.arr->len << " [";
+                for (uint32_t j = 0; j < c.arr->len; ++j) {
+                    if (j > 0) out << ", ";
+                    const auto& e = c.arr->infos[j];
+                    switch (e.id) {
+                    case ConstantId::Int:
+                        out << e.int_value;
+                        break;
+                    case ConstantId::Frac:
+                        out << e.frac_info->num << "/" << e.frac_info->den;
+                        break;
+                    case ConstantId::Str:
+                        out << '\"' << std::string(e.str->str, e.str->length) << '\"';
+                        break;
+                    default:
+                        break;
+                    }
+                }
+                out << "]\n";
+                break;
+            }
             }
         }
     }

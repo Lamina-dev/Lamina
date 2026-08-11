@@ -52,7 +52,9 @@ public:
     LMX_INLINE void store(const LmInt i, Value&& v) noexcept {
         const size_t i2 = get_index(i);
         check_index(i2);
-        arr[i2] = std::move(v);
+        arr[i2].~Value();                    // 释放旧元素(含占有的对象)
+        new (&arr[i2]) Value(std::move(v));  // 转移新值(浅拷贝)
+        v.kind = ValueKind::Null;            // 源值置空，防止重复 release
     }
 
     [[nodiscard]] LMX_INLINE LmInt len() const noexcept {

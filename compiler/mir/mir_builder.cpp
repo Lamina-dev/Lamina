@@ -187,7 +187,13 @@ public:
         case ASTKind::AssignStmt: {
             const auto *node = reinterpret_cast<AssignStmtNode *>(stmt);
             auto val = eval(node->rhs.get());
-            if (node->lhs->kind == ASTKind::Identifier) {
+            if (node->lhs->kind == ASTKind::SuffixBracket) {
+                auto *sb = reinterpret_cast<SuffixBracketNode *>(node->lhs.get());
+                emit(std::make_shared<MirArrStore>(
+                    ensure_temp(eval(sb->expr.get())),
+                    ensure_temp(eval(sb->suffix.get())),
+                    std::move(val)));
+            } else if (node->lhs->kind == ASTKind::Identifier) {
                 auto *id = reinterpret_cast<IdentifierNode *>(node->lhs.get());
                 emit(std::make_shared<MirAssign>(id->id, std::move(val)));
             } else {
@@ -430,11 +436,10 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         return std::move(call_expr);
     }
     case ASTKind::SuffixBracket: {
-        // auto *idx = static_cast<SuffixBracketNode *>(expr);
-        // eval(idx->expr.get());
-        // eval(idx->suffix.get());
-        // auto lit = std::make_shared<MirLiteralExpr>(MirLiteralKind::Integer, "0");
-        return std::make_shared<MirLiteralExpr>(MirLiteralKind::Integer, "0");
+        auto *idx = reinterpret_cast<SuffixBracketNode *>(expr);
+        auto target = ensure_temp(eval(idx->expr.get()));
+        auto index = ensure_temp(eval(idx->suffix.get()));
+        return temp_assign(std::make_shared<MirArrLoadExpr>(std::move(target), std::move(index)));
     }
     case ASTKind::IfExpr: {
         auto *if_expr = reinterpret_cast<IfExprNode *>(expr);
@@ -497,6 +502,15 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
          auto attr = std::make_shared<MirGetModuleAttrExpr>(mod_ref, std::move(mod_name), dot->rhs->id);  // %_1 = GetModuleAttr %_0, "foo"
          return temp_assign(attr);
          break;
+    }
+    case ASTKind::ArrayLiteral: {
+        auto *arr = reinterpret_cast<ArrayLiteralNode *>(expr);
+        std::vector<std::shared_ptr<MirExpr>> elements;
+        elements.reserve(arr->exprs.size());
+        for (auto &e : arr->exprs) {
+            elements.push_back(eval(e.get()));
+        }
+        return std::make_shared<MirArrayExpr>(arr->is_constant(), std::move(elements));
     }
     default:
         std::unreachable();

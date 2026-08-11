@@ -212,6 +212,39 @@ uint16_t Assembler::write_cp_str(const uint32_t len, const std::string& str) {
     return cp_cnt++;
 }
 
+/*
+ * 数组常量编码:
+ *   [Arr tag(1B)] [len u32(4B)]
+ *   元素 ConstantPoolInfo × len (每个 9B, packed):
+ *     Int : tag(1B) + int64 值内联(8B)
+ *     Frac: tag(1B) + 0 占位(8B)
+ *     Str : tag(1B) + 0 占位(8B)
+ *   数据段 (仅 Frac/Str):
+ *     Frac: num(4B) + den(4B)
+ *     Str : len(4B) + bytes
+ * Frac/Str 的指针字段在模块加载时原地修正到数据段。
+ */
+uint16_t Assembler::write_cp_arr(const uint8_t elem_tag, const std::vector<std::vector<uint8_t>>& elems) {
+    using namespace lmx::runtime;
+    cp.push_back(static_cast<uint8_t>(ConstantId::Arr));
+    write_u32(cp, static_cast<uint32_t>(elems.size()));
+    const bool inline_val = elem_tag == static_cast<uint8_t>(ConstantId::Int);
+    for (const auto& e : elems) {
+        cp.push_back(elem_tag);
+        if (inline_val) {
+            cp.insert(cp.end(), e.begin(), e.end());
+        } else {
+            cp.insert(cp.end(), sizeof(uint64_t), 0);
+        }
+    }
+    if (!inline_val) {
+        for (const auto& e : elems) {
+            cp.insert(cp.end(), e.begin(), e.end());
+        }
+    }
+    return cp_cnt++;
+}
+
 // ============================================================
 //  Expression assembly: returns the register holding the result
 // ============================================================
@@ -285,6 +318,72 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
         }
         }
         break;
+    }
+
+    case mir::MirExprKind::Array: {
+        const auto& arr = *reinterpret_cast<mir::MirArrayExpr*>(node);
+
+        // 常量池路径: 全部元素为可入池字面量且 tag 一致
+        if (arr.is_constant && !arr.elements.empty()) {
+            uint8_t elem_tag = 0;
+            bool ok = true;
+            std::vector<std::vector<uint8_t>> elems;
+            elems.reserve(arr.elements.size());
+            for (auto& e : arr.elements) {
+                if (e->kind != mir::MirExprKind::Literal) { ok = false; break; }
+                const auto& lit = *reinterpret_cast<mir::MirLiteralExpr*>(e.get());
+                const bool first = elems.empty();
+                uint8_t tag = 0;
+                std::vector<uint8_t> d;
+                switch (lit.literal_kind) {
+                case mir::MirLiteralKind::Integer: {
+                    tag = static_cast<uint8_t>(runtime::ConstantId::Int);
+                    const auto v = static_cast<int64_t>(std::stoll(lit.data));
+                    write_n(d, reinterpret_cast<const uint8_t*>(&v), sizeof(v));
+                    break;
+                }
+                case mir::MirLiteralKind::Float: {
+                    tag = static_cast<uint8_t>(runtime::ConstantId::Frac);
+                    const runtime::Fraction f(lit.data);
+                    write_n(d, reinterpret_cast<const uint8_t*>(&f.num), sizeof(f.num));
+                    write_n(d, reinterpret_cast<const uint8_t*>(&f.den), sizeof(f.den));
+                    break;
+                }
+                case mir::MirLiteralKind::String: {
+                    tag = static_cast<uint8_t>(runtime::ConstantId::Str);
+                    write_u32(d, static_cast<uint32_t>(lit.data.size()));
+                    write_n(d, reinterpret_cast<const uint8_t*>(lit.data.c_str()), lit.data.size());
+                    break;
+                }
+                default:
+                    ok = false;
+                    break;
+                }
+                if (!ok) break;
+                if (first) elem_tag = tag;
+                else if (elem_tag != tag) { ok = false; break; }
+                elems.push_back(std::move(d));
+            }
+            if (ok) {
+                const auto idx = write_cp_arr(elem_tag, elems);
+                const auto r = *reg.alloc();
+                InstEmitter::emit(insts, runtime::Opcode::New, r, idx);
+                return r;
+            }
+        }
+
+        // 指令路径: NewArray + 逐元素 ArrStore
+        const auto r = *reg.alloc();
+        InstEmitter::emit(insts, runtime::Opcode::NewArray, r, static_cast<uint16_t>(arr.elements.size()));
+        for (size_t i = 0; i < arr.elements.size(); i++) {
+            const auto rv = asm_mir_expr(insts, arr.elements[i].get());
+            const auto ri = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::IConst, ri, static_cast<uint16_t>(i));
+            InstEmitter::emit(insts, runtime::Opcode::ArrStore, r, ri, rv);
+            reg.free(ri);
+            reg.free(rv);
+        }
+        return r;
     }
 
     case mir::MirExprKind::Operate: {
@@ -531,6 +630,16 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             return r;
             break;
         }
+        case runtime::Opcode::ArrLoad: {
+            const auto& op = *reinterpret_cast<mir::MirArrLoadExpr*>(node);
+            const auto ra = asm_mir_expr(insts, op.target.get());
+            const auto ri = asm_mir_expr(insts, op.index.get());
+            const auto rd = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::ArrLoad, rd, ra, ri);
+            reg.free(ra);
+            reg.free(ri);
+            return rd;
+        }
         default:
             return 0;
         }
@@ -586,6 +695,18 @@ void Assembler::asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) n
             InstEmitter::emit(result, runtime::Opcode::LSet, r, v->var);
         }
         reg.free(r);
+        break;
+    }
+
+    case mir::MirNodeKind::ArrStore: {
+        const auto n = reinterpret_cast<mir::MirArrStore*>(node);
+        const auto ra = asm_mir_expr(result, n->target.get());
+        const auto ri = asm_mir_expr(result, n->index.get());
+        const auto rv = asm_mir_expr(result, n->value.get());
+        InstEmitter::emit(result, runtime::Opcode::ArrStore, ra, ri, rv);
+        reg.free(ra);
+        reg.free(ri);
+        reg.free(rv);
         break;
     }
 

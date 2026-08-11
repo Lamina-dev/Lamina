@@ -98,6 +98,16 @@ void MirPrinter::format_expr(std::ostringstream &ss, const MirExpr &expr) {
         format_operate(ss, static_cast<const MirOperateExpr &>(expr));
         break;
     }
+    case MirExprKind::Array: {
+        auto &a = static_cast<const MirArrayExpr &>(expr);
+        ss << (a.is_constant ? "array_const" : "array") << " [";
+        for (size_t i = 0; i < a.elements.size(); ++i) {
+            if (i > 0) ss << ", ";
+            format_expr(ss, *a.elements[i]);
+        }
+        ss << "]";
+        break;
+    }
     }
 }
 
@@ -241,6 +251,9 @@ void MirPrinter::format_operate(std::ostringstream &ss, const MirOperateExpr &op
     case runtime::Opcode::Or: {
         DISPATCH(MirCmpOrExpr, format_binary(ss, name, d.lhs, d.rhs));
     }
+    case runtime::Opcode::ArrLoad: {
+        DISPATCH(MirArrLoadExpr, format_binary(ss, name, d.target, d.index));
+    }
     case runtime::Opcode::CCall: {
         auto &c = static_cast<const MirCCallExpr &>(op);
         ss << name << " " << c.name << "(";
@@ -274,6 +287,16 @@ void MirPrinter::format_node(std::ostringstream &ss, const MirNode &node) {
         auto &a = static_cast<const MirAssign &>(node);
         ss << "$" << a.name << " = ";
         if (a.expr) format_expr(ss, *a.expr);
+        break;
+    }
+    case MirNodeKind::ArrStore: {
+        auto &a = static_cast<const MirArrStore &>(node);
+        ss << "arr_store ";
+        if (a.target) format_expr(ss, *a.target);
+        ss << "[";
+        if (a.index) format_expr(ss, *a.index);
+        ss << "] = ";
+        if (a.value) format_expr(ss, *a.value);
         break;
     }
     case MirNodeKind::Expr: {

@@ -251,6 +251,19 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         primary = parse_block();
         break;
     }
+    case TokenType::LBRACK: {
+        advance();
+        decltype(ArrayLiteralNode::exprs) elems;
+        if (!match(TokenType::RBRACK)) {
+            do {
+                elems.push_back(parse_expr());
+                if (match(TokenType::RBRACK)) break;
+            } while (consume(TokenType::COMMA, ","));
+        }
+        consume(TokenType::RBRACK, "]");
+        primary = std::make_shared<ArrayLiteralNode>(line, col, std::move(elems));
+        break;
+    }
     default: {
         throw_error(ErrorType::Parse, "`" + cur().text + "` is wrong primary token", cur().line, cur().col);
         if (pos <= tokens.size()) advance();

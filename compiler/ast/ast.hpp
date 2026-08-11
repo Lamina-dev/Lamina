@@ -62,6 +62,7 @@ enum class ASTKind {
     ContinueStmt,
     ImportStmt,
     PipeExpr,
+    ArrayLiteral,
 };
 
 enum class TypeKind {
@@ -161,10 +162,9 @@ struct NamedType : Type {
 
 struct ArrayType : Type {
     std::shared_ptr<Type> type;
-    size_t len;
 
-    explicit ArrayType(const std::shared_ptr<Type> &type, const size_t len)
-        : Type(TypeKind::Array), type(type), len(len) {}
+    explicit ArrayType(const std::shared_ptr<Type> &type)
+        : Type(TypeKind::Array), type(type) {}
 
     ~ArrayType() override;
 
@@ -172,8 +172,11 @@ struct ArrayType : Type {
 };
 
 struct ASTNode {
+    virtual ~ASTNode() = default;
+
     ASTKind kind;
     size_t line, col;
+    std::allocator<ASTKind> a;
 
     explicit ASTNode(ASTKind kind, size_t line, size_t col) noexcept;
 };
@@ -184,6 +187,12 @@ struct ExprNode : ASTNode {
     [[nodiscard]] LMX_INLINE bool have_ret_value() const noexcept {
         return !Type::is_null_type(type.get()) && type->kind != TypeKind::None;
     }
+
+    /*
+     * 该表达式能否直接编码进常量池。
+     * 字面量返回 true，布尔字面量因常量池没有对应 Tag 返回 false。
+     */
+    [[nodiscard]] virtual bool is_constant() const noexcept { return false; }
 };
 
 struct StmtNode : ASTNode {
@@ -212,6 +221,13 @@ struct LiteralNode : ExprNode {
     Kind kind;
 
     explicit LiteralNode(size_t line, size_t col, std::string val, Kind kind) noexcept;
+
+    /*
+     * 常量池没有 Bool Tag，布尔字面量无法直接入池。
+     */
+    [[nodiscard]] bool is_constant() const noexcept override {
+        return kind != Kind::Boolean;
+    }
 };
 
 struct IdentifierNode : ExprNode {
@@ -407,6 +423,20 @@ struct PipeExprNode : ExprNode {
         : ExprNode(ASTKind::PipeExpr, line, col), lhs(std::move(lhs)), rhs(std::move(rhs)) {};
 };
 
+struct ArrayLiteralNode : ExprNode {
+    std::vector<std::shared_ptr<ExprNode>> exprs;
+
+    explicit ArrayLiteralNode(size_t line, size_t col, decltype(exprs) exprs) noexcept;
+
+    /*
+     * 数组本身是否可入常量池，取决于全部元素是否可入池。
+     */
+    [[nodiscard]] bool is_constant() const noexcept override {
+        for (const auto& e : exprs) if (!e->is_constant()) return false;
+        return !exprs.empty();
+    }
+};
+
 struct Module {
     std::string name;
     std::string lib_name;
@@ -437,7 +467,7 @@ class TypePool {
 public:
     [[nodiscard]] std::shared_ptr<Type> basic(runtime::ValueKind v) noexcept;
     [[nodiscard]] std::shared_ptr<Type> string() noexcept;
-    [[nodiscard]] std::shared_ptr<Type> array(const std::shared_ptr<Type>& type, size_t len) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> array(const std::shared_ptr<Type>& type) noexcept;
     [[nodiscard]] std::shared_ptr<Type> function(std::vector<std::shared_ptr<Type>> params,
                                                  std::shared_ptr<Type> ret) noexcept;
     [[nodiscard]] std::shared_ptr<Type> native_function(std::vector<std::shared_ptr<Type>> params,

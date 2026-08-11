@@ -79,6 +79,7 @@ public:
     uint16_t write_cp_i64(int64_t num);
     uint16_t write_cp_str(uint32_t len, const std::string& str);
     uint16_t write_cp_frac(int32_t num, int32_t frac);
+    uint16_t write_cp_arr(uint8_t elem_tag, const std::vector<std::vector<uint8_t>>& elems);
 
     std::optional<Val*> find_var(const std::string& name) noexcept;
     std::optional<GlobalVar*> find_global(const std::string& name) noexcept;
