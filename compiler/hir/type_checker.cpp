@@ -683,8 +683,6 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
         const auto node = reinterpret_cast<AssignStmtNode*>(stmt.get());
         check_expr(node->lhs);
         check_expr(node->rhs);
-        node->lhs->type = inference_type(node->lhs.get());
-        node->rhs->type = inference_type(node->rhs.get());
         if (node->lhs->kind != ASTKind::Identifier) {
             throw_error(ErrorType::Analysis, "left side of assignment must be an identifier", node->line, node->col);
             break;
