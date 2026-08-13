@@ -61,14 +61,14 @@ jobs:
       - name: Configure CMake
         run: |
           if [ "${{ runner.os }}" = "Windows" ]; then
-            cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang --parallel
+            cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang
           else
-            cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON --parallel
+            cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON
           fi
         shell: bash
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build --config Release --parallel
 
       - name: Package
         shell: bash
