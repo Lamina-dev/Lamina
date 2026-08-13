@@ -4,13 +4,17 @@ func printf(fmt text, ...) -> int = "printf"
 
 let arr = [4,7,4]
 
+func bar() {
+    arr
+}
+
 func foo(a int) {
-    [5,8,5, a]
+    (0, "aaa", bar)
 }
 
 let tup = (3,5)
 printf("%lld\n", tup.1)
 tup.1 = 6
-printf("%f %lld %lld\n", bernoulli.bernoulli(10), arr[1], foo(9)[3])
+printf("%f %lld %lld\n", bernoulli.bernoulli(10), arr[1], foo(9).2()[1])
 arr[1] = 5
 printf("%lld %lld %lld\n", tup.0, tup.1, arr[1])

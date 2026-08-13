@@ -185,11 +185,11 @@ std::optional<Assembler::Val*> Assembler::find_var(const std::string& name) noex
     return std::nullopt;
 }
 
-std::optional<Assembler::GlobalVar*> Assembler::find_global(const std::string& name) noexcept {
-    const auto it = globals.find(name);
-    if (it == globals.end()) return std::nullopt;
-    return &it->second;
-}
+// std::optional<Assembler::GlobalVar*> Assembler::find_global(const std::string& name) noexcept {
+//     const auto it = globals.find(name);
+//     if (it == globals.end()) return std::nullopt;
+//     return &it->second;
+// }
 
 uint16_t Assembler::write_cp_frac(const int32_t num, const int32_t frac) {
     using namespace lmx::runtime;
@@ -271,7 +271,7 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             InstEmitter::emit(insts, runtime::Opcode::GetFunc, r, func_idx);
             return r;
         }
-
+        break;
     }
 
     case mir::MirExprKind::Literal: {
@@ -929,7 +929,6 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
 
     // Compile top-level code as the entry point
     vals.clear();
-    globals.clear();
     reg = RegAllocator{};
     label_positions.clear();
     pending_fixups.clear();

@@ -139,7 +139,7 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
     case ASTKind::ArrayLiteral: {
         const auto node = reinterpret_cast<ArrayLiteralNode*>(type);
         if (node->exprs.empty()) return type_pool.array(type_pool.unknown());
-        auto elem_ty = node->exprs[0]->type->kind == TypeKind::Unknown
+        const auto elem_ty = node->exprs[0]->type->kind == TypeKind::Unknown
             ? inference_type(node->exprs[0].get())
             : node->exprs[0]->type;
         for (size_t i = 1; i < node->exprs.size(); i++) {
@@ -150,6 +150,25 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
         }
         if (Type::is_null_type(elem_ty.get())) return type_pool.unknown();
         return type_pool.array(elem_ty);
+    }
+    case ASTKind::TupleLiteral: {
+        const auto node = reinterpret_cast<TupleLiteralNode*>(type);
+        if (node->exprs.empty()) return type_pool.tuple({type_pool.unknown()});
+        const auto elem_ty = node->exprs[0]->type->kind == TypeKind::Unknown
+            ? inference_type(node->exprs[0].get())
+            : node->exprs[0]->type;
+        for (size_t i = 1; i < node->exprs.size(); i++) {
+            const auto& ety = node->exprs[i]->type->kind == TypeKind::Unknown
+                ? inference_type(node->exprs[i].get())
+                : node->exprs[i]->type;
+            if (!elem_ty->equals(ety.get())) return type_pool.unknown();
+        }
+        if (Type::is_null_type(elem_ty.get())) return type_pool.unknown();
+        return type_pool.array(elem_ty);
+        break;
+    }
+    case ASTKind::TupleGetExpr: {
+        break;
     }
     default: std::unreachable();
     }
@@ -439,7 +458,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         const auto node = reinterpret_cast<SuffixBracketNode*>(expr.get());
         check_expr(node->expr);
         check_expr(node->suffix);
-        const auto left = inference_type(node->expr.get());
+        const auto left = node->expr->type;
         if (left->kind != TypeKind::Array) {
             throw_error(ErrorType::Analysis, "must be array type but got `" + Type::to_string(left.get()) + "`", node->line, node->col);
             break;
