@@ -8,8 +8,8 @@
 namespace lmx::runtime::Opcode {
 
 enum Opcode : uint8_t {
-    Nop,    // 0
-    New,    // reg(1) constant_tag_idx(2)
+    Nop = 0,    // 0
+    New = 1,    // reg(1) constant_tag_idx(2)
 
     GetTrue,    // reg(1)
     GetFalse,   // reg(1)
@@ -42,7 +42,8 @@ enum Opcode : uint8_t {
     FCmpEq, FCmpNe, FCmpLt, FCmpLe, FCmpGt, FCmpGe,  // reg(1) reg(1) reg(1)
 
     GetModule, GetModuleAttr, GetFunc,
-    TupleGet, TupleSet,
+    TupleGet, // reg(1), obj_reg(1), idx(1)   reg = obj_reg[idx]
+    TupleSet, // obj_reg(1), idx(1), reg(1)   obj_reg[idx] = reg
 };
 
 }

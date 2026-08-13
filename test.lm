@@ -1,25 +1,16 @@
 static "laminaCore"
 import examples.bernoulli
 func printf(fmt text, ...) -> int = "printf"
-#
-#printf("%f\n", -1.0)
 
-# {
-#   var n = 6
-#   loop {
-#       if n == 0 {
-#           break
-#       }
-#
-#       printf("aaa\n")
-#
-#       n = n - 1
-#   }
-# }
 let arr = [4,7,4]
 
 func foo(a int) {
     [5,8,5, a]
 }
 
+let tup = (3,5)
+printf("%lld\n", tup.1)
+tup.1 = 6
 printf("%f %lld %lld\n", bernoulli.bernoulli(10), arr[1], foo(9)[3])
+arr[1] = 5
+printf("%lld %lld %lld\n", tup.0, tup.1, arr[1])

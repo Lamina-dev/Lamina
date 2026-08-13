@@ -222,7 +222,26 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
     case TokenType::LPAREN: {
         advance();
         primary = parse_expr();
-        consume(TokenType::RPAREN, ")");
+        switch (cur().type) {
+        case TokenType::RPAREN: {
+            advance();
+            break;
+        }
+        case TokenType::COMMA: {
+            decltype(TupleLiteralNode::exprs) exprs{primary};
+            while (match(TokenType::COMMA)) {
+                advance();
+                if (!match(TokenType::RPAREN)) exprs.push_back(parse_expr());
+                if (match(TokenType::RPAREN)) {
+                    break;
+                }
+            }
+            advance();
+            primary = std::make_shared<TupleLiteralNode>(primary->line, primary->col, std::move(exprs));
+            break;
+        }
+        default: break;
+        }
         break;
     }
     case TokenType::IDENTIFIER: {
@@ -298,8 +317,14 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         case TokenType::DOT: {
             advance();
             auto ident = cur();
-            consume(TokenType::IDENTIFIER, "identifier");
-            primary = std::make_shared<DotExprNode>(line, col, primary, std::make_shared<IdentifierNode>(ident.line, ident.col, ident.text));
+            if (match(TokenType::NUM_LITERAL)) {
+                uint8_t i = std::stoi(ident.text);
+                advance();
+                primary = std::make_shared<TupleGetExprNode>(line, col, primary, i);
+            } else {
+                consume(TokenType::IDENTIFIER, "identifier");
+                primary = std::make_shared<DotExprNode>(line, col, primary, std::make_shared<IdentifierNode>(ident.line, ident.col, ident.text));
+            }
             break;
         }
         default: {

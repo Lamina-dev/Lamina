@@ -6,6 +6,7 @@
 #include "value.hpp"
 #include <vector>
 
+#include "value.hpp"
 #include "../error.hpp"
 
 namespace lmx::runtime {

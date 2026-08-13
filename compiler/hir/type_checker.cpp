@@ -560,6 +560,34 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         expr = result;
         break;
     }
+    case ASTKind::TupleLiteral: {
+        const auto node = reinterpret_cast<TupleLiteralNode*>(expr.get());
+        decltype(TupleType::tys) tys;
+        for (auto& e : node->exprs) {
+            check_expr(e);
+            tys.push_back(e->type);
+        }
+        node->type = type_pool.tuple(std::move(tys));
+        break;
+    }
+    case ASTKind::TupleGetExpr: {
+        auto* node = reinterpret_cast<TupleGetExprNode*>(expr.get());
+        check_expr(node->tup);
+        if (node->tup->type->kind != TypeKind::Tuple) {
+            throw_error(ErrorType::Analysis, "left not tuple type", node->line, node->col);
+            break;
+        }
+        const auto* tup_ty = reinterpret_cast<TupleType*>(node->tup->type.get());
+        if (node->i >= tup_ty->tys.size()) {
+            throw_error(ErrorType::Analysis,
+                "tuple member count is " + std::to_string(tup_ty->tys.size()) + " but getting " + std::to_string(node->i),
+                node->line, node->col
+                );
+            break;
+        }
+        node->type = tup_ty->tys[node->i];
+        break;
+    }
     default: std::unreachable();
     }
 }
@@ -728,6 +756,8 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
         check_expr(node->rhs);
         if (node->lhs->kind == ASTKind::SuffixBracket) {
             // 数组元素赋值 a[i] = v，元素类型已由 check_expr 赋到 node->lhs->type
+        } else if (node->lhs->kind == ASTKind::TupleGetExpr) {
+            // 元组元素赋值 tup.i = v，元素类型已由 check_expr 赋到 node->lhs->type
         } else if (node->lhs->kind == ASTKind::Identifier) {
             const auto id = reinterpret_cast<IdentifierNode*>(node->lhs.get());
             const auto var = find_var(id->id);

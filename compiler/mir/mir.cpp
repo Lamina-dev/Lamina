@@ -24,8 +24,14 @@ MirAssign::MirAssign(std::string name, std::shared_ptr<MirExpr> expr) noexcept
 MirArrLoadExpr::MirArrLoadExpr(std::shared_ptr<MirExpr> target, std::shared_ptr<MirExpr> index) noexcept
     : MirOperateExpr(runtime::Opcode::ArrLoad), target(std::move(target)), index(std::move(index)) {}
 
+MirTupleGetExpr::MirTupleGetExpr(std::shared_ptr<MirExpr> target, const uint8_t index) noexcept
+    : MirOperateExpr(runtime::Opcode::TupleGet), target(std::move(target)), index(index) {}
+
 MirArrStore::MirArrStore(std::shared_ptr<MirExpr> target, std::shared_ptr<MirExpr> index, std::shared_ptr<MirExpr> value) noexcept
     : MirNode(MirNodeKind::ArrStore), target(std::move(target)), index(std::move(index)), value(std::move(value)) {}
+
+MirTupleStore::MirTupleStore(std::shared_ptr<MirExpr> target, const uint8_t index, std::shared_ptr<MirExpr> value) noexcept
+    : MirNode(MirNodeKind::TupleStore), target(std::move(target)), index(index), value(std::move(value)) {}
 
 MirFuncDefine::MirFuncDefine(std::string name, std::vector<std::string> params, std::vector<std::shared_ptr<MirNode> > body) noexcept :
     MirNode(MirNodeKind::Func), name(std::move(name)), params(std::move(params)), body(std::move(body)) {}

@@ -241,7 +241,8 @@ namespace {
 
 struct InstInfo {
     const char* name;
-    enum ArgFmt : uint8_t { None, Reg, RegReg, RegRegReg, RegImm16, Imm16, Imm16Reg, RegIdx, RegArgc };
+
+    enum ArgFmt : uint8_t { None, Reg, RegReg, RegRegReg, RegImm16, Imm16, Imm16Reg, RegIdx, RegArgc, RegImm8, RegRegImm8, RegImm8Reg };
     ArgFmt fmt;
 };
 
@@ -252,9 +253,9 @@ constexpr InstInfo INST_TABLE[] = {
     /* GetFalse   */ {.name = "get_false", .fmt = InstInfo::Reg},
     /* GetNull    */ {.name = "get_null",  .fmt = InstInfo::Reg},
     /* IConst     */ {.name = "iconst",    .fmt = InstInfo::RegImm16},
-    /* CConst     */ {.name = "cconst",    .fmt = InstInfo::RegImm16},
-    /* NewArrar   */ {.name = "new_array",       .fmt = InstInfo::RegImm16},
-    /* ArrLoad    */ {.name = "arr_load",      .fmt = InstInfo::RegRegReg},
+    /* NewTuple   */ {.name = "new_tuple", .fmt = InstInfo::RegImm8},
+    /* NewArray   */ {.name = "new_array", .fmt = InstInfo::RegImm16},
+    /* ArrLoad    */ {.name = "arr_load",  .fmt = InstInfo::RegRegReg},
     /* Halt       */ {.name = "halt",      .fmt = InstInfo::None},
     /* IAdd       */ {.name = "iadd",      .fmt = InstInfo::RegRegReg},
     /* ISub       */ {.name = "isub",      .fmt = InstInfo::RegRegReg},
@@ -299,6 +300,9 @@ constexpr InstInfo INST_TABLE[] = {
     /* FCmpGe     */ {.name = "fcmp_ge",   .fmt = InstInfo::RegRegReg},
     /* GetModule  */ {.name = "get_module",  .fmt = InstInfo::RegImm16},
     /* GetModuleAttr*/{.name = "get_module_attr", .fmt = InstInfo::RegImm16},
+    /* GetFunc    */ {.name = "get_func",  .fmt = InstInfo::RegImm16},
+    /* TupleGet   */ {.name = "tuple_get", .fmt = InstInfo::RegRegImm8},
+    /* TupleSet   */ {.name = "tuple_set", .fmt = InstInfo::RegImm8Reg},
 };
 
 constexpr size_t INST_COUNT = std::size(INST_TABLE);
@@ -341,6 +345,9 @@ void decode_inst(std::ostringstream& out, const uint8_t* p, const size_t offset)
     case InstInfo::RegImm16:
         std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %d\n", offset, name, a, i16_hi);
         break;
+    case InstInfo::RegImm8:
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %u\n", offset, name, a, b);
+        break;
     case InstInfo::RegIdx:
         std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, #%u\n", offset, name, a, b);
         break;
@@ -352,6 +359,12 @@ void decode_inst(std::ostringstream& out, const uint8_t* p, const size_t offset)
         break;
     case InstInfo::RegArgc:
         std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %u\n", offset, name, a, b);
+        break;
+    case InstInfo::RegRegImm8:
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, r%u, %u\n", offset, name, a, b, c);
+        break;
+    case InstInfo::RegImm8Reg:
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %u, r%u\n", offset, name, a, b, c);
         break;
     }
     out << buf;

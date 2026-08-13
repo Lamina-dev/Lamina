@@ -9,6 +9,8 @@ add_library(lamina_runtime OBJECT
     gc.cpp
         object/array.cpp
         object/array.hpp
+        object/tuple.cpp
+        object/tuple.hpp
 )
 
 

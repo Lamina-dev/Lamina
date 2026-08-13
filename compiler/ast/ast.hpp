@@ -63,11 +63,13 @@ enum class ASTKind {
     ImportStmt,
     PipeExpr,
     ArrayLiteral,
+    TupleLiteral,
+    TupleGetExpr,
 };
 
 enum class TypeKind {
     Basic, Array, Named, Unknown, String, Function, None, NativeFunction,
-    Module
+    Module, Tuple
 };
 struct Type {
     TypeKind kind;
@@ -118,6 +120,26 @@ public:
     }
 };
 
+struct TupleType : Type {
+    friend class TypePool;
+    bool equals(Type *other) const noexcept override {
+        if (is_null_type(other)) return false;
+        if (this == other) return true;
+        if (other->kind != this->kind) return false;
+        const auto* o = reinterpret_cast<TupleType*>(other);
+        if (tys.size() != o->tys.size()) return false;
+
+        for (size_t i = 0; i < tys.size(); i++) {
+            if (!tys[i]->equals(o->tys[i].get())) return false;
+        }
+        return true;
+    }
+
+    std::vector<std::shared_ptr<Type>> tys;
+
+private:
+    explicit TupleType(decltype(tys) tys) noexcept : Type(TypeKind::Tuple), tys(std::move(tys)) {}
+};
 struct UnknownType : Type {
     friend class TypePool;
 private:
@@ -472,6 +494,26 @@ struct ArrayLiteralNode : ExprNode {
     }
 };
 
+struct TupleLiteralNode : ExprNode {
+    std::vector<std::shared_ptr<ExprNode>> exprs;
+
+    explicit TupleLiteralNode(const size_t line, const size_t col, decltype(exprs) exprs) noexcept
+        : ExprNode(ASTKind::TupleLiteral, line,  col), exprs(std::move(exprs)) {}
+
+    [[nodiscard]] bool is_constant() const noexcept override {
+        for (const auto& e : exprs) if (!e->is_constant()) return false;
+        return !exprs.empty();
+    }
+};
+
+struct TupleGetExprNode : ExprNode {
+    std::shared_ptr<ExprNode> tup;
+    uint8_t i;
+
+    explicit TupleGetExprNode(const size_t line, const size_t col, decltype(tup) tup, const uint8_t i) noexcept
+        : ExprNode(ASTKind::TupleGetExpr, line, col), tup(std::move(tup)), i(i) {}
+};
+
 struct Module {
     std::string name;
     std::string lib_name;
@@ -514,6 +556,8 @@ public:
 
     [[nodiscard]] std::shared_ptr<Type> unknown() noexcept;
     [[nodiscard]] std::shared_ptr<Type> none() noexcept;
+
+    std::shared_ptr<Type> tuple(std::vector<std::shared_ptr<Type>> t) noexcept;
 };
 
 // 编译器前端共享的类型池，parse / hir / tyck 统一使用

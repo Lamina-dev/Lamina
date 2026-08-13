@@ -10,6 +10,7 @@
 #include "object/array.hpp"
 #include "object/object.hpp"
 #include "object/StringObj.hpp"
+#include "object/tuple.hpp"
 
 namespace lmx::runtime {
 class GC;
@@ -25,6 +26,11 @@ public:
     }
     LMX_INLINE Object* alloc_array(const size_t len) noexcept {
         const auto ptr = new ArrayObj(len);
+        objects.push_back(ptr);
+        return ptr;
+    }
+    LMX_INLINE Object* alloc_tuple(const size_t len) noexcept {
+        const auto ptr = new TupleObj(len);
         objects.push_back(ptr);
         return ptr;
     }

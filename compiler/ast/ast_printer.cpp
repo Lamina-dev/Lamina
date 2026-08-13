@@ -54,6 +54,16 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
         ss << "]";
         break;
     }
+    case TypeKind::Tuple: {
+        auto &tt = static_cast<const TupleType &>(type);
+        ss << "(";
+        for (size_t i = 0; i < tt.tys.size(); i++) {
+            if (i > 0) ss << ", ";
+            if (tt.tys[i]) print_type(ss, *tt.tys[i]);
+        }
+        ss << ")";
+        break;
+    }
     case TypeKind::NativeFunction: {
         auto &nt = static_cast<const NativeFunctionType &>(type);
         ss << "native func(";
@@ -249,6 +259,27 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
             }
             break;
         }
+        case ASTKind::TupleLiteral: {
+            auto &tl = static_cast<const TupleLiteralNode &>(node);
+            ss << line_prefix << "TupleLiteral";
+            if (node.type) { ss << " : "; print_type(ss, *node.type); }
+            ss << "\n";
+            for (size_t i = 0; i < tl.exprs.size(); i++) {
+                const bool last = i + 1 == tl.exprs.size();
+                auto kid_pref = child_prefix + (last ? "└── " : "├── ");
+                auto kid_cont = child_prefix + (last ? "    " : "│   ");
+                print_expr(ss, *tl.exprs[i], kid_pref, kid_cont);
+            }
+            break;
+        }
+        case ASTKind::TupleGetExpr: {
+            auto &tg = static_cast<const TupleGetExprNode &>(node);
+            ss << line_prefix << "TupleGet ." << static_cast<int>(tg.i);
+            if (node.type) { ss << " : "; print_type(ss, *node.type); }
+            ss << "\n";
+            if (tg.tup) print_expr(ss, *tg.tup, child_prefix + "└── ", child_prefix + "    ");
+            break;
+        }
         default:
             ss << line_prefix << "UnknownExpr(" << static_cast<int>(node.kind) << ")\n";
             break;
@@ -381,6 +412,8 @@ static bool is_expr_kind(ASTKind kind) {
         case ASTKind::DotExpr:
         case ASTKind::NativeFuncCall:
         case ASTKind::ArrayLiteral:
+        case ASTKind::TupleLiteral:
+        case ASTKind::TupleGetExpr:
             return true;
         default:
             return false;

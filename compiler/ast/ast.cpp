@@ -11,7 +11,7 @@
 
 using namespace lmx;
 
-lmx::TypePool lmx::type_pool;
+TypePool lmx::type_pool;
 
 std::shared_ptr<Type> TypePool::basic(const runtime::ValueKind v) noexcept {
     for (const auto& t : types)
@@ -100,6 +100,17 @@ std::shared_ptr<Type> TypePool::none() noexcept {
     auto ty = std::shared_ptr<Type>(new NoneType());
     types.push_back(ty);
     return ty;
+}
+
+std::shared_ptr<Type> TypePool::tuple(std::vector<std::shared_ptr<Type>> t) noexcept {
+    auto tup_tmp_ty = std::shared_ptr<Type>(new TupleType(std::move(t)));
+    for (const auto& ty : types) {
+        if (ty->kind == TypeKind::Tuple && ty->equals(tup_tmp_ty.get())) {
+            return ty;
+        }
+    }
+    types.push_back(tup_tmp_ty);
+    return tup_tmp_ty;
 }
 
 Type::~Type() = default;

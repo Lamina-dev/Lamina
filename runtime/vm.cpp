@@ -184,7 +184,7 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
 
     VM_LABEL(NewTuple) {
-        // regs[ip[1]] = TupleValue{static_cast<Value *>(operator new[](ip[2] * sizeof(Value)))};
+        regs[ip[1]] = allocator.alloc_tuple(ip[2]);
         VM_NEXT
     }
 
@@ -451,9 +451,11 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
         VM_NEXT
     }
     VM_LABEL(TupleGet) {
+        regs[ip[1]] = reinterpret_cast<TupleObj*>(regs[ip[2]].obj)->get(ip[3]);
         VM_NEXT
     }
     VM_LABEL(TupleSet) {
+        reinterpret_cast<TupleObj*>(regs[ip[1]].obj)->set(ip[2], regs[ip[3]]);
         VM_NEXT
     }
 

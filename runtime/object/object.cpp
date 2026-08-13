@@ -6,6 +6,7 @@
 #include "array.hpp"
 #include "code_module.hpp"
 #include "StringObj.hpp"
+#include "tuple.hpp"
 
 using namespace lmx::runtime;
 
@@ -34,10 +35,12 @@ std::string Object::to_string(Object *obj) noexcept {
     case ObjectKind::Array : {
         return "";
     }
-    default: {
-        return "";
+    case ObjectKind::Tuple: {
+        return TupleObj::to_string();
     }
+    default: {};
     }
+    return {};
 }
 
 Object::~Object() noexcept = default;

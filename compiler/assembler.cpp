@@ -67,6 +67,7 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::IfTrue:
     case runtime::Opcode::IfFalse:
     case runtime::Opcode::Call:
+    case runtime::Opcode::TupleSet:
         return false;
     case runtime::Opcode::FuncCreate:
     case runtime::Opcode::New:
@@ -113,8 +114,9 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::ArrLoad:
     case runtime::Opcode::ArrStore:
     case runtime::Opcode::GetFunc:
+    case runtime::Opcode::TupleGet:
         return true;
-        break;
+
     }
     return false;
 }
@@ -319,7 +321,20 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
         }
         break;
     }
+    case mir::MirExprKind::Tuple: {
+        const auto& tup = *reinterpret_cast<mir::MirTupleExpr*>(node);
 
+        const auto r = *reg.alloc();
+        InstEmitter::emit(insts, runtime::Opcode::NewTuple, r, static_cast<uint8_t>(tup.elements.size()));
+        for (uint8_t i = 0; static_cast<size_t>(i) < tup.elements.size(); i++) {
+            const auto rv = asm_mir_expr(insts, tup.elements[i].get());
+            InstEmitter::emit(insts, runtime::Opcode::TupleSet, r, i, rv);
+            reg.free(rv);
+        }
+        return r;
+
+        break;
+    }
     case mir::MirExprKind::Array: {
         const auto& arr = *reinterpret_cast<mir::MirArrayExpr*>(node);
 
@@ -372,7 +387,7 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             }
         }
 
-        // 指令路径: NewArray + 逐元素 ArrStore
+        // 指令路径: NewArray 逐元素 ArrStore
         const auto r = *reg.alloc();
         InstEmitter::emit(insts, runtime::Opcode::NewArray, r, static_cast<uint16_t>(arr.elements.size()));
         for (size_t i = 0; i < arr.elements.size(); i++) {
@@ -640,6 +655,14 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             reg.free(ri);
             return rd;
         }
+        case runtime::Opcode::TupleGet: {
+            const auto& op = *reinterpret_cast<mir::MirTupleGetExpr*>(node);
+            const auto rt = asm_mir_expr(insts, op.target.get());
+            const auto rd = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::TupleGet, rd, rt, op.index);
+            reg.free(rt);
+            return rd;
+        }
         default:
             return 0;
         }
@@ -706,6 +729,16 @@ void Assembler::asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) n
         InstEmitter::emit(result, runtime::Opcode::ArrStore, ra, ri, rv);
         reg.free(ra);
         reg.free(ri);
+        reg.free(rv);
+        break;
+    }
+
+    case mir::MirNodeKind::TupleStore: {
+        const auto n = reinterpret_cast<mir::MirTupleStore*>(node);
+        const auto rt = asm_mir_expr(result, n->target.get());
+        const auto rv = asm_mir_expr(result, n->value.get());
+        InstEmitter::emit(result, runtime::Opcode::TupleSet, rt, n->index, rv);
+        reg.free(rt);
         reg.free(rv);
         break;
     }
