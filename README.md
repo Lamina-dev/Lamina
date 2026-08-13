@@ -173,7 +173,7 @@ main.cpp          lamina CLI
 | LSR 009 | 集合与多结果返回     | Draft   | 未实现                                                                                                                                                             |
 | LSR 010 | 虚数单位与复数       | Draft   | 未实现（无 `complex` 类型与 `i` 字面量）                                                                                                                           |
 | LSR 011 | 代数数据类型         | Draft   | 未实现                                                                                                                                                             |
-| LSR 012 | 元组类型             | Draft   | 未实现                                                                                                                                                             |
+| LSR 012 | 元组类型             | Draft   | 部分实现，解构尚未实现                                                                                                                                             |
 | LSR 013 | 集合类型             | Draft   | 未实现                                                                                                                                                             |
-| LSR 015 | LAMMP 接口           | Draft   | 未实现（无任意精度库接入）                                                                                                                                         |
+| LSR 015 | LAMMP 接口           | Draft   | 不适用                                                                                                                                                             |
 
