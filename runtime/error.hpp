@@ -4,11 +4,19 @@
 #include "object/object.hpp"
 
 namespace lmx::runtime {
-const std::string VM_ERROR_ModLoad = "ModuleLoaderError";
-const std::string VM_ERROR_CanNotCalling = "CanNotCallingError";
 
-constexpr LMX_INLINE void VM_ERROR(const std::string& message) {
-    std::cerr << message << std::endl;
+enum class RuntimeErrorType {
+    ModuleLoad,
+    CanNotCalling,
+    IndexOutOfRange,
+    Construct,
+};
+constexpr const char* error_str[] = {
+    "ModuleLoaderError", "CanNotCalling", "IndexOutOfRange"
+};
+
+constexpr LMX_INLINE void VM_ERROR(const RuntimeErrorType type, const std::string& message) {
+    std::cerr << error_str[static_cast<size_t>(type)] << "Error: " << message << std::endl;
     std::exit(1);
 }
 

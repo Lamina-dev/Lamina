@@ -62,18 +62,27 @@ enum class ASTKind {
     ContinueStmt,
     ImportStmt,
     PipeExpr,
+    ArrayLiteral,
+    TupleLiteral,
+    TupleGetExpr,
 };
 
 enum class TypeKind {
     Basic, Array, Named, Unknown, String, Function, None, NativeFunction,
-    Module
+    Module, Tuple
 };
 struct Type {
     TypeKind kind;
 
-    explicit Type(const TypeKind kind) : kind(kind) {
+protected:
+    /*
+     * 类型实例唯一性保证：构造函数仅供 TypePool 访问（friend），
+     * 禁止任何其它代码裸建 Type，确保相同类型全局只有一个实例。
+     */
+    explicit Type(const TypeKind kind) noexcept : kind(kind) {
     }
 
+public:
     virtual ~Type();
 
     [[nodiscard]] virtual bool equals(Type *other) const noexcept = 0;
@@ -86,11 +95,15 @@ struct Type {
 };
 
 struct ModuleType : Type {
+    friend class TypePool;
+
     std::string target_path;
     std::vector<hir::Scope::Var> exports;
+private:
     explicit ModuleType(std::string target_path, std::vector<hir::Scope::Var> exports) noexcept
     : Type(TypeKind::Module), target_path(std::move(target_path)), exports(std::move(exports)) {}
 
+public:
     bool equals(Type *other) const noexcept override;
 
     std::optional<hir::Scope::Var*> find_var(const std::string& n) noexcept {
@@ -107,73 +120,120 @@ struct ModuleType : Type {
     }
 };
 
+struct TupleType : Type {
+    friend class TypePool;
+    bool equals(Type *other) const noexcept override {
+        if (is_null_type(other)) return false;
+        if (this == other) return true;
+        if (other->kind != this->kind) return false;
+        const auto* o = reinterpret_cast<TupleType*>(other);
+        if (tys.size() != o->tys.size()) return false;
+
+        for (size_t i = 0; i < tys.size(); i++) {
+            if (!tys[i]->equals(o->tys[i].get())) return false;
+        }
+        return true;
+    }
+
+    std::vector<std::shared_ptr<Type>> tys;
+
+private:
+    explicit TupleType(decltype(tys) tys) noexcept : Type(TypeKind::Tuple), tys(std::move(tys)) {}
+};
 struct UnknownType : Type {
+    friend class TypePool;
+private:
     explicit UnknownType() : Type(TypeKind::Unknown) {}
 
+public:
     bool equals(Type *other) const noexcept override;
 };
 struct NoneType : Type {
+    friend class TypePool;
+private:
     explicit NoneType() : Type(TypeKind::None) {}
+
+public:
     bool equals(Type *other) const noexcept override;
 };
 
 struct BasicType : Type {
-    runtime::ValueKind type;
+    friend class TypePool;
 
+    runtime::ValueKind type;
+private:
     explicit BasicType(const runtime::ValueKind type) noexcept : Type(TypeKind::Basic), type(type) {
     }
 
+public:
     ~BasicType() override;
 
     bool equals(Type *other) const noexcept override;
 };
 
 struct StringType : Type {
+    friend class TypePool;
+private:
     explicit StringType() noexcept : Type(TypeKind::String) {}
 
+public:
     bool equals(Type *other) const noexcept override;
 };
 struct FunctionType : Type {
+    friend class TypePool;
+
     std::vector<std::shared_ptr<Type>> params_ty;
     std::shared_ptr<Type> ret_ty;
-
+private:
     explicit FunctionType(std::vector<std::shared_ptr<Type>> params_ty, std::shared_ptr<Type> ret_ty) noexcept;
+public:
     bool equals(Type *other) const noexcept override;
 };
 struct NativeFunctionType : Type {
+    friend class TypePool;
+
     std::vector<std::shared_ptr<Type>> params_ty;
     std::shared_ptr<Type> ret_ty;
     std::string name;
-
+private:
     explicit NativeFunctionType(std::vector<std::shared_ptr<Type>> params_ty, std::shared_ptr<Type> ret_ty, std::string name) noexcept;
+public:
     bool equals(Type *other) const noexcept override;
 
     [[nodiscard]] bool have_va_list() const noexcept;
 };
 struct NamedType : Type {
-    std::string name;
+    friend class TypePool;
 
+    std::string name;
+private:
     explicit NamedType(std::string name) noexcept : Type(TypeKind::Named), name(std::move(name)) {
     }
 
+public:
     bool equals(Type *other) const noexcept override{return false;}
 };
 
 struct ArrayType : Type {
+    friend class TypePool;
+
     std::shared_ptr<Type> type;
-    size_t len;
+private:
+    explicit ArrayType(const std::shared_ptr<Type> &type)
+        : Type(TypeKind::Array), type(type) {}
 
-    explicit ArrayType(const std::shared_ptr<Type> &type, const size_t len)
-        : Type(TypeKind::Array), type(type), len(len) {}
-
+public:
     ~ArrayType() override;
 
     bool equals(Type *other) const noexcept override;
 };
 
 struct ASTNode {
+    virtual ~ASTNode() = default;
+
     ASTKind kind;
     size_t line, col;
+    std::allocator<ASTKind> a;
 
     explicit ASTNode(ASTKind kind, size_t line, size_t col) noexcept;
 };
@@ -184,6 +244,12 @@ struct ExprNode : ASTNode {
     [[nodiscard]] LMX_INLINE bool have_ret_value() const noexcept {
         return !Type::is_null_type(type.get()) && type->kind != TypeKind::None;
     }
+
+    /*
+     * 该表达式能否直接编码进常量池。
+     * 字面量返回 true，布尔字面量因常量池没有对应 Tag 返回 false。
+     */
+    [[nodiscard]] virtual bool is_constant() const noexcept { return false; }
 };
 
 struct StmtNode : ASTNode {
@@ -212,6 +278,13 @@ struct LiteralNode : ExprNode {
     Kind kind;
 
     explicit LiteralNode(size_t line, size_t col, std::string val, Kind kind) noexcept;
+
+    /*
+     * 常量池没有 Bool Tag，布尔字面量无法直接入池。
+     */
+    [[nodiscard]] bool is_constant() const noexcept override {
+        return kind != Kind::Boolean;
+    }
 };
 
 struct IdentifierNode : ExprNode {
@@ -407,6 +480,40 @@ struct PipeExprNode : ExprNode {
         : ExprNode(ASTKind::PipeExpr, line, col), lhs(std::move(lhs)), rhs(std::move(rhs)) {};
 };
 
+struct ArrayLiteralNode : ExprNode {
+    std::vector<std::shared_ptr<ExprNode>> exprs;
+
+    explicit ArrayLiteralNode(size_t line, size_t col, decltype(exprs) exprs) noexcept;
+
+    /*
+     * 数组本身是否可入常量池，取决于全部元素是否可入池。
+     */
+    [[nodiscard]] bool is_constant() const noexcept override {
+        for (const auto& e : exprs) if (!e->is_constant()) return false;
+        return !exprs.empty();
+    }
+};
+
+struct TupleLiteralNode : ExprNode {
+    std::vector<std::shared_ptr<ExprNode>> exprs;
+
+    explicit TupleLiteralNode(const size_t line, const size_t col, decltype(exprs) exprs) noexcept
+        : ExprNode(ASTKind::TupleLiteral, line,  col), exprs(std::move(exprs)) {}
+
+    [[nodiscard]] bool is_constant() const noexcept override {
+        for (const auto& e : exprs) if (!e->is_constant()) return false;
+        return !exprs.empty();
+    }
+};
+
+struct TupleGetExprNode : ExprNode {
+    std::shared_ptr<ExprNode> tup;
+    uint8_t i;
+
+    explicit TupleGetExprNode(const size_t line, const size_t col, decltype(tup) tup, const uint8_t i) noexcept
+        : ExprNode(ASTKind::TupleGetExpr, line, col), tup(std::move(tup)), i(i) {}
+};
+
 struct Module {
     std::string name;
     std::string lib_name;
@@ -437,7 +544,7 @@ class TypePool {
 public:
     [[nodiscard]] std::shared_ptr<Type> basic(runtime::ValueKind v) noexcept;
     [[nodiscard]] std::shared_ptr<Type> string() noexcept;
-    [[nodiscard]] std::shared_ptr<Type> array(const std::shared_ptr<Type>& type, size_t len) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> array(const std::shared_ptr<Type>& type) noexcept;
     [[nodiscard]] std::shared_ptr<Type> function(std::vector<std::shared_ptr<Type>> params,
                                                  std::shared_ptr<Type> ret) noexcept;
     [[nodiscard]] std::shared_ptr<Type> native_function(std::vector<std::shared_ptr<Type>> params,
@@ -449,6 +556,8 @@ public:
 
     [[nodiscard]] std::shared_ptr<Type> unknown() noexcept;
     [[nodiscard]] std::shared_ptr<Type> none() noexcept;
+
+    std::shared_ptr<Type> tuple(std::vector<std::shared_ptr<Type>> t) noexcept;
 };
 
 // 编译器前端共享的类型池，parse / hir / tyck 统一使用

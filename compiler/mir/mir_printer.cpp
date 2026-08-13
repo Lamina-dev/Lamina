@@ -19,8 +19,8 @@ std::string MirPrinter::opcode_name(const runtime::Opcode::Opcode op) {
     case runtime::Opcode::GetFalse:   return "get_false";
     case runtime::Opcode::GetNull:    return "get_null";
     case runtime::Opcode::IConst:     return "iconst";
-    case runtime::Opcode::CConst:     return "cconst";
-    case runtime::Opcode::Pop:        return "pop";
+    case runtime::Opcode::NewTuple:     return "new_tuple";
+    case runtime::Opcode::NewArray:        return "new_array";
     case runtime::Opcode::Halt:       return "halt";
     case runtime::Opcode::IAdd:       return "iadd";
     case runtime::Opcode::ISub:       return "isub";
@@ -30,7 +30,7 @@ std::string MirPrinter::opcode_name(const runtime::Opcode::Opcode op) {
     case runtime::Opcode::IPow:       return "ipow";
     case runtime::Opcode::INeg:       return "ineg";
     case runtime::Opcode::FuncCreate: return "func_create";
-    case runtime::Opcode::CallVirtual: return "call_virtual";
+    case runtime::Opcode::ArrStore: return "arr_store";
     case runtime::Opcode::CCall:       return "ccall";
     case runtime::Opcode::CallFast:    return "call_fast";
     case runtime::Opcode::Ret:         return "ret";
@@ -54,7 +54,9 @@ std::string MirPrinter::opcode_name(const runtime::Opcode::Opcode op) {
     case runtime::Opcode::FDiv:        return "fdiv";
     case runtime::Opcode::FMod:       return "fmodi";
     case runtime::Opcode::FNeg:        return "fneg";
-    case runtime::Opcode::Push:        return "push";
+    case runtime::Opcode::ArrLoad:        return "arr_load";
+    case runtime::Opcode::TupleGet:       return "tuple_get";
+    case runtime::Opcode::TupleSet:       return "tuple_set";
     case runtime::Opcode::MovRR:       return "movrr";
     case runtime::Opcode::Call:        return "call";
     case runtime::Opcode::And:         return "and";
@@ -96,6 +98,26 @@ void MirPrinter::format_expr(std::ostringstream &ss, const MirExpr &expr) {
     }
     case MirExprKind::Operate: {
         format_operate(ss, static_cast<const MirOperateExpr &>(expr));
+        break;
+    }
+    case MirExprKind::Array: {
+        auto &a = static_cast<const MirArrayExpr &>(expr);
+        ss << (a.is_constant ? "array_const" : "array") << " [";
+        for (size_t i = 0; i < a.elements.size(); ++i) {
+            if (i > 0) ss << ", ";
+            format_expr(ss, *a.elements[i]);
+        }
+        ss << "]";
+        break;
+    }
+    case MirExprKind::Tuple: {
+        auto &t = static_cast<const MirTupleExpr &>(expr);
+        ss << (t.is_constant ? "tuple_const" : "tuple") << " (";
+        for (size_t i = 0; i < t.elements.size(); ++i) {
+            if (i > 0) ss << ", ";
+            format_expr(ss, *t.elements[i]);
+        }
+        ss << ")";
         break;
     }
     }
@@ -241,6 +263,15 @@ void MirPrinter::format_operate(std::ostringstream &ss, const MirOperateExpr &op
     case runtime::Opcode::Or: {
         DISPATCH(MirCmpOrExpr, format_binary(ss, name, d.lhs, d.rhs));
     }
+    case runtime::Opcode::ArrLoad: {
+        DISPATCH(MirArrLoadExpr, format_binary(ss, name, d.target, d.index));
+    }
+    case runtime::Opcode::TupleGet: {
+        const auto& d = static_cast<const MirTupleGetExpr&>(op);
+        ss << name << " " << static_cast<int>(d.index) << ", ";
+        format_expr(ss, *d.target);
+        break;
+    }
     case runtime::Opcode::CCall: {
         auto &c = static_cast<const MirCCallExpr &>(op);
         ss << name << " " << c.name << "(";
@@ -274,6 +305,24 @@ void MirPrinter::format_node(std::ostringstream &ss, const MirNode &node) {
         auto &a = static_cast<const MirAssign &>(node);
         ss << "$" << a.name << " = ";
         if (a.expr) format_expr(ss, *a.expr);
+        break;
+    }
+    case MirNodeKind::ArrStore: {
+        auto &a = static_cast<const MirArrStore &>(node);
+        ss << "arr_store ";
+        if (a.target) format_expr(ss, *a.target);
+        ss << "[";
+        if (a.index) format_expr(ss, *a.index);
+        ss << "] = ";
+        if (a.value) format_expr(ss, *a.value);
+        break;
+    }
+    case MirNodeKind::TupleStore: {
+        auto &a = static_cast<const MirTupleStore &>(node);
+        ss << "tuple_store ";
+        if (a.target) format_expr(ss, *a.target);
+        ss << "[" << static_cast<int>(a.index) << "] = ";
+        if (a.value) format_expr(ss, *a.value);
         break;
     }
     case MirNodeKind::Expr: {

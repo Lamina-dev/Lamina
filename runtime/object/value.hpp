@@ -9,8 +9,10 @@
 
 namespace lmx::runtime {
 enum class ValueKind : uint8_t {
-    Null, C_Ptr, Obj, Int, Bool, Fraction, C_VaList,
+    Null, C_Ptr, Obj, Int, Bool, Fraction, C_VaList
 };
+
+struct Value;
 // #pragma pack(push, 1)
 struct Value {
     ValueKind kind{ValueKind::Null};
@@ -23,55 +25,57 @@ struct Value {
         Fraction frac_val;
     };
 
-    explicit Value()            noexcept;
-    explicit Value(void* ptr)   noexcept;
-    explicit Value(Object* obj) noexcept;
-    explicit Value(LmInt val) noexcept;
-    explicit Value(bool val)    noexcept;
-    explicit Value(int num, int den);
-    explicit Value(const Fraction& frac) noexcept;
+    LMX_INLINE explicit Value()            noexcept;
+    LMX_INLINE explicit Value(void* ptr)   noexcept;
+    LMX_INLINE explicit Value(Object* obj) noexcept;
+    LMX_INLINE explicit Value(LmInt val)   noexcept;
+    LMX_INLINE explicit Value(bool val)    noexcept;
+    LMX_INLINE explicit Value(int num, int den) noexcept;
+    LMX_INLINE explicit Value(const Fraction& frac) noexcept;
+    LMX_INLINE explicit Value(const Value&) noexcept = default;
+    LMX_INLINE explicit Value(Value&&) noexcept = default;
 
-    Object* operator->() const noexcept;
+    LMX_INLINE Object* operator->() const noexcept;
 
-    Value& operator=(void* c_ptr)       noexcept;
-    Value& operator=(Object* obj)       noexcept;
-    Value& operator=(LmInt int_val)     noexcept;
-    Value& operator=(bool bool_val)     noexcept;
-    Value& operator=(const Value& other)noexcept;
-    Value& operator=(Value&& other)     noexcept;
-    Value &operator=(const Fraction& fraction);
-    Value& operator=(std::nullptr_t)    noexcept;
+    LMX_INLINE Value& operator=(void* c_ptr)       noexcept;
+    LMX_INLINE Value& operator=(Object* obj)       noexcept;
+    LMX_INLINE Value& operator=(LmInt int_val)     noexcept;
+    LMX_INLINE Value& operator=(bool bool_val)     noexcept;
+    LMX_INLINE Value& operator=(const Value& other)noexcept;
+    LMX_INLINE Value& operator=(Value&& other)     noexcept;
+    LMX_INLINE Value& operator=(const Fraction& fraction);
+    LMX_INLINE Value& operator=(std::nullptr_t)    noexcept;
+    LMX_INLINE Value operator+(const Value& other) const noexcept;
+    LMX_INLINE Value operator-(const Value& other) const noexcept;
+    LMX_INLINE Value operator*(const Value& other) const noexcept;
+    LMX_INLINE Value operator/(const Value& other) const noexcept;
+    LMX_INLINE Value operator%(const Value& other) const noexcept;
+    LMX_INLINE Value operator-() const noexcept;
 
-    Value operator+(const Value& other) const noexcept;
-    Value operator-(const Value& other) const noexcept;
-    Value operator*(const Value& other) const noexcept;
-    Value operator/(const Value& other) const noexcept;
-    Value operator%(const Value& other) const noexcept;
-    Value operator-() const noexcept;
+    LMX_INLINE Value& operator+=(const Value& other) noexcept;
+    LMX_INLINE Value& operator-=(const Value& other) noexcept;
+    LMX_INLINE Value& operator*=(const Value& other) noexcept;
+    LMX_INLINE Value& operator/=(const Value& other) noexcept;
+    LMX_INLINE Value& operator%=(const Value& other) noexcept;
 
-    Value& operator+=(const Value& other) noexcept;
-    Value& operator-=(const Value& other) noexcept;
-    Value& operator*=(const Value& other) noexcept;
-    Value& operator/=(const Value& other) noexcept;
-    Value& operator%=(const Value& other) noexcept;
+    LMX_INLINE bool operator==(const Value& other) const noexcept;
+    LMX_INLINE bool operator!=(const Value& other) const noexcept;
+    LMX_INLINE bool operator< (const Value& other) const noexcept;
+    LMX_INLINE bool operator<=(const Value& other) const noexcept;
+    LMX_INLINE bool operator> (const Value& other) const noexcept;
+    LMX_INLINE bool operator>=(const Value& other) const noexcept;
 
-    bool operator==(const Value& other) const noexcept;
-    bool operator!=(const Value& other) const noexcept;
-    bool operator< (const Value& other) const noexcept;
-    bool operator<=(const Value& other) const noexcept;
-    bool operator> (const Value& other) const noexcept;
-    bool operator>=(const Value& other) const noexcept;
+    LMX_INLINE bool operator!() const noexcept;
 
-    bool operator!() const noexcept;
-
-    explicit operator bool() const noexcept;
+    LMX_INLINE explicit operator bool() const noexcept;
 
     [[nodiscard]] std::string to_string() const noexcept;
 
-    ~Value() noexcept;
+    LMX_INLINE ~Value() noexcept;
 };
 // #pragma pack(pop)
 
+#define VALUE_DESTRUCT_UNSAFE(v) (v)->~Value()
 LMX_INLINE Value::Value() noexcept = default;
 
 LMX_INLINE Value::Value(const bool bool_val) noexcept : kind(ValueKind::Bool), bool_val(bool_val) {}
@@ -82,20 +86,12 @@ LMX_INLINE Value::Value(const LmInt int_val) noexcept : kind(ValueKind::Int), in
 
 LMX_INLINE Value::Value(Object *obj) noexcept : kind(ValueKind::Obj), obj(obj) {}
 
-LMX_INLINE Value::Value(const int num, const int den) : kind(ValueKind::Fraction), frac_val(num, den) {}
+LMX_INLINE Value::Value(const int num, const int den) noexcept : kind(ValueKind::Fraction), frac_val(num, den) {}
 
 LMX_INLINE Value::Value(const Fraction& frac) noexcept : kind(ValueKind::Fraction), frac_val(frac) {}
 
-LMX_INLINE Value &Value::operator=(const Fraction& fraction) {
-    this->~Value();
-    // assert(this->kind == ValueKind::Fraction);
-    this->kind = ValueKind::Fraction;
-    this->frac_val = fraction;
-    return *this;
-}
-
 LMX_INLINE Value &Value::operator=(std::nullptr_t) noexcept {
-    this->~Value();
+    VALUE_DESTRUCT_UNSAFE(this);
     // assert(this->kind == ValueKind::Null);
     this->kind = ValueKind::Null;
     this->null_val = nullptr;
@@ -108,7 +104,7 @@ LMX_INLINE Object *Value::operator->() const noexcept {
 }
 
 LMX_INLINE Value &Value::operator=(void *ptr) noexcept {
-    this->~Value();
+    VALUE_DESTRUCT_UNSAFE(this);
     // assert(this->kind == ValueKind::C_Ptr);
     this->kind = ValueKind::C_Ptr;
     this->c_ptr = ptr;
@@ -116,7 +112,7 @@ LMX_INLINE Value &Value::operator=(void *ptr) noexcept {
 }
 
 LMX_INLINE Value &Value::operator=(const bool val) noexcept {
-    this->~Value();
+    VALUE_DESTRUCT_UNSAFE(this);
     // assert(this->kind == ValueKind::Bool);
     this->kind = ValueKind::Bool;
     this->bool_val = val;
@@ -124,35 +120,29 @@ LMX_INLINE Value &Value::operator=(const bool val) noexcept {
 }
 
 LMX_INLINE Value &Value::operator=(const LmInt val) noexcept {
-    this->~Value();
+    VALUE_DESTRUCT_UNSAFE(this);
     // assert(this->kind == ValueKind::Int);
     this->kind = ValueKind::Int;
     this->int_val = val;
     return *this;
 }
 
+LMX_INLINE Value &Value::operator=(const Fraction &fraction) {
+    VALUE_DESTRUCT_UNSAFE(this);
+    this->kind = ValueKind::Fraction;
+    this->frac_val = fraction;
+    return *this;
+}
+
 LMX_INLINE Value &Value::operator=(Object *obj) noexcept {
-    this->~Value();
+    VALUE_DESTRUCT_UNSAFE(this);
     // assert(this->kind == ValueKind::Obj);
     this->kind = ValueKind::Obj;
     this->obj = obj;
     return *this;
 }
 
-LMX_INLINE std::string Value::to_string() const noexcept {
-    switch (kind) {
-    case ValueKind::Bool: return bool_val ? "true" : "false";
-    case ValueKind::Int: return std::to_string(int_val);
-    case ValueKind::Obj: return Object::to_string(obj);
-    case ValueKind::C_Ptr: return "RawPtr";
-    case ValueKind::Null: return "Null";
-    case ValueKind::Fraction: return frac_val.to_string();
-    case ValueKind::C_VaList: return "VaList";
-    }
 
-    // 不可能到达这里
-    return {};
-}
 
 LMX_INLINE Value Value::operator%(const Value &other) const noexcept {
     // assert(this->kind == ValueKind::Int);
@@ -249,14 +239,18 @@ LMX_INLINE Value::operator bool() const noexcept {
 }
 
 LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
-    this->~Value();
-    if (other.kind == ValueKind::Obj) {
+    VALUE_DESTRUCT_UNSAFE(this);
+    switch (other.kind) {
+    case ValueKind::Obj: {
         this->obj = other.obj->get();
         this->kind = ValueKind::Obj;
-    } else {
+        break;
+    }
+    default: {
         //memcpy(this, &other, sizeof(Value));
         this->kind = other.kind;
         this->int_val = other.int_val;
+    }
     }
     return *this;
 }
@@ -274,5 +268,4 @@ LMX_INLINE Value::~Value() noexcept {
     kind = ValueKind::Null;
     c_ptr = nullptr;
 }
-
 }

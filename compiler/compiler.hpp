@@ -157,7 +157,6 @@ public:
     }
 
     std::optional<std::vector<hir::Scope::Var>> compile_to_hir(const std::string& name) noexcept {
-        std::ifstream ifs(name);
 
         lex();
         if (has_errd()) return std::nullopt;

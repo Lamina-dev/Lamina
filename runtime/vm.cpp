@@ -13,6 +13,8 @@
 #include <ostream>
 #include <ranges>
 
+#include "object/array.hpp"
+
 namespace lmx::runtime {
 LaminaVM::LaminaVM(const int argc, char **argv) noexcept :
     // cp(cp),
@@ -38,22 +40,76 @@ Value &LaminaVM::get_reg(const uint8_t reg) const noexcept {
     return regs[reg];
 }
 
-Frame::Frame(Frame* last, CodeModule* mod ,const uint8_t *ret_addr) noexcept
+Frame::Frame(Frame* last, CodeModuleObj* mod ,const uint8_t *ret_addr) noexcept
     : last(last), mod(mod), ret_addr(ret_addr)
 //, local_vars(local_vars)
 {}
 
 Frame::~Frame() noexcept = default;
 
+namespace {
+void build_constant(LmGCAllocator &allocator, const ConstantPoolInfo &c, Value &dest);
+
+void make_elem(LmGCAllocator &allocator, ArrayObj *arr, const uint32_t idx, const ConstantPoolInfo &e) {
+    // alloc_array(len) 已预建 len 个默认元素，用 store 按索引填充
+    switch (e.id) {
+    case ConstantId::Int:
+        arr->store(idx, Value(e.int_value));
+        break;
+    case ConstantId::Frac:
+        arr->store(idx, Value(e.frac_info->num, e.frac_info->den));
+        break;
+    case ConstantId::Str: {
+        Value v(allocator.alloc_string(e.str->str, e.str->length));
+        arr->store(idx, std::move(v)); // store 内部已把 v 置空
+        break;
+    }
+    case ConstantId::Arr: {
+        Value v;
+        build_constant(allocator, e, v);
+        arr->store(idx, std::move(v));
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void build_constant(LmGCAllocator &allocator, const ConstantPoolInfo &c, Value &dest) {
+    switch (c.id) {
+    case ConstantId::Int:
+        dest = c.int_value;
+        break;
+    case ConstantId::Frac:
+        dest = Value(c.frac_info->num, c.frac_info->den);
+        break;
+    case ConstantId::Str:
+        dest = allocator.alloc_string(c.str->str, c.str->length);
+        break;
+    case ConstantId::Arr: {
+        const auto *ai = c.arr;
+        auto *arr = reinterpret_cast<ArrayObj *>(allocator.alloc_array(ai->len));
+        for (uint32_t i = 0; i < ai->len; i++) {
+            make_elem(allocator, arr, i, ai->infos[i]);
+        }
+        dest = arr;
+        break;
+    }
+    default:
+        break;
+    }
+}
+} // namespace
+
 #if defined(__GNUC__) || defined(__clang__)
 #define VM_DISPATCH \
 static const void* dispatch[] = {\
     &&opNop, &&opNew,\
     &&opGetTrue, &&opGetFalse, &&opGetNull,\
-    &&opIConst, &&opCConst, &&opPop, &&opPush, &&opHalt,\
+    &&opIConst, &&opNewTuple, &&opNewArray, &&opArrLoad, &&opHalt,\
     &&opIAdd, &&opISub, &&opIMul, &&opIDiv, &&opIMod, &&opIPow, &&opINeg,\
     &&opFuncCreate,\
-    &&opCallVirtual, &&opCCall, &&opCallFast, &&opRet,\
+    &&opArrStore, &&opCCall, &&opCallFast, &&opRet,\
     &&opGoto,\
     &&opICmpEq, &&opICmpNe, &&opICmpLt, &&opICmpLe, &&opICmpGt, &&opICmpGe,\
     &&opIfTrue, &&opIfFalse,\
@@ -62,7 +118,8 @@ static const void* dispatch[] = {\
     &&opFAdd, &&opFSub, &&opFMul, &&opFDiv, &&opFMod, &&opFNeg,\
     &&opMovRR,&&opCall, &&opAnd, &&opOr,\
     &&opFCmpEq, &&opFCmpNe, &&opFCmpLt, &&opFCmpLe, &&opFCmpGt, &&opFCmpGe, \
-    &&opGetModule, &&opGetModuleAttr, &&opGetFunc\
+    &&opGetModule, &&opGetModuleAttr, &&opGetFunc,\
+    &&opTupleGet, &&opTupleSet\
 };\
 goto *dispatch[*ip];
 
@@ -83,7 +140,7 @@ LMX_INLINE static constexpr int16_t read_i16(const uint8_t* p) {
 LMX_INLINE static constexpr uint16_t read_u16(const uint8_t* p) {
     return static_cast<uint16_t>(p[0] | (p[1] << 8));
 };
-int LaminaVM::run(CodeModule *prog) noexcept {
+int LaminaVM::run(CodeModuleObj *prog) noexcept {
     cur_frame = new Frame(nullptr, prog, nullptr);
     const uint8_t* ip = prog->code;
     // assert((reinterpret_cast<uint64_t>(ip) % 4) == 0);
@@ -101,22 +158,8 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
 
     VM_LABEL(New) {
-
-        switch (const auto& c = cur_frame->mod->cp[read_u16(ip + 2)]; c.id) {
-        case ConstantId::Int: {
-            regs[ip[1]] = c.int_value;
-            break;
-        }
-        case ConstantId::Frac: {
-            const auto frac = c.frac_info;
-            new (&regs[ip[1]]) Value(frac->num, frac->den);
-            break;
-        }
-        case ConstantId::Str: {
-            regs[ip[1]] = allocator.alloc_string(c.str->str, c.str->length);
-            break;
-        }
-        }
+        const auto &c = cur_frame->mod->cp[read_u16(ip + 2)];
+        build_constant(allocator, c, regs[ip[1]]);
         VM_NEXT
     }
 
@@ -140,29 +183,18 @@ int LaminaVM::run(CodeModule *prog) noexcept {
         VM_NEXT
     }
 
-    VM_LABEL(CConst) {
-        // 抛弃
-        // switch (uint16_t idx = read_u16(ip + 2); cp[idx].id) {
-        //     case ConstantId::Int:
-        //         new (&regs[ip[1]]) Value(cp[idx].int_value);
-        //         break;
-        //     case ConstantId::Str:
-        //         new (&regs[ip[1]]) Value(cp[idx].str);
-        //         break;
-        //     default:
-        //         new (&regs[ip[1]]) Value();
-        //         break;
-        // }
-        // VM_NEXT
-    }
-
-    VM_LABEL(Pop) {
-        regs[ip[1]] = *--stack;
+    VM_LABEL(NewTuple) {
+        regs[ip[1]] = allocator.alloc_tuple(ip[2]);
         VM_NEXT
     }
 
-    VM_LABEL(Push) {
-        *stack++ = regs[ip[1]];
+    VM_LABEL(NewArray) {
+        regs[ip[1]] = allocator.alloc_array(read_u16(ip + 2));
+        VM_NEXT
+    }
+
+    VM_LABEL(ArrLoad) {
+        regs[ip[1]] = reinterpret_cast<ArrayObj*>(regs[ip[2]].obj)->at(regs[ip[3]].int_val);
         VM_NEXT
     }
 
@@ -188,7 +220,9 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
 
     VM_LABEL(IDiv) {
-        new (&regs[ip[1]]) Value (regs[ip[2]].int_val, regs[ip[3]].int_val);
+        new (&regs[ip[1]]) Value (
+            static_cast<decltype(Fraction::num)>(regs[ip[2]].int_val),
+            static_cast<decltype(Fraction::den)>(regs[ip[3]].int_val));
         VM_NEXT
     }
 
@@ -215,7 +249,8 @@ int LaminaVM::run(CodeModule *prog) noexcept {
         VM_NEXT
     }
 
-    VM_LABEL(CallVirtual) {
+    VM_LABEL(ArrStore) {
+        reinterpret_cast<ArrayObj*>(regs[ip[1]].obj)->store(regs[ip[2]].int_val, std::move(regs[ip[3]]));
         VM_NEXT
     }
 
@@ -227,12 +262,11 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     VM_LABEL(CallFast) {
         const auto* func = &cur_frame->mod->funcs[read_u16(ip + 1)];
         new_frame(this, func->mod, ip + 4);
-        auto i = ip[3] - 1;
-        while (i != 0) {
-            cur_frame->local_vars[i] = regs[LMX_VM_REG_COUNT - 1 - i];
-            i--;
+        const auto i = ip[3];
+        for (size_t n = 0; n < i; n++) {
+            cur_frame->local_vars[n] = regs[LMX_VM_REG_COUNT - 1 - n];
         }
-        cur_frame->local_vars[0] = regs[LMX_VM_REG_COUNT - 1];
+        //cur_frame->local_vars[0] = regs[LMX_VM_REG_COUNT - 1];
 
         regs += LMX_VM_REG_COUNT;
 
@@ -324,32 +358,32 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
 
     VM_LABEL(FAdd) {
-        new (&regs[ip[1]]) Value(regs[ip[2]].frac_val + regs[ip[3]].frac_val);
+        regs[ip[1]] = regs[ip[2]].frac_val + regs[ip[3]].frac_val;
         VM_NEXT
     }
 
     VM_LABEL(FSub) {
-        new (&regs[ip[1]]) Value(regs[ip[2]].frac_val - regs[ip[3]].frac_val);
+        regs[ip[1]] = regs[ip[2]].frac_val - regs[ip[3]].frac_val;
         VM_NEXT
     }
 
     VM_LABEL(FMul) {
-        new (&regs[ip[1]]) Value(regs[ip[2]].frac_val * regs[ip[3]].frac_val);
+        regs[ip[1]] = regs[ip[2]].frac_val * regs[ip[3]].frac_val;
         VM_NEXT
     }
 
     VM_LABEL(FDiv) {
-        new (&regs[ip[1]]) Value(regs[ip[2]].frac_val / regs[ip[3]].frac_val);
+        regs[ip[1]] = regs[ip[2]].frac_val / regs[ip[3]].frac_val;
         VM_NEXT
     }
 
     VM_LABEL(FMod) {
-        new (&regs[ip[1]]) Value(regs[ip[2]].frac_val % regs[ip[3]].frac_val);
+        regs[ip[1]] = regs[ip[2]].frac_val % regs[ip[3]].frac_val;
         VM_NEXT
     }
 
     VM_LABEL(FNeg) {
-        regs[ip[1]].frac_val = -regs[ip[2]].frac_val;
+        regs[ip[1]] = -regs[ip[2]].frac_val;
         VM_NEXT
     }
     VM_LABEL(MovRR) {
@@ -409,11 +443,19 @@ int LaminaVM::run(CodeModule *prog) noexcept {
         VM_NEXT
     }
     VM_LABEL(GetModuleAttr) {
-        regs[ip[1]] = &reinterpret_cast<CodeModule*>(regs[0].obj)->funcs[read_u16(ip + 2)];
+        regs[ip[1]] = &reinterpret_cast<CodeModuleObj*>(regs[0].obj)->funcs[read_u16(ip + 2)];
         VM_NEXT
     }
     VM_LABEL(GetFunc) {
         regs[ip[1]] = &cur_frame->mod->funcs[read_u16(ip + 2)];
+        VM_NEXT
+    }
+    VM_LABEL(TupleGet) {
+        regs[ip[1]] = reinterpret_cast<TupleObj*>(regs[ip[2]].obj)->get(ip[3]);
+        VM_NEXT
+    }
+    VM_LABEL(TupleSet) {
+        reinterpret_cast<TupleObj*>(regs[ip[1]].obj)->set(ip[2], regs[ip[3]]);
         VM_NEXT
     }
 

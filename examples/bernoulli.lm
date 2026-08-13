@@ -1,0 +1,36 @@
+static "laminaCore"
+
+func printf(fmt text, ...) -> int = "printf"
+
+func binomial(n int, k int) -> int {
+    if k == 0 or k == n {
+        1
+    } else {
+        binomial(n - 1, k - 1) + binomial(n - 1, k)
+    }
+}
+
+func bernoulli(n int) -> frac {
+    if n == 0 {
+        return 1.0
+    }
+    if n == 1 {
+        return -0.5
+    }
+    if n % 2 == 1 and n > 1 {
+        return 0.0
+    }
+    var sum = 0.0
+
+    var k = 0
+    loop {
+        if k >= n {
+            break
+        }
+        sum = sum + ((binomial(n, k) / 1) * (bernoulli(k) / ((n - k + 1 )/ 1)))
+        k = k + 1
+    }
+    -sum
+}
+
+printf("%f\n", bernoulli(26))

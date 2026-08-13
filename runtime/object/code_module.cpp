@@ -19,7 +19,7 @@
 
 using namespace lmx::runtime;
 
-FuncObj::FuncObj(CodeModule *mod, const uint8_t *addr, const uint32_t bytecode_len) noexcept
+FuncObj::FuncObj(CodeModuleObj *mod, const uint8_t *addr, const uint32_t bytecode_len) noexcept
    : mod(mod), addr(addr), bytecode_len(bytecode_len) {}
 
 NativeFuncObj::NativeFuncObj(
@@ -65,7 +65,7 @@ public:
 
         p += strlen(lib_name) + 1;
         if (handle == nullptr) {
-            VM_ERROR(VM_ERROR_ModLoad + ": `" + real_name + "` not found.");
+            VM_ERROR(RuntimeErrorType::ModuleLoad, "`" + real_name + "` not found.");
             return false;
         }
 
@@ -115,11 +115,42 @@ public:
                 p += result.back().str->length;
                 break;
             }
+            case ConstantId::Arr: {
+                auto* ai = reinterpret_cast<ArrayInfo*>(const_cast<uint8_t*>(p));
+                const auto len = ai->len;
+                p += sizeof(uint32_t) + len * sizeof(ConstantPoolInfo);
+                // 修正 Frac/Str 元素指针，使其指向紧随 infos[] 的数据段
+                auto* data = const_cast<uint8_t*>(p);
+                for (uint32_t i = 0; i < len; i++) {
+                    auto* e = &ai->infos[i];
+                    switch (e->id) {
+                    case ConstantId::Int:
+                        break;
+                    case ConstantId::Frac: {
+                        ::new (static_cast<void*>(e)) ConstantPoolInfo(
+                            reinterpret_cast<const FracInfo*>(data));
+                        data += sizeof(FracInfo);
+                        break;
+                    }
+                    case ConstantId::Str: {
+                        const auto* si = reinterpret_cast<const StringInfo*>(data);
+                        ::new (static_cast<void*>(e)) ConstantPoolInfo(si);
+                        data += sizeof(StringInfo) + si->length;
+                        break;
+                    }
+                    default:
+                        break;
+                    }
+                }
+                result.emplace_back(const_cast<const ArrayInfo*>(ai));
+                p = data;
+                break;
+            }
             }
         }
         return true;
     }
-    static bool load_funcs(CodeModule* mod, std::vector<FuncObj>& result, const uint8_t*& p) noexcept {
+    static bool load_funcs(CodeModuleObj* mod, std::vector<FuncObj>& result, const uint8_t*& p) noexcept {
         const auto over = p + *reinterpret_cast<const uint64_t*>(p) + sizeof(uint64_t);
         p += sizeof(uint64_t);
         while (p != over) {
@@ -139,7 +170,7 @@ public:
         return true;
     }
 
-    static bool load_imports(decltype(CodeModule::imports)& mod, const uint8_t*& p) noexcept {
+    static bool load_imports(decltype(CodeModuleObj::imports)& mod, const uint8_t*& p) noexcept {
         const auto over = p + *reinterpret_cast<const uint64_t*>(p) + sizeof(uint64_t);
         p += sizeof(uint64_t);
         while (p != over) {
@@ -156,7 +187,7 @@ public:
             ifs.seekg(0, std::ios::beg);
             ifs.read(reinterpret_cast<std::istream::char_type *>(data.data()), static_cast<std::streamsize>(data.size()));
             ifs.close();
-            mod.push_back(std::make_unique<CodeModule>(std::move(data)));
+            mod.push_back(std::make_unique<CodeModuleObj>(std::move(data)));
         }
         return true;
     }
@@ -165,14 +196,14 @@ public:
 
 
 
-CodeModule::~CodeModule() noexcept {
+CodeModuleObj::~CodeModuleObj() noexcept {
     if (native_lib_handle) {
         dlFreeLibrary(native_lib_handle);
     }
 }
 
 
-CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind::Code), raw_data(std::move(data)) {
+CodeModuleObj::CodeModuleObj(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind::Code), raw_data(std::move(data)) {
 
     const uint8_t* binary = raw_data.data();
     ModuleLoader::check_magic(binary);
@@ -184,23 +215,23 @@ CodeModule::CodeModule(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind
     ModuleLoader::load_entry_code(code, code_len, binary);
 }
 
-std::string CodeModule::to_string() const noexcept {
+std::string CodeModuleObj::to_string() const noexcept {
     return type_info();
 }
 
-std::string CodeModule::type_info() const noexcept {
+std::string CodeModuleObj::type_info() const noexcept {
     return "code";
 }
 
-bool CodeModule::equals(const Object *other) const noexcept {
+bool CodeModuleObj::equals(const Object *other) const noexcept {
     return false;
 }
 
-bool CodeModule::operator==(const Object &other) const noexcept {
+bool CodeModuleObj::operator==(const Object &other) const noexcept {
     return false;
 }
 
-bool CodeModule::operator!=(const Object &other) const noexcept {
+bool CodeModuleObj::operator!=(const Object &other) const noexcept {
     return false;
 }
 
@@ -210,7 +241,8 @@ namespace {
 
 struct InstInfo {
     const char* name;
-    enum ArgFmt : uint8_t { None, Reg, RegReg, RegRegReg, RegImm16, Imm16, Imm16Reg, RegIdx, RegArgc };
+
+    enum ArgFmt : uint8_t { None, Reg, RegReg, RegRegReg, RegImm16, Imm16, Imm16Reg, RegIdx, RegArgc, RegImm8, RegRegImm8, RegImm8Reg };
     ArgFmt fmt;
 };
 
@@ -221,9 +253,9 @@ constexpr InstInfo INST_TABLE[] = {
     /* GetFalse   */ {.name = "get_false", .fmt = InstInfo::Reg},
     /* GetNull    */ {.name = "get_null",  .fmt = InstInfo::Reg},
     /* IConst     */ {.name = "iconst",    .fmt = InstInfo::RegImm16},
-    /* CConst     */ {.name = "cconst",    .fmt = InstInfo::RegImm16},
-    /* Pop        */ {.name = "pop",       .fmt = InstInfo::Reg},
-    /* Push       */ {.name = "push",      .fmt = InstInfo::Reg},
+    /* NewTuple   */ {.name = "new_tuple", .fmt = InstInfo::RegImm8},
+    /* NewArray   */ {.name = "new_array", .fmt = InstInfo::RegImm16},
+    /* ArrLoad    */ {.name = "arr_load",  .fmt = InstInfo::RegRegReg},
     /* Halt       */ {.name = "halt",      .fmt = InstInfo::None},
     /* IAdd       */ {.name = "iadd",      .fmt = InstInfo::RegRegReg},
     /* ISub       */ {.name = "isub",      .fmt = InstInfo::RegRegReg},
@@ -233,7 +265,7 @@ constexpr InstInfo INST_TABLE[] = {
     /* IPow       */ {.name = "ipow",      .fmt = InstInfo::RegRegReg},
     /* INeg       */ {.name = "ineg",      .fmt = InstInfo::RegReg},
     /* FuncCreate */ {.name = "func_create", .fmt = InstInfo::RegImm16},
-    /* CallVirtual*/ {.name = "call_virtual",.fmt = InstInfo::RegIdx},
+    /* ArrStore   */ {.name = "arr_store",.fmt = InstInfo::RegRegReg},
     /* CCall      */ {.name = "ccall",     .fmt = InstInfo::Imm16Reg},
     /* CallFast   */ {.name = "call_fast", .fmt = InstInfo::Imm16Reg},
     /* Ret        */ {.name = "ret",       .fmt = InstInfo::Reg},
@@ -268,6 +300,9 @@ constexpr InstInfo INST_TABLE[] = {
     /* FCmpGe     */ {.name = "fcmp_ge",   .fmt = InstInfo::RegRegReg},
     /* GetModule  */ {.name = "get_module",  .fmt = InstInfo::RegImm16},
     /* GetModuleAttr*/{.name = "get_module_attr", .fmt = InstInfo::RegImm16},
+    /* GetFunc    */ {.name = "get_func",  .fmt = InstInfo::RegImm16},
+    /* TupleGet   */ {.name = "tuple_get", .fmt = InstInfo::RegRegImm8},
+    /* TupleSet   */ {.name = "tuple_set", .fmt = InstInfo::RegImm8Reg},
 };
 
 constexpr size_t INST_COUNT = std::size(INST_TABLE);
@@ -310,6 +345,9 @@ void decode_inst(std::ostringstream& out, const uint8_t* p, const size_t offset)
     case InstInfo::RegImm16:
         std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %d\n", offset, name, a, i16_hi);
         break;
+    case InstInfo::RegImm8:
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %u\n", offset, name, a, b);
+        break;
     case InstInfo::RegIdx:
         std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, #%u\n", offset, name, a, b);
         break;
@@ -321,6 +359,12 @@ void decode_inst(std::ostringstream& out, const uint8_t* p, const size_t offset)
         break;
     case InstInfo::RegArgc:
         std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %u\n", offset, name, a, b);
+        break;
+    case InstInfo::RegRegImm8:
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, r%u, %u\n", offset, name, a, b, c);
+        break;
+    case InstInfo::RegImm8Reg:
+        std::snprintf(buf, sizeof(buf), "  0x%04zX:  %s  r%u, %u, r%u\n", offset, name, a, b, c);
         break;
     }
     out << buf;
@@ -341,7 +385,7 @@ static const char* value_kind_name(ValueKind kind) noexcept {
     }
 }
 
-std::string CodeModule::disassemble() const noexcept {
+std::string CodeModuleObj::disassemble() const noexcept {
     std::ostringstream out;
     out << "Module: " << funcs.size() << " function(s), "
         << cp.size() << " constant(s), "
@@ -402,10 +446,33 @@ std::string CodeModule::disassemble() const noexcept {
             case ConstantId::Frac:
                 out << "  #" << i << ": frac " << c.frac_info->num << "/" << c.frac_info->den << "\n";
                 break;
-            case ConstantId::Str:
+            case ConstantId::Str: {
                 const std::string str(c.str->str, c.str->length);
                 out << "  #" << i << ": str \"" << str << "\"\n";
                 break;
+            }
+            case ConstantId::Arr: {
+                out << "  #" << i << ": arr len=" << c.arr->len << " [";
+                for (uint32_t j = 0; j < c.arr->len; ++j) {
+                    if (j > 0) out << ", ";
+                    const auto& e = c.arr->infos[j];
+                    switch (e.id) {
+                    case ConstantId::Int:
+                        out << e.int_value;
+                        break;
+                    case ConstantId::Frac:
+                        out << e.frac_info->num << "/" << e.frac_info->den;
+                        break;
+                    case ConstantId::Str:
+                        out << '\"' << std::string(e.str->str, e.str->length) << '\"';
+                        break;
+                    default:
+                        break;
+                    }
+                }
+                out << "]\n";
+                break;
+            }
             }
         }
     }
@@ -413,7 +480,7 @@ std::string CodeModule::disassemble() const noexcept {
     return out.str();
 }
 
-void CodeModule::disassemble_to_file(FILE* out) const noexcept {
+void CodeModuleObj::disassemble_to_file(FILE* out) const noexcept {
     const auto s = disassemble();
     std::fwrite(s.c_str(), 1, s.size(), out);
 }
