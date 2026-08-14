@@ -128,4 +128,31 @@ MirCmpOrExpr::MirCmpOrExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr
     : MirOperateExpr(runtime::Opcode::Opcode::Or), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
 MirGetModuleExpr::MirGetModuleExpr(std::string name) noexcept : MirOperateExpr(runtime::Opcode::GetModule), name(std::move(name)) {}
+
+MirAdtNewExpr::MirAdtNewExpr(std::string type_name, std::string constructor,
+                             std::vector<std::shared_ptr<MirRefExpr>> fields) noexcept
+    : MirOperateExpr(runtime::Opcode::AdtNew), type_name(std::move(type_name)),
+      constructor(std::move(constructor)), fields(std::move(fields)) {}
+
+MirAdtIsExpr::MirAdtIsExpr(std::shared_ptr<MirExpr> value,
+                           std::string type_name,
+                           std::string constructor) noexcept
+    : MirOperateExpr(runtime::Opcode::AdtIs), value(std::move(value)),
+      type_name(std::move(type_name)), constructor(std::move(constructor)) {}
+
+MirAdtGetExpr::MirAdtGetExpr(std::shared_ptr<MirExpr> value, const uint8_t index) noexcept
+    : MirOperateExpr(runtime::Opcode::AdtGet), value(std::move(value)), index(index) {}
+
+MirLiteralNewExpr::MirLiteralNewExpr(const LiteralPayloadNode::Kind literal_kind,
+                                     std::vector<std::shared_ptr<MirRefExpr>> elements,
+                                     const bool lower_closed,
+                                     const bool upper_closed) noexcept
+    : MirOperateExpr(runtime::Opcode::LiteralNew), literal_kind(literal_kind),
+      elements(std::move(elements)), lower_closed(lower_closed), upper_closed(upper_closed) {}
+
+MirContainsExpr::MirContainsExpr(std::shared_ptr<MirExpr> element,
+                                 std::shared_ptr<MirExpr> container,
+                                 const bool negate) noexcept
+    : MirOperateExpr(negate ? runtime::Opcode::NotContains : runtime::Opcode::Contains),
+      element(std::move(element)), container(std::move(container)) {}
 }

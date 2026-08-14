@@ -1,0 +1,7 @@
+func value(option Option<int>) -> int {
+    match option {
+        Option.Some(_) => 1,
+        Option.Some(1) => 2,
+        Option.None => 0
+    }
+}

@@ -41,7 +41,9 @@ enum Opcode : uint8_t {
     And, Or,
     FCmpEq, FCmpNe, FCmpLt, FCmpLe, FCmpGt, FCmpGe,  // reg(1) reg(1) reg(1)
 
-    GetModule, GetModuleAttr, GetFunc
+    GetModule, GetModuleAttr, GetFunc,
+    AdtNew, AdtIs, AdtGet,
+    LiteralNew, Contains, NotContains
 };
 
 }

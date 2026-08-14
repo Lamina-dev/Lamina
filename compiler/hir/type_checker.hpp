@@ -1,5 +1,6 @@
 #pragma once
 #include <optional>
+#include <unordered_map>
 
 #include "../ast/ast.hpp"
 
@@ -13,17 +14,44 @@ namespace lmx::hir {
 
 using HirNode = ASTNode;
 
+struct ResolvedModule {
+    std::string source_path;
+    std::string binding_name;
+    std::shared_ptr<ModuleType> type;
+};
+
+struct ModuleRequest {
+    std::string name;
+    std::string importer;
+    size_t line;
+    size_t col;
+};
+
+class ModuleResolver {
+public:
+    virtual ~ModuleResolver() = default;
+    virtual std::optional<ResolvedModule> resolve_module(
+        const ModuleRequest& request) noexcept = 0;
+};
 
 class TypeCkContext {
+    ModuleResolver* module_resolver;
     std::vector<Scope> scope_stack;
 
     std::vector<Scope::Var> global_scope;
+    std::unordered_map<std::string, TypeDeclNode*> adt_types;
+    std::unordered_map<std::string, std::pair<TypeDeclNode*, AdtConstructorDecl*>> adt_constructors;
 
     // Scope *parse_scope(ExprNode *node) noexcept;
 
     std::optional<Scope::Var *> find_var(const std::string &name) noexcept;
 
     std::optional<Scope::Var *> find_global(const std::string &name) noexcept;
+    std::shared_ptr<Type> resolve_type(const std::shared_ptr<Type>& type) noexcept;
+    bool is_equality_comparable(const std::shared_ptr<Type>& type) noexcept;
+    TypeDeclNode* find_module_adt(ModuleType* module, const std::string& name) noexcept;
+    std::pair<TypeDeclNode*, AdtConstructorDecl*> find_module_constructor(
+        ModuleType* module, const std::string& name) noexcept;
 
     static void new_var(std::string name, std::shared_ptr<Type> type, Scope *scope, bool is_mut = false) noexcept;
     void new_cur_scope_var(std::string name, std::shared_ptr<Type> type, bool is_mut = false) noexcept;
@@ -33,7 +61,7 @@ class TypeCkContext {
 
     [[nodiscard]] bool is_global_scope() const noexcept;
 public:
-    explicit TypeCkContext() noexcept;
+    explicit TypeCkContext(ModuleResolver* module_resolver = nullptr) noexcept;
 
     std::vector<Scope::Var> check_module(const std::shared_ptr<Module> &mod) noexcept;
 

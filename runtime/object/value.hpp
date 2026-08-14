@@ -7,6 +7,9 @@
 #include "lmx.h"
 #include "object.hpp"
 
+#include <new>
+#include <utility>
+
 namespace lmx::runtime {
 enum class ValueKind : uint8_t {
     Null, C_Ptr, Obj, Int, Bool, Fraction, Real, Expr, C_VaList,
@@ -32,6 +35,8 @@ struct Value {
     explicit Value(bool val)    noexcept;
     explicit Value(int num, int den);
     explicit Value(const Fraction& frac) noexcept;
+    Value(const Value& other) noexcept;
+    Value(Value&& other) noexcept;
 
     Object* operator->() const noexcept;
 
@@ -244,12 +249,8 @@ LMX_INLINE bool Value::operator>=(const Value &other) const noexcept {
     return int_val >= other.int_val;
 }
 
-LMX_INLINE bool Value::operator==(const Value &other) const noexcept {
-    return int_val == other.int_val;
-}
-
 LMX_INLINE bool Value::operator!=(const Value &other) const noexcept {
-    return int_val != other.int_val;
+    return !(*this == other);
 }
 
 LMX_INLINE bool Value::operator!() const noexcept {
@@ -262,9 +263,18 @@ LMX_INLINE Value::operator bool() const noexcept {
     return bool_val;
 }
 
+LMX_INLINE Value::Value(const Value &other) noexcept : kind(ValueKind::Null), c_ptr(nullptr) {
+    *this = other;
+}
+
+LMX_INLINE Value::Value(Value &&other) noexcept : kind(ValueKind::Null), c_ptr(nullptr) {
+    *this = std::move(other);
+}
+
 LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
+    if (this == &other) return *this;
     this->~Value();
-    if (other.kind == ValueKind::Obj || other.kind == ValueKind::Expr) {
+    if ((other.kind == ValueKind::Obj || other.kind == ValueKind::Expr) && other.obj) {
         this->obj = other.obj->get();
         this->kind = other.kind;
     } else {
@@ -274,24 +284,45 @@ LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
         case ValueKind::C_Ptr: c_ptr = other.c_ptr; break;
         case ValueKind::Int: int_val = other.int_val; break;
         case ValueKind::Bool: bool_val = other.bool_val; break;
-        case ValueKind::Fraction: frac_val = other.frac_val; break;
+        case ValueKind::Fraction: new (&frac_val) Fraction(other.frac_val); break;
         case ValueKind::Real: real_val = other.real_val; break;
         case ValueKind::C_VaList: c_ptr = nullptr; break;
         case ValueKind::Obj:
         case ValueKind::Expr:
+            obj = nullptr;
             break;
         }
     }
     return *this;
 }
 
-LMX_INLINE Value &Value::operator=(Value &&other) noexcept = default;
+LMX_INLINE Value &Value::operator=(Value &&other) noexcept {
+    if (this == &other) return *this;
+    this->~Value();
+    this->kind = other.kind;
+    switch (other.kind) {
+    case ValueKind::Null: null_val = nullptr; break;
+    case ValueKind::C_Ptr: c_ptr = other.c_ptr; break;
+    case ValueKind::Obj:
+    case ValueKind::Expr: obj = other.obj; break;
+    case ValueKind::Int: int_val = other.int_val; break;
+    case ValueKind::Bool: bool_val = other.bool_val; break;
+    case ValueKind::Fraction: new (&frac_val) Fraction(other.frac_val); break;
+    case ValueKind::Real: real_val = other.real_val; break;
+    case ValueKind::C_VaList: c_ptr = nullptr; break;
+    }
+    if (kind == ValueKind::Obj || kind == ValueKind::Expr || kind == ValueKind::C_Ptr) {
+        other.kind = ValueKind::Null;
+        other.c_ptr = nullptr;
+    }
+    return *this;
+}
 
 LMX_INLINE Value::~Value() noexcept {
     switch (this->kind) {
     case ValueKind::Obj:
     case ValueKind::Expr: {
-        this->obj->release();
+        if (this->obj) this->obj->release();
         break;
     }
     default:{}

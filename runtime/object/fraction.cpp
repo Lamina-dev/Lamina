@@ -11,24 +11,33 @@ Fraction::Fraction(const int32_t num, const int32_t den) noexcept
 : num(num), den(den) {simplify();}
 
 Fraction::Fraction(const std::string& num_str) noexcept {
-    std::string num_s;
-    std::string den_s;
-    std::string* target = &num_s;
+    bool negative = false;
     bool has_dot = false;
+    bool has_digit = false;
+    int32_t scale = 1;
+    int64_t value = 0;
+
     for (const char c : num_str) {
-        if (isdigit(c)) *target += c;
-        else if (c == '.') {
-            if (has_dot) break;
-            has_dot = true;
-            target = &den_s;
+        if (std::isspace(static_cast<unsigned char>(c))) continue;
+        if (!has_digit && value == 0 && !has_dot && (c == '+' || c == '-')) {
+            negative = c == '-';
+            continue;
         }
-        else if (isspace(c)) continue;
-        else break;
+        if (std::isdigit(static_cast<unsigned char>(c))) {
+            has_digit = true;
+            value = value * 10 + (c - '0');
+            if (has_dot) scale *= 10;
+            continue;
+        }
+        if (c == '.' && !has_dot) {
+            has_dot = true;
+            continue;
+        }
+        break;
     }
 
-    this->den = static_cast<int32_t>(std::pow(10, den_s.size()));
-
-    this->num = std::stoi(num_s + den_s);
+    num = has_digit ? static_cast<int32_t>(negative ? -value : value) : 0;
+    den = scale;
     simplify();
 }
 // static int64_t private_gcd(int64_t a, int64_t b) noexcept {

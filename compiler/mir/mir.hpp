@@ -32,7 +32,7 @@ struct MirExpr {
     explicit MirExpr(MirExprKind kind) noexcept;
 };
 enum class MirLiteralKind {
-    Integer, Float, String, Boolean,
+    Integer, Float, String, Boolean, Null,
 };
 
 struct MirLiteralExpr : MirExpr {
@@ -244,6 +244,48 @@ struct MirGetModuleAttrExpr : MirOperateExpr {
     explicit MirGetModuleAttrExpr(std::shared_ptr<MirRefExpr> mod, std::string mod_name, std::string name) noexcept
         : MirOperateExpr(runtime::Opcode::Opcode::GetModuleAttr), mod(std::move(mod)),
           mod_name(std::move(mod_name)), name(std::move(name)) {}
+};
+
+struct MirAdtNewExpr : MirOperateExpr {
+    std::string type_name;
+    std::string constructor;
+    std::vector<std::shared_ptr<MirRefExpr>> fields;
+    MirAdtNewExpr(std::string type_name, std::string constructor,
+                  std::vector<std::shared_ptr<MirRefExpr>> fields) noexcept;
+};
+
+struct MirAdtIsExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> value;
+    std::string type_name;
+    std::string constructor;
+    MirAdtIsExpr(std::shared_ptr<MirExpr> value,
+                 std::string type_name,
+                 std::string constructor) noexcept;
+};
+
+struct MirAdtGetExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> value;
+    uint8_t index;
+    MirAdtGetExpr(std::shared_ptr<MirExpr> value, uint8_t index) noexcept;
+};
+
+struct MirLiteralNewExpr : MirOperateExpr {
+    LiteralPayloadNode::Kind literal_kind;
+    std::vector<std::shared_ptr<MirRefExpr>> elements;
+    bool lower_closed;
+    bool upper_closed;
+    MirLiteralNewExpr(LiteralPayloadNode::Kind literal_kind,
+                      std::vector<std::shared_ptr<MirRefExpr>> elements,
+                      bool lower_closed = false,
+                      bool upper_closed = false) noexcept;
+};
+
+struct MirContainsExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> element;
+    std::shared_ptr<MirExpr> container;
+    MirContainsExpr(std::shared_ptr<MirExpr> element,
+                    std::shared_ptr<MirExpr> container,
+                    bool negate) noexcept;
 };
 
 struct MirModule {

@@ -11,18 +11,18 @@ int main(int argc, char** argv) {
     auto* state = lmx_newState();
     //lmx_printASTFromFile(state, stdout, argv[1]);
     const auto module = lmx_doFile(state, argv[1], true);
+    if (module == nullptr) {
+        lmx_deleteState(state);
+        return 1;
+    }
 
-
-
-    // lmx_printMIRFromFile(&state, stdout, argv[1]);
-    // lmx_printASTFromFile(&state, stdout, "../test.lm");
     const auto vm = lmx_newLaminaVM(state, argc, argv);
+    if (vm == nullptr) {
+        lmx_deleteState(state);
+        return 1;
+    }
 
     const auto result = lmx_vmRunModule(state, vm, module);
-    
-
-    // std::cout << reinterpret_cast<lmx::runtime::LaminaVM*>(vm)->get_reg(1).int_val << std::endl;
-    // std::cout << reinterpret_cast<lmx::runtime::LaminaVM*>(vm)->get_reg(1).int_val << std::endl;
     lmx_deleteState(state);
-    // return result;
+    return result;
 }

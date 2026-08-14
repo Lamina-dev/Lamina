@@ -1,0 +1,6 @@
+func value(option Option<int>) -> int {
+    match option {
+        Option.Some(x, y) => x,
+        Option.None => 0
+    }
+}

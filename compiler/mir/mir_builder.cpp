@@ -1,8 +1,6 @@
 #include "mir_builder.hpp"
-#include "../../utils/utils.hpp"
-
 #include <cassert>
-#include <filesystem>
+#include <functional>
 #include <memory>
 #include <ranges>
 #include <sstream>
@@ -83,6 +81,7 @@ class Builder {
         const auto text = runtime::ValueKind::Obj;
         emit(std::make_shared<MirNativeFuncDefine>("__cas_sym", "cas_sym", std::vector{text}, expr));
         emit(std::make_shared<MirNativeFuncDefine>("__cas_parse", "cas_parse", std::vector{text}, expr));
+        emit(std::make_shared<MirNativeFuncDefine>("__cas_substitute", "cas_substitute", std::vector{expr, text, expr}, expr));
     }
 
     std::shared_ptr<MirCCallExpr> cas_call(std::string name, std::vector<std::shared_ptr<MirRefExpr>> args) noexcept {
@@ -188,13 +187,35 @@ class Builder {
             if (unary->op == UnaryNode::Op::Neg) {
                 return "(-" + cas_source(unary->expr.get()) + ")";
             }
-            return cas_source(unary->expr.get());
+            return "(not " + cas_source(unary->expr.get()) + ")";
         }
         case ASTKind::Binary: {
             const auto *binary = reinterpret_cast<const BinaryNode *>(expr);
+            if (binary->op == BinaryNode::Op::Bind) {
+                return {};
+            }
             return "(" + cas_source(binary->lhs.get()) + " " +
                    BinaryNode::op_to_string(binary->op) + " " +
                    cas_source(binary->rhs.get()) + ")";
+        }
+        case ASTKind::LiteralPayload: {
+            const auto *payload = reinterpret_cast<const LiteralPayloadNode *>(expr);
+            if (payload->payload_kind == LiteralPayloadNode::Kind::Interval) {
+                std::ostringstream out;
+                out << (payload->lower_closed ? "[" : "(")
+                    << cas_source(payload->elements[0].get()) << ", "
+                    << cas_source(payload->elements[1].get())
+                    << (payload->upper_closed ? "]" : ")");
+                return out.str();
+            }
+            std::ostringstream out;
+            out << "{";
+            for (std::size_t i = 0; i < payload->elements.size(); ++i) {
+                if (i != 0) out << ", ";
+                out << cas_source(payload->elements[i].get());
+            }
+            out << "}";
+            return out.str();
         }
         case ASTKind::SuffixParen: {
             const auto *call = reinterpret_cast<const SuffixParenNode *>(expr);
@@ -224,6 +245,58 @@ class Builder {
             std::make_shared<MirLiteralExpr>(MirLiteralKind::String,
                                              std::move(source))));
         return cas_call("__cas_parse", std::move(args));
+    }
+
+    std::shared_ptr<MirExpr> eval_adt_binding(BinaryNode *node) {
+        std::vector<std::shared_ptr<MirRefExpr>> fields;
+        fields.push_back(ensure_temp(eval(node->lhs.get())));
+        fields.push_back(ensure_temp(eval(node->rhs.get())));
+        return std::make_shared<MirAdtNewExpr>("Binding", "Binding", std::move(fields));
+    }
+
+    std::shared_ptr<MirExpr> eval_match(MatchExprNode *node) {
+        const auto target = ensure_temp(eval(node->target.get()));
+        const auto end_label = new_label();
+        const auto result_name = new_temp();
+
+        std::function<void(const Pattern&, const std::shared_ptr<MirExpr>&, const std::string&)> emit_pattern;
+        emit_pattern = [&](const Pattern& pattern, const std::shared_ptr<MirExpr>& value, const std::string& fail_label) {
+            switch (pattern.kind) {
+            case Pattern::Kind::Wildcard:
+                break;
+            case Pattern::Kind::Binding:
+                emit(std::make_shared<MirAssign>(pattern.name, value));
+                break;
+            case Pattern::Kind::Literal: {
+                auto literal = eval(pattern.literal.get());
+                emit_expr(std::make_shared<MirIfFalseExpr>(
+                    std::make_shared<MirICmpEqExpr>(value, literal), fail_label));
+                break;
+            }
+            case Pattern::Kind::Constructor: {
+                emit_expr(std::make_shared<MirIfFalseExpr>(
+                    std::make_shared<MirAdtIsExpr>(value, pattern.adt_type_name, pattern.name), fail_label));
+                for (size_t i = 0; i < pattern.fields.size(); ++i) {
+                    auto field = temp_assign(std::make_shared<MirAdtGetExpr>(value, static_cast<uint8_t>(i)));
+                    emit_pattern(pattern.fields[i], field, fail_label);
+                }
+                break;
+            }
+            }
+        };
+
+        for (size_t i = 0; i < node->arms.size(); ++i) {
+            const auto next_label = new_label();
+            emit_pattern(node->arms[i].pattern, target, next_label);
+            if (node->arms[i].guard) {
+                emit_expr(std::make_shared<MirIfFalseExpr>(eval(node->arms[i].guard.get()), next_label));
+            }
+            const auto result = emit_to_temp(result_name, eval(node->arms[i].value.get()));
+            emit_expr(std::make_shared<MirGotoExpr>(end_label));
+            emit_label(next_label);
+        }
+        emit_label(end_label);
+        return std::make_shared<MirRefExpr>(result_name, true);
     }
 
     std::shared_ptr<MirExpr> process_block(const BlockExprNode *block) {
@@ -297,6 +370,8 @@ public:
             }
             break;
         }
+        case ASTKind::TypeDecl:
+            break;
         case ASTKind::FuncImpl: {
             auto *func = reinterpret_cast<FuncImplNode *>(stmt);
             if (!func->block) break;
@@ -413,15 +488,8 @@ public:
     }
 
     void build_imported_native_decls(const Module *ast_mod) const noexcept {
+        bool has_imported_native = false;
         for (const auto& [path, mod_ty] : ast_mod->imports) {
-            std::filesystem::path module_path(path);
-            std::string module_name = module_path.filename().string();
-            if (module_name == std::string(file_default_mod) + file_suffix) {
-                module_name = module_path.parent_path().filename().string();
-            } else if (module_path.has_extension()) {
-                module_name = module_path.stem().string();
-            }
-
             for (const auto& exported : mod_ty->exports) {
                 if (exported.type->kind != TypeKind::NativeFunction) continue;
                 const auto native_type =
@@ -439,12 +507,14 @@ public:
                     ret_ty = std::static_pointer_cast<BasicType>(native_type->ret_ty)->type;
                 }
                 emit(std::make_shared<MirNativeFuncDefine>(
-                    module_name + "." + exported.name,
+                    mod_ty->binding_name + "." + exported.name,
                     native_type->name,
                     std::move(params),
                     ret_ty));
+                has_imported_native = true;
             }
         }
+        if (has_imported_native && module_.lib_name.empty()) module_.lib_name = "laminaCore";
     }
 
 
@@ -465,6 +535,20 @@ public:
 };
 
 std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
+    if (is_expr_type(expr->type)) {
+        if (expr->kind == ASTKind::Literal ||
+            expr->kind == ASTKind::SuffixParen ||
+            expr->kind == ASTKind::LiteralPayload ||
+            expr->kind == ASTKind::AsExpr) {
+            return eval_as_expr(expr);
+        }
+        if (expr->kind == ASTKind::Identifier) {
+            const auto *id = reinterpret_cast<const IdentifierNode *>(expr);
+            if (id->id == "i" || id->id == "I") {
+                return eval_as_expr(expr);
+            }
+        }
+    }
     switch (expr->kind) {
     case ASTKind::Literal: {
         auto *lit = reinterpret_cast<LiteralNode *>(expr);
@@ -474,11 +558,16 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         case LiteralNode::Kind::Float:   lk = MirLiteralKind::Float;   break;
         case LiteralNode::Kind::String:  lk = MirLiteralKind::String;  break;
         case LiteralNode::Kind::Boolean: lk = MirLiteralKind::Boolean; break;
+        case LiteralNode::Kind::Null:    lk = MirLiteralKind::Null;    break;
         }
         return std::make_shared<MirLiteralExpr>(lk, lit->val);
     }
     case ASTKind::Identifier: {
         auto *id = reinterpret_cast<IdentifierNode *>(expr);
+        if (id->is_zero_adt_constructor) {
+            return std::make_shared<MirAdtNewExpr>(id->adt_type_name, id->id,
+                                                   std::vector<std::shared_ptr<MirRefExpr>>{});
+        }
         auto ref = std::make_shared<MirRefExpr>(id->id, false);
         return ref;
     }
@@ -494,10 +583,19 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         return temp_assign(std::make_shared<MirFNegExpr>(std::move(operand)));
     }
     case ASTKind::Binary: {
+        auto *bin = reinterpret_cast<BinaryNode *>(expr);
         if (is_expr_type(expr->type)) {
             return eval_as_expr(expr);
         }
-        switch (auto *bin = reinterpret_cast<BinaryNode *>(expr); bin->op) {
+        if (bin->op == BinaryNode::Op::Bind) {
+            return eval_adt_binding(bin);
+        }
+        if (bin->op == BinaryNode::Op::In || bin->op == BinaryNode::Op::NotIn) {
+            return temp_assign(std::make_shared<MirContainsExpr>(
+                eval(bin->lhs.get()), eval(bin->rhs.get()),
+                bin->op == BinaryNode::Op::NotIn));
+        }
+        switch (bin->op) {
         case BinaryNode::Op::And: {
             auto false_label = new_label();
             auto end_label = new_label();
@@ -541,6 +639,17 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         }
         }
     }
+    case ASTKind::LiteralPayload: {
+        auto *payload = reinterpret_cast<LiteralPayloadNode *>(expr);
+        std::vector<std::shared_ptr<MirRefExpr>> elements;
+        elements.reserve(payload->elements.size());
+        for (auto& element : payload->elements) {
+            elements.push_back(ensure_temp(eval(element.get())));
+        }
+        return std::make_shared<MirLiteralNewExpr>(
+            payload->payload_kind, std::move(elements),
+            payload->lower_closed, payload->upper_closed);
+    }
     case ASTKind::Block: {
         auto *block = reinterpret_cast<BlockExprNode *>(expr);
         return process_block(block);
@@ -562,6 +671,11 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
                 auto arg_val = eval(arg.get());
                 arg_refs.push_back(ensure_temp(std::move(arg_val)));
             }
+        }
+        if (call->is_adt_constructor) {
+            return std::make_shared<MirAdtNewExpr>(call->adt_type_name,
+                                                   call->adt_constructor,
+                                                   std::move(arg_refs));
         }
         if (call->can_fast) {
             std::string func_name = reinterpret_cast<IdentifierNode *>(call->expr.get())->id;
@@ -607,6 +721,8 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         if (expr->have_ret_value()) return std::make_shared<MirRefExpr>(result_name, true);
         return nullptr;
     }
+    case ASTKind::MatchExpr:
+        return eval_match(reinterpret_cast<MatchExprNode*>(expr));
     case ASTKind::AsExpr: {
         auto *as = reinterpret_cast<AsExprNode *>(expr);
         return eval(as->expr.get());
@@ -626,6 +742,10 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
     }
     case ASTKind::DotExpr: {
         const auto *dot = reinterpret_cast<DotExprNode *>(expr);
+        if (dot->is_zero_adt_constructor) {
+            return std::make_shared<MirAdtNewExpr>(dot->adt_type_name, dot->rhs->id,
+                                                   std::vector<std::shared_ptr<MirRefExpr>>{});
+        }
         std::shared_ptr<MirRefExpr> mod_ref;
         std::string mod_name;
          if (dot->expr->type->kind == TypeKind::Module) {

@@ -56,7 +56,7 @@ public:
 
         const auto lib_name = reinterpret_cast<const char *>(p);
         if (*lib_name == '\0') {
-            p += 1;
+            p = over;
             return false;
         }
         const auto real_name = std::string(lib_prefix) + lib_name + lib_suffix;
@@ -113,6 +113,13 @@ public:
                 result.emplace_back(reinterpret_cast<const IdType*>(p));
                 p += sizeof(IdType);
                 p += result.back().str->length;
+                break;
+            }
+            case ConstantId::AdtConstructor: {
+                const auto* info = reinterpret_cast<const AdtConstructorInfo*>(p);
+                result.emplace_back(info);
+                p += sizeof(uint16_t) * 2 + sizeof(uint8_t) +
+                     info->type_name_length + info->constructor_length;
                 break;
             }
             }
@@ -268,6 +275,10 @@ constexpr InstInfo INST_TABLE[] = {
     /* FCmpGe     */ {.name = "fcmp_ge",   .fmt = InstInfo::RegRegReg},
     /* GetModule  */ {.name = "get_module",  .fmt = InstInfo::RegImm16},
     /* GetModuleAttr*/{.name = "get_module_attr", .fmt = InstInfo::RegImm16},
+    /* GetFunc     */ {.name = "get_func", .fmt = InstInfo::RegImm16},
+    /* AdtNew      */ {.name = "adt_new", .fmt = InstInfo::RegImm16},
+    /* AdtIs       */ {.name = "adt_is", .fmt = InstInfo::RegRegReg},
+    /* AdtGet      */ {.name = "adt_get", .fmt = InstInfo::RegRegReg},
 };
 
 constexpr size_t INST_COUNT = std::size(INST_TABLE);
@@ -404,10 +415,20 @@ std::string CodeModule::disassemble() const noexcept {
             case ConstantId::Frac:
                 out << "  #" << i << ": frac " << c.frac_info->num << "/" << c.frac_info->den << "\n";
                 break;
-            case ConstantId::Str:
+            case ConstantId::Str: {
                 const std::string str(c.str->str, c.str->length);
                 out << "  #" << i << ": str \"" << str << "\"\n";
                 break;
+            }
+            case ConstantId::AdtConstructor: {
+                const auto* info = c.adt_constructor;
+                const std::string type_name(info->data, info->type_name_length);
+                const std::string constructor(info->data + info->type_name_length,
+                                              info->constructor_length);
+                out << "  #" << i << ": adt " << type_name << "." << constructor
+                    << "/" << static_cast<unsigned>(info->field_count) << "\n";
+                break;
+            }
             }
         }
     }

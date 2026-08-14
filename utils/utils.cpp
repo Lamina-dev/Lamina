@@ -3,9 +3,6 @@
 //
 #include "utils.hpp"
 
-#include "../compiler/assembler.hpp"
-#include "../compiler/mir/mir.hpp"
-#include "../compiler/mir/mir_builder.hpp"
 #if defined(__unix__)
 #include <unistd.h>
 #include <limits.h>
@@ -48,12 +45,5 @@ const std::filesystem::path module_path = (std::filesystem::current_path() / "..
 std::filesystem::path toolchain_module_path = get_exe_dir().parent_path() / "modules";
 std::filesystem::path current_module_path{};
 std::shared_ptr<Module> main_module = nullptr;
-
-
-std::vector<uint8_t> ast_to_binary(const std::shared_ptr<Module>& mod) noexcept {
-    mir::MirModule mir = mir::MirBuilder::from_ast_module(mod);
-    return Assembler().asm_module(&mir);
-}
-
 
 }

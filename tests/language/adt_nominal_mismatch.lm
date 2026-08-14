@@ -1,0 +1,5 @@
+type UserId = UserId(int)
+type OrderId = OrderId(int)
+
+let user UserId = UserId(1)
+let order OrderId = user

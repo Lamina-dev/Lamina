@@ -1,172 +1,76 @@
-//
-// Created by meian on 2026/7/31.
-//
-
 #pragma once
-#include <fstream>
+
+#include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
-#include "assembler.hpp"
 #include "ast/ast.hpp"
-#include "error.hpp"
 #include "hir/type_checker.hpp"
-#include "lexer.hpp"
 #include "mir/mir.hpp"
-#include "mir/mir_builder.hpp"
-#include "parser.hpp"
 
 namespace lmx {
-enum class CompilerState {
-    Src, Tok, Ast, FullAst, Mir, Bin, Err
+
+enum class CompileStage {
+    Semantic,
+    Mir,
+    Binary,
 };
-class Compiler {
-    using State = CompilerState;
-    std::string src;
-    std::vector<Token> tokens;
+
+struct CompileResult {
     std::shared_ptr<Module> module;
-    mir::MirModule mir;
+    std::vector<hir::Scope::Var> exports;
+    std::optional<mir::MirModule> mir;
     std::vector<uint8_t> binary;
-    State state{State::Src};
+};
 
-    static bool has_errd() noexcept {
-        return errd;
-    }
+// Owns one complete compilation session, including recursive module compilation.
+class Compiler final : public hir::ModuleResolver {
+    std::optional<std::string> initial_source;
+    std::filesystem::path source_root;
+    std::filesystem::path cache_root;
+    std::unordered_map<std::string, hir::ResolvedModule> resolved_modules;
+    std::unordered_set<std::string> modules_in_progress;
+
+    bool compile_source_impl(std::string source, const std::string& name,
+                             CompileStage stage, CompileResult& result) noexcept;
+    bool compile_file_impl(const std::filesystem::path& path, CompileStage stage,
+                           CompileResult& result) noexcept;
+    void configure_root(const std::filesystem::path& source_name) noexcept;
+
+    [[nodiscard]] std::optional<std::pair<std::filesystem::path, std::filesystem::path>>
+    find_module(const std::string& name) const noexcept;
+    [[nodiscard]] std::filesystem::path cache_path_for(
+        const std::filesystem::path& logical_path,
+        const std::filesystem::path& source_path) const noexcept;
+    bool write_cache_artifact(const std::filesystem::path& path,
+                              const std::vector<uint8_t>& binary) const noexcept;
+
 public:
-
-    explicit Compiler(std::string&& src) noexcept : src(std::move(src)) {};
-    explicit Compiler() noexcept = delete;
+    Compiler() noexcept = default;
+    explicit Compiler(std::string&& source) noexcept : initial_source(std::move(source)) {}
     Compiler(const Compiler&) = delete;
     Compiler& operator=(const Compiler&) = delete;
     Compiler(Compiler&&) = default;
     Compiler& operator=(Compiler&&) = delete;
 
+    bool compile_source(const std::string& source, const std::string& name,
+                        CompileResult& result,
+                        CompileStage stage = CompileStage::Binary) noexcept;
+    bool compile_file(const std::filesystem::path& path, CompileResult& result,
+                      CompileStage stage = CompileStage::Binary,
+                      bool is_main_module = false) noexcept;
 
-    Compiler& lex() noexcept {
-        if (state == State::Src) {
-            tokens = Lexer(src).tokenize(src);
-            if (!has_errd()) state = State::Tok;
-            else state = State::Err;
-        }
-        return *this;
-    }
-    Compiler& get_tokens(decltype(tokens)& t) noexcept {
-        if (state == State::Tok) {
-            t = tokens;
-        }
-        return *this;
-    }
+    // Compatibility entry points now forward to the same session pipeline.
+    bool compile(const std::string& name, std::vector<uint8_t>& result) noexcept;
+    std::optional<std::vector<hir::Scope::Var>> compile_to_hir(
+        const std::string& name) noexcept;
 
-    Compiler& parse(const std::string& name) noexcept {
-        if (state == State::Tok) {
-            module = Parser(tokens).parse_module(name);
-            if (!has_errd()) state = State::Ast;
-            else state = State::Err;
-        }
-        return *this;
-    }
-    Compiler& get_ast(decltype(module)& ast) noexcept {
-        if (state == State::Ast) {
-            ast = module;
-        }
-        return *this;
-    }
-
-    Compiler& sema() noexcept {
-        if (state == State::Ast) {
-            hir::TypeCkContext().check_module(module);
-            if (!has_errd()) state = State::FullAst;
-            else state = State::Err;
-        }
-        return *this;
-    }
-
-    Compiler& get_full_ast(decltype(module)& ast) noexcept {
-        if (state == State::FullAst) {
-            ast = module;
-        }
-        return *this;
-    }
-
-    Compiler& build() noexcept {
-        if (state == State::FullAst) {
-            mir = mir::MirBuilder::from_ast_module(module);
-            if (!has_errd()) state = State::Mir;
-            else state = State::Err;
-        }
-        return *this;
-    }
-    Compiler& get_mir(decltype(mir)& m) noexcept {
-        if (state == State::Mir) {
-            m = mir;
-        }
-        return *this;
-    }
-
-    Compiler& assemble() noexcept {
-        if (state == State::Mir) {
-            binary = Assembler().asm_module(&mir);
-            if (!has_errd()) state = State::Bin;
-            else state = State::Err;
-        }
-        return *this;
-    }
-    Compiler& get_bin(decltype(binary)& b) noexcept {
-        if (state == State::Bin) {
-            b = binary;
-        }
-        return *this;
-    }
-
-    template <typename F = void(*)(Compiler&)>
-    Compiler& state_is(const State s, F&& f) noexcept {
-        if (s == state) f(*this);
-        return *this;
-    }
-
-    template <typename F = void(*)(Compiler&)>
-    Compiler& state_not_is(const State s, F&& f) noexcept {
-        if (s != state) f(*this);
-        return *this;
-    }
-    template <typename F = void(*)(Compiler&)>
-    Compiler& if_error(F&& f) noexcept {
-        if (state == State::Err) {
-            f(*this);
-        }
-        return *this;
-    }
-
-
-     bool compile(const std::string& name, std::vector<uint8_t>& result) noexcept {
-        lex();
-        if (has_errd()) return false;
-        parse(name);
-        if (has_errd()) return false;
-        sema();
-        if (has_errd()) return false;
-        build();
-        if (has_errd()) return false;
-        assemble();
-        if (has_errd()) return false;
-
-        result = std::move(binary);
-
-        return true;
-    }
-
-    std::optional<std::vector<hir::Scope::Var>> compile_to_hir(const std::string& name) noexcept {
-        std::ifstream ifs(name);
-
-        lex();
-        if (has_errd()) return std::nullopt;
-        parse(name);
-        if (has_errd()) return std::nullopt;
-        auto result = hir::TypeCkContext().check_module(module);
-        if (!has_errd()) return result;
-        return std::nullopt;
-    }
+    std::optional<hir::ResolvedModule> resolve_module(
+        const hir::ModuleRequest& request) noexcept override;
 };
 
-} // lmx
+} // namespace lmx

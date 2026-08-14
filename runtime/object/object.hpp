@@ -15,6 +15,8 @@ enum  {
     Matrix,
     Array ,
     Expr,
+    Adt,
+    Literal,
 };
 }
 class Object {

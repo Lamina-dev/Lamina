@@ -1,0 +1,15 @@
+import std
+
+let values = {1, 2, 2, 3}
+let same = {3, 2, 1}
+let closed = [1, 3]
+let open = (1, 3)
+let binding = 1 => 2
+
+std.printf("%d %d %d %d %d %d\n",
+    2 in values,
+    4 not in values,
+    values == same,
+    1 in closed,
+    1 not in open,
+    match binding { Binding.Binding(left, right) => left + right })

@@ -4,10 +4,12 @@ sym x, y
 
 let expr = x^2 + 1
 let derivative = std.cas_diff(expr, "x")
-let value = std.cas_evalf(std.cas_parse("8"))
+let value = std.cas_evalf(8 as expr)
 let rational_expr = 5/2 + x
 let complex_expr = x + 2 * i
 let neg_expr = -x
+let eight expr = 8
+let three expr = 3
 
 std.printf("%s\n", std.cas_to_text(expr))
 std.printf("%s\n", std.cas_to_text(derivative))
@@ -15,6 +17,6 @@ std.printf("%.1f\n", value)
 std.printf("%s\n", std.cas_to_text(rational_expr))
 std.printf("%s\n", std.cas_to_text(complex_expr))
 std.printf("%s\n", std.cas_to_text(neg_expr))
-std.printf("%.1f\n", std.num_hypot(std.cas_parse("8"), std.cas_parse("8")))
-std.printf("%.1f\n", std.num_log2(std.cas_parse("8")))
-std.printf("%.1f\n", std.num_exp2(std.cas_parse("3")))
+std.printf("%.1f\n", std.num_hypot(eight, eight))
+std.printf("%.1f\n", std.num_log2(eight))
+std.printf("%.1f\n", std.num_exp2(three))

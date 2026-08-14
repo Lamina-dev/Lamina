@@ -1,0 +1,4 @@
+type Box =
+    Box(text)
+
+let value = Box(null)

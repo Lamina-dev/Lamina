@@ -1,0 +1,10 @@
+type RemoteTree<T> =
+    RemoteEmpty
+  | RemoteNode(RemoteTree<T>, T, RemoteTree<T>)
+
+func remote_root(value RemoteTree<int>) -> int {
+    match value {
+        RemoteNode(_, x, _) => x,
+        RemoteEmpty => 0
+    }
+}

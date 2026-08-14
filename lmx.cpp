@@ -4,6 +4,7 @@
 
 #include "include/lmx.h"
 
+#include "compiler/compiler.hpp"
 #include "compiler/ast/ast_printer.hpp"
 #include "compiler/hir/type_checker.hpp"
 #include "compiler/parser.hpp"
@@ -11,6 +12,7 @@
 #include "runtime/vm.hpp"
 #include "runtime/object/lsr_ExprObj.hpp"
 #include "runtime/object/string.hpp"
+#include "runtime/object/adt.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -21,9 +23,6 @@
 #include <limits>
 #include <utility>
 
-#include "compiler/assembler.hpp"
-#include "compiler/error.hpp"
-#include "compiler/mir/mir_builder.hpp"
 #include "compiler/mir/mir_printer.hpp"
 #include "lmmc/numeric.h"
 
@@ -128,6 +127,15 @@ extern "C" LM_API ExprObj* cas_diff(ExprObj* expr, const char* variable) {
     return expr_from_result(lamina::lsr::differentiate(*value, variable ? variable : ""));
 }
 
+extern "C" LM_API ExprObj* cas_substitute(ExprObj* expr, const char* variable, ExprObj* replacement) {
+    std::string error;
+    const auto* value = checked_expr(expr, error);
+    if (!value) return expr_error(std::move(error));
+    const auto* repl = checked_expr(replacement, error);
+    if (!repl) return expr_error(std::move(error));
+    return expr_from_result(lamina::lsr::substitute(*value, variable ? variable : "", *repl));
+}
+
 extern "C" LM_API double cas_evalf(ExprObj* expr) {
     std::string error;
     const auto* value = checked_expr(expr, error);
@@ -213,87 +221,50 @@ static void lmx_state_addNode(LmState* state, void* ptr) {
     state->n->ptr = ptr;
 }
 
-void lmx_printASTFromString(LmState *state, FILE *file, const char *code, const char* name) {
-    std::string c = code;
-    auto tokens = lmx::Lexer(c).tokenize(c);
-    if (errd) return;
-    const auto node = lmx::Parser(tokens).parse_module(name);
-    if (errd) return;
-    lmx::hir::TypeCkContext().check_module(node);
-    if (errd) return;
+static LmModule* lmx_newCodeModule(LmState* state, std::vector<uint8_t>&& binary) {
+    const auto storage = malloc(sizeof(lmx::runtime::CodeModule));
+    if (storage == nullptr) return nullptr;
+    new (storage) lmx::runtime::CodeModule(std::move(binary));
+    lmx_state_addNode(state, storage);
+    return static_cast<LmModule*>(storage);
+}
 
-    const auto ast_str = lmx::AstPrinter::print(*node);
+void lmx_printASTFromString(LmState *state, FILE *file, const char *code, const char* name) {
+    lmx::Compiler compiler;
+    lmx::CompileResult result;
+    if (!compiler.compile_source(code, name, result, lmx::CompileStage::Semantic)) return;
+
+    const auto ast_str = lmx::AstPrinter::print(*result.module);
     if (fwrite(ast_str.c_str(), 1, ast_str.length(), file) != ast_str.length()) {
         fprintf(stderr, "Error writing AST to file\n");
     }
 }
 
 void lmx_printASTFromFile(LmState *state, FILE *file, const char *name) {
-
-    const auto save_current_path = lmx::current_module_path;
-    const auto this_module_path_name = std::filesystem::absolute(name).lexically_normal();
-    lmx::current_module_path = this_module_path_name.parent_path();
-
-
-
-    std::ifstream ifs(name);
-    if (!ifs.is_open()) return;
-    std::string c{
-        std::istreambuf_iterator(ifs), std::istreambuf_iterator<char>()
-    };
-    ifs.close();
-    auto tokens = lmx::Lexer(c).tokenize(c);
-    const auto node = lmx::Parser(tokens).parse_module(name);
-    if (errd) return;
-
-    auto save_main_module = lmx::main_module;
-    lmx::main_module = node;
-    lmx::hir::TypeCkContext().check_module(node);
-
-    if (errd) return;
-
-    auto str = lmx::AstPrinter::print(*node.get());
+    lmx::Compiler compiler;
+    lmx::CompileResult result;
+    if (!compiler.compile_file(name, result, lmx::CompileStage::Semantic)) return;
+    auto str = lmx::AstPrinter::print(*result.module);
     if (fwrite(str.c_str(), 1, str.length(), file) != str.length()) {
         fprintf(stderr, "Error writing AST to file\n");
     }
-    lmx::current_module_path = save_current_path;
-    lmx::main_module = save_main_module;
 }
 
 void lmx_printMIRFromString(LmState *state, FILE *file, const char *code, const char *name) {
-    std::string c = code;
-    auto tokens = lmx::Lexer(c).tokenize(c);
-    const auto node = lmx::Parser(tokens).parse_module(name);
-    if (errd) return;
-    lmx::hir::TypeCkContext().check_module(node);
-    if (errd) return;
-
-    const auto mir = lmx::mir::MirBuilder::from_ast_module(node);
-    if (errd) return;
-
-    const auto mir_str = lmx::mir::MirPrinter::print(mir);
+    lmx::Compiler compiler;
+    lmx::CompileResult result;
+    if (!compiler.compile_source(code, name, result, lmx::CompileStage::Mir)) return;
+    const auto mir_str = lmx::mir::MirPrinter::print(*result.mir);
 
     if (fwrite(mir_str.c_str(), 1, mir_str.length(), file) != mir_str.length()) {
         fprintf(stderr, "Error writing MIR to file\n");
     }
 }
 void lmx_printMIRFromFile(LmState *state, FILE *file, const char *name) {
-    std::ifstream ifs(name);
-    if (!ifs.is_open()) return;
-    std::string c{
-        std::istreambuf_iterator(ifs), std::istreambuf_iterator<char>()
-    };
-    ifs.close();
-    auto tokens = lmx::Lexer(c).tokenize(c);
-    const auto node = lmx::Parser(tokens).parse_module(name);
-    if (errd) return;
-    lmx::hir::TypeCkContext().check_module(node);
-    if (errd) return;
-
-    const auto mir = lmx::mir::MirBuilder::from_ast_module(node);
-    if (errd) return;
-
-    const auto mir_str = lmx::mir::MirPrinter::print(mir);
+    lmx::Compiler compiler;
+    lmx::CompileResult result;
+    if (!compiler.compile_file(name, result, lmx::CompileStage::Mir)) return;
+    const auto mir_str = lmx::mir::MirPrinter::print(*result.mir);
 
     if (fwrite(mir_str.c_str(), 1, mir_str.length(), file) != mir_str.length()) {
         fprintf(stderr, "Error writing MIR to file\n");
@@ -322,73 +293,28 @@ bool lmx_moduleToFile(LmState *state, LmModule *module, const char *name) {
 }
 
 LmModule *lmx_doString(LmState *state, const char *code, const char* name) {
-    std::string c = code;
-    auto tokens = lmx::Lexer(c).tokenize(c);
-    if (errd) return nullptr;
-
-    const auto node = lmx::Parser(tokens).parse_module(name);
-    if (errd) return nullptr;
-
-    lmx::hir::TypeCkContext().check_module(node);
-    if (errd) return nullptr;
-
-    auto mir = lmx::mir::MirBuilder::from_ast_module(node);
-    if (errd) return nullptr;
-
-    auto binary = lmx::Assembler().asm_module(&mir);
-    if (errd) return nullptr;
-
-    const auto new_m = malloc(sizeof(lmx::runtime::CodeModule));
-    if (new_m == nullptr) return nullptr;
-    new (new_m) lmx::runtime::CodeModule(std::move(binary));
-    lmx_state_addNode(state, new_m);
-    return static_cast<LmModule*>(new_m);
+    lmx::Compiler compiler;
+    lmx::CompileResult result;
+    if (!compiler.compile_source(code, name, result)) return nullptr;
+    return lmx_newCodeModule(state, std::move(result.binary));
 }
 LmModule *lmx_doFile(LmState *state, const char* name, bool is_main_module) {
-    const auto save_current_path = lmx::current_module_path;
-    const auto this_module_path_name = std::filesystem::absolute(name).lexically_normal();
-    lmx::current_module_path = this_module_path_name.parent_path();
-    std::ifstream ifs(this_module_path_name);
-    if (!ifs.is_open()) return nullptr;
-    std::string c{
-        std::istreambuf_iterator(ifs), std::istreambuf_iterator<char>()
-    };
-    c += '\n';
-    ifs.close();
-    auto tokens = lmx::Lexer(c).tokenize(c);
-    const auto node = lmx::Parser(tokens).parse_module(this_module_path_name.string());
-    if (is_main_module) {
-        if (lmx::main_module) {
-            fprintf(stderr, "main module already exists: named \"%s\"\n", lmx::main_module->name.c_str());
-            return nullptr;
-        }
-        lmx::main_module = node;
-    }
-    if (errd) return nullptr;
-    lmx::hir::TypeCkContext().check_module(node);
+    lmx::Compiler compiler;
+    lmx::CompileResult result;
+    if (!compiler.compile_file(name, result, lmx::CompileStage::Binary,
+                               is_main_module)) return nullptr;
 #if !NDEBUG
     if (debug_dump_enabled()) {
-        std::cout << lmx::AstPrinter::print(*node) << std::endl;
+        std::cout << lmx::AstPrinter::print(*result.module) << std::endl;
     }
 #endif
-    if (errd) return nullptr;
-
-    auto mir = lmx::mir::MirBuilder::from_ast_module(node);
 #if !NDEBUG
     if (debug_dump_enabled()) {
-        std::cout << lmx::mir::MirPrinter::print(mir) << std::endl;
+        std::cout << lmx::mir::MirPrinter::print(*result.mir) << std::endl;
     }
 #endif
-    if (errd) return nullptr;
-    auto binary = lmx::Assembler().asm_module(&mir);
-    binary.shrink_to_fit();
-    if (errd) return nullptr;
 
-    const auto new_m = malloc(sizeof(lmx::runtime::CodeModule));
-    new (new_m) lmx::runtime::CodeModule(std::move(binary));
-    lmx_state_addNode(state, new_m);
-    lmx::current_module_path = save_current_path;
-    return static_cast<LmModule*>(new_m);
+    return lmx_newCodeModule(state, std::move(result.binary));
 }
 
 int lmx_vmRunModule(LmState* state, LaminaVM* vm, LmModule* module) {

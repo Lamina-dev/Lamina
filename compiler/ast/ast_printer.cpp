@@ -47,6 +47,14 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
     case TypeKind::Named: {
         auto &nt = static_cast<const NamedType &>(type);
         ss << nt.name;
+        if (!nt.args.empty()) {
+            ss << "<";
+            for (size_t i = 0; i < nt.args.size(); ++i) {
+                if (i) ss << ", ";
+                print_type(ss, *nt.args[i]);
+            }
+            ss << ">";
+        }
         break;
     }
     case TypeKind::Array: {
@@ -73,6 +81,17 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
     case TypeKind::Module: {
         auto &mt = static_cast<const ModuleType &>(type);
         ss << "module(" << mt.target_path << ")";
+        break;
+    }
+    case TypeKind::Nullable: {
+        auto &nullable = static_cast<const NullableType &>(type);
+        print_type(ss, *nullable.value_type);
+        ss << "?";
+        break;
+    }
+    case TypeKind::AdtConstructor: {
+        auto &constructor = static_cast<const AdtConstructorType &>(type);
+        ss << constructor.type_name << "." << constructor.constructor;
         break;
     }
     }
@@ -134,7 +153,7 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
                 case BinaryNode::Op::Mul: ss << "*"; break;
                 case BinaryNode::Op::Div: ss << "/"; break;
                 case BinaryNode::Op::Mod: ss << "%"; break;
-                case BinaryNode::Op::Pow: ss << "**"; break;
+                case BinaryNode::Op::Pow: ss << "^"; break;
                 case BinaryNode::Op::Gt: ss << ">"; break;
                 case BinaryNode::Op::Ge: ss << ">="; break;
                 case BinaryNode::Op::Lt: ss << "<"; break;
@@ -143,6 +162,9 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
                 case BinaryNode::Op::Ne: ss << "!="; break;
                 case BinaryNode::Op::And: ss << "and"; break;
                 case BinaryNode::Op::Or: ss << "or"; break;
+                case BinaryNode::Op::In: ss << "in"; break;
+                case BinaryNode::Op::NotIn: ss << "not in"; break;
+                case BinaryNode::Op::Bind: ss << "=>"; break;
                 // case BinaryNode::Op::ColonColon: ss << "::"; break;
             }
             if (node.type) { ss << " : "; print_type(ss, *node.type); }
@@ -218,6 +240,29 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
                 print_type(ss, *as.cast_type);
                 ss << "\n";
             }
+            break;
+        }
+        case ASTKind::LiteralPayload: {
+            auto &payload = static_cast<const LiteralPayloadNode &>(node);
+            if (payload.payload_kind == LiteralPayloadNode::Kind::Set) {
+                ss << line_prefix << "Set";
+            } else {
+                ss << line_prefix << "Interval " << (payload.lower_closed ? "[" : "(") << (payload.upper_closed ? "]" : ")");
+            }
+            if (node.type) { ss << " : "; print_type(ss, *node.type); }
+            ss << "\n";
+            for (size_t i = 0; i < payload.elements.size(); i++) {
+                const bool last = i + 1 == payload.elements.size();
+                print_expr(ss, *payload.elements[i], child_prefix + (last ? "└── " : "├── "), child_prefix + (last ? "    " : "│   "));
+            }
+            break;
+        }
+        case ASTKind::MatchExpr: {
+            auto &match = static_cast<const MatchExprNode &>(node);
+            ss << line_prefix << "Match";
+            if (node.type) { ss << " : "; print_type(ss, *node.type); }
+            ss << "\n";
+            if (match.target) print_expr(ss, *match.target, child_prefix + "└── ", child_prefix + "    ");
             break;
         }
         case ASTKind::DotExpr: {
@@ -359,6 +404,11 @@ void AstPrinter::print_stmt(std::ostringstream &ss, const StmtNode &node,
             ss << "\n";
             break;
         }
+        case ASTKind::TypeDecl: {
+            auto &declaration = static_cast<const TypeDeclNode &>(node);
+            ss << line_prefix << "Type " << declaration.name << "\n";
+            break;
+        }
         default:
             ss << line_prefix << "UnknownStmt(" << static_cast<int>(node.kind) << ")\n";
             break;
@@ -379,6 +429,8 @@ static bool is_expr_kind(ASTKind kind) {
         case ASTKind::AsExpr:
         case ASTKind::DotExpr:
         case ASTKind::NativeFuncCall:
+        case ASTKind::LiteralPayload:
+        case ASTKind::MatchExpr:
             return true;
         default:
             return false;

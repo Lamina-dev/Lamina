@@ -1,0 +1,8 @@
+type Pair = Pair(Option<int>, Option<int>)
+
+func value(pair Pair) -> int {
+    match pair {
+        Pair(Option.Some(_), _) => 1,
+        Pair(Option.None, Option.Some(_)) => 2
+    }
+}

@@ -1,0 +1,3 @@
+let left = Option.Some(1)
+let right = Option.Some(2)
+left < right

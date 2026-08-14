@@ -16,13 +16,13 @@ enum class TokenType {
     END_OF_FILE,
     OPER_PLUS, OPER_MINUS, OPER_MUL, OPER_DIV, OPER_MOD, OPER_POW,
 
-    ASSIGN, COLON, COL_COLON, COMMA, NOT,
+    ASSIGN, COLON, COL_COLON, COMMA, NOT, QUESTION,
 
     LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE,
 
-    EQ, NE, LT, GT, LE, GE, PIPE, ARROW, DOUBLE_ARROW,
+    EQ, NE, LT, GT, LE, GE, PIPE, BAR, ARROW, DOUBLE_ARROW,
 
-    NUM_LITERAL, STRING_LITERAL, TRUE_LITERAL, FALSE_LITERAL, IDENTIFIER,
+    NUM_LITERAL, STRING_LITERAL, TRUE_LITERAL, FALSE_LITERAL, NULL_LITERAL, IDENTIFIER,
 
     KW_FUNC, KW_RETURN,
     UNKNOWN, KW_IF, KW_ELSE, KW_LET,
@@ -42,6 +42,8 @@ enum class TokenType {
     KW_IMPORT,
     KW_SYM,
     KW_STATIC,
+    KW_TYPE,
+    KW_MATCH,
 
     DOT_DOT_DOT,
 };
@@ -55,6 +57,7 @@ inline std::string to_string(const TokenType& type) {
         case TokenType::COMMA: return "COMMA";
         case TokenType::TRUE_LITERAL: return "TRUE_LITERAL";
         case TokenType::FALSE_LITERAL: return "FALSE_LITERAL";
+        case TokenType::NULL_LITERAL: return "NULL_LITERAL";
         case TokenType::OPER_PLUS: return "OPER_PLUS";
         case TokenType::OPER_MINUS: return "OPER_MINUS";
         case TokenType::OPER_MUL: return "OPER_MUL";
@@ -70,6 +73,7 @@ inline std::string to_string(const TokenType& type) {
         case TokenType::OPER_POW: return "OPER_POW";
         case TokenType::ASSIGN: return "ASSIGN";
         case TokenType::NOT: return "NOT";
+        case TokenType::QUESTION: return "QUESTION";
         case TokenType::NE: return "NE";
         case TokenType::LPAREN: return "LPAREN";
         case TokenType::RPAREN: return "RPAREN";

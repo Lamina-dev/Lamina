@@ -1,0 +1,38 @@
+import std
+
+type Tree<T> =
+    Empty
+  | Node(Tree<T>, T, Tree<T>)
+
+type Group<T> =
+    Group(set<T>)
+
+func root(value Tree<int>) -> int {
+    match value {
+        Tree.Node(_, x, _) => x,
+        Tree.Empty => 0
+    }
+}
+
+func option_value(value Option<int>) -> int {
+    match value {
+        Option.Some(x) => x,
+        Option.None => 0
+    }
+}
+
+let tree = Tree.Node(Tree.Empty, 7, Tree.Empty)
+let none Option<int> = Option.None
+let result Result<int, text> = Result.Ok(9)
+let values = {Option.Some(4), Option.None}
+let group = Group({1, 2, 3})
+let binding = 1 => 2
+
+std.printf("%d %d %d %d %d %d %d\n",
+    root(tree),
+    option_value(none),
+    match result { Result.Ok(x) => x, Result.Err(_) => 0 },
+    tree == Tree.Node(Tree.Empty, 7, Tree.Empty),
+    Option.Some(4) in values,
+    match group { Group(items) => 2 in items },
+    match binding { Binding.Binding(left, right) => left + right })

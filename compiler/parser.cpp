@@ -17,6 +17,8 @@ static BinaryNode::Op token_to_binary_op(const TokenType type) {
     switch (type) {
     case TokenType::KW_OR: return BinaryNode::Op::Or;
     case TokenType::KW_AND: return BinaryNode::Op::And;
+    case TokenType::KW_IN: return BinaryNode::Op::In;
+    case TokenType::DOUBLE_ARROW: return BinaryNode::Op::Bind;
     case TokenType::EQ: return BinaryNode::Op::Eq;
     case TokenType::NE: return BinaryNode::Op::Ne;
     case TokenType::GT: return BinaryNode::Op::Gt;
@@ -31,6 +33,20 @@ static BinaryNode::Op token_to_binary_op(const TokenType type) {
     case TokenType::OPER_POW: return BinaryNode::Op::Pow;
         // case TokenType::COL_COLON: return BinaryNode::Op::ColonColon;
     default: std::unreachable();
+    }
+}
+
+static bool is_primary_start(const TokenType type) noexcept {
+    switch (type) {
+    case TokenType::NUM_LITERAL:
+    case TokenType::STRING_LITERAL:
+    case TokenType::TRUE_LITERAL:
+    case TokenType::FALSE_LITERAL:
+    case TokenType::IDENTIFIER:
+    case TokenType::LPAREN:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -104,6 +120,17 @@ std::shared_ptr<ExprNode> Parser::parse_pipe() noexcept {
     return node;
 }
 
+std::shared_ptr<ExprNode> Parser::parse_arrow() noexcept {
+    auto line = cur().line, col = cur().col;
+    auto node = parse_pipe();
+    if (match(TokenType::DOUBLE_ARROW)) {
+        auto op = token_to_binary_op(cur().type);
+        advance();
+        node = std::make_shared<BinaryNode>(line, col, node, op, parse_arrow());
+    }
+    return node;
+}
+
 std::shared_ptr<ExprNode> Parser::parse_logical() noexcept {
     PARSER_BINOP_L(parse_equality, while,
         cur().type == TokenType::KW_OR ||
@@ -119,12 +146,26 @@ std::shared_ptr<ExprNode> Parser::parse_equality() noexcept {
 }
 
 std::shared_ptr<ExprNode> Parser::parse_relational() noexcept {
-    PARSER_BINOP_L(parse_addition, while,
-        cur().type == TokenType::GT ||
-        cur().type == TokenType::LT ||
-        cur().type == TokenType::LE ||
-        cur().type == TokenType::GE
-        )
+    auto line = cur().line, col = cur().col;
+    auto node = parse_addition();
+    while (cur().type == TokenType::GT ||
+           cur().type == TokenType::LT ||
+           cur().type == TokenType::LE ||
+           cur().type == TokenType::GE ||
+           cur().type == TokenType::KW_IN ||
+           (cur().type == TokenType::NOT && peek_match(TokenType::KW_IN))) {
+        BinaryNode::Op op;
+        if (cur().type == TokenType::NOT) {
+            advance();
+            op = BinaryNode::Op::NotIn;
+        } else {
+            op = token_to_binary_op(cur().type);
+        }
+        advance();
+        node = std::make_shared<BinaryNode>(line, col, node, op, parse_addition());
+        line = cur().line, col = cur().col;
+    }
+    return node;
 }
 
 std::shared_ptr<ExprNode> Parser::parse_addition() noexcept {
@@ -182,20 +223,65 @@ std::shared_ptr<ExprStmtNode> Parser::parse_param_name() noexcept {
 
 std::shared_ptr<ExprNode> Parser::parse_factor() noexcept {
     size_t line = cur().line, col = cur().col;
-    auto primary = parse_primary();
-    while (match(TokenType::NOT)) {
-        switch (cur().type) {
-        case TokenType::NOT: {
-            advance();
-            auto e = parse_factor();
-            primary = std::make_shared<UnaryNode>(line, col, UnaryNode::Op::Not, e);
-            break;
-        }
-        default:std::unreachable();
+    if (match(TokenType::NOT)) {
+        advance();
+        return std::make_shared<UnaryNode>(line, col, UnaryNode::Op::Not, parse_factor());
+    }
+    return parse_primary();
+}
+
+std::shared_ptr<ExprNode> Parser::parse_open_interval_or_group() noexcept {
+    const size_t line = cur().line, col = cur().col;
+    consume(TokenType::LPAREN, "(");
+    auto first = parse_expr();
+    if (match(TokenType::COMMA)) {
+        advance();
+        auto second = parse_expr();
+        consume(TokenType::RPAREN, ")");
+        return std::make_shared<LiteralPayloadNode>(
+            line, col, LiteralPayloadNode::Kind::Interval,
+            std::vector<std::shared_ptr<ExprNode>>{first, second}, false, false);
+    }
+    consume(TokenType::RPAREN, ")");
+    return first;
+}
+
+std::shared_ptr<ExprNode> Parser::parse_set_literal() noexcept {
+    const size_t line = cur().line, col = cur().col;
+    consume(TokenType::LBRACE, "{");
+    std::vector<std::shared_ptr<ExprNode>> elements;
+    if (!match(TokenType::RBRACE)) {
+        while (true) {
+            elements.push_back(parse_expr());
+            if (match(TokenType::RBRACE)) break;
+            consume(TokenType::COMMA, ",");
         }
     }
-    return primary;
+    consume(TokenType::RBRACE, "}");
+    return std::make_shared<LiteralPayloadNode>(
+        line, col, LiteralPayloadNode::Kind::Set, std::move(elements));
 }
+
+std::shared_ptr<ExprNode> Parser::parse_interval_literal(const bool lower_closed) noexcept {
+    const size_t line = cur().line, col = cur().col;
+    consume(lower_closed ? TokenType::LBRACK : TokenType::LPAREN,
+            lower_closed ? "[" : "(");
+    auto lower = parse_expr();
+    consume(TokenType::COMMA, ",");
+    auto upper = parse_expr();
+    bool upper_closed = false;
+    if (match(TokenType::RBRACK)) {
+        upper_closed = true;
+        advance();
+    } else {
+        consume(TokenType::RPAREN, ")");
+    }
+    return std::make_shared<LiteralPayloadNode>(
+        line, col, LiteralPayloadNode::Kind::Interval,
+        std::vector<std::shared_ptr<ExprNode>>{lower, upper},
+        lower_closed, upper_closed);
+}
+
 std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
     size_t line = cur().line, col = cur().col;
     std::shared_ptr<ExprNode> primary;
@@ -213,6 +299,11 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         primary = std::make_shared<LiteralNode>(line, col, num, LiteralNode::Kind::Integer);
         break;
     }
+    case TokenType::NULL_LITERAL: {
+        advance();
+        primary = std::make_shared<LiteralNode>(line, col, "null", LiteralNode::Kind::Null);
+        break;
+    }
     case TokenType::STRING_LITERAL: {
         auto str = cur().text;
         advance();
@@ -220,9 +311,7 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         break;
     }
     case TokenType::LPAREN: {
-        advance();
-        primary = parse_expr();
-        consume(TokenType::RPAREN, ")");
+        primary = parse_open_interval_or_group();
         break;
     }
     case TokenType::IDENTIFIER: {
@@ -243,11 +332,35 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         primary = parse_if();
         break;
     }
+    case TokenType::KW_MATCH: {
+        primary = parse_match();
+        break;
+    }
     case TokenType::END_OF_FILE: {
         primary = nullptr;
         break;
     }
+    case TokenType::LBRACK: {
+        primary = parse_interval_literal(true);
+        break;
+    }
     case TokenType::LBRACE: {
+        size_t scan = pos + 1;
+        size_t depth = 1;
+        bool has_comma = false;
+        while (scan < tokens.size() && depth > 0) {
+            if (tokens[scan].type == TokenType::LBRACE) depth++;
+            else if (tokens[scan].type == TokenType::RBRACE) depth--;
+            else if (depth == 1 && tokens[scan].type == TokenType::COMMA) {
+                has_comma = true;
+                break;
+            }
+            scan++;
+        }
+        if (has_comma) {
+            primary = parse_set_literal();
+            break;
+        }
         primary = parse_block();
         break;
     }
@@ -296,12 +409,23 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         }
         }
     }
+    if (cur().line == line && is_primary_start(cur().type)) {
+        throw_error(ErrorType::Parse,
+                    "implicit multiplication is not supported; insert `*`",
+                    cur().line, cur().col);
+    }
+    if (cur().line == line && cur().type == TokenType::UNKNOWN && cur().text == "**") {
+        throw_error(ErrorType::Parse,
+                    "operator `**` is not supported; use `^`",
+                    cur().line, cur().col);
+        advance();
+    }
     return primary;
 }
 
 std::shared_ptr<ExprNode> Parser::parse_expr() noexcept {
     auto line = cur().line, col = cur().col;
-    auto result = parse_pipe();
+    auto result = parse_arrow();
     if (match(TokenType::KW_AS)) {
         advance();
         auto cast_type = parse_type();
@@ -317,6 +441,9 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
     case TokenType::KW_FUNC: {
         advance();
         return parse_func();
+    }
+    case TokenType::KW_TYPE: {
+        return parse_type_decl();
     }
     case TokenType::KW_VAR: case TokenType::KW_LET: {
         return std::static_pointer_cast<VarDeclNode>(parse_var());
@@ -378,6 +505,152 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
         return std::make_shared<ExprStmtNode>(line, col, expr);
     }
     }
+}
+
+std::shared_ptr<StmtNode> Parser::parse_type_decl() noexcept {
+    const auto line = cur().line, col = cur().col;
+    consume(TokenType::KW_TYPE, "type");
+    auto name = cur().text;
+    consume(TokenType::IDENTIFIER, "type name");
+
+    std::vector<std::string> type_params;
+    if (match(TokenType::LT)) {
+        advance();
+        do {
+            type_params.push_back(cur().text);
+            consume(TokenType::IDENTIFIER, "type parameter");
+            if (match(TokenType::GT)) break;
+            consume(TokenType::COMMA, ",");
+        } while (true);
+        consume(TokenType::GT, ">");
+    }
+    consume(TokenType::ASSIGN, "=");
+
+    std::vector<AdtConstructorDecl> constructors;
+    do {
+        if (match(TokenType::BAR)) advance();
+        AdtConstructorDecl constructor;
+        constructor.name = cur().text;
+        consume(TokenType::IDENTIFIER, "constructor name");
+        if (match(TokenType::LPAREN)) {
+            advance();
+            if (!match(TokenType::RPAREN)) {
+                do {
+                    constructor.fields.push_back(parse_type());
+                    if (match(TokenType::RPAREN)) break;
+                    consume(TokenType::COMMA, ",");
+                } while (true);
+            }
+            consume(TokenType::RPAREN, ")");
+        }
+        constructors.push_back(std::move(constructor));
+    } while (match(TokenType::BAR));
+
+    return std::make_shared<TypeDeclNode>(line, col, std::move(name),
+                                          std::move(type_params), std::move(constructors));
+}
+
+Pattern Parser::parse_pattern() noexcept {
+    const auto line = cur().line, col = cur().col;
+    if (match(TokenType::OPER_MINUS) && peek_match(TokenType::NUM_LITERAL)) {
+        pos++;
+        auto value = "-" + cur().text;
+        pos++;
+        auto literal_kind = LiteralNode::Kind::Integer;
+        if (match(TokenType::DOT) && peek_match(TokenType::NUM_LITERAL)) {
+            pos++;
+            value += "." + cur().text;
+            pos++;
+            literal_kind = LiteralNode::Kind::Float;
+        }
+        Pattern pattern(Pattern::Kind::Literal, line, col);
+        pattern.literal = std::make_shared<LiteralNode>(line, col, std::move(value), literal_kind);
+        return pattern;
+    }
+    if (match(TokenType::NUM_LITERAL) || match(TokenType::STRING_LITERAL) ||
+        match(TokenType::TRUE_LITERAL) || match(TokenType::FALSE_LITERAL) || match(TokenType::NULL_LITERAL)) {
+        LiteralNode::Kind literal_kind = LiteralNode::Kind::Integer;
+        auto value = cur().text;
+        if (match(TokenType::NULL_LITERAL)) {
+            literal_kind = LiteralNode::Kind::Null;
+            pos++;
+        } else if (match(TokenType::STRING_LITERAL)) {
+            literal_kind = LiteralNode::Kind::String;
+            pos++;
+        } else if (match(TokenType::TRUE_LITERAL) || match(TokenType::FALSE_LITERAL)) {
+            literal_kind = LiteralNode::Kind::Boolean;
+            pos++;
+        } else {
+            pos++;
+            if (match(TokenType::DOT) && peek_match(TokenType::NUM_LITERAL)) {
+                pos++;
+                value += "." + cur().text;
+                pos++;
+                literal_kind = LiteralNode::Kind::Float;
+            }
+        }
+        Pattern pattern(Pattern::Kind::Literal, line, col);
+        pattern.literal = std::make_shared<LiteralNode>(line, col, std::move(value), literal_kind);
+        return pattern;
+    }
+
+    auto name = cur().text;
+    consume(TokenType::IDENTIFIER, "pattern");
+    if (match(TokenType::DOT)) {
+        pos++;
+        const auto constructor = cur().text;
+        consume(TokenType::IDENTIFIER, "constructor name");
+        Pattern pattern(Pattern::Kind::Constructor, line, col, constructor);
+        pattern.adt_type_name = std::move(name);
+        if (match(TokenType::LPAREN)) {
+            pos++;
+            if (!match(TokenType::RPAREN)) {
+                do {
+                    pattern.fields.push_back(parse_pattern());
+                    if (match(TokenType::RPAREN)) break;
+                    consume(TokenType::COMMA, ",");
+                } while (true);
+            }
+            consume(TokenType::RPAREN, ")");
+        }
+        return pattern;
+    }
+    if (name == "_") return Pattern(Pattern::Kind::Wildcard, line, col);
+    if (!match(TokenType::LPAREN)) return Pattern(Pattern::Kind::Binding, line, col, std::move(name));
+
+    Pattern pattern(Pattern::Kind::Constructor, line, col, std::move(name));
+    pos++;
+    if (!match(TokenType::RPAREN)) {
+        do {
+            pattern.fields.push_back(parse_pattern());
+            if (match(TokenType::RPAREN)) break;
+            consume(TokenType::COMMA, ",");
+        } while (true);
+    }
+    consume(TokenType::RPAREN, ")");
+    return pattern;
+}
+
+std::shared_ptr<ExprNode> Parser::parse_match() noexcept {
+    const auto line = cur().line, col = cur().col;
+    consume(TokenType::KW_MATCH, "match");
+    auto target = parse_expr();
+    consume(TokenType::LBRACE, "{");
+    std::vector<MatchArm> arms;
+    while (!match(TokenType::RBRACE) && !match(TokenType::END_OF_FILE)) {
+        auto pattern = parse_pattern();
+        std::shared_ptr<ExprNode> guard;
+        if (match(TokenType::KW_IF)) {
+            advance();
+            guard = parse_pipe();
+        }
+        consume(TokenType::DOUBLE_ARROW, "=>");
+        auto value = parse_expr();
+        arms.push_back({std::move(pattern), std::move(guard), std::move(value)});
+        if (match(TokenType::COMMA)) advance();
+    }
+    consume(TokenType::RBRACE, "}");
+    return std::make_shared<MatchExprNode>(line, col, std::move(target), std::move(arms));
 }
 
 std::shared_ptr<StmtNode> Parser::parse_import() noexcept {
@@ -557,21 +830,52 @@ std::shared_ptr<StmtNode> Parser::parse_func() noexcept {
 
 std::shared_ptr<Type> Parser::parse_type() noexcept {
     switch (cur().type) {
+    case TokenType::NULL_LITERAL:
+        advance();
+        return type_pool.basic(runtime::ValueKind::Null);
     case TokenType::IDENTIFIER: {
         auto id = cur().text;
         advance();
+        while (match(TokenType::DOT)) {
+            advance();
+            id += "." + cur().text;
+            consume(TokenType::IDENTIFIER, "type name");
+        }
         static const std::unordered_map<std::string, runtime::ValueKind> basic_types = {
             {"int", runtime::ValueKind::Int}, {"bool", runtime::ValueKind::Bool},
             {"null", runtime::ValueKind::Null}, {"frac", runtime::ValueKind::Fraction},
             {"real", runtime::ValueKind::Real}, {"expr", runtime::ValueKind::Expr},
             {"cptr", runtime::ValueKind::C_Ptr}
         };
-        if (const auto it = basic_types.find(id); it != basic_types.end())
-            return type_pool.basic(it->second);
-        if (id == "text") {
-            return type_pool.string();
+        std::shared_ptr<Type> type;
+        if (const auto it = basic_types.find(id); it != basic_types.end()) {
+            type = type_pool.basic(it->second);
+        } else if (id == "text") {
+            type = type_pool.string();
         }
-        return type_pool.named(id);
+        if (type) {
+            if (match(TokenType::QUESTION)) {
+                advance();
+                return type_pool.nullable(std::move(type));
+            }
+            return type;
+        }
+        std::vector<std::shared_ptr<Type>> args;
+        if (match(TokenType::LT)) {
+            advance();
+            do {
+                args.push_back(parse_type());
+                if (match(TokenType::GT)) break;
+                consume(TokenType::COMMA, ",");
+            } while (true);
+            consume(TokenType::GT, ">");
+        }
+        auto named_type = type_pool.named(id, std::move(args));
+        if (match(TokenType::QUESTION)) {
+            advance();
+            return type_pool.nullable(std::move(named_type));
+        }
+        return named_type;
     }
     default: {
         throw_error(ErrorType::Parse, "wrong type decl: `" + cur().text + "`", cur().line, cur().col);

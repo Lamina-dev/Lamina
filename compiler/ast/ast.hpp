@@ -16,6 +16,7 @@
 namespace lmx {
 struct Type;
 struct NativeFuncDeclNode;
+struct TypeDeclNode;
 
 namespace hir {
 struct Scope {
@@ -63,11 +64,14 @@ enum class ASTKind {
     ImportStmt,
     SymDecl,
     PipeExpr,
+    LiteralPayload,
+    TypeDecl,
+    MatchExpr,
 };
 
 enum class TypeKind {
     Basic, Array, Named, Unknown, String, Function, None, NativeFunction,
-    Module
+    Module, AdtConstructor, Nullable
 };
 struct Type {
     TypeKind kind;
@@ -88,9 +92,18 @@ struct Type {
 
 struct ModuleType : Type {
     std::string target_path;
+    std::string load_path;
+    std::string binding_name;
     std::vector<hir::Scope::Var> exports;
-    explicit ModuleType(std::string target_path, std::vector<hir::Scope::Var> exports) noexcept
-    : Type(TypeKind::Module), target_path(std::move(target_path)), exports(std::move(exports)) {}
+    std::vector<std::shared_ptr<TypeDeclNode>> adt_exports;
+    explicit ModuleType(std::string target_path,
+                        std::string load_path,
+                        std::string binding_name,
+                        std::vector<hir::Scope::Var> exports,
+                        std::vector<std::shared_ptr<TypeDeclNode>> adt_exports = {}) noexcept
+    : Type(TypeKind::Module), target_path(std::move(target_path)), load_path(std::move(load_path)),
+      binding_name(std::move(binding_name)), exports(std::move(exports)),
+      adt_exports(std::move(adt_exports)) {}
 
     bool equals(Type *other) const noexcept override;
 
@@ -153,11 +166,34 @@ struct NativeFunctionType : Type {
 };
 struct NamedType : Type {
     std::string name;
+    std::vector<std::shared_ptr<Type>> args;
 
-    explicit NamedType(std::string name) noexcept : Type(TypeKind::Named), name(std::move(name)) {
+    explicit NamedType(std::string name, std::vector<std::shared_ptr<Type>> args = {}) noexcept
+        : Type(TypeKind::Named), name(std::move(name)), args(std::move(args)) {
     }
 
-    bool equals(Type *other) const noexcept override{return false;}
+    bool equals(Type *other) const noexcept override;
+};
+
+struct NullableType : Type {
+    std::shared_ptr<Type> value_type;
+
+    explicit NullableType(std::shared_ptr<Type> value_type) noexcept
+        : Type(TypeKind::Nullable), value_type(std::move(value_type)) {}
+
+    bool equals(Type *other) const noexcept override;
+};
+struct AdtConstructorType : Type {
+    std::string type_name;
+    std::string constructor;
+    std::vector<std::string> type_params;
+    std::vector<std::shared_ptr<Type>> fields;
+
+    AdtConstructorType(std::string type_name,
+                       std::string constructor,
+                       std::vector<std::string> type_params,
+                       std::vector<std::shared_ptr<Type>> fields) noexcept;
+    bool equals(Type *other) const noexcept override;
 };
 
 struct ArrayType : Type {
@@ -206,7 +242,7 @@ struct ExprsNode : ExprNode {
 
 struct LiteralNode : ExprNode {
     enum class Kind {
-        Integer, Float, String, Boolean,
+        Integer, Float, String, Boolean, Null,
     };
 
     std::string val;
@@ -217,6 +253,8 @@ struct LiteralNode : ExprNode {
 
 struct IdentifierNode : ExprNode {
     std::string id;
+    bool is_zero_adt_constructor{false};
+    std::string adt_type_name;
 
     explicit IdentifierNode(size_t line, size_t col, std::string id) noexcept;
 };
@@ -225,6 +263,9 @@ struct SuffixParenNode : ExprNode {
     std::shared_ptr<ExprNode> expr;
     std::shared_ptr<ExprsNode> suffix;
     bool can_fast{false};
+    bool is_adt_constructor{false};
+    std::string adt_type_name;
+    std::string adt_constructor;
 
     explicit SuffixParenNode(size_t line, size_t col, std::shared_ptr<ExprNode> expr,
                              std::shared_ptr<ExprsNode> suffix) noexcept;
@@ -233,6 +274,9 @@ struct NativeFuncCallExpr : ExprNode {
     std::shared_ptr<ExprNode> expr;
     std::shared_ptr<ExprsNode> suffix;
     bool can_fast{false};
+    bool is_adt_constructor{false};
+    std::string adt_type_name;
+    std::string adt_constructor;
 
     explicit NativeFuncCallExpr(const SuffixParenNode* sp) noexcept;
 };
@@ -260,7 +304,7 @@ struct UnaryNode : ExprNode {
 struct BinaryNode : ExprNode {
     enum class Op {
         Add, Sub, Mul, Div, Mod, Pow,
-        Gt, Ge, Lt, Le, Eq, Ne, And, Or
+        Gt, Ge, Lt, Le, Eq, Ne, And, Or, In, NotIn, Bind
     };
     Op op;
     std::shared_ptr<ExprNode> lhs;
@@ -376,9 +420,75 @@ struct AsExprNode : ExprNode {
                         std::shared_ptr<ExprNode> expr,
                         std::shared_ptr<Type> cast_type) noexcept;
 };
+
+struct LiteralPayloadNode : ExprNode {
+    enum class Kind {
+        Set,
+        Interval,
+    };
+
+    Kind payload_kind;
+    std::vector<std::shared_ptr<ExprNode>> elements;
+    bool lower_closed;
+    bool upper_closed;
+
+    explicit LiteralPayloadNode(size_t line, size_t col,
+                                Kind payload_kind,
+                                std::vector<std::shared_ptr<ExprNode>> elements,
+                                bool lower_closed = false,
+                                bool upper_closed = false) noexcept;
+};
+
+struct AdtConstructorDecl {
+    std::string name;
+    std::vector<std::shared_ptr<Type>> fields;
+};
+
+struct TypeDeclNode : StmtNode {
+    std::string name;
+    std::string qualified_name;
+    std::vector<std::string> type_params;
+    std::vector<AdtConstructorDecl> constructors;
+
+    TypeDeclNode(size_t line, size_t col,
+                 std::string name,
+                 std::vector<std::string> type_params,
+                 std::vector<AdtConstructorDecl> constructors) noexcept;
+};
+
+struct Pattern {
+    enum class Kind { Wildcard, Binding, Literal, Constructor };
+
+    Kind kind;
+    size_t line;
+    size_t col;
+    std::string name;
+    std::shared_ptr<LiteralNode> literal;
+    std::vector<Pattern> fields;
+    std::string adt_type_name;
+
+    Pattern(Kind kind, size_t line, size_t col, std::string name = {}) noexcept;
+};
+
+struct MatchArm {
+    Pattern pattern;
+    std::shared_ptr<ExprNode> guard;
+    std::shared_ptr<ExprNode> value;
+};
+
+struct MatchExprNode : ExprNode {
+    std::shared_ptr<ExprNode> target;
+    std::vector<MatchArm> arms;
+
+    MatchExprNode(size_t line, size_t col,
+                  std::shared_ptr<ExprNode> target,
+                  std::vector<MatchArm> arms) noexcept;
+};
 struct DotExprNode : ExprNode {
     std::shared_ptr<ExprNode> expr;
     std::shared_ptr<IdentifierNode> rhs;
+    bool is_zero_adt_constructor{false};
+    std::string adt_type_name;
     explicit DotExprNode(size_t line, size_t col, std::shared_ptr<ExprNode> expr, std::shared_ptr<IdentifierNode> rhs) noexcept;
 
 };
@@ -419,6 +529,7 @@ struct Module {
     std::string lib_name;
     std::vector<std::shared_ptr<StmtNode>> decls;
     std::vector<std::shared_ptr<NativeFuncDeclNode>> native_funcs;
+    std::vector<std::shared_ptr<TypeDeclNode>> adt_exports;
 
     // key 是展开后的源码绝对路径，value是输出的module编码文件路径
     std::unordered_map<std::string, std::shared_ptr<ModuleType>> imports;
@@ -450,9 +561,18 @@ public:
     [[nodiscard]] std::shared_ptr<Type> native_function(std::vector<std::shared_ptr<Type>> params,
                                                         std::shared_ptr<Type> ret,
                                                         std::string name) noexcept;
-    [[nodiscard]] std::shared_ptr<Type> named(std::string name) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> named(std::string name,
+                                              std::vector<std::shared_ptr<Type>> args = {}) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> nullable(std::shared_ptr<Type> value_type) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> adt_constructor(std::string type_name,
+                                                        std::string constructor,
+                                                        std::vector<std::string> type_params,
+                                                        std::vector<std::shared_ptr<Type>> fields) noexcept;
     [[nodiscard]] std::shared_ptr<Type> module(std::string target_path,
-                                               std::vector<hir::Scope::Var> exports) noexcept;
+                                               std::string load_path,
+                                               std::string binding_name,
+                                               std::vector<hir::Scope::Var> exports,
+                                               std::vector<std::shared_ptr<TypeDeclNode>> adt_exports = {}) noexcept;
 
     [[nodiscard]] std::shared_ptr<Type> unknown() noexcept;
     [[nodiscard]] std::shared_ptr<Type> none() noexcept;

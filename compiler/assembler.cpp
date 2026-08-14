@@ -112,6 +112,12 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::FCmpGe:
     case runtime::Opcode::GetModule:
     case runtime::Opcode::GetModuleAttr:
+    case runtime::Opcode::AdtNew:
+    case runtime::Opcode::AdtIs:
+    case runtime::Opcode::AdtGet:
+    case runtime::Opcode::LiteralNew:
+    case runtime::Opcode::Contains:
+    case runtime::Opcode::NotContains:
         return true;
         break;
 
@@ -213,6 +219,22 @@ uint16_t Assembler::write_cp_str(const uint32_t len, const std::string& str) {
     return cp_cnt++;
 }
 
+uint16_t Assembler::write_cp_adt_constructor(const std::string& type_name,
+                                              const std::string& constructor,
+                                              const uint8_t field_count) {
+    using namespace lmx::runtime;
+    const auto result = cp_cnt++;
+    cp.push_back(static_cast<uint8_t>(ConstantId::AdtConstructor));
+    const auto type_len = static_cast<uint16_t>(type_name.size());
+    const auto constructor_len = static_cast<uint16_t>(constructor.size());
+    write_n(cp, reinterpret_cast<const uint8_t*>(&type_len), sizeof(type_len));
+    write_n(cp, reinterpret_cast<const uint8_t*>(&constructor_len), sizeof(constructor_len));
+    cp.push_back(field_count);
+    write_n(cp, reinterpret_cast<const uint8_t*>(type_name.data()), type_name.size());
+    write_n(cp, reinterpret_cast<const uint8_t*>(constructor.data()), constructor.size());
+    return result;
+}
+
 // ============================================================
 //  Expression assembly: returns the register holding the result
 // ============================================================
@@ -276,6 +298,11 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             } else {
                 InstEmitter::emit(insts, runtime::Opcode::GetFalse, r);
             }
+            return r;
+        }
+        case mir::MirLiteralKind::Null: {
+            const auto r = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::GetNull, r);
             return r;
         }
         case mir::MirLiteralKind::String: {
@@ -532,6 +559,67 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             return r;
             break;
         }
+        case runtime::Opcode::AdtNew: {
+            const auto& adt = *reinterpret_cast<mir::MirAdtNewExpr*>(node);
+            if (adt.fields.size() > UINT8_MAX) return 0;
+            for (size_t i = 0; i < adt.fields.size(); ++i) {
+                const auto rr = asm_mir_expr(insts, adt.fields[i].get());
+                const auto target = static_cast<uint8_t>(LMX_VM_REG_COUNT - 1 - i);
+                if (rr != target) InstEmitter::emit(insts, runtime::Opcode::MovRR, target, rr);
+                reg.free(rr);
+            }
+            const auto rd = *reg.alloc();
+            const auto idx = write_cp_adt_constructor(adt.type_name, adt.constructor,
+                                                      static_cast<uint8_t>(adt.fields.size()));
+            InstEmitter::emit(insts, runtime::Opcode::AdtNew, rd, idx);
+            return rd;
+        }
+        case runtime::Opcode::AdtIs: {
+            const auto& adt = *reinterpret_cast<mir::MirAdtIsExpr*>(node);
+            const auto value = asm_mir_expr(insts, adt.value.get());
+            const auto constructor = *reg.alloc();
+            const auto tag = adt.type_name + "\x1f" + adt.constructor;
+            const auto constructor_idx = write_cp_str(static_cast<uint32_t>(tag.size()), tag);
+            InstEmitter::emit(insts, runtime::Opcode::New, constructor, constructor_idx);
+            const auto rd = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::AdtIs, rd, value, constructor);
+            reg.free(constructor);
+            return rd;
+        }
+        case runtime::Opcode::AdtGet: {
+            const auto& adt = *reinterpret_cast<mir::MirAdtGetExpr*>(node);
+            const auto value = asm_mir_expr(insts, adt.value.get());
+            const auto rd = *reg.alloc();
+            InstEmitter::emit(insts, runtime::Opcode::AdtGet, rd, value, adt.index);
+            return rd;
+        }
+        case runtime::Opcode::LiteralNew: {
+            const auto& literal = *reinterpret_cast<mir::MirLiteralNewExpr*>(node);
+            if (literal.elements.size() > UINT8_MAX) return 0;
+            for (size_t i = 0; i < literal.elements.size(); ++i) {
+                const auto rr = asm_mir_expr(insts, literal.elements[i].get());
+                const auto target = static_cast<uint8_t>(LMX_VM_REG_COUNT - 1 - i);
+                if (rr != target) InstEmitter::emit(insts, runtime::Opcode::MovRR, target, rr);
+                reg.free(rr);
+            }
+            const auto rd = *reg.alloc();
+            const uint8_t flags =
+                (literal.literal_kind == LiteralPayloadNode::Kind::Interval ? 1U : 0U) |
+                (literal.lower_closed ? 2U : 0U) |
+                (literal.upper_closed ? 4U : 0U);
+            InstEmitter::emit(insts, runtime::Opcode::LiteralNew, rd,
+                              static_cast<uint8_t>(literal.elements.size()), flags);
+            return rd;
+        }
+        case runtime::Opcode::Contains:
+        case runtime::Opcode::NotContains: {
+            const auto& membership = *reinterpret_cast<mir::MirContainsExpr*>(node);
+            const auto element = asm_mir_expr(insts, membership.element.get());
+            const auto container = asm_mir_expr(insts, membership.container.get());
+            const auto rd = *reg.alloc();
+            InstEmitter::emit(insts, membership.opcode, rd, element, container);
+            return rd;
+        }
         default:
             return 0;
         }
@@ -748,15 +836,7 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
 
     for (auto& [name, ty] : mod->imports) {
         const auto idx = imports.size();
-        std::string real_name;
-        if (const auto path = std::filesystem::path(name);
-            path.filename() == std::string(file_default_mod) + file_suffix) {
-
-            real_name = path.parent_path().filename().string();
-        } else {
-            real_name = path.filename().stem().string();
-        }
-        imports[std::move(real_name)] = {idx, ty};
+        imports[ty->binding_name] = {idx, ty};
     }
 
     for (auto& node : mod->nodes) {
@@ -849,30 +929,11 @@ std::vector<uint8_t> Assembler::asm_module(mir::MirModule* mod) noexcept {
     result.push_back(0);
     result.insert(result.end(), native_decls.begin(), native_decls.end());
 
-    /*
-     * path_after("/path/to/a", "path") ->    "to/a"
-     */
-    static auto path_after = [](const std::filesystem::path& p, const std::string& target) -> std::string {
-        auto it = p.end();
-        while (it != p.begin()) {
-            --it;
-            if (*it == target) {
-                std::filesystem::path result;
-                ++it;
-                for (; it != p.end(); ++it) {
-                    result /= *it;
-                }
-                return result.string();
-            }
-        }
-        return {};
-    };
-
     // ---- Write imports section ----
 
     std::vector<uint8_t> import_data;
     for (auto &ty: mod->imports | std::views::values) {
-        const std::string out_path = path_after(ty->target_path, module_cache_fold);
+        const std::string& out_path = ty->load_path;
         import_data.insert(import_data.end(), out_path.begin(), out_path.end());
         import_data.push_back(0);
     }

@@ -20,6 +20,8 @@ class Parser {
     std::shared_ptr<ExprNode> parse_primary()       noexcept;   // num, (expr), ident, table, mat, set...()[].
     std::shared_ptr<ExprNode> parse_block()         noexcept;
     std::shared_ptr<ExprNode> parse_if()            noexcept;
+    std::shared_ptr<ExprNode> parse_match()         noexcept;
+    Pattern parse_pattern()                         noexcept;
     std::shared_ptr<Type> parse_type() noexcept;
     // std::shared_ptr<ExprStmtNode> parse_multi_naming()    noexcept;
     std::shared_ptr<ExprStmtNode> parse_param_name()      noexcept;
@@ -34,6 +36,7 @@ class Parser {
 
     std::shared_ptr<StmtNode> parse_return() noexcept;
     std::shared_ptr<StmtNode> parse_import() noexcept;
+    std::shared_ptr<StmtNode> parse_type_decl() noexcept;
 
 
     // void advance() noexcept;
@@ -43,6 +46,10 @@ class Parser {
     [[nodiscard]] bool peek_match(TokenType t) const noexcept;
 
     std::shared_ptr<ExprNode> parse_pipe() noexcept;
+    std::shared_ptr<ExprNode> parse_arrow() noexcept;
+    std::shared_ptr<ExprNode> parse_set_literal() noexcept;
+    std::shared_ptr<ExprNode> parse_interval_literal(bool lower_closed) noexcept;
+    std::shared_ptr<ExprNode> parse_open_interval_or_group() noexcept;
 
     [[nodiscard]] Token& cur() const noexcept;
     [[nodiscard]] Token& peek() const noexcept;

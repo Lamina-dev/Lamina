@@ -9,6 +9,8 @@
 #include <cstdlib>
 
 #include "object/fraction.hpp"
+#include "object/adt.hpp"
+#include "object/literal.hpp"
 #include <cmath>
 #include <iostream>
 #include <ostream>
@@ -64,7 +66,9 @@ static const void* dispatch[] = {\
     &&opFAdd, &&opFSub, &&opFMul, &&opFDiv, &&opFMod, &&opFNeg,\
     &&opMovRR,&&opCall, &&opAnd, &&opOr,\
     &&opFCmpEq, &&opFCmpNe, &&opFCmpLt, &&opFCmpLe, &&opFCmpGt, &&opFCmpGe, \
-    &&opGetModule, &&opGetModuleAttr, &&opGetFunc\
+    &&opGetModule, &&opGetModuleAttr, &&opGetFunc,\
+    &&opAdtNew, &&opAdtIs, &&opAdtGet,\
+    &&opLiteralNew, &&opContains, &&opNotContains\
 };\
 goto *dispatch[*ip];
 
@@ -85,6 +89,32 @@ LMX_INLINE static constexpr int16_t read_i16(const uint8_t* p) {
 LMX_INLINE static constexpr uint16_t read_u16(const uint8_t* p) {
     return static_cast<uint16_t>(p[0] | (p[1] << 8));
 };
+
+static AdtObj* make_adt_value(const CodeModule* module, Value* regs, const uint16_t constant_index) {
+    const auto* info = module->cp[constant_index].adt_constructor;
+    const std::string type_name(info->data, info->type_name_length);
+    const std::string constructor(info->data + info->type_name_length, info->constructor_length);
+    std::vector<Value> fields;
+    fields.reserve(info->field_count);
+    for (uint8_t i = 0; i < info->field_count; ++i) {
+        fields.push_back(regs[LMX_VM_REG_COUNT - 1 - i]);
+    }
+    return new AdtObj(type_name, constructor, std::move(fields));
+}
+
+static LiteralObj* make_literal_value(Value* regs, const uint8_t count,
+                                      const uint8_t flags) {
+    std::vector<Value> elements;
+    elements.reserve(count);
+    for (uint8_t i = 0; i < count; ++i) {
+        elements.push_back(regs[LMX_VM_REG_COUNT - 1 - i]);
+    }
+    const auto kind = (flags & 1U) != 0
+        ? LiteralObj::Kind::Interval : LiteralObj::Kind::Set;
+    return new LiteralObj(kind, std::move(elements),
+                          (flags & 2U) != 0, (flags & 4U) != 0);
+}
+
 int LaminaVM::run(CodeModule *prog) noexcept {
     cur_frame = new Frame(nullptr, prog, nullptr);
     const uint8_t* ip = prog->code;
@@ -234,12 +264,9 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     VM_LABEL(CallFast) {
         const auto* func = &cur_frame->mod->funcs[read_u16(ip + 1)];
         new_frame(this, func->mod, ip + 4);
-        auto i = ip[3] - 1;
-        while (i != 0) {
+        for (uint8_t i = 0; i < ip[3]; ++i) {
             cur_frame->local_vars[i] = regs[LMX_VM_REG_COUNT - 1 - i];
-            i--;
         }
-        cur_frame->local_vars[0] = regs[LMX_VM_REG_COUNT - 1];
 
         regs += LMX_VM_REG_COUNT;
 
@@ -367,12 +394,9 @@ int LaminaVM::run(CodeModule *prog) noexcept {
         const auto* func = static_cast<const FuncObj*>(regs[ip[1]].c_ptr);
         new_frame(this, func->mod, ip + 4);
 
-        auto i = ip[2];
-        while (i != 0) {
+        for (uint8_t i = 0; i < ip[2]; ++i) {
             cur_frame->local_vars[i] = regs[LMX_VM_REG_COUNT - 1 - i];
-            i--;
         }
-        cur_frame->local_vars[0] = regs[LMX_VM_REG_COUNT - 1];
 
         regs += LMX_VM_REG_COUNT;
 
@@ -421,6 +445,57 @@ int LaminaVM::run(CodeModule *prog) noexcept {
     }
     VM_LABEL(GetFunc) {
         regs[ip[1]] = &cur_frame->mod->funcs[read_u16(ip + 2)];
+        VM_NEXT
+    }
+    VM_LABEL(AdtNew) {
+        regs[ip[1]] = make_adt_value(cur_frame->mod, regs, read_u16(ip + 2));
+        VM_NEXT
+    }
+    VM_LABEL(AdtIs) {
+        bool result = false;
+        const auto& value = regs[ip[2]];
+        const auto& constructor_value = regs[ip[3]];
+        if (value.kind == ValueKind::Obj && value.obj && value.obj->get_kind() == ObjectKind::Adt &&
+            constructor_value.kind == ValueKind::Obj && constructor_value.obj &&
+            constructor_value.obj->get_kind() == ObjectKind::String) {
+            const auto* adt = reinterpret_cast<const AdtObj*>(value.obj);
+            const auto expected = reinterpret_cast<const String*>(constructor_value.obj)->to_string();
+            result = adt->type_name().size() + adt->constructor().size() + 1 == expected.size() &&
+                     expected.compare(0, adt->type_name().size(), adt->type_name()) == 0 &&
+                     expected[adt->type_name().size()] == '\x1f' &&
+                     expected.compare(adt->type_name().size() + 1, std::string::npos, adt->constructor()) == 0;
+        }
+        regs[ip[1]] = result;
+        VM_NEXT
+    }
+    VM_LABEL(AdtGet) {
+        const auto& value = regs[ip[2]];
+        if (value.kind != ValueKind::Obj || !value.obj || value.obj->get_kind() != ObjectKind::Adt) {
+            regs[ip[1]] = nullptr;
+            VM_NEXT
+        }
+        const auto* field = reinterpret_cast<const AdtObj*>(value.obj)->field(ip[3]);
+        regs[ip[1]] = field ? *field : Value{};
+        VM_NEXT
+    }
+    VM_LABEL(LiteralNew) {
+        regs[ip[1]] = make_literal_value(regs, ip[2], ip[3]);
+        VM_NEXT
+    }
+    VM_LABEL(Contains) {
+        const auto& container = regs[ip[3]];
+        const bool result = container.kind == ValueKind::Obj && container.obj &&
+            container.obj->get_kind() == ObjectKind::Literal &&
+            reinterpret_cast<const LiteralObj*>(container.obj)->contains(regs[ip[2]]);
+        regs[ip[1]] = result;
+        VM_NEXT
+    }
+    VM_LABEL(NotContains) {
+        const auto& container = regs[ip[3]];
+        const bool result = container.kind == ValueKind::Obj && container.obj &&
+            container.obj->get_kind() == ObjectKind::Literal &&
+            reinterpret_cast<const LiteralObj*>(container.obj)->contains(regs[ip[2]]);
+        regs[ip[1]] = !result;
         VM_NEXT
     }
 

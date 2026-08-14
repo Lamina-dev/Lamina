@@ -1,0 +1,26 @@
+import adt_support
+
+type WrappedRemote =
+    WrappedRemote(adt_support.RemoteTree<int>)
+
+func local_root(value adt_support.RemoteTree<int>) -> int {
+    match value {
+        adt_support.RemoteNode(_, x, _) => x,
+        adt_support.RemoteEmpty => 0
+    }
+}
+
+let tree = adt_support.RemoteNode(
+    adt_support.RemoteEmpty,
+    11,
+    adt_support.RemoteEmpty
+)
+
+local_root(tree)
+adt_support.remote_root(tree)
+
+let wrapped = WrappedRemote(tree)
+match wrapped {
+    WrappedRemote(adt_support.RemoteNode(_, x, _)) => x,
+    WrappedRemote(adt_support.RemoteEmpty) => 0
+}

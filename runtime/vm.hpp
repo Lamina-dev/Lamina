@@ -129,8 +129,7 @@ public:
     }
     friend LMX_INLINE const uint8_t *pop_frame(LaminaVM* vm) noexcept {
         auto* cur_frame = vm->cur_frame;
-        // vm->local_vars_curp -= LMX_LOCAL_VAR_COUNT;
-        // auto i = 0;
+        for (auto& local : cur_frame->local_vars) local = Value{};
         vm->free_frames.push_back(cur_frame);
         vm->cur_frame = cur_frame->last;
 

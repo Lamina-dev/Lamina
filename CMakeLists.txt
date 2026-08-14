@@ -2,7 +2,10 @@ cmake_minimum_required(VERSION 3.26)
 project(Lamina LANGUAGES CXX)
 
 #set(FETCHCONTENT_FULLY_DISCONNECTED ON)
-set(BUILD_TESTING OFF)
+option(LMX_BUILD_TESTS "Build Lamina tests" OFF)
+if(LMX_BUILD_TESTS)
+    enable_testing()
+endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 if (MSVC AND NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
     message(FATAL_ERROR "MSVC is not supported, use clang-cl or other compilers in Windows")
@@ -89,7 +92,10 @@ target_link_libraries(laminaCore PRIVATE
 )
 #message( ${LMX_DYNCALL_SOURCE_DIR})
 
+set(_lmx_saved_build_testing "${BUILD_TESTING}")
+set(BUILD_TESTING OFF)
 add_subdirectory("${LMX_LMCAS_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external/LMCAS" EXCLUDE_FROM_ALL)
+set(BUILD_TESTING "${_lmx_saved_build_testing}")
 target_link_libraries(laminaCore PRIVATE
     lmcas
 )
@@ -264,3 +270,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
 endif()
 
 endif ()
+
+if(LMX_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()

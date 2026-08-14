@@ -49,6 +49,10 @@ Token Lexer::next() {
         }
         case '*': {
             advance();
+            if (content[pos] == '*') {
+                advance();
+                return {TokenType::UNKNOWN, "**", line, col - 2};
+            }
             return {TokenType::OPER_MUL, "*", line, col - 1};
         }
         case '/': {
@@ -172,13 +176,17 @@ Token Lexer::next() {
             }
             return {TokenType::NOT, "!", line, col - 1};
         }
+        case '?': {
+            advance();
+            return {TokenType::QUESTION, "?", line, col - 1};
+        }
         case '|': {
             advance();
             if (content[pos] == '>') {
                 advance();
                 return {TokenType::PIPE, "|>", line, col - 1};
             }
-            return {TokenType::UNKNOWN, std::string(1, content[pos]), line, col - 1};
+            return {TokenType::BAR, "|", line, col - 1};
         }
         case '.': {
             advance();
@@ -236,7 +244,10 @@ Token Lexer::next() {
                     {"sym", TokenType::KW_SYM},
                     {"true", TokenType::TRUE_LITERAL},
                     {"false", TokenType::FALSE_LITERAL},
+                    {"null", TokenType::NULL_LITERAL},
                     {"static", TokenType::KW_STATIC},
+                    {"type", TokenType::KW_TYPE},
+                    {"match", TokenType::KW_MATCH},
                 };
                 if (const auto it = keywords.find(id); it != keywords.end()) {
                     return {it->second, id, cur_line, cur_col};

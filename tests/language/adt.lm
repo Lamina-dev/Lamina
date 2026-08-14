@@ -1,0 +1,83 @@
+type Tree<T> =
+    Empty
+  | Node(Tree<T>, T, Tree<T>)
+
+func root(value Tree<int>) -> int {
+    match value {
+        Tree.Node(_, x, _) => x,
+        Tree.Empty => 0
+    }
+}
+
+let some = Option.Some(4)
+let none Option<int> = Option.None
+let result Result<int, text> = Result.Ok(9)
+let tree = Tree.Node(Tree.Empty, 7, Tree.Empty)
+
+match some {
+    Option.Some(x) => x,
+    Option.None => 0
+}
+match none {
+    Option.Some(x) => x,
+    Option.None => 0
+}
+match result {
+    Result.Ok(x) => x,
+    Result.Err(_) => 0
+}
+root(tree)
+some == Option.Some(4)
+
+func classify_int(value int) -> int {
+    match value {
+        -1 => 1,
+        _ => 0
+    }
+}
+
+func classify_real(value frac) -> int {
+    match value {
+        -1.5 => 1,
+        2.5 => 2,
+        _ => 0
+    }
+}
+
+classify_int(-1)
+classify_real(-1.5)
+classify_real(2.5)
+func consume_option(value Option<int>) -> int {
+    match value {
+        Option.Some(x) => x,
+        Option.None => 0
+    }
+}
+
+func make_none() -> Option<int> {
+    return Option.None
+}
+
+consume_option(Option.None)
+consume_option(make_none())
+type Box =
+    Box(text?)
+
+type MaybeValue<T> =
+    MaybeValue(T?)
+
+func is_empty_box(value Box) -> bool {
+    match value {
+        Box(null) => true,
+        Box(_) => false
+    }
+}
+
+let empty_box = Box(null)
+let named_box = Box("lamina")
+let empty_number MaybeValue<int> = MaybeValue(null)
+let number MaybeValue<int> = MaybeValue(12)
+is_empty_box(empty_box)
+is_empty_box(named_box)
+empty_number == MaybeValue(null)
+number == MaybeValue(12)

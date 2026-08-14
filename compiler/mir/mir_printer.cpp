@@ -81,6 +81,7 @@ void MirPrinter::format_expr(std::ostringstream &ss, const MirExpr &expr) {
         case MirLiteralKind::Float:   ss << "float"; break;
         case MirLiteralKind::String:  ss << "str";   break;
         case MirLiteralKind::Boolean: ss << "bool";  break;
+        case MirLiteralKind::Null:    ss << "null";  break;
         }
         ss << " \"" << lit.data << "\"";
         break;

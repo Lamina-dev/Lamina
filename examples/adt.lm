@@ -1,0 +1,37 @@
+import std
+
+type Tree<T> =
+    Empty
+  | Node(Tree<T>, T, Tree<T>)
+
+func option_value(value Option<int>) -> int {
+    match value {
+        Option.Some(x) => x,
+        Option.None => 0
+    }
+}
+
+func tree_root(value Tree<int>) -> int {
+    match value {
+        Node(_, x, _) if x > 0 => x,
+        Node(_, _, _) => 0,
+        Empty => 0
+    }
+}
+
+let some = Some(4)
+let none Option<int> = None
+let tree = Node(Empty, 7, Empty)
+let binding = "answer" => 42
+let qualified_some = Option.Some(5)
+let qualified_none Option<int> = Option.None
+let result Result<int, text> = Ok(9)
+
+std.printf("%d\n", option_value(some))
+std.printf("%d\n", option_value(none))
+std.printf("%d\n", tree_root(tree))
+std.printf("%d\n", some == Some(4))
+std.printf("%d\n", option_value(qualified_some))
+std.printf("%d\n", option_value(qualified_none))
+
+std.printf("%d\n", match result { Result.Ok(x) => x, Result.Err(_) => 0 })

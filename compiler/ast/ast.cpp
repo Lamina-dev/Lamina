@@ -72,18 +72,60 @@ std::shared_ptr<Type> TypePool::native_function(std::vector<std::shared_ptr<Type
     return ty;
 }
 
-std::shared_ptr<Type> TypePool::named(std::string name) noexcept {
+std::shared_ptr<Type> TypePool::named(std::string name, std::vector<std::shared_ptr<Type>> args) noexcept {
     for (const auto& t : types)
-        if (t->kind == TypeKind::Named && static_cast<NamedType*>(t.get())->name == name) return t;
-    auto ty = std::make_shared<NamedType>(std::move(name));
+        if (t->kind == TypeKind::Named) {
+            const auto* named = static_cast<NamedType*>(t.get());
+            if (named->name != name || named->args.size() != args.size()) continue;
+            bool same = true;
+            for (size_t i = 0; i < args.size(); ++i) {
+                if (!named->args[i]->equals(args[i].get())) { same = false; break; }
+            }
+            if (same) return t;
+        }
+    auto ty = std::make_shared<NamedType>(std::move(name), std::move(args));
     types.push_back(ty);
     return ty;
 }
 
-std::shared_ptr<Type> TypePool::module(std::string target_path, std::vector<hir::Scope::Var> exports) noexcept {
-    for (const auto& t : types)
-        if (t->kind == TypeKind::Module && static_cast<ModuleType*>(t.get())->target_path == target_path) return t;
-    auto ty = std::make_shared<ModuleType>(std::move(target_path), std::move(exports));
+std::shared_ptr<Type> TypePool::nullable(std::shared_ptr<Type> value_type) noexcept {
+    for (const auto& type : types) {
+        if (type->kind != TypeKind::Nullable) continue;
+        const auto* nullable = static_cast<NullableType*>(type.get());
+        if (nullable->value_type->equals(value_type.get())) return type;
+    }
+    auto type = std::make_shared<NullableType>(std::move(value_type));
+    types.push_back(type);
+    return type;
+}
+std::shared_ptr<Type> TypePool::adt_constructor(std::string type_name,
+                                                std::string constructor,
+                                                std::vector<std::string> type_params,
+                                                std::vector<std::shared_ptr<Type>> fields) noexcept {
+    auto ty = std::make_shared<AdtConstructorType>(std::move(type_name), std::move(constructor),
+                                                   std::move(type_params), std::move(fields));
+    types.push_back(ty);
+    return ty;
+}
+
+std::shared_ptr<Type> TypePool::module(std::string target_path,
+                                       std::string load_path,
+                                       std::string binding_name,
+                                       std::vector<hir::Scope::Var> exports,
+                                       std::vector<std::shared_ptr<TypeDeclNode>> adt_exports) noexcept {
+    for (const auto& t : types) {
+        if (t->kind != TypeKind::Module) continue;
+        auto* module = static_cast<ModuleType*>(t.get());
+        if (module->target_path != target_path) continue;
+        module->load_path = std::move(load_path);
+        module->binding_name = std::move(binding_name);
+        module->exports = std::move(exports);
+        module->adt_exports = std::move(adt_exports);
+        return t;
+    }
+    auto ty = std::make_shared<ModuleType>(
+        std::move(target_path), std::move(load_path), std::move(binding_name),
+        std::move(exports), std::move(adt_exports));
     types.push_back(ty);
     return ty;
 }
@@ -200,6 +242,34 @@ bool NativeFunctionType::have_va_list() const noexcept {
     return false;
 }
 
+bool NullableType::equals(Type *other) const noexcept {
+    if (!other || other->kind != TypeKind::Nullable) return false;
+    return value_type->equals(static_cast<NullableType*>(other)->value_type.get());
+}
+bool NamedType::equals(Type *other) const noexcept {
+    if (!other || other->kind != TypeKind::Named) return false;
+    const auto* named = static_cast<NamedType*>(other);
+    if (name != named->name || args.size() != named->args.size()) return false;
+    for (size_t i = 0; i < args.size(); ++i) {
+        if (!args[i]->equals(named->args[i].get())) return false;
+    }
+    return true;
+}
+
+AdtConstructorType::AdtConstructorType(std::string type_name,
+                                       std::string constructor,
+                                       std::vector<std::string> type_params,
+                                       std::vector<std::shared_ptr<Type>> fields) noexcept
+    : Type(TypeKind::AdtConstructor), type_name(std::move(type_name)),
+      constructor(std::move(constructor)), type_params(std::move(type_params)),
+      fields(std::move(fields)) {}
+
+bool AdtConstructorType::equals(Type *other) const noexcept {
+    if (!other || other->kind != TypeKind::AdtConstructor) return false;
+    const auto* constructor_type = static_cast<AdtConstructorType*>(other);
+    return type_name == constructor_type->type_name && constructor == constructor_type->constructor;
+}
+
 std::string BinaryNode::op_to_string(const Op op) noexcept {
     switch (op) {
     case Op::Add:
@@ -230,7 +300,12 @@ std::string BinaryNode::op_to_string(const Op op) noexcept {
         return "and";
     case Op::Or:
         return "or";
-        break;
+    case Op::In:
+        return "in";
+    case Op::NotIn:
+        return "not in";
+    case Op::Bind:
+        return "=>";
     }
     return {};
 }
@@ -348,6 +423,34 @@ AsExprNode::AsExprNode(const size_t line, const size_t col,
                        std::shared_ptr<Type> cast_type) noexcept
     : ExprNode(ASTKind::AsExpr, line, col), expr(std::move(expr)), cast_type(std::move(cast_type)) {}
 
+LiteralPayloadNode::LiteralPayloadNode(
+    const size_t line,
+    const size_t col,
+    const Kind payload_kind,
+    std::vector<std::shared_ptr<ExprNode>> elements,
+    const bool lower_closed,
+    const bool upper_closed) noexcept
+    : ExprNode(ASTKind::LiteralPayload, line, col),
+      payload_kind(payload_kind),
+      elements(std::move(elements)),
+      lower_closed(lower_closed),
+      upper_closed(upper_closed) {}
+
+TypeDeclNode::TypeDeclNode(const size_t line, const size_t col,
+                           std::string name,
+                           std::vector<std::string> type_params,
+                           std::vector<AdtConstructorDecl> constructors) noexcept
+    : StmtNode(ASTKind::TypeDecl, line, col), name(std::move(name)), qualified_name(this->name),
+      type_params(std::move(type_params)), constructors(std::move(constructors)) {}
+
+Pattern::Pattern(const Kind kind, const size_t line, const size_t col, std::string name) noexcept
+    : kind(kind), line(line), col(col), name(std::move(name)) {}
+
+MatchExprNode::MatchExprNode(const size_t line, const size_t col,
+                             std::shared_ptr<ExprNode> target,
+                             std::vector<MatchArm> arms) noexcept
+    : ExprNode(ASTKind::MatchExpr, line, col), target(std::move(target)), arms(std::move(arms)) {}
+
 VarDeclNode::VarDeclNode(const size_t line, const size_t col, decltype(id) id, std::shared_ptr<Type> type, const bool is_mutable) noexcept
     : StmtNode(ASTKind::VarDecl, line, col), id(std::move(id)), type(std::move(type)), is_mutable(is_mutable) {}
 
@@ -386,7 +489,9 @@ std::shared_ptr<NativeFunctionType> NativeFuncDeclNode::make_type() noexcept {
 }
 
 NativeFuncCallExpr::NativeFuncCallExpr(const SuffixParenNode *sp) noexcept
-    : ExprNode(ASTKind::NativeFuncCall, sp->line, sp->col), expr(sp->expr), suffix(sp->suffix) {}
+    : ExprNode(ASTKind::NativeFuncCall, sp->line, sp->col), expr(sp->expr), suffix(sp->suffix),
+      can_fast(sp->can_fast), is_adt_constructor(sp->is_adt_constructor),
+      adt_type_name(sp->adt_type_name), adt_constructor(sp->adt_constructor) {}
 
 LoopStmtNode::LoopStmtNode(const size_t line, const size_t col, decltype(expr) expr, std::vector<std::shared_ptr<StmtNode> > body) noexcept
     : StmtNode(ASTKind::LoopStmt, line, col), expr(std::move(expr)), body(std::move(body)) {}

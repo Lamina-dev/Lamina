@@ -5,6 +5,8 @@
 #include "code_module.hpp"
 #include "string.hpp"
 #include "lsr_ExprObj.hpp"
+#include "adt.hpp"
+#include "literal.hpp"
 
 using namespace lmx::runtime;
 
@@ -13,6 +15,7 @@ Object::Object(const uint32_t kind) noexcept: kind(kind) {}
 
 
 std::string Object::to_string(Object *obj) noexcept {
+    if (!obj) return "Null";
     switch (obj->get_kind()) {
     case ObjectKind::Object: {
         return "<Object:" + std::to_string((int64_t)obj) + ">";
@@ -37,6 +40,12 @@ std::string Object::to_string(Object *obj) noexcept {
     }
     case ObjectKind::Expr: {
         return reinterpret_cast<ExprObj*>(obj)->to_string();
+    }
+    case ObjectKind::Adt: {
+        return reinterpret_cast<AdtObj*>(obj)->to_string();
+    }
+    case ObjectKind::Literal: {
+        return reinterpret_cast<LiteralObj*>(obj)->to_string();
     }
     default: {
         return "";
@@ -84,6 +93,14 @@ void Object::release() noexcept {
         }
         case ObjectKind::Expr: {
             delete reinterpret_cast<ExprObj*>(this);
+            return;
+        }
+        case ObjectKind::Adt: {
+            delete reinterpret_cast<AdtObj*>(this);
+            return;
+        }
+        case ObjectKind::Literal: {
+            delete reinterpret_cast<LiteralObj*>(this);
             return;
         }
         default: {
