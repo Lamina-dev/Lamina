@@ -31,7 +31,7 @@ std::filesystem::path get_exe_dir() noexcept {
 #else
     char buffer[PATH_MAX];
     uint32_t buf_size = PATH_MAX;
-    if (_NSGetExecuteablePath(buffer, &buf_size) == 0) {
+    if (_NSGetExecutablePath(buffer, &buf_size) == 0) {
         char resolve[PATH_MAX];
         if (realpath(buffer, resolve)) {
             res = resolve;
