@@ -20,14 +20,17 @@ jobs:
         include:
           - os: ubuntu-latest
             archive: linux-x64
+            build_type: Release
             so_ext: .so
             use_asm: 'ON'
           - os: macos-latest
             archive: macos
+            build_type: Debug
             so_ext: .dylib
             use_asm: 'OFF'
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -39,13 +42,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y nasm
 
       - name: Configure CMake
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DUSE_ASM=${{ matrix.use_asm }}
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DUSE_ASM=${{ matrix.use_asm }}
 
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
       - name: Test
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
 
       - name: Package
         shell: bash
@@ -66,6 +69,7 @@ jobs:
   build-windows:
     name: Build and test (windows-latest, MinGW)
     runs-on: windows-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
