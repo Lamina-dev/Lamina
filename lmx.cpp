@@ -187,14 +187,6 @@ extern "C" LM_API double lmmc_num_exp2(ExprObj* expr) {
     return lmmc_real_result(status, out);
 }
 
-extern "C" LM_API int printf(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    const int result = vprintf(fmt, args);
-    va_end(args);
-    return result;
-}
-
 LM_API LmState* lmx_newState() {
     auto* node = static_cast<LmLinkedNode *>(malloc(sizeof(LmLinkedNode)));
     memset(node, 0, sizeof(LmLinkedNode));
