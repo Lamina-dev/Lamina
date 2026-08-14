@@ -45,7 +45,7 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DUSE_ASM=${{ matrix.use_asm }}
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }} --parallel
+        run: cmake --build build --config ${{ matrix.build_type }} --parallel 4
 
       - name: Test
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
@@ -92,7 +92,7 @@ jobs:
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel 4
 
       - name: Test
         shell: msys2 {0}
