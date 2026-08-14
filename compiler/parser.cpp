@@ -341,7 +341,31 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         break;
     }
     case TokenType::LBRACK: {
-        primary = parse_interval_literal(true);
+        advance();
+        std::vector<std::shared_ptr<ExprNode>> elements;
+        if (!match(TokenType::RBRACK) && !match(TokenType::RPAREN)) {
+            while (true) {
+                elements.push_back(parse_expr());
+                if (match(TokenType::RBRACK) || match(TokenType::RPAREN)) break;
+                consume(TokenType::COMMA, ",");
+            }
+        }
+        const bool upper_closed = match(TokenType::RBRACK);
+        if (upper_closed) {
+            advance();
+        } else {
+            consume(TokenType::RPAREN, ")");
+        }
+        if (elements.size() == 2) {
+            primary = std::make_shared<LiteralPayloadNode>(
+                line, col, LiteralPayloadNode::Kind::Interval,
+                std::move(elements), true, upper_closed);
+        } else if (upper_closed) {
+            primary = std::make_shared<ArrayLiteralNode>(line, col, std::move(elements));
+        } else {
+            throw_error(ErrorType::Parse, "interval requires two bounds", line, col);
+            primary = nullptr;
+        }
         break;
     }
     case TokenType::LBRACE: {
@@ -398,8 +422,14 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         case TokenType::DOT: {
             advance();
             auto ident = cur();
-            consume(TokenType::IDENTIFIER, "identifier");
-            primary = std::make_shared<DotExprNode>(line, col, primary, std::make_shared<IdentifierNode>(ident.line, ident.col, ident.text));
+            if (match(TokenType::NUM_LITERAL)) {
+                uint8_t i = std::stoi(ident.text);
+                advance();
+                primary = std::make_shared<TupleGetExprNode>(line, col, primary, i);
+            } else {
+                consume(TokenType::IDENTIFIER, "identifier");
+                primary = std::make_shared<DotExprNode>(line, col, primary, std::make_shared<IdentifierNode>(ident.line, ident.col, ident.text));
+            }
             break;
         }
         default: {

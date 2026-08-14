@@ -11,30 +11,30 @@
 
 using namespace lmx;
 
-lmx::TypePool lmx::type_pool;
+TypePool lmx::type_pool;
 
 std::shared_ptr<Type> TypePool::basic(const runtime::ValueKind v) noexcept {
     for (const auto& t : types)
         if (t->kind == TypeKind::Basic && static_cast<BasicType*>(t.get())->type == v) return t;
-    auto ty = std::make_shared<BasicType>(v);
+    auto ty = std::shared_ptr<Type>(new BasicType(v));
     types.push_back(ty);
     return ty;
 }
 
 std::shared_ptr<Type> TypePool::string() noexcept {
     for (const auto& t : types) if (t->kind == TypeKind::String) return t;
-    auto ty = std::make_shared<StringType>();
+    auto ty = std::shared_ptr<Type>(new StringType());
     types.push_back(ty);
     return ty;
 }
 
-std::shared_ptr<Type> TypePool::array(const std::shared_ptr<Type>& type, const size_t len) noexcept {
+std::shared_ptr<Type> TypePool::array(const std::shared_ptr<Type>& type) noexcept {
     for (const auto& t : types)
         if (t->kind == TypeKind::Array) {
             const auto* a = static_cast<ArrayType*>(t.get());
-            if (a->len == len && a->type->equals(type.get())) return t;
+            if (a->type->equals(type.get())) return t;
         }
-    auto ty = std::make_shared<ArrayType>(type, len);
+    auto ty = std::shared_ptr<Type>(new ArrayType(type));
     types.push_back(ty);
     return ty;
 }
@@ -50,7 +50,7 @@ std::shared_ptr<Type> TypePool::function(std::vector<std::shared_ptr<Type>> para
                 if (!f->params_ty[i]->equals(params[i].get())) { ok = false; break; }
             if (ok) return t;
         }
-    auto ty = std::make_shared<FunctionType>(std::move(params), std::move(ret));
+    auto ty = std::shared_ptr<Type>(new FunctionType(std::move(params), std::move(ret)));
     types.push_back(ty);
     return ty;
 }
@@ -67,7 +67,7 @@ std::shared_ptr<Type> TypePool::native_function(std::vector<std::shared_ptr<Type
                 if (!f->params_ty[i]->equals(params[i].get())) { ok = false; break; }
             if (ok) return t;
         }
-    auto ty = std::make_shared<NativeFunctionType>(std::move(params), std::move(ret), std::move(name));
+    auto ty = std::shared_ptr<Type>(new NativeFunctionType(std::move(params), std::move(ret), std::move(name)));
     types.push_back(ty);
     return ty;
 }
@@ -132,16 +132,27 @@ std::shared_ptr<Type> TypePool::module(std::string target_path,
 
 std::shared_ptr<Type> TypePool::unknown() noexcept {
     for (const auto& t : types) if (t->kind == TypeKind::Unknown) return t;
-    auto ty = std::make_shared<UnknownType>();
+    auto ty = std::shared_ptr<Type>(new UnknownType());
     types.push_back(ty);
     return ty;
 }
 
 std::shared_ptr<Type> TypePool::none() noexcept {
     for (const auto& t : types) if (t->kind == TypeKind::None) return t;
-    auto ty = std::make_shared<NoneType>();
+    auto ty = std::shared_ptr<Type>(new NoneType());
     types.push_back(ty);
     return ty;
+}
+
+std::shared_ptr<Type> TypePool::tuple(std::vector<std::shared_ptr<Type>> t) noexcept {
+    auto tup_tmp_ty = std::shared_ptr<Type>(new TupleType(std::move(t)));
+    for (const auto& ty : types) {
+        if (ty->kind == TypeKind::Tuple && ty->equals(tup_tmp_ty.get())) {
+            return ty;
+        }
+    }
+    types.push_back(tup_tmp_ty);
+    return tup_tmp_ty;
 }
 
 Type::~Type() = default;
@@ -169,8 +180,7 @@ bool ArrayType::equals(Type *other) const noexcept {
     if (!other) return false;
     if (other->kind != this->kind) return false;
     const auto *o = reinterpret_cast<ArrayType *>(other);
-    if (this->type->equals(o->type.get())) return false;
-    if (this->len != o->len) return false;
+    if (!this->type->equals(o->type.get())) return false;
     return true;
 }
 
@@ -504,3 +514,6 @@ ImportStmtNode::ImportStmtNode(size_t line, size_t col, decltype(name) name) noe
 
 SymDeclNode::SymDeclNode(size_t line, size_t col, std::vector<std::string> ids) noexcept
     : StmtNode(ASTKind::SymDecl, line, col), ids(std::move(ids)) {}
+
+ArrayLiteralNode::ArrayLiteralNode(const size_t line, const size_t col, decltype(exprs) exprs) noexcept
+    : ExprNode(ASTKind::ArrayLiteral, line, col), exprs(std::move(exprs)) {}

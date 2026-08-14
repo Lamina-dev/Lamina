@@ -10,8 +10,8 @@
 #include "compiler/parser.hpp"
 #include "compiler/lexer.hpp"
 #include "runtime/vm.hpp"
-#include "runtime/object/lsr_ExprObj.hpp"
-#include "runtime/object/string.hpp"
+#include "runtime/object/lsr_expr_obj.hpp"
+#include "runtime/object/StringObj.hpp"
 #include "runtime/object/adt.hpp"
 
 #include <cmath>
@@ -31,7 +31,7 @@ LmState global_state;
 namespace {
 
 using lmx::runtime::ExprObj;
-using lmx::runtime::String;
+using lmx::runtime::StringObj;
 
 bool debug_dump_enabled() noexcept {
     const char* value = std::getenv("LMX_DEBUG_DUMP");
@@ -149,15 +149,15 @@ extern "C" LM_API bool cas_is_ok(ExprObj* expr) {
     return expr && expr->ok();
 }
 
-extern "C" LM_API String* cas_to_text(ExprObj* expr) {
-    if (!expr) return new String("CasError(InvalidArgument: null expr)");
-    return new String(expr->to_string());
+extern "C" LM_API StringObj* cas_to_text(ExprObj* expr) {
+    if (!expr) return new StringObj("CasError(InvalidArgument: null expr)");
+    return new StringObj(expr->to_string());
 }
 
-extern "C" LM_API String* cas_error(ExprObj* expr) {
-    if (!expr) return new String("CasError(InvalidArgument: null expr)");
-    if (expr->ok()) return new String("");
-    return new String(expr->error());
+extern "C" LM_API StringObj* cas_error(ExprObj* expr) {
+    if (!expr) return new StringObj("CasError(InvalidArgument: null expr)");
+    if (expr->ok()) return new StringObj("");
+    return new StringObj(expr->error());
 }
 
 extern "C" LM_API double lmmc_num_hypot(ExprObj* lhs, ExprObj* rhs) {
@@ -222,9 +222,9 @@ static void lmx_state_addNode(LmState* state, void* ptr) {
 }
 
 static LmModule* lmx_newCodeModule(LmState* state, std::vector<uint8_t>&& binary) {
-    const auto storage = malloc(sizeof(lmx::runtime::CodeModule));
+    const auto storage = malloc(sizeof(lmx::runtime::CodeModuleObj));
     if (storage == nullptr) return nullptr;
-    new (storage) lmx::runtime::CodeModule(std::move(binary));
+    new (storage) lmx::runtime::CodeModuleObj(std::move(binary));
     lmx_state_addNode(state, storage);
     return static_cast<LmModule*>(storage);
 }
@@ -282,7 +282,7 @@ bool lmx_moduleToFile(LmState *state, LmModule *module, const char *name) {
     const std::filesystem::path path = name;
     std::filesystem::create_directories(path.parent_path());
     std::ofstream ofs(path.string() + lmx::file_suffix_binary, std::ios::binary | std::ios::trunc);
-    const auto* mod = reinterpret_cast<lmx::runtime::CodeModule*>(module);
+    const auto* mod = reinterpret_cast<lmx::runtime::CodeModuleObj*>(module);
     ofs.write(
         reinterpret_cast<const char*>(mod->raw_data.data()),
         static_cast<std::streamsize>(mod->raw_data.size())
@@ -323,7 +323,7 @@ int lmx_vmRunModule(LmState* state, LaminaVM* vm, LmModule* module) {
     return
     reinterpret_cast<lmx::runtime::LaminaVM*>(vm)
     ->
-    run(reinterpret_cast<lmx::runtime::CodeModule*>(module));
+    run(reinterpret_cast<lmx::runtime::CodeModuleObj*>(module));
 }
 
 void lmx_vmEval(LmState *state, LaminaVM *vm, LmValue *result, const char *code) {

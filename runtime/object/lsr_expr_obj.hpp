@@ -38,7 +38,6 @@ public:
         if (!ok()) return error_;
         return expr_->to_string();
     }
-
 };
 
 }

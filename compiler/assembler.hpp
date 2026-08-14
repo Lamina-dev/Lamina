@@ -33,6 +33,7 @@ public:
     static bool inst_is_call(runtime::Opcode::Opcode op) noexcept;
 };
 
+
 class RegAllocator {
     static constexpr size_t COMMON_REG_COUNT = static_cast<size_t>(LMX_VM_REG_COUNT) - 1;
     std::bitset<COMMON_REG_COUNT> regs;
@@ -68,7 +69,6 @@ public:
     };
 
     std::unordered_map<std::string, Val> vals;
-    std::unordered_map<std::string, GlobalVar> globals;
     std::unordered_map<std::string, size_t> funcs; // func name -> index
     std::unordered_map<std::string, size_t> native_funcs; // ^
     std::unordered_map<std::string, std::pair<size_t, std::shared_ptr<ModuleType>>> imports;      // name -> index, ty
@@ -82,9 +82,9 @@ public:
     uint16_t write_cp_adt_constructor(const std::string& type_name,
                                       const std::string& constructor,
                                       uint8_t field_count);
+    uint16_t write_cp_arr(uint8_t elem_tag, const std::vector<std::vector<uint8_t>>& elems);
 
     std::optional<Val*> find_var(const std::string& name) noexcept;
-    std::optional<GlobalVar*> find_global(const std::string& name) noexcept;
 
     static void write_u32(std::vector<uint8_t>& buf, uint32_t value) noexcept;
     static void write_u64(std::vector<uint8_t>& buf, uint64_t value) noexcept;

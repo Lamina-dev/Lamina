@@ -2,29 +2,30 @@
 // Created by meian on 2026/3/28.
 //
 #include "object.hpp"
+
+#include "array.hpp"
 #include "code_module.hpp"
-#include "string.hpp"
-#include "lsr_ExprObj.hpp"
+#include "StringObj.hpp"
+#include "lsr_expr_obj.hpp"
 #include "adt.hpp"
 #include "literal.hpp"
+#include "tuple.hpp"
 
 using namespace lmx::runtime;
 
 Object::Object(const uint32_t kind) noexcept: kind(kind) {}
 
-
-
 std::string Object::to_string(Object *obj) noexcept {
     if (!obj) return "Null";
     switch (obj->get_kind()) {
     case ObjectKind::Object: {
-        return "<Object:" + std::to_string((int64_t)obj) + ">";
+        return "<Object:" + std::to_string(reinterpret_cast<LmInt>(obj)) + ">";
     }
     case ObjectKind::Code  : {
-        return reinterpret_cast<CodeModule*>(obj)->to_string();
+        return reinterpret_cast<CodeModuleObj*>(obj)->to_string();
     }
     case ObjectKind::String: {
-        return reinterpret_cast<String*>(obj)->to_string();
+        return reinterpret_cast<StringObj*>(obj)->to_string();
     }
     case ObjectKind::Table : {
         return "";
@@ -37,6 +38,9 @@ std::string Object::to_string(Object *obj) noexcept {
     }
     case ObjectKind::Array : {
         return "";
+    }
+    case ObjectKind::Tuple: {
+        return TupleObj::to_string();
     }
     case ObjectKind::Expr: {
         return reinterpret_cast<ExprObj*>(obj)->to_string();
@@ -51,6 +55,7 @@ std::string Object::to_string(Object *obj) noexcept {
         return "";
     }
     }
+    return {};
 }
 
 Object::~Object() noexcept = default;
@@ -72,11 +77,11 @@ void Object::release() noexcept {
             return;
         }
         case ObjectKind::Code  : {
-            delete reinterpret_cast<CodeModule*>(this);
+            delete reinterpret_cast<CodeModuleObj*>(this);
             return;
         }
         case ObjectKind::String: {
-            delete reinterpret_cast<String*>(this);
+            delete reinterpret_cast<StringObj*>(this);
             return;
         }
         case ObjectKind::Table : {
@@ -89,6 +94,11 @@ void Object::release() noexcept {
             return;
         }
         case ObjectKind::Array : {
+            delete reinterpret_cast<ArrayObj*>(this);
+            return;
+        }
+        case ObjectKind::Tuple: {
+            delete reinterpret_cast<TupleObj*>(this);
             return;
         }
         case ObjectKind::Expr: {

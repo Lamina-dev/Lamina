@@ -166,7 +166,7 @@ bool Fraction::operator!=(const Fraction& other) const noexcept {
 }
 
 double Fraction::to_float() const noexcept {
-    return static_cast<double>(num) / den;
+    return static_cast<double>(num) / static_cast<double>(den);
 }
 
 bool Fraction::operator!=(const int64_t other) const noexcept {

@@ -13,6 +13,8 @@
 │  Constants Section              │
 ├─────────────────────────────────┤
 │  Native functions Section       │
+├─────────────────────────────────┤
+│  Import Modules Section         │
 └─────────────────────────────────┘
 ```
 

@@ -85,7 +85,9 @@ add_library(laminaCore SHARED
     $<TARGET_OBJECTS:lamina_runtime>
         utils/utils.cpp
 )
-set_target_properties(laminaCore PROPERTIES PREFIX "")
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set_target_properties(laminaCore PROPERTIES PREFIX "")
+endif ()
 target_link_libraries(laminaCore PRIVATE
         dyncall_s
         dynload_s
@@ -125,6 +127,9 @@ if(WIN32)
             $<TARGET_FILE_DIR:lamina>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:lmcas>
+            $<TARGET_FILE_DIR:lamina>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:lmmc>
             $<TARGET_FILE_DIR:lamina>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:LammpCore>

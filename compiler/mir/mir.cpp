@@ -21,6 +21,18 @@ MirExprNode::MirExprNode(std::shared_ptr<MirExpr> expr) noexcept : MirNode(MirNo
 MirAssign::MirAssign(std::string name, std::shared_ptr<MirExpr> expr) noexcept
     : MirNode(MirNodeKind::Assign), name(std::move(name)), expr(std::move(expr)) {}
 
+MirArrLoadExpr::MirArrLoadExpr(std::shared_ptr<MirExpr> target, std::shared_ptr<MirExpr> index) noexcept
+    : MirOperateExpr(runtime::Opcode::ArrLoad), target(std::move(target)), index(std::move(index)) {}
+
+MirTupleGetExpr::MirTupleGetExpr(std::shared_ptr<MirExpr> target, const uint8_t index) noexcept
+    : MirOperateExpr(runtime::Opcode::TupleGet), target(std::move(target)), index(index) {}
+
+MirArrStore::MirArrStore(std::shared_ptr<MirExpr> target, std::shared_ptr<MirExpr> index, std::shared_ptr<MirExpr> value) noexcept
+    : MirNode(MirNodeKind::ArrStore), target(std::move(target)), index(std::move(index)), value(std::move(value)) {}
+
+MirTupleStore::MirTupleStore(std::shared_ptr<MirExpr> target, const uint8_t index, std::shared_ptr<MirExpr> value) noexcept
+    : MirNode(MirNodeKind::TupleStore), target(std::move(target)), index(index), value(std::move(value)) {}
+
 MirFuncDefine::MirFuncDefine(std::string name, std::vector<std::string> params, std::vector<std::shared_ptr<MirNode> > body) noexcept :
     MirNode(MirNodeKind::Func), name(std::move(name)), params(std::move(params)), body(std::move(body)) {}
 
@@ -128,6 +140,10 @@ MirCmpOrExpr::MirCmpOrExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr
     : MirOperateExpr(runtime::Opcode::Opcode::Or), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
 MirGetModuleExpr::MirGetModuleExpr(std::string name) noexcept : MirOperateExpr(runtime::Opcode::GetModule), name(std::move(name)) {}
+
+MirArrayExpr::MirArrayExpr(const bool is_constant,
+                           std::vector<std::shared_ptr<MirExpr>> elements) noexcept
+    : MirExpr(MirExprKind::Array), is_constant(is_constant), elements(std::move(elements)) {}
 
 MirAdtNewExpr::MirAdtNewExpr(std::string type_name, std::string constructor,
                              std::vector<std::shared_ptr<MirRefExpr>> fields) noexcept

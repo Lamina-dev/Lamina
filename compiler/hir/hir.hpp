@@ -19,8 +19,14 @@ struct HirType;
 using Type = std::shared_ptr<HirType>;
 struct HirType {
     Kind kind;
+protected:
+    /*
+     * 与 ast::TypePool 相同的保证：类型实例仅由 hir::ty::Pool 创建，
+     * 确保相同 HIR 类型全局唯一。
+     */
     explicit HirType(const Kind kind) noexcept : kind(kind) {}
 
+public:
     [[nodiscard]] Kind get_kind() const noexcept { return kind; }
 
     virtual ~HirType() = default;
@@ -32,8 +38,11 @@ struct HirType {
 
 
 struct IntType : HirType {
+    friend class Pool;
+private:
     explicit IntType() noexcept : HirType(Kind::Int) {}
 
+public:
     ~IntType() override = default;
 
     [[nodiscard]] std::string to_string() const noexcept override {
@@ -47,8 +56,11 @@ struct IntType : HirType {
     }
 };
 struct FracType : HirType {
+    friend class Pool;
+private:
     explicit FracType() noexcept : HirType(Kind::Frac) {}
 
+public:
     ~FracType() override = default;
 
     [[nodiscard]] std::string to_string() const noexcept override {
@@ -62,8 +74,11 @@ struct FracType : HirType {
     }
 };
 struct TextType : HirType {
+    friend class Pool;
+private:
     explicit TextType() noexcept : HirType(Kind::Text) {}
 
+public:
     ~TextType() override = default;
 
     [[nodiscard]] std::string to_string() const noexcept override {
@@ -77,9 +92,13 @@ struct TextType : HirType {
     }
 };
 struct ArrayType : HirType {
+    friend class Pool;
+
     Type data_ty;
+private:
     explicit ArrayType(Type data_ty) noexcept : HirType(Kind::Array), data_ty(std::move(data_ty)) {}
 
+public:
     ~ArrayType() override = default;
 
     [[nodiscard]] std::string to_string() const noexcept override {
@@ -94,8 +113,11 @@ struct ArrayType : HirType {
     }
 };
 struct BoolType : HirType {
+    friend class Pool;
+private:
     explicit BoolType() noexcept : HirType(Kind::Bool) {}
 
+public:
     ~BoolType() override = default;
 
     [[nodiscard]] std::string to_string() const noexcept override {
@@ -109,10 +131,13 @@ struct BoolType : HirType {
     }
 };
 struct TypeVar : HirType {
-    std::string name;
+    friend class Pool;
 
+    std::string name;
+private:
     explicit TypeVar(std::string name) noexcept : HirType(Kind::TypeVar), name(std::move(name)) {}
 
+public:
     ~TypeVar() override = default;
 
     [[nodiscard]] std::string to_string() const noexcept override {
@@ -122,9 +147,13 @@ struct TypeVar : HirType {
     [[nodiscard]] bool equals(const Type& other) const noexcept override = 0;
 };
 struct MaybeType : HirType {
+    friend class Pool;
+
     Type data_ty;
+private:
     explicit MaybeType(Type data_ty) noexcept : HirType(Kind::Maybe), data_ty(std::move(data_ty)) {}
 
+public:
     ~MaybeType() override = default;
     [[nodiscard]] std::string to_string() const noexcept override {
         return "Type(" + data_ty->to_string() + "?)";
@@ -149,15 +178,15 @@ class Pool {
         for (auto& i : types)
             if (i->get_kind() == kind) return i;
 
-        types.push_back(std::make_shared<T>());
+        types.push_back(std::shared_ptr<HirType>(new T()));
         return types.back();
     }
 public:
     explicit Pool() noexcept {
-        types.push_back(std::make_shared<IntType>());
-        types.push_back(std::make_shared<FracType>());
-        types.push_back(std::make_shared<TextType>());
-        types.push_back(std::make_shared<BoolType>());
+        types.push_back(std::shared_ptr<HirType>(new IntType()));
+        types.push_back(std::shared_ptr<HirType>(new FracType()));
+        types.push_back(std::shared_ptr<HirType>(new TextType()));
+        types.push_back(std::shared_ptr<HirType>(new BoolType()));
     }
     [[nodiscard]] Type new_array_ty(const Type& data_ty) noexcept {
         for (const auto& i : types)
@@ -165,7 +194,7 @@ public:
                 if (reinterpret_cast<const ArrayType&>(*i).data_ty->equals(data_ty))
                     return i;
 
-        types.push_back(std::make_shared<ArrayType>(data_ty));
+        types.push_back(std::shared_ptr<HirType>(new ArrayType(data_ty)));
         return types.back();
     }
     [[nodiscard]] Type new_int_ty() noexcept {
@@ -186,7 +215,7 @@ public:
                 if (reinterpret_cast<const MaybeType&>(*i).data_ty->equals(data_ty))
                     return i;
 
-        types.push_back(std::make_shared<MaybeType>(data_ty));
+        types.push_back(std::shared_ptr<HirType>(new MaybeType(data_ty)));
         return types.back();
     }
 };

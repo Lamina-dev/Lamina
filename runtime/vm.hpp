@@ -13,7 +13,7 @@
 #include "lmx.h"
 #include "../utils/utils.hpp"
 #include "object/code_module.hpp"
-#include "object/string.hpp"
+#include "object/StringObj.hpp"
 #include "object/value.hpp"
 
 namespace lmx::runtime {
@@ -24,10 +24,10 @@ namespace lmx::runtime {
 
 struct Frame {
     Frame* last;
-    CodeModule* mod;
+    CodeModuleObj* mod;
     const uint8_t* ret_addr;
     Value local_vars[LMX_LOCAL_VAR_COUNT];
-    explicit Frame(Frame* last, CodeModule* mod, const uint8_t* ret_addr) noexcept;
+    explicit Frame(Frame* last, CodeModuleObj* mod, const uint8_t* ret_addr) noexcept;
     ~Frame() noexcept;
 };
 class LaminaVM {
@@ -55,7 +55,7 @@ class LaminaVM {
             const auto* o = v->obj;
             switch (o->get_kind()) {
             case ObjectKind::String: {
-                dcArgPointer(call_vm, (DCpointer)reinterpret_cast<const String*>(o)->c_str()); break;
+                dcArgPointer(call_vm, (DCpointer)reinterpret_cast<const StringObj*>(o)->c_str()); break;
                 break;
             }
             default: {
@@ -109,10 +109,10 @@ public:
     explicit LaminaVM(int argc, char** argv) noexcept;
     ~LaminaVM() noexcept;
 
-    int run(CodeModule* prog) noexcept;
+    int run(CodeModuleObj* prog) noexcept;
     Value& get_reg(uint8_t reg) const noexcept;
 
-    friend LMX_INLINE void new_frame(LaminaVM* vm, CodeModule* mod, const uint8_t *ret_addr) noexcept {
+    friend LMX_INLINE void new_frame(LaminaVM* vm, CodeModuleObj* mod, const uint8_t *ret_addr) noexcept {
         if (vm->free_frames.empty()) {
             vm->cur_frame = new Frame(vm->cur_frame, mod, ret_addr);
             //cur_frame = frame;
@@ -139,7 +139,7 @@ public:
     LMX_INLINE void native_call(const uint16_t idx, const uint8_t argc) noexcept {
         const auto mod = cur_frame->mod;
         if (!mod->native_lib_handle) {
-            VM_ERROR(VM_ERROR_CanNotCalling + ": module not loaded dynamic library, cannot calling");
+            VM_ERROR(RuntimeErrorType::CanNotCalling, "module not loaded dynamic library, cannot calling");
         }
         const auto* meta = &mod->native_funcs[idx];
         dcReset(call_vm);

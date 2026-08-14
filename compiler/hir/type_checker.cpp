@@ -273,7 +273,7 @@ std::shared_ptr<Type> TypeCkContext::resolve_type(const std::shared_ptr<Type>& t
     }
     if (type->kind == TypeKind::Array) {
         const auto array = std::static_pointer_cast<ArrayType>(type);
-        return type_pool.array(resolve_type(array->type), array->len);
+        return type_pool.array(resolve_type(array->type));
     }
     if (type->kind == TypeKind::Function) {
         const auto function = std::static_pointer_cast<FunctionType>(type);
@@ -458,6 +458,40 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
         const auto node = reinterpret_cast<NativeFuncCallExpr*>(type);
         const auto left_ty = std::reinterpret_pointer_cast<NativeFunctionType>(inference_type(node->expr.get()));
         return left_ty->ret_ty;
+        break;
+    }
+    case ASTKind::ArrayLiteral: {
+        const auto node = reinterpret_cast<ArrayLiteralNode*>(type);
+        if (node->exprs.empty()) return type_pool.array(type_pool.unknown());
+        const auto elem_ty = node->exprs[0]->type->kind == TypeKind::Unknown
+            ? inference_type(node->exprs[0].get())
+            : node->exprs[0]->type;
+        for (size_t i = 1; i < node->exprs.size(); i++) {
+            const auto& ety = node->exprs[i]->type->kind == TypeKind::Unknown
+                ? inference_type(node->exprs[i].get())
+                : node->exprs[i]->type;
+            if (!elem_ty->equals(ety.get())) return type_pool.unknown();
+        }
+        if (Type::is_null_type(elem_ty.get())) return type_pool.unknown();
+        return type_pool.array(elem_ty);
+    }
+    case ASTKind::TupleLiteral: {
+        const auto node = reinterpret_cast<TupleLiteralNode*>(type);
+        if (node->exprs.empty()) return type_pool.tuple({type_pool.unknown()});
+        const auto elem_ty = node->exprs[0]->type->kind == TypeKind::Unknown
+            ? inference_type(node->exprs[0].get())
+            : node->exprs[0]->type;
+        for (size_t i = 1; i < node->exprs.size(); i++) {
+            const auto& ety = node->exprs[i]->type->kind == TypeKind::Unknown
+                ? inference_type(node->exprs[i].get())
+                : node->exprs[i]->type;
+            if (!elem_ty->equals(ety.get())) return type_pool.unknown();
+        }
+        if (Type::is_null_type(elem_ty.get())) return type_pool.unknown();
+        return type_pool.array(elem_ty);
+        break;
+    }
+    case ASTKind::TupleGetExpr: {
         break;
     }
     default: std::unreachable();
@@ -1047,9 +1081,15 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     case ASTKind::SuffixBracket: {
         const auto node = reinterpret_cast<SuffixBracketNode*>(expr.get());
         check_expr(node->expr);
-        const auto left = inference_type(node->expr.get());
+        check_expr(node->suffix);
+        const auto left = node->expr->type;
         if (left->kind != TypeKind::Array) {
             throw_error(ErrorType::Analysis, "must be array type but got `" + Type::to_string(left.get()) + "`", node->line, node->col);
+            break;
+        }
+        if (node->suffix->type->kind != TypeKind::Basic ||
+            std::reinterpret_pointer_cast<BasicType>(node->suffix->type)->type != runtime::ValueKind::Int) {
+            throw_error(ErrorType::Analysis, "array index must be int", node->line, node->col);
             break;
         }
         node->type = std::reinterpret_pointer_cast<ArrayType>(left)->type;
@@ -1356,6 +1396,26 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         node->type = result_type ? result_type : type_pool.none();
         break;
     }
+    case ASTKind::ArrayLiteral: {
+        auto* node = reinterpret_cast<ArrayLiteralNode*>(expr.get());
+        std::shared_ptr<Type> element_type;
+        for (auto& element : node->exprs) {
+            check_expr(element);
+            const auto& candidate = element->type;
+            if (Type::is_null_type(candidate.get())) continue;
+            if (!element_type) {
+                element_type = candidate;
+            } else if (!element_type->equals(candidate.get())) {
+                throw_error(ErrorType::Analysis,
+                    "array literal elements must be the same type, (" +
+                    Type::to_string(element_type.get()) + " != " + Type::to_string(candidate.get()) + ")",
+                    node->line, node->col);
+                break;
+            }
+        }
+        node->type = type_pool.array(element_type ? element_type : type_pool.unknown());
+        break;
+    }
     case ASTKind::PipeExpr: {
         const auto node = reinterpret_cast<PipeExprNode*>(expr.get());
         check_expr(node->lhs);
@@ -1394,6 +1454,34 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         result->type = rhs_fty->ret_ty;
 
         expr = result;
+        break;
+    }
+    case ASTKind::TupleLiteral: {
+        const auto node = reinterpret_cast<TupleLiteralNode*>(expr.get());
+        decltype(TupleType::tys) tys;
+        for (auto& e : node->exprs) {
+            check_expr(e);
+            tys.push_back(e->type);
+        }
+        node->type = type_pool.tuple(std::move(tys));
+        break;
+    }
+    case ASTKind::TupleGetExpr: {
+        auto* node = reinterpret_cast<TupleGetExprNode*>(expr.get());
+        check_expr(node->tup);
+        if (node->tup->type->kind != TypeKind::Tuple) {
+            throw_error(ErrorType::Analysis, "left not tuple type", node->line, node->col);
+            break;
+        }
+        const auto* tup_ty = reinterpret_cast<TupleType*>(node->tup->type.get());
+        if (node->i >= tup_ty->tys.size()) {
+            throw_error(ErrorType::Analysis,
+                "tuple member count is " + std::to_string(tup_ty->tys.size()) + " but getting " + std::to_string(node->i),
+                node->line, node->col
+                );
+            break;
+        }
+        node->type = tup_ty->tys[node->i];
         break;
     }
     default: std::unreachable();
@@ -1566,20 +1654,23 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
         const auto node = reinterpret_cast<AssignStmtNode*>(stmt.get());
         check_expr(node->lhs);
         check_expr(node->rhs);
-        node->lhs->type = inference_type(node->lhs.get());
-        node->rhs->type = inference_type(node->rhs.get());
-        if (node->lhs->kind != ASTKind::Identifier) {
+        if (node->lhs->kind == ASTKind::SuffixBracket) {
+            // 数组元素赋值 a[i] = v，元素类型已由 check_expr 赋到 node->lhs->type
+        } else if (node->lhs->kind == ASTKind::TupleGetExpr) {
+            // 元组元素赋值 tup.i = v，元素类型已由 check_expr 赋到 node->lhs->type
+        } else if (node->lhs->kind == ASTKind::Identifier) {
+            const auto id = reinterpret_cast<IdentifierNode*>(node->lhs.get());
+            const auto var = find_var(id->id);
+            if (!var.has_value()) {
+                throw_error(ErrorType::Analysis, "undefined var `" + id->id + "`", node->line, node->col);
+                break;
+            }
+            if (!(*var)->is_mut) {
+                throw_error(ErrorType::Analysis, "cannot assign to immutable var `" + id->id + "`", node->line, node->col);
+                break;
+            }
+        } else {
             throw_error(ErrorType::Analysis, "left side of assignment must be an identifier", node->line, node->col);
-            break;
-        }
-        const auto id = reinterpret_cast<IdentifierNode*>(node->lhs.get());
-        const auto var = find_var(id->id);
-        if (!var.has_value()) {
-            throw_error(ErrorType::Analysis, "undefined var `" + id->id + "`", node->line, node->col);
-            break;
-        }
-        if (!(*var)->is_mut) {
-            throw_error(ErrorType::Analysis, "cannot assign to immutable var `" + id->id + "`", node->line, node->col);
             break;
         }
         if (!node->lhs->type->equals(node->rhs->type.get())) {

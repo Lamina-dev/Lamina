@@ -13,6 +13,8 @@ ConstantPoolInfo::ConstantPoolInfo(decltype(int_value) int_value) noexcept
 
 ConstantPoolInfo::ConstantPoolInfo(const decltype(str) str) noexcept
     : id(ConstantId::Str), str(str) {}
+ConstantPoolInfo::ConstantPoolInfo(const decltype(arr) arr) noexcept
+    : id(ConstantId::Arr), arr(arr) {}
 ConstantPoolInfo::ConstantPoolInfo(const decltype(adt_constructor) adt_constructor) noexcept
     : id(ConstantId::AdtConstructor), adt_constructor(adt_constructor) {}
 }

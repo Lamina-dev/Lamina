@@ -4,7 +4,7 @@
 #include "value.hpp"
 
 #include "adt.hpp"
-#include "string.hpp"
+#include "StringObj.hpp"
 #include "literal.hpp"
 
 using namespace lmx::runtime;
@@ -22,7 +22,7 @@ bool Value::operator==(const Value &other) const noexcept {
             return reinterpret_cast<const AdtObj*>(obj)->equals(*reinterpret_cast<const AdtObj*>(other.obj));
         }
         if (obj->get_kind() == ObjectKind::String) {
-            return reinterpret_cast<const String*>(obj)->equals(other.obj);
+            return reinterpret_cast<const StringObj*>(obj)->equals(other.obj);
         }
         if (obj->get_kind() == ObjectKind::Literal) {
             return reinterpret_cast<const LiteralObj*>(obj)->equals(
@@ -38,4 +38,23 @@ bool Value::operator==(const Value &other) const noexcept {
     return false;
 }
 
+namespace lmx::runtime {
 
+std::string Value::to_string() const noexcept {
+    switch (kind) {
+    case ValueKind::Bool: return bool_val ? "true" : "false";
+    case ValueKind::Int: return std::to_string(int_val);
+    case ValueKind::Real: return std::to_string(real_val);
+    case ValueKind::Obj: return Object::to_string(obj);
+    case ValueKind::Expr: return Object::to_string(obj);
+    case ValueKind::C_Ptr: return "RawPtr";
+    case ValueKind::Null: return "Null";
+    case ValueKind::Fraction: return frac_val.to_string();
+    case ValueKind::C_VaList: return "VaList";
+    }
+
+    // 不可能到达这里
+    return {};
+}
+
+}
