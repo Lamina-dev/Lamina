@@ -123,6 +123,9 @@ if(WIN32)
             $<TARGET_FILE:lmcas>
             $<TARGET_FILE_DIR:lamina>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:lmmc>
+            $<TARGET_FILE_DIR:lamina>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:LammpCore>
             $<TARGET_FILE_DIR:lamina>
     )
