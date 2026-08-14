@@ -138,15 +138,6 @@ if(WIN32)
 endif()
 
 
-function(disable_exceptions_rtti target)
-    target_compile_options(${target} PRIVATE
-        $<$<CXX_COMPILER_ID:MSVC>:/EHsc /GR>
-        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fno-exceptions -fno-rtti>
-    )
-endfunction()
-
-
-
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
 
 
@@ -222,6 +213,15 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             -U_FORTIFY_SOURCE
     )
     set(LMX_LINK_FLAGS -flto -s -Wl,--gc-sections -Wl,-O3 -Wl,--as-needed)
+elseif (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(STATUS "Use Apple Clang toolchain compiling")
+    set(LMX_PERF_FLAGS
+            -fvisibility=hidden
+            -funroll-loops -fomit-frame-pointer
+            -ffast-math -fno-math-errno
+            -fdata-sections -ffunction-sections
+    )
+    set(LMX_LINK_FLAGS -Wl,-dead_strip)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(STATUS "Use Clang toolchain compiling")
     set(LMX_PERF_FLAGS
@@ -245,7 +245,6 @@ if(LMX_BUILD_STATIC)
     list(APPEND LMX_ALL_TARGETS laminac_s lamina_runtime_s)
 endif()
 foreach(tgt IN ITEMS ${LMX_ALL_TARGETS})
-    disable_exceptions_rtti(${tgt})
     apply_pgo(${tgt})
     if(LMX_PERF_FLAGS)
         target_compile_options(${tgt} PRIVATE ${LMX_PERF_FLAGS})

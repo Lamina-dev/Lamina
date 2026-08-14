@@ -1,4 +1,4 @@
-name: Release
+name: Build
 
 on:
   push:
@@ -12,88 +12,98 @@ on:
 
 
 jobs:
-  build:
+  build-unix:
+    name: Build and test (${{ matrix.os }})
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest]
         include:
           - os: ubuntu-latest
             archive: linux-x64
-            ext: ''
             so_ext: .so
-            lib_ext: .a
-#          - os: macos-latest
-#            archive: macos-x64
-#            ext: ''
-#            so_ext: .dylib
-#            lib_ext: .a
-#          - os: windows-latest
-#            archive: windows-x64
-#            ext: .exe
-#            so_ext: .dll
-#            lib_ext: .lib
+            use_asm: 'ON'
+          - os: macos-latest
+            archive: macos
+            so_ext: .dylib
+            use_asm: 'OFF'
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install NASM (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y nasm
 
-#      - name: Install NASM (macOS)
-#        if: runner.os == 'macOS'
-#        run: brew install nasm
-
-#      - name: Install NASM (Windows)
-#        if: runner.os == 'Windows'
-#        shell: bash
-#        run: |
-#          curl -fsSL -o nasm.zip "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/win64/nasm-2.16.03-win64.zip"
-#          unzip -o nasm.zip
-#          echo "$GITHUB_WORKSPACE/nasm-2.16.03/" >> "$GITHUB_PATH"
-
-#      - name: Set up MSVC environment
-#        if: runner.os == 'Windows'
-#        uses: ilammy/msvc-dev-cmd@v1
-
       - name: Configure CMake
-        run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang
-          else
-            cmake -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON
-          fi
-        shell: bash
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DUSE_ASM=${{ matrix.use_asm }}
 
       - name: Build
         run: cmake --build build --config Release --parallel
 
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
       - name: Package
         shell: bash
         run: |
-          mkdir -p package/bin
-
-          # Executable
-          cp "$(find build -maxdepth 3 -name "lamina${{ matrix.ext }}" -type f | head -1)" package/bin/
-
-          # Shared library (put alongside executable so it can be found)
-          cp "$(find build -maxdepth 3 -name "*laminaCore*${{ matrix.so_ext }}" -type f | head -1)" package/bin/
-
-          # Static libraries
-          mkdir -p package/lib
+          mkdir -p package/bin package/lib
+          cp "$(find build -maxdepth 3 -name "lamina" -type f | head -1)" package/bin/
+          find build -type f \( -name '*${{ matrix.so_ext }}' -o -name '*${{ matrix.so_ext }}.*' \) -exec cp {} package/bin/ \;
           while IFS= read -r f; do
             cp "$f" package/lib/
-          done < <(find build -maxdepth 3 \( -name "laminac${{ matrix.lib_ext }}" -o -name "lamina_runtime${{ matrix.lib_ext }}" \) -type f)
-
-#          # On Windows, also grab import lib for laminaCore
-#          if [ "${{ runner.os }}" = "Windows" ]; then
-#            cp "$(find build -maxdepth 3 -name "laminaCore.lib" -type f | head -1)" package/lib/
-#          fi
+          done < <(find build -type f \( -name "liblaminac.a" -o -name "liblamina_runtime.a" \))
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: lamina-${{ matrix.archive }}
+          path: package/
+
+  build-windows:
+    name: Build and test (windows-latest, MinGW)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-nasm
+
+      - name: Configure CMake
+        shell: msys2 {0}
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DUSE_ASM=ON
+
+      - name: Build
+        shell: msys2 {0}
+        run: cmake --build build --parallel
+
+      - name: Test
+        shell: msys2 {0}
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package
+        shell: msys2 {0}
+        run: |
+          mkdir -p package/bin package/lib
+          cp build/lamina.exe package/bin/
+          find build -type f -name '*.dll' -exec cp {} package/bin/ \;
+          find build -type f \( -name 'liblaminac.a' -o -name 'liblamina_runtime.a' \) -exec cp {} package/lib/ \;
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lamina-windows-x64
           path: package/
