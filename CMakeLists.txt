@@ -70,7 +70,11 @@ add_subdirectory("${LMX_DYNCALL_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external/dynca
 
 
 
-if (UNIX)
+if(APPLE)
+    set_target_properties(lamina PROPERTIES
+            INSTALL_RPATH "@loader_path"
+    )
+elseif(UNIX)
     set_target_properties(lamina PROPERTIES
             SKIP_BUILD_RPATH TRUE
             INSTALL_RPATH "$ORIGIN"
