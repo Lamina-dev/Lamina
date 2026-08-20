@@ -7,6 +7,8 @@
 #include "StringObj.hpp"
 #include "literal.hpp"
 
+#include <functional>
+
 using namespace lmx::runtime;
 
 bool Value::operator==(const Value &other) const noexcept {
@@ -34,8 +36,42 @@ bool Value::operator==(const Value &other) const noexcept {
     case ValueKind::Fraction: return frac_val == other.frac_val;
     case ValueKind::Real: return real_val == other.real_val;
     case ValueKind::C_VaList: return false;
+    case ValueKind::C_ValueRef: return false;
     }
     return false;
+}
+
+std::size_t Value::hash() const noexcept {
+    switch (kind) {
+    case ValueKind::Null: return 0;
+    case ValueKind::C_Ptr: return std::hash<void*>{}(c_ptr);
+    case ValueKind::Int: return std::hash<LmInt>{}(int_val);
+    case ValueKind::Bool: return std::hash<bool>{}(bool_val);
+    case ValueKind::Fraction: {
+        auto result = std::hash<int32_t>{}(frac_val.num);
+        result ^= std::hash<int32_t>{}(frac_val.den) + 0x9e3779b9U +
+                  (result << 6U) + (result >> 2U);
+        return result;
+    }
+    case ValueKind::Real: return std::hash<double>{}(real_val);
+    case ValueKind::Obj:
+    case ValueKind::Expr:
+        if (!obj) return 0;
+        switch (obj->get_kind()) {
+        case ObjectKind::String:
+            return reinterpret_cast<const StringObj*>(obj)->hash();
+        case ObjectKind::Literal:
+            return reinterpret_cast<const LiteralObj*>(obj)->hash();
+        case ObjectKind::Adt:
+            return reinterpret_cast<const AdtObj*>(obj)->hash();
+        default:
+            return std::hash<const Object*>{}(obj);
+        }
+    case ValueKind::C_VaList:
+    case ValueKind::C_ValueRef:
+        return 0;
+    }
+    return 0;
 }
 
 namespace lmx::runtime {
@@ -51,6 +87,7 @@ std::string Value::to_string() const noexcept {
     case ValueKind::Null: return "Null";
     case ValueKind::Fraction: return frac_val.to_string();
     case ValueKind::C_VaList: return "VaList";
+    case ValueKind::C_ValueRef: return "ValueRef";
     }
 
     // 不可能到达这里

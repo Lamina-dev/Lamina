@@ -171,7 +171,7 @@ main.cpp          lamina CLI
 | LSR 007 | `===` 数学等价判定   | Draft   | 未实现（无 `Expr`，无 CAS 化简流程）                                                                                                                               |
 | LSR 008 | 量纲剥离             | Draft   | 未实现（量纲系统整体缺失，`as` 尚为 TODO）                                                                                                                         |
 | LSR 009 | 集合与多结果返回     | Draft   | 未实现                                                                                                                                                             |
-| LSR 010 | 虚数单位与复数       | Draft   | 未实现（无 `complex` 类型与 `i` 字面量）                                                                                                                           |
+| LSR 010 | 虚数单位与复数       | Draft   | **部分实现**：`Expr` 使用不可遮蔽的大写 `I`，支持紧邻写法 `4I`；小写 `i` 是普通标识符。运行时 `complex` 值类型尚未完成                                                |
 | LSR 011 | 代数数据类型         | Draft   | 未实现                                                                                                                                                             |
 | LSR 012 | 元组类型             | Draft   | 部分实现，解构尚未实现                                                                                                                                             |
 | LSR 013 | 集合类型             | Draft   | 未实现                                                                                                                                                             |

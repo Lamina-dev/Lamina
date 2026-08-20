@@ -1,0 +1,5 @@
+import std
+
+var i = 1
+i = 2
+std.printf("%lld\n", i)

@@ -1,9 +1,9 @@
 #include "mir_builder.hpp"
+#include "lmx_expr.h"
 #include <cassert>
 #include <functional>
 #include <memory>
 #include <ranges>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -79,9 +79,20 @@ class Builder {
         }
         const auto expr = runtime::ValueKind::Expr;
         const auto text = runtime::ValueKind::Obj;
+        const auto integer = runtime::ValueKind::Int;
+        const auto boolean = runtime::ValueKind::Bool;
+        const auto va_list = runtime::ValueKind::C_VaList;
+        const auto value_ref = runtime::ValueKind::C_ValueRef;
         emit(std::make_shared<MirNativeFuncDefine>("__cas_sym", "cas_sym", std::vector{text}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_parse", "cas_parse", std::vector{text}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_substitute", "cas_substitute", std::vector{expr, text, expr}, expr));
+        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_imaginary", "cas_expr_imaginary", std::vector<runtime::ValueKind>{}, expr));
+        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_integer", "cas_expr_integer", std::vector{integer}, expr));
+        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_rational", "cas_expr_rational", std::vector{integer, integer}, expr));
+        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_value", "cas_expr_value", std::vector{value_ref}, expr));
+        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_unary", "cas_expr_unary", std::vector{integer, expr}, expr));
+        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_binary", "cas_expr_binary", std::vector{integer, expr, expr}, expr));
+        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_function", "cas_expr_function", std::vector{text, integer, va_list}, expr));
+        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_set", "cas_expr_set", std::vector{integer, va_list}, expr));
+        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_interval", "cas_expr_interval", std::vector{expr, expr, boolean, boolean}, expr));
     }
 
     std::shared_ptr<MirCCallExpr> cas_call(std::string name, std::vector<std::shared_ptr<MirRefExpr>> args) noexcept {
@@ -173,78 +184,105 @@ class Builder {
 
     std::shared_ptr<MirExpr> eval(ExprNode *expr);
 
-    static std::string cas_source(const ExprNode *expr) {
-        switch (expr->kind) {
-        case ASTKind::Identifier: {
-            return reinterpret_cast<const IdentifierNode *>(expr)->id;
+    std::shared_ptr<MirRefExpr> integer_arg(const long long value) {
+        return ensure_temp(std::make_shared<MirLiteralExpr>(
+            MirLiteralKind::Integer, std::to_string(value)));
+    }
+
+    static LmExprBinaryOp expr_binary_op(const BinaryNode::Op op) {
+        switch (op) {
+        case BinaryNode::Op::Add: return LMX_EXPR_ADD;
+        case BinaryNode::Op::Sub: return LMX_EXPR_SUB;
+        case BinaryNode::Op::Mul: return LMX_EXPR_MUL;
+        case BinaryNode::Op::Div: return LMX_EXPR_DIV;
+        case BinaryNode::Op::Pow: return LMX_EXPR_POW;
+        case BinaryNode::Op::Eq: return LMX_EXPR_EQ;
+        case BinaryNode::Op::Ne: return LMX_EXPR_NE;
+        case BinaryNode::Op::Gt: return LMX_EXPR_GT;
+        case BinaryNode::Op::Ge: return LMX_EXPR_GE;
+        case BinaryNode::Op::Lt: return LMX_EXPR_LT;
+        case BinaryNode::Op::Le: return LMX_EXPR_LE;
+        case BinaryNode::Op::And: return LMX_EXPR_AND;
+        case BinaryNode::Op::Or: return LMX_EXPR_OR;
+        case BinaryNode::Op::In: return LMX_EXPR_IN;
+        case BinaryNode::Op::NotIn: return LMX_EXPR_NOT_IN;
+        case BinaryNode::Op::Mod:
+        case BinaryNode::Op::Bind: std::unreachable();
         }
-        case ASTKind::Literal: {
-            const auto *lit = reinterpret_cast<const LiteralNode *>(expr);
-            return lit->val;
-        }
-        case ASTKind::Unary: {
-            const auto *unary = reinterpret_cast<const UnaryNode *>(expr);
-            if (unary->op == UnaryNode::Op::Neg) {
-                return "(-" + cas_source(unary->expr.get()) + ")";
-            }
-            return "(not " + cas_source(unary->expr.get()) + ")";
-        }
-        case ASTKind::Binary: {
-            const auto *binary = reinterpret_cast<const BinaryNode *>(expr);
-            if (binary->op == BinaryNode::Op::Bind) {
-                return {};
-            }
-            return "(" + cas_source(binary->lhs.get()) + " " +
-                   BinaryNode::op_to_string(binary->op) + " " +
-                   cas_source(binary->rhs.get()) + ")";
-        }
-        case ASTKind::LiteralPayload: {
-            const auto *payload = reinterpret_cast<const LiteralPayloadNode *>(expr);
-            if (payload->payload_kind == LiteralPayloadNode::Kind::Interval) {
-                std::ostringstream out;
-                out << (payload->lower_closed ? "[" : "(")
-                    << cas_source(payload->elements[0].get()) << ", "
-                    << cas_source(payload->elements[1].get())
-                    << (payload->upper_closed ? "]" : ")");
-                return out.str();
-            }
-            std::ostringstream out;
-            out << "{";
-            for (std::size_t i = 0; i < payload->elements.size(); ++i) {
-                if (i != 0) out << ", ";
-                out << cas_source(payload->elements[i].get());
-            }
-            out << "}";
-            return out.str();
-        }
-        case ASTKind::SuffixParen: {
-            const auto *call = reinterpret_cast<const SuffixParenNode *>(expr);
-            std::ostringstream out;
-            out << cas_source(call->expr.get()) << "(";
-            if (call->suffix) {
-                for (std::size_t i = 0; i < call->suffix->exprs.size(); ++i) {
-                    if (i != 0) out << ", ";
-                    out << cas_source(call->suffix->exprs[i].get());
-                }
-            }
-            out << ")";
-            return out.str();
-        }
-        case ASTKind::AsExpr: {
-            return cas_source(reinterpret_cast<const AsExprNode *>(expr)->expr.get());
-        }
-        default:
-            return {};
-        }
+        std::unreachable();
     }
 
     std::shared_ptr<MirExpr> eval_as_expr(ExprNode *expr) {
-        auto source = cas_source(expr);
-        std::vector<std::shared_ptr<MirRefExpr>> args;
-        args.push_back(ensure_temp(
-            std::make_shared<MirLiteralExpr>(MirLiteralKind::String,
-                                             std::move(source))));
-        return cas_call("__cas_parse", std::move(args));
+        switch (expr->kind) {
+        case ASTKind::Identifier: {
+            const auto* id = reinterpret_cast<const IdentifierNode*>(expr);
+            if (id->id == "I")
+                return cas_call("__cas_expr_imaginary", {});
+            auto value = std::make_shared<MirRefExpr>(id->id, false);
+            if (is_expr_type(expr->type)) return value;
+            return cas_call("__cas_expr_value", {ensure_temp(std::move(value))});
+        }
+        case ASTKind::Literal: {
+            const auto* literal = reinterpret_cast<const LiteralNode*>(expr);
+            if (literal->kind == LiteralNode::Kind::Integer) {
+                return cas_call("__cas_expr_integer", {integer_arg(std::stoll(literal->val))});
+            }
+            if (literal->kind == LiteralNode::Kind::Float) {
+                const runtime::Fraction value(literal->val);
+                return cas_call("__cas_expr_rational",
+                                {integer_arg(value.num), integer_arg(value.den)});
+            }
+            std::unreachable();
+        }
+        case ASTKind::Unary: {
+            const auto* unary = reinterpret_cast<const UnaryNode*>(expr);
+            return cas_call("__cas_expr_unary", {
+                integer_arg(unary->op == UnaryNode::Op::Neg ? LMX_EXPR_NEG : LMX_EXPR_NOT),
+                ensure_temp(eval_as_expr(unary->expr.get()))});
+        }
+        case ASTKind::Binary: {
+            const auto* binary = reinterpret_cast<const BinaryNode*>(expr);
+            return cas_call("__cas_expr_binary", {
+                integer_arg(expr_binary_op(binary->op)),
+                ensure_temp(eval_as_expr(binary->lhs.get())),
+                ensure_temp(eval_as_expr(binary->rhs.get()))});
+        }
+        case ASTKind::SuffixParen: {
+            const auto* call = reinterpret_cast<const SuffixParenNode*>(expr);
+            if (!call->is_symbolic_call) return eval(expr);
+            std::vector<std::shared_ptr<MirRefExpr>> args;
+            args.push_back(ensure_temp(std::make_shared<MirLiteralExpr>(
+                MirLiteralKind::String, dotted_name(call->expr.get()))));
+            const auto count = call->suffix ? call->suffix->exprs.size() : 0;
+            args.push_back(integer_arg(static_cast<long long>(count)));
+            if (call->suffix) {
+                for (const auto& argument : call->suffix->exprs)
+                    args.push_back(ensure_temp(eval_as_expr(argument.get())));
+            }
+            return cas_call("__cas_expr_function", std::move(args));
+        }
+        case ASTKind::LiteralPayload: {
+            const auto* payload = reinterpret_cast<const LiteralPayloadNode*>(expr);
+            if (payload->payload_kind == LiteralPayloadNode::Kind::Interval) {
+                return cas_call("__cas_expr_interval", {
+                    ensure_temp(eval_as_expr(payload->elements[0].get())),
+                    ensure_temp(eval_as_expr(payload->elements[1].get())),
+                    ensure_temp(std::make_shared<MirLiteralExpr>(
+                        MirLiteralKind::Boolean, payload->lower_closed ? "true" : "false")),
+                    ensure_temp(std::make_shared<MirLiteralExpr>(
+                        MirLiteralKind::Boolean, payload->upper_closed ? "true" : "false"))});
+            }
+            std::vector<std::shared_ptr<MirRefExpr>> args;
+            args.push_back(integer_arg(static_cast<long long>(payload->elements.size())));
+            for (const auto& element : payload->elements)
+                args.push_back(ensure_temp(eval_as_expr(element.get())));
+            return cas_call("__cas_expr_set", std::move(args));
+        }
+        case ASTKind::AsExpr:
+            return eval_as_expr(reinterpret_cast<const AsExprNode*>(expr)->expr.get());
+        default:
+            std::unreachable();
+        }
     }
 
     std::shared_ptr<MirExpr> eval_adt_binding(BinaryNode *node) {
@@ -549,14 +587,16 @@ public:
 std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
     if (is_expr_type(expr->type)) {
         if (expr->kind == ASTKind::Literal ||
-            expr->kind == ASTKind::SuffixParen ||
             expr->kind == ASTKind::LiteralPayload ||
             expr->kind == ASTKind::AsExpr) {
             return eval_as_expr(expr);
         }
+        if (expr->kind == ASTKind::SuffixParen &&
+            reinterpret_cast<SuffixParenNode*>(expr)->is_symbolic_call)
+            return eval_as_expr(expr);
         if (expr->kind == ASTKind::Identifier) {
             const auto *id = reinterpret_cast<const IdentifierNode *>(expr);
-            if (id->id == "i" || id->id == "I") {
+            if (id->id == "I") {
                 return eval_as_expr(expr);
             }
         }
@@ -689,15 +729,21 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
                                                    call->adt_constructor,
                                                    std::move(arg_refs));
         }
+        std::shared_ptr<MirExpr> call_result;
         if (call->can_fast) {
             std::string func_name = reinterpret_cast<IdentifierNode *>(call->expr.get())->id;
-            auto call_expr = std::make_shared<MirCallFastExpr>(std::move(func_name), std::move(arg_refs));
-            return std::move(call_expr);
+            call_result = std::make_shared<MirCallFastExpr>(std::move(func_name), std::move(arg_refs));
+        } else {
+            const auto reg_func = temp_assign(std::move(eval(call->expr.get())));
+            call_result = std::make_shared<MirCallExpr>(reg_func, std::move(arg_refs));
         }
-
-        const auto reg_func = temp_assign(std::move(eval(call->expr.get())));
-        auto call_expr = std::make_shared<MirCallExpr>(reg_func, std::move(arg_refs));
-        return std::move(call_expr);
+        if (is_expr_type(expr->type) && call->expr->type->kind == TypeKind::Function) {
+            const auto function = std::static_pointer_cast<FunctionType>(call->expr->type);
+            if (!is_expr_type(function->ret_ty)) {
+                return cas_call("__cas_expr_value", {ensure_temp(std::move(call_result))});
+            }
+        }
+        return call_result;
     }
     case ASTKind::SuffixBracket: {
         auto *idx = reinterpret_cast<SuffixBracketNode *>(expr);

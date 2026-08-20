@@ -32,13 +32,6 @@ bool is_numeric_or_expr_type(const std::shared_ptr<Type>& type) noexcept {
            kind == runtime::ValueKind::Expr;
 }
 
-bool is_bool_or_expr_type(const std::shared_ptr<Type>& type) noexcept {
-    if (!type || type->kind != TypeKind::Basic) return false;
-    const auto kind = std::reinterpret_pointer_cast<BasicType>(type)->type;
-    return kind == runtime::ValueKind::Bool ||
-           kind == runtime::ValueKind::Expr;
-}
-
 bool is_expr_type(const std::shared_ptr<Type>& type) noexcept {
     return is_basic_type(type, runtime::ValueKind::Expr);
 }
@@ -61,6 +54,15 @@ std::shared_ptr<Type> unify_types(const std::shared_ptr<Type>& lhs,
                                   const std::shared_ptr<Type>& rhs) noexcept;
 
 std::shared_ptr<Type> literal_payload_type(const LiteralPayloadNode& node) noexcept {
+    const bool has_expr = std::ranges::any_of(node.elements, [](const auto& element) {
+        return is_expr_type(element->type);
+    });
+    if (has_expr) {
+        const bool promotable = std::ranges::all_of(node.elements, [](const auto& element) {
+            return is_expr_constructible(element->type);
+        });
+        return promotable ? type_pool.basic(runtime::ValueKind::Expr) : type_pool.unknown();
+    }
     if (node.payload_kind == LiteralPayloadNode::Kind::Interval) {
         if (node.elements.size() != 2) return type_pool.unknown();
         auto element = unify_types(node.elements[0]->type, node.elements[1]->type);
@@ -364,7 +366,7 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
     }
     case ASTKind::Identifier: {
         const auto node = reinterpret_cast<IdentifierNode*>(type);
-        if (node->id == "i" || node->id == "I") {
+        if (node->id == "I") {
             return type_pool.basic(runtime::ValueKind::Expr);
         }
         if (node->type && node->type->kind != TypeKind::Unknown) return node->type;
@@ -542,9 +544,6 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
         throw_error(ErrorType::Analysis, "module not `static` declare dynamic library, cannot declare native function", 0 , 0);
 
     }
-    for (const auto& n : mod->native_funcs) {
-        new_global_var(n->func_id, n->make_type());
-    }
     static const auto builtin_adts = [] {
         std::vector<std::unique_ptr<TypeDeclNode>> declarations;
         declarations.push_back(std::make_unique<TypeDeclNode>(0, 0, "Option",
@@ -574,6 +573,11 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
             new_global_var(constructor.name, type_pool.adt_constructor(
                 declaration->qualified_name, constructor.name, declaration->type_params, constructor.fields));
         }
+    }
+    for (const auto& n : mod->native_funcs) {
+        for (auto& [name, type] : n->params->stmts) type = resolve_type(type);
+        n->return_type = resolve_type(n->return_type);
+        new_global_var(n->func_id, n->make_type());
     }
     for (const auto& node : mod->decls) {
         if (node->kind != ASTKind::TypeDecl) continue;
@@ -686,7 +690,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     }
     case ASTKind::Identifier: {
         auto* node = reinterpret_cast<IdentifierNode*>(expr.get());
-        if (node->id == "i" || node->id == "I") {
+        if (node->id == "I") {
             node->type = type_pool.basic(runtime::ValueKind::Expr);
             break;
         }
@@ -748,6 +752,16 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         const auto rty = node->rhs->type;
         if (Type::is_null_type(lty.get()) || Type::is_null_type(rty.get())) break;
         if (node->op == BinaryNode::Op::Bind) {
+            if (is_expr_type(lty) || is_expr_type(rty)) {
+                if (!is_expr_constructible(lty) || !is_expr_constructible(rty))
+                    goto binary_type_mismatch;
+                node->lhs->type = type_pool.basic(runtime::ValueKind::Expr);
+                node->rhs->type = type_pool.basic(runtime::ValueKind::Expr);
+                node->type = type_pool.named("Binding", {
+                    type_pool.basic(runtime::ValueKind::Expr),
+                    type_pool.basic(runtime::ValueKind::Expr)});
+                break;
+            }
             node->type = type_pool.named("Binding", {lty, rty});
             break;
         }
@@ -805,7 +819,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 goto binary_type_mismatch;
             case BinaryNode::Op::And:
             case BinaryNode::Op::Or:
-                if (is_bool_or_expr_type(lty) && is_bool_or_expr_type(rty)) {
+                if (is_expr_type(lty) && is_expr_type(rty)) {
                     node->type = type_pool.basic(runtime::ValueKind::Expr);
                     break;
                 }
@@ -949,7 +963,8 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                     check_expr(arg);
                     has_expr_arg = has_expr_arg || is_expr_type(arg->type);
                 }
-                if (has_expr_arg) {
+                if (has_expr_arg || node->allow_symbolic_call) {
+                    node->is_symbolic_call = true;
                     node->expr->type = type_pool.basic(runtime::ValueKind::Expr);
                     node->type = type_pool.basic(runtime::ValueKind::Expr);
                     break;
@@ -1002,6 +1017,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 break;
             }
             const auto len = func_ty->params_ty.size();
+            bool symbolic_fallback = false;
             for (auto i = 0; i < len; i++) {
                 const auto param = func_ty->params_ty[i];
                 check_expr(node->suffix->exprs[i]);
@@ -1013,7 +1029,9 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 if (!type_assignable(param, node->suffix->exprs[i]->type)) {
                     if (node->expr->kind == ASTKind::Identifier &&
                         is_expr_type(node->suffix->exprs[i]->type)) {
+                        node->is_symbolic_call = true;
                         node->type = type_pool.basic(runtime::ValueKind::Expr);
+                        symbolic_fallback = true;
                         break;
                     }
                     throw_error(ErrorType::Analysis,
@@ -1024,6 +1042,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                     break;
                 }
             }
+            if (symbolic_fallback) break;
             node->type = std::reinterpret_pointer_cast<FunctionType>(left)->ret_ty;
         } else if (left->kind == TypeKind::NativeFunction) {
             new (expr.get()) NativeFuncCallExpr(node);
@@ -1099,7 +1118,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     case ASTKind::IfExpr: {
         const auto node = reinterpret_cast<IfExprNode*>(expr.get());
         check_expr(node->cond);
-        if (node->cond->type->kind != TypeKind::Basic &&
+        if (node->cond->type->kind != TypeKind::Basic ||
             std::reinterpret_pointer_cast<BasicType>(node->cond->type)->type != runtime::ValueKind::Bool) {
             throw_error(ErrorType::Analysis, "must be bool type but got `" + Type::to_string(node->cond->type.get()), node->line, node->col);
             break;
@@ -1118,6 +1137,8 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     }
     case ASTKind::AsExpr: {
         const auto node = reinterpret_cast<AsExprNode*>(expr.get());
+        if (is_expr_type(node->cast_type) && node->expr->kind == ASTKind::SuffixParen)
+            reinterpret_cast<SuffixParenNode*>(node->expr.get())->allow_symbolic_call = true;
         check_expr(node->expr);
         if (is_expr_type(node->cast_type) && is_expr_constructible(node->expr->type)) {
             node->expr->type = type_pool.basic(runtime::ValueKind::Expr);
@@ -1524,7 +1545,7 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
     case ASTKind::SymDecl: {
         const auto* node = reinterpret_cast<SymDeclNode*>(stmt.get());
         for (const auto& id : node->ids) {
-            if (id == "i" || id == "I") {
+            if (id == "I") {
                 throw_error(ErrorType::Analysis, "ImaginaryUnitReserved", node->line, node->col);
                 break;
             }
@@ -1603,6 +1624,9 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
     }
     case ASTKind::TailReturn: {
         const auto node = reinterpret_cast<TailReturnNode*>(stmt.get());
+        if (is_expr_type(scope_stack.back().return_type) &&
+            node->expr && node->expr->kind == ASTKind::SuffixParen)
+            reinterpret_cast<SuffixParenNode*>(node->expr.get())->allow_symbolic_call = true;
         check_expr(node->expr);
         if (Type::is_null_type(scope_stack.back().return_type.get()))
             scope_stack.back().return_type = node->expr->type;
@@ -1620,11 +1644,14 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
     }
     case ASTKind::VarDecl: {
         const auto node = reinterpret_cast<VarDeclNode*>(stmt.get());
-        if (node->id == "i" || node->id == "I") {
+        if (node->id == "I") {
             throw_error(ErrorType::Analysis, "ImaginaryUnitReserved", node->line, node->col);
             break;
         }
         if (!Type::is_null_type(node->type.get())) node->type = resolve_type(node->type);
+        if (is_expr_type(node->type) && node->init_value &&
+            node->init_value->kind == ASTKind::SuffixParen)
+            reinterpret_cast<SuffixParenNode*>(node->init_value.get())->allow_symbolic_call = true;
         check_expr(node->init_value);
         if (Type::is_null_type(node->type.get())) {
             if (!node->init_value) {

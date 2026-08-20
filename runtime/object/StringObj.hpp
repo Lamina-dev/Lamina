@@ -35,6 +35,7 @@ public:
 
     [[nodiscard]] std::string to_string() const noexcept;
     [[nodiscard]] bool equals(const Object* other) const noexcept;
+    [[nodiscard]] std::size_t hash() const noexcept;
     [[nodiscard]] std::string type_info() const noexcept;
 
     [[nodiscard]] const char* c_str() const noexcept;

@@ -6,15 +6,15 @@ func cas_sym(name text) -> expr = "cas_sym"
 func cas_simplify(value expr) -> expr = "cas_simplify"
 func cas_expand(value expr) -> expr = "cas_expand"
 func cas_diff(value expr, variable text) -> expr = "cas_diff"
-func cas_substitute(value expr, variable text, replacement expr) -> expr = "cas_substitute"
-func cas_evalf(value expr) -> real = "cas_evalf"
+func cas_substitute(value expr, binding Binding<expr, expr>) -> expr = "cas_substitute"
+func cas_evalf(value expr) -> Result<real, text> = "cas_evalf"
 func cas_is_ok(value expr) -> bool = "cas_is_ok"
 func cas_to_text(value expr) -> text = "cas_to_text"
 func cas_error(value expr) -> text = "cas_error"
 
-func num_hypot(x expr, y expr) -> real = "lmmc_num_hypot"
-func num_log2(x expr) -> real = "lmmc_num_log2"
-func num_exp2(x expr) -> real = "lmmc_num_exp2"
+func num_hypot(x expr, y expr) -> Result<real, text> = "lmmc_num_hypot"
+func num_log2(x expr) -> Result<real, text> = "lmmc_num_log2"
+func num_exp2(x expr) -> Result<real, text> = "lmmc_num_exp2"
 
 func int_to_frac(n int) -> frac {
     n / 1

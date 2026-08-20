@@ -1,0 +1,25 @@
+import std
+
+let eight expr = 8
+let negative expr = -1
+let invalid = std.cas_diff(eight, "")
+
+match std.num_log2(eight) {
+    Result.Ok(value) => std.printf("%.1f|", value),
+    Result.Err(error) => std.printf("%s|", error)
+}
+
+match std.num_log2(negative) {
+    Result.Ok(_) => std.printf("ok|"),
+    Result.Err(_) => std.printf("err|")
+}
+
+match std.num_log2(invalid) {
+    Result.Ok(_) => std.printf("unexpected|"),
+    Result.Err(_) => std.printf("err|")
+}
+
+match std.cas_evalf(invalid) {
+    Result.Ok(_) => std.printf("unexpected"),
+    Result.Err(_) => std.printf("err")
+}

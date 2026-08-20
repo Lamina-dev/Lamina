@@ -500,7 +500,9 @@ std::shared_ptr<NativeFunctionType> NativeFuncDeclNode::make_type() noexcept {
 
 NativeFuncCallExpr::NativeFuncCallExpr(const SuffixParenNode *sp) noexcept
     : ExprNode(ASTKind::NativeFuncCall, sp->line, sp->col), expr(sp->expr), suffix(sp->suffix),
-      can_fast(sp->can_fast), is_adt_constructor(sp->is_adt_constructor),
+      can_fast(sp->can_fast), allow_symbolic_call(sp->allow_symbolic_call),
+      is_symbolic_call(sp->is_symbolic_call),
+      is_adt_constructor(sp->is_adt_constructor),
       adt_type_name(sp->adt_type_name), adt_constructor(sp->adt_constructor) {}
 
 LoopStmtNode::LoopStmtNode(const size_t line, const size_t col, decltype(expr) expr, std::vector<std::shared_ptr<StmtNode> > body) noexcept

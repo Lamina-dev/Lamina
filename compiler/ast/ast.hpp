@@ -332,6 +332,8 @@ struct SuffixParenNode : ExprNode {
     std::shared_ptr<ExprNode> expr;
     std::shared_ptr<ExprsNode> suffix;
     bool can_fast{false};
+    bool allow_symbolic_call{false};
+    bool is_symbolic_call{false};
     bool is_adt_constructor{false};
     std::string adt_type_name;
     std::string adt_constructor;
@@ -343,6 +345,8 @@ struct NativeFuncCallExpr : ExprNode {
     std::shared_ptr<ExprNode> expr;
     std::shared_ptr<ExprsNode> suffix;
     bool can_fast{false};
+    bool allow_symbolic_call{false};
+    bool is_symbolic_call{false};
     bool is_adt_constructor{false};
     std::string adt_type_name;
     std::string adt_constructor;

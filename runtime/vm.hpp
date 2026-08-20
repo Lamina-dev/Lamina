@@ -89,6 +89,10 @@ class LaminaVM {
         case ValueKind::C_VaList: {
             return;
         }
+        case ValueKind::C_ValueRef: {
+            dcArgPointer(call_vm, const_cast<Value*>(v));
+            break;
+        }
         }
     }
     LMX_INLINE static void native_arg(DCCallVM* call_vm, const Value* v) noexcept {
@@ -177,6 +181,7 @@ public:
                 break;
             case ValueKind::Fraction: dcCallVoid(call_vm, (DCpointer)meta->addr); break;
             case ValueKind::C_VaList:
+            case ValueKind::C_ValueRef:
                 break;
             }
         }

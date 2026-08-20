@@ -3,6 +3,8 @@
 //
 
 #include "StringObj.hpp"
+
+#include <functional>
 #include <utility>
 
 using namespace lmx::runtime;
@@ -45,6 +47,10 @@ bool StringObj::operator==(const Object &other) const noexcept {
 bool StringObj::equals(const Object *other) const noexcept {
     if (this->get_kind() != other->get_kind()) return false;
     return this->data == reinterpret_cast<const StringObj*>(other)->data;
+}
+
+std::size_t StringObj::hash() const noexcept {
+    return std::hash<std::string>{}(data);
 }
 
 StringObj &StringObj::operator+=(const StringObj &other) noexcept {

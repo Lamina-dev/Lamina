@@ -24,6 +24,7 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
             case runtime::ValueKind::Real: ss << "Real"; break;
             case runtime::ValueKind::Expr: ss << "Expr"; break;
             case runtime::ValueKind::C_VaList: ss << "..."; break;
+            case runtime::ValueKind::C_ValueRef: ss << "ValueRef"; break;
         }
         break;
     }

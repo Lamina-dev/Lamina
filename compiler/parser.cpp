@@ -288,15 +288,31 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
     switch (cur().type) {
     case TokenType::NUM_LITERAL: {
         auto num = cur().text;
+        const auto number_end_col = cur().col + cur().text.size();
         advance();
         if (match(TokenType::DOT) && peek_match(TokenType::NUM_LITERAL)) {
             advance();
             num += '.' + cur().text;
+            const auto decimal_end_col = cur().col + cur().text.size();
             advance();
             primary = std::make_shared<LiteralNode>(line, col, num, LiteralNode::Kind::Float);
+            if (match(TokenType::IDENTIFIER) && cur().text == "I" &&
+                cur().line == line && cur().col == decimal_end_col) {
+                const auto imaginary = std::make_shared<IdentifierNode>(cur().line, cur().col, "I");
+                advance();
+                primary = std::make_shared<BinaryNode>(line, col, primary,
+                                                       BinaryNode::Op::Mul, imaginary);
+            }
             break;
         }
         primary = std::make_shared<LiteralNode>(line, col, num, LiteralNode::Kind::Integer);
+        if (match(TokenType::IDENTIFIER) && cur().text == "I" &&
+            cur().line == line && cur().col == number_end_col) {
+            const auto imaginary = std::make_shared<IdentifierNode>(cur().line, cur().col, "I");
+            advance();
+            primary = std::make_shared<BinaryNode>(line, col, primary,
+                                                   BinaryNode::Op::Mul, imaginary);
+        }
         break;
     }
     case TokenType::NULL_LITERAL: {

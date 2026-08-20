@@ -8,11 +8,13 @@
 #include "object.hpp"
 
 #include <new>
+#include <cstddef>
 #include <utility>
 
 namespace lmx::runtime {
 enum class ValueKind : uint8_t {
-    Null, C_Ptr, Obj, Int, Bool, Fraction, Real, Expr, C_VaList
+    Null, C_Ptr, Obj, Int, Bool, Fraction, Real, Expr, C_VaList,
+    C_ValueRef
 };
 
 struct Value;
@@ -65,6 +67,7 @@ struct Value {
     LMX_INLINE Value& operator%=(const Value& other) noexcept;
 
     bool operator==(const Value& other) const noexcept;
+    [[nodiscard]] std::size_t hash() const noexcept;
     LMX_INLINE bool operator!=(const Value& other) const noexcept;
     LMX_INLINE bool operator< (const Value& other) const noexcept;
     LMX_INLINE bool operator<=(const Value& other) const noexcept;
@@ -274,6 +277,7 @@ LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
         case ValueKind::Fraction: new (&frac_val) Fraction(other.frac_val); break;
         case ValueKind::Real: real_val = other.real_val; break;
         case ValueKind::C_VaList: c_ptr = nullptr; break;
+        case ValueKind::C_ValueRef: c_ptr = nullptr; break;
         case ValueKind::Obj:
         case ValueKind::Expr:
             obj = nullptr;
@@ -297,8 +301,10 @@ LMX_INLINE Value &Value::operator=(Value &&other) noexcept {
     case ValueKind::Fraction: new (&frac_val) Fraction(other.frac_val); break;
     case ValueKind::Real: real_val = other.real_val; break;
     case ValueKind::C_VaList: c_ptr = nullptr; break;
+    case ValueKind::C_ValueRef: c_ptr = nullptr; break;
     }
-    if (kind == ValueKind::Obj || kind == ValueKind::Expr || kind == ValueKind::C_Ptr) {
+    if (kind == ValueKind::Obj || kind == ValueKind::Expr || kind == ValueKind::C_Ptr ||
+        kind == ValueKind::C_ValueRef) {
         other.kind = ValueKind::Null;
         other.c_ptr = nullptr;
     }

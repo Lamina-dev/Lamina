@@ -1,0 +1,2 @@
+sym x
+let invalid = x and true

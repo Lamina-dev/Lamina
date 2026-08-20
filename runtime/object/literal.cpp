@@ -12,27 +12,6 @@ void combine_hash(std::size_t& seed, const std::size_t value) noexcept {
     seed ^= value + 0x9e3779b9U + (seed << 6U) + (seed >> 2U);
 }
 
-std::size_t value_hash(const Value& value) noexcept {
-    switch (value.kind) {
-    case ValueKind::Null: return 0;
-    case ValueKind::C_Ptr: return std::hash<void*>{}(value.c_ptr);
-    case ValueKind::Int: return std::hash<LmInt>{}(value.int_val);
-    case ValueKind::Bool: return std::hash<bool>{}(value.bool_val);
-    case ValueKind::Fraction: return std::hash<std::string>{}(value.frac_val.to_string());
-    case ValueKind::Real: return std::hash<double>{}(value.real_val);
-    case ValueKind::Obj:
-    case ValueKind::Expr:
-        if (!value.obj) return 0;
-        if (value.obj->get_kind() == ObjectKind::Literal)
-            return reinterpret_cast<const LiteralObj*>(value.obj)->hash();
-        if (value.obj->get_kind() == ObjectKind::Adt)
-            return reinterpret_cast<const AdtObj*>(value.obj)->hash();
-        return std::hash<std::string>{}(Object::to_string(value.obj));
-    case ValueKind::C_VaList: return 0;
-    }
-    return 0;
-}
-
 bool numeric_value(const Value& value, long double& result) noexcept {
     switch (value.kind) {
     case ValueKind::Int:
@@ -90,10 +69,10 @@ std::size_t LiteralObj::hash() const noexcept {
     std::size_t result = std::hash<unsigned>{}(static_cast<unsigned>(kind_));
     if (kind_ == Kind::Set) {
         std::size_t unordered = 0;
-        for (const auto& value : elements_) unordered ^= value_hash(value);
+        for (const auto& value : elements_) unordered ^= value.hash();
         combine_hash(result, unordered);
     } else {
-        for (const auto& value : elements_) combine_hash(result, value_hash(value));
+        for (const auto& value : elements_) combine_hash(result, value.hash());
     }
     combine_hash(result, lower_closed_);
     combine_hash(result, upper_closed_);
