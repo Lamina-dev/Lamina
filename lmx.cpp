@@ -28,10 +28,22 @@
 #include "compiler/mir/mir_printer.hpp"
 #include "lmmc/numeric.h"
 #include "lmmc/complex.h"
+#include "lmmc/init.h"
 
 LmState global_state;
 
 namespace {
+
+class LmmcRuntimeLifetime {
+public:
+    LmmcRuntimeLifetime() noexcept { lmmc_init(); }
+    ~LmmcRuntimeLifetime() noexcept { lmmc_deinit(); }
+
+    LmmcRuntimeLifetime(const LmmcRuntimeLifetime&) = delete;
+    LmmcRuntimeLifetime& operator=(const LmmcRuntimeLifetime&) = delete;
+};
+
+const LmmcRuntimeLifetime lmmc_runtime_lifetime;
 
 using lmx::runtime::ExprObj;
 using lmx::runtime::StringObj;
