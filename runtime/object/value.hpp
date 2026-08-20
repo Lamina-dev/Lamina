@@ -14,13 +14,17 @@
 namespace lmx::runtime {
 enum class ValueKind : uint8_t {
     Null, C_Ptr, Obj, Int, Bool, Fraction, Real, Expr, C_VaList,
-    C_ValueRef, Tuple, Set, Interval, Complex
+    C_ValueRef, Tuple, Set, Interval, Complex, Vector, Matrix, Table, Random,
+    Quantity
 };
 
 LMX_INLINE constexpr bool is_object_value_kind(const ValueKind kind) noexcept {
     return kind == ValueKind::Obj || kind == ValueKind::Expr ||
            kind == ValueKind::Tuple || kind == ValueKind::Set ||
-           kind == ValueKind::Interval || kind == ValueKind::Complex;
+           kind == ValueKind::Interval || kind == ValueKind::Complex ||
+           kind == ValueKind::Vector || kind == ValueKind::Matrix ||
+           kind == ValueKind::Table || kind == ValueKind::Random ||
+           kind == ValueKind::Quantity;
 }
 
 struct Value;
@@ -294,6 +298,11 @@ LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
         case ValueKind::Set:
         case ValueKind::Interval:
         case ValueKind::Complex:
+        case ValueKind::Vector:
+        case ValueKind::Matrix:
+        case ValueKind::Table:
+        case ValueKind::Random:
+        case ValueKind::Quantity:
             obj = nullptr;
             break;
         }
@@ -314,6 +323,11 @@ LMX_INLINE Value &Value::operator=(Value &&other) noexcept {
     case ValueKind::Set:
     case ValueKind::Interval:
     case ValueKind::Complex:
+    case ValueKind::Vector:
+    case ValueKind::Matrix:
+    case ValueKind::Table:
+    case ValueKind::Random:
+    case ValueKind::Quantity:
         obj = other.obj;
         break;
     case ValueKind::Int: int_val = other.int_val; break;
@@ -338,7 +352,12 @@ LMX_INLINE Value::~Value() noexcept {
     case ValueKind::Tuple:
     case ValueKind::Set:
     case ValueKind::Interval:
-    case ValueKind::Complex: {
+    case ValueKind::Complex:
+    case ValueKind::Vector:
+    case ValueKind::Matrix:
+    case ValueKind::Table:
+    case ValueKind::Random:
+    case ValueKind::Quantity: {
         if (this->obj) this->obj->release();
         break;
     }

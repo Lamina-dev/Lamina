@@ -11,6 +11,11 @@
 #include "literal.hpp"
 #include "tuple.hpp"
 #include "complex.hpp"
+#include "vector.hpp"
+#include "matrix.hpp"
+#include "table.hpp"
+#include "random.hpp"
+#include "quantity.hpp"
 
 using namespace lmx::runtime;
 
@@ -29,13 +34,13 @@ std::string Object::to_string(Object *obj) noexcept {
         return reinterpret_cast<StringObj*>(obj)->to_string();
     }
     case ObjectKind::Table : {
-        return "";
+        return reinterpret_cast<TableObj*>(obj)->to_string();
     }
     case ObjectKind::Vector: {
-        return "";
+        return reinterpret_cast<VectorObj*>(obj)->to_string();
     }
     case ObjectKind::Matrix: {
-        return "";
+        return reinterpret_cast<MatrixObj*>(obj)->to_string();
     }
     case ObjectKind::Array : {
         return "";
@@ -54,6 +59,12 @@ std::string Object::to_string(Object *obj) noexcept {
     }
     case ObjectKind::Complex: {
         return reinterpret_cast<ComplexObj*>(obj)->to_string();
+    }
+    case ObjectKind::Random: {
+        return reinterpret_cast<RandomObj*>(obj)->to_string();
+    }
+    case ObjectKind::Quantity: {
+        return reinterpret_cast<QuantityObj*>(obj)->to_string();
     }
     default: {
         return "";
@@ -89,12 +100,15 @@ void Object::release() noexcept {
             return;
         }
         case ObjectKind::Table : {
+            delete reinterpret_cast<TableObj*>(this);
             return;
         }
         case ObjectKind::Vector: {
+            delete reinterpret_cast<VectorObj*>(this);
             return;
         }
         case ObjectKind::Matrix: {
+            delete reinterpret_cast<MatrixObj*>(this);
             return;
         }
         case ObjectKind::Array : {
@@ -119,6 +133,14 @@ void Object::release() noexcept {
         }
         case ObjectKind::Complex: {
             delete reinterpret_cast<ComplexObj*>(this);
+            return;
+        }
+        case ObjectKind::Random: {
+            delete reinterpret_cast<RandomObj*>(this);
+            return;
+        }
+        case ObjectKind::Quantity: {
+            delete reinterpret_cast<QuantityObj*>(this);
             return;
         }
         default: {

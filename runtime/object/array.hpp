@@ -60,6 +60,10 @@ public:
     [[nodiscard]] LMX_INLINE LmInt len() const noexcept {
         return static_cast<LmInt>(arr.size());
     }
+
+    [[nodiscard]] LMX_INLINE const std::vector<Value>& values() const noexcept {
+        return arr;
+    }
 };
 
 }

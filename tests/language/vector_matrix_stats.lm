@@ -1,0 +1,55 @@
+import std
+
+match std.vector([1, 2, 3]) {
+    Result.Ok(v) => {
+        match std.mean(v) {
+            Result.Ok(mean) => std.printf("%lld|%.1f|", std.vector_size(v), mean),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.variance(v) {
+            Result.Ok(value) => std.printf("%.1f|", value),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.vector_norm(v) {
+            Result.Ok(value) => std.printf("%.1f|", value),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.matrix([[1, 2, 3], [4, 5, 6],]) {
+            Result.Ok(m) => {
+                std.printf("%lldx%lld|", std.matrix_rows(m), std.matrix_cols(m))
+                match std.matrix_transpose(m) {
+                    Result.Ok(t) => std.printf("%lldx%lld|", std.matrix_rows(t), std.matrix_cols(t)),
+                    Result.Err(error) => std.printf("%s", error)
+                }
+                match std.matrix_vector_mul(m, v) {
+                    Result.Ok(product) => match std.vector_norm(product) {
+                        Result.Ok(value) => std.printf("%.1f|", value),
+                        Result.Err(error) => std.printf("%s", error)
+                    },
+                    Result.Err(error) => std.printf("%s", error)
+                }
+            },
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.histogram(v, 2) {
+            Result.Ok(first) => match std.histogram(v, 2) {
+                Result.Ok(second) => match std.table_vector(first, "counts") {
+                    Result.Ok(counts) => std.printf("%d:%lld:%lld", first == second,
+                        std.table_size(first), std.vector_size(counts)),
+                    Result.Err(error) => std.printf("%s", error)
+                },
+                Result.Err(error) => std.printf("%s", error)
+            },
+            Result.Err(error) => std.printf("%s", error)
+        }
+    },
+    Result.Err(error) => std.printf("%s", error)
+}
+
+match std.vector([3, 4,]) {
+    Result.Ok(v) => match std.vector_norm(v) {
+        Result.Ok(value) => std.printf("|%lld:%.1f", std.vector_size(v), value),
+        Result.Err(error) => std.printf("%s", error)
+    },
+    Result.Err(error) => std.printf("%s", error)
+}

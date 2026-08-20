@@ -399,6 +399,11 @@ static const char* value_kind_name(ValueKind kind) noexcept {
     case ValueKind::Set:      return "Set";
     case ValueKind::Interval: return "Interval";
     case ValueKind::Complex:  return "Complex";
+    case ValueKind::Vector:   return "Vector";
+    case ValueKind::Matrix:   return "Matrix";
+    case ValueKind::Table:    return "Table";
+    case ValueKind::Random:   return "Random";
+    case ValueKind::Quantity: return "Quantity";
     default:                  return "?";
     }
 }

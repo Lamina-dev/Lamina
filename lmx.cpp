@@ -15,6 +15,12 @@
 #include "runtime/object/StringObj.hpp"
 #include "runtime/object/adt.hpp"
 #include "runtime/object/complex.hpp"
+#include "runtime/object/array.hpp"
+#include "runtime/object/vector.hpp"
+#include "runtime/object/matrix.hpp"
+#include "runtime/object/table.hpp"
+#include "runtime/object/random.hpp"
+#include "runtime/object/quantity.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -24,11 +30,16 @@
 #include <fstream>
 #include <limits>
 #include <utility>
+#include <cctype>
 
 #include "compiler/mir/mir_printer.hpp"
 #include "lmmc/numeric.h"
 #include "lmmc/complex.h"
 #include "lmmc/init.h"
+#include "lmmc/dense.h"
+#include "lmmc/stats.h"
+#include "lmmc/random.h"
+#include "lmmc/lsr_stdlib.h"
 
 LmState global_state;
 
@@ -49,6 +60,14 @@ using lmx::runtime::ExprObj;
 using lmx::runtime::StringObj;
 using lmx::runtime::AdtObj;
 using lmx::runtime::ComplexObj;
+using lmx::runtime::ArrayObj;
+using lmx::runtime::VectorObj;
+using lmx::runtime::MatrixObj;
+using lmx::runtime::TableObj;
+using lmx::runtime::RandomObj;
+using lmx::runtime::QuantityObj;
+using lmx::runtime::Value;
+using lmx::runtime::ValueKind;
 
 bool debug_dump_enabled() noexcept {
     const char* value = std::getenv("LMX_DEBUG_DUMP");
@@ -122,11 +141,158 @@ AdtObj* real_result_ok(const double value) {
     return new AdtObj("Result", "Ok", std::move(fields));
 }
 
+AdtObj* int_result_ok(const LmInt value) {
+    std::vector<Value> fields;
+    fields.emplace_back(value);
+    return new AdtObj("Result", "Ok", std::move(fields));
+}
+
+AdtObj* bool_result_ok(const bool value) {
+    std::vector<Value> fields;
+    fields.emplace_back(value);
+    return new AdtObj("Result", "Ok", std::move(fields));
+}
+
 AdtObj* real_result_error(std::string error) {
     std::vector<lmx::runtime::Value> fields;
     fields.emplace_back(static_cast<lmx::runtime::Object*>(
         new StringObj(std::move(error))));
     return new AdtObj("Result", "Err", std::move(fields));
+}
+
+AdtObj* object_result_ok(lmx::runtime::Object* value, const ValueKind kind) {
+    std::vector<Value> fields;
+    fields.emplace_back(value, kind);
+    return new AdtObj("Result", "Ok", std::move(fields));
+}
+
+AdtObj* lmmc_object_error(const char* operation, const lmmc_status_t status) {
+    std::string error = operation ? operation : "LMMC";
+    error += ": ";
+    error += lmmc_status_string(status);
+    return real_result_error(std::move(error));
+}
+
+bool numeric_value(const Value& value, double& result) noexcept {
+    switch (value.kind) {
+    case ValueKind::Int: result = static_cast<double>(value.int_val); return true;
+    case ValueKind::Fraction: result = value.frac_val.to_float(); return true;
+    case ValueKind::Real: result = value.real_val; return true;
+    default: return false;
+    }
+}
+
+bool array_numbers(const ArrayObj* array, std::vector<double>& result,
+                   std::string& error) {
+    if (!array) {
+        error = "null array";
+        return false;
+    }
+    result.reserve(static_cast<std::size_t>(array->len()));
+    for (const auto& value : array->values()) {
+        double number = 0.0;
+        if (!numeric_value(value, number)) {
+            error = "array contains a non-numeric value";
+            return false;
+        }
+        result.push_back(number);
+    }
+    return true;
+}
+
+lmmc_vec_t vector_view(VectorObj* value) noexcept {
+    return {value ? value->size() : 0,
+            value && !value->data().empty() ? value->data().data() : nullptr, 0};
+}
+
+lmmc_mat_t matrix_view(MatrixObj* value) noexcept {
+    return {value ? value->rows() : 0, value ? value->cols() : 0,
+            value ? value->cols() : 0,
+            value && !value->data().empty() ? value->data().data() : nullptr, 0};
+}
+
+bool unit_power_expression(const std::string& unit, const int multiplier,
+                           std::string& result) {
+    if (unit == "1") {
+        result = "1";
+        return true;
+    }
+    std::size_t cursor = 0;
+    int operation_sign = 1;
+    result.clear();
+    while (cursor < unit.size()) {
+        const auto begin = cursor;
+        while (cursor < unit.size() &&
+               (std::isalpha(static_cast<unsigned char>(unit[cursor])) ||
+                unit[cursor] == '_')) ++cursor;
+        if (cursor == begin) return false;
+        const auto name = unit.substr(begin, cursor - begin);
+        int exponent = 1;
+        if (cursor < unit.size() && unit[cursor] == '^') {
+            ++cursor;
+            int sign = 1;
+            if (cursor < unit.size() && (unit[cursor] == '+' || unit[cursor] == '-')) {
+                if (unit[cursor] == '-') sign = -1;
+                ++cursor;
+            }
+            if (cursor == unit.size() ||
+                !std::isdigit(static_cast<unsigned char>(unit[cursor]))) return false;
+            exponent = 0;
+            while (cursor < unit.size() &&
+                   std::isdigit(static_cast<unsigned char>(unit[cursor]))) {
+                exponent = exponent * 10 + (unit[cursor++] - '0');
+            }
+            exponent *= sign;
+        }
+        exponent *= operation_sign * multiplier;
+        if (exponent != 0) {
+            if (!result.empty()) result += '*';
+            result += name;
+            if (exponent != 1) result += '^' + std::to_string(exponent);
+        }
+        if (cursor == unit.size()) break;
+        if (unit[cursor] == '*') operation_sign = 1;
+        else if (unit[cursor] == '/') operation_sign = -1;
+        else return false;
+        ++cursor;
+    }
+    if (result.empty()) result = "1";
+    return true;
+}
+
+bool unit_product_expression(const std::string& lhs, const std::string& rhs,
+                             const bool divide, std::string& result) {
+    std::string right;
+    if (!unit_power_expression(rhs, divide ? -1 : 1, right)) return false;
+    if (lhs == "1") result = right;
+    else if (right == "1") result = lhs;
+    else result = lhs + '*' + right;
+    int ignored = 0;
+    return lmmc_lsr_units_is_dimensionless(result.c_str(), &ignored) == LMMC_STATUS_OK;
+}
+
+AdtObj* quantity_result(const double si_value, std::string unit,
+                        const char* operation) {
+    if (!std::isfinite(si_value)) {
+        return real_result_error(std::string(operation) + ": numerical failure");
+    }
+    int ignored = 0;
+    const auto status = lmmc_lsr_units_is_dimensionless(unit.c_str(), &ignored);
+    if (status != LMMC_STATUS_OK) return lmmc_object_error(operation, status);
+    return object_result_ok(new QuantityObj(si_value, std::move(unit)),
+                            ValueKind::Quantity);
+}
+
+AdtObj* lmmc_real_result(const char* operation, lmmc_status_t status,
+                         lmmc_real_t value);
+
+template <typename Operation>
+AdtObj* vector_stat_result(const char* name, VectorObj* value, Operation operation) {
+    if (!value) return real_result_error(std::string(name) + ": null vector");
+    auto view = vector_view(value);
+    lmmc_real_t result = 0.0;
+    const auto status = operation(&view, &result);
+    return lmmc_real_result(name, status, result);
 }
 
 AdtObj* lmmc_real_result(const char* operation, const lmmc_status_t status,
@@ -497,6 +663,401 @@ extern "C" LM_API AdtObj* lmx_complex_abs(ComplexObj* value) {
     return lmmc_real_result("lmx_complex_abs", status, result);
 }
 
+extern "C" LM_API AdtObj* lmx_vector_from_array(ArrayObj* values) {
+    std::vector<double> data;
+    std::string error;
+    if (!array_numbers(values, data, error)) {
+        return real_result_error("vector: " + error);
+    }
+    if (data.empty()) return real_result_error("vector: empty vectors are not supported by LMMC");
+    return object_result_ok(new VectorObj(std::move(data)), ValueKind::Vector);
+}
+
+extern "C" LM_API AdtObj* lmx_matrix_from_array(ArrayObj* rows) {
+    if (!rows || rows->values().empty()) {
+        return real_result_error("matrix: expected at least one row");
+    }
+    std::vector<double> data;
+    std::size_t column_count = 0;
+    for (const auto& row_value : rows->values()) {
+        if (row_value.kind != ValueKind::Obj || !row_value.obj ||
+            row_value.obj->get_kind() != lmx::runtime::ObjectKind::Array) {
+            return real_result_error("matrix: each row must be an array");
+        }
+        std::vector<double> row;
+        std::string error;
+        if (!array_numbers(reinterpret_cast<ArrayObj*>(row_value.obj), row, error)) {
+            return real_result_error("matrix: " + error);
+        }
+        if (column_count == 0) column_count = row.size();
+        if (row.empty() || row.size() != column_count) {
+            return real_result_error("matrix: rows must be non-empty and rectangular");
+        }
+        data.insert(data.end(), row.begin(), row.end());
+    }
+    return object_result_ok(new MatrixObj(rows->values().size(), column_count,
+                                          std::move(data)), ValueKind::Matrix);
+}
+
+extern "C" LM_API LmInt lmx_vector_size(VectorObj* value) {
+    return value ? static_cast<LmInt>(value->size()) : 0;
+}
+
+extern "C" LM_API AdtObj* lmx_vector_at(VectorObj* value, const LmInt index) {
+    if (!value || index < 0 || static_cast<std::size_t>(index) >= value->size()) {
+        return real_result_error("vector_at: index out of bounds");
+    }
+    return real_result_ok(value->data()[static_cast<std::size_t>(index)]);
+}
+
+extern "C" LM_API LmInt lmx_matrix_rows(MatrixObj* value) {
+    return value ? static_cast<LmInt>(value->rows()) : 0;
+}
+
+extern "C" LM_API LmInt lmx_matrix_cols(MatrixObj* value) {
+    return value ? static_cast<LmInt>(value->cols()) : 0;
+}
+
+extern "C" LM_API AdtObj* lmx_matrix_at(MatrixObj* value, const LmInt row,
+                                           const LmInt column) {
+    if (!value || row < 0 || column < 0 ||
+        static_cast<std::size_t>(row) >= value->rows() ||
+        static_cast<std::size_t>(column) >= value->cols()) {
+        return real_result_error("matrix_at: index out of bounds");
+    }
+    return real_result_ok(value->data()[static_cast<std::size_t>(row) * value->cols() +
+                                        static_cast<std::size_t>(column)]);
+}
+
+extern "C" LM_API LmInt lmx_table_size(TableObj* value) {
+    return value ? static_cast<LmInt>(value->entries().size()) : 0;
+}
+
+extern "C" LM_API bool lmx_table_has(TableObj* value, const char* key) {
+    return value && key && value->find(key) != nullptr;
+}
+
+extern "C" LM_API AdtObj* lmx_table_vector(TableObj* value, const char* key) {
+    if (!value || !key) return real_result_error("table_vector: invalid argument");
+    const auto* field = value->find(key);
+    if (!field || field->kind != ValueKind::Vector || !field->obj) {
+        return real_result_error("table_vector: key is missing or is not a vector");
+    }
+    return object_result_ok(field->obj->get(), ValueKind::Vector);
+}
+
+extern "C" LM_API AdtObj* lmx_vector_dot(VectorObj* lhs, VectorObj* rhs) {
+    if (!lhs || !rhs) return real_result_error("vector_dot: null vector");
+    auto left = vector_view(lhs);
+    auto right = vector_view(rhs);
+    lmmc_real_t result = 0.0;
+    const auto status = lmmc_vec_dot(&left, &right, &result);
+    return lmmc_real_result("vector_dot", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_vector_norm(VectorObj* value) {
+    return vector_stat_result("vector_norm", value, lmmc_vec_norm2);
+}
+
+extern "C" LM_API AdtObj* lmx_matrix_norm(MatrixObj* value) {
+    if (!value || !value->valid()) return real_result_error("matrix_norm: invalid matrix");
+    auto view = matrix_view(value);
+    lmmc_real_t result = 0.0;
+    const auto status = lmmc_mat_norm_fro(&view, &result);
+    return lmmc_real_result("matrix_norm", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_matrix_transpose(MatrixObj* value) {
+    if (!value || !value->valid()) return real_result_error("matrix_transpose: invalid matrix");
+    auto input = matrix_view(value);
+    auto* result = new MatrixObj(value->cols(), value->rows(),
+                                 std::vector<double>(value->rows() * value->cols()));
+    auto output = matrix_view(result);
+    const auto status = lmmc_mat_transpose_to(&input, &output);
+    if (status != LMMC_STATUS_OK) {
+        delete result;
+        return lmmc_object_error("matrix_transpose", status);
+    }
+    return object_result_ok(result, ValueKind::Matrix);
+}
+
+extern "C" LM_API AdtObj* lmx_matrix_mul(MatrixObj* lhs, MatrixObj* rhs) {
+    if (!lhs || !rhs || !lhs->valid() || !rhs->valid()) {
+        return real_result_error("matrix_mul: invalid matrix");
+    }
+    if (lhs->cols() != rhs->rows()) {
+        return real_result_error("matrix_mul: dimension mismatch");
+    }
+    auto left = matrix_view(lhs);
+    auto right = matrix_view(rhs);
+    auto* result = new MatrixObj(lhs->rows(), rhs->cols(),
+                                 std::vector<double>(lhs->rows() * rhs->cols()));
+    auto output = matrix_view(result);
+    const auto status = lmmc_mat_mul(&left, &right, &output);
+    if (status != LMMC_STATUS_OK) {
+        delete result;
+        return lmmc_object_error("matrix_mul", status);
+    }
+    return object_result_ok(result, ValueKind::Matrix);
+}
+
+extern "C" LM_API AdtObj* lmx_matrix_vector_mul(MatrixObj* matrix, VectorObj* vector) {
+    if (!matrix || !vector || !matrix->valid()) {
+        return real_result_error("matrix_vector_mul: invalid argument");
+    }
+    if (matrix->cols() != vector->size()) {
+        return real_result_error("matrix_vector_mul: dimension mismatch");
+    }
+    auto input_matrix = matrix_view(matrix);
+    auto input_vector = vector_view(vector);
+    auto* result = new VectorObj(std::vector<double>(matrix->rows()));
+    auto output = vector_view(result);
+    const auto status = lmmc_mat_vec_mul(&input_matrix, &input_vector, &output);
+    if (status != LMMC_STATUS_OK) {
+        delete result;
+        return lmmc_object_error("matrix_vector_mul", status);
+    }
+    return object_result_ok(result, ValueKind::Vector);
+}
+
+extern "C" LM_API AdtObj* lmx_stats_mean(VectorObj* value) {
+    return vector_stat_result("stats_mean", value, lmmc_vec_mean);
+}
+
+extern "C" LM_API AdtObj* lmx_stats_variance(VectorObj* value) {
+    return vector_stat_result("stats_variance", value, lmmc_vec_variance_sample);
+}
+
+extern "C" LM_API AdtObj* lmx_stats_variance_population(VectorObj* value) {
+    return vector_stat_result("stats_variance_population", value,
+                              lmmc_vec_variance_population);
+}
+
+extern "C" LM_API AdtObj* lmx_stats_stddev(VectorObj* value) {
+    return vector_stat_result("stats_stddev", value, lmmc_vec_stddev_sample);
+}
+
+extern "C" LM_API AdtObj* lmx_stats_stddev_population(VectorObj* value) {
+    return vector_stat_result("stats_stddev_population", value,
+                              lmmc_vec_stddev_population);
+}
+
+extern "C" LM_API AdtObj* lmx_stats_median(VectorObj* value) {
+    return vector_stat_result("stats_median", value, lmmc_vec_median);
+}
+
+extern "C" LM_API AdtObj* lmx_stats_quantile(VectorObj* value, const double p) {
+    if (!value) return real_result_error("stats_quantile: null vector");
+    auto input = vector_view(value);
+    lmmc_real_t result = 0.0;
+    const auto status = lmmc_vec_quantile(&input, p, &result);
+    return lmmc_real_result("stats_quantile", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_stats_covariance(VectorObj* lhs, VectorObj* rhs) {
+    if (!lhs || !rhs) return real_result_error("stats_covariance: null vector");
+    auto left = vector_view(lhs);
+    auto right = vector_view(rhs);
+    lmmc_real_t result = 0.0;
+    const auto status = lmmc_vec_covariance_sample(&left, &right, &result);
+    return lmmc_real_result("stats_covariance", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_stats_correlation(VectorObj* lhs, VectorObj* rhs) {
+    if (!lhs || !rhs) return real_result_error("stats_correlation: null vector");
+    auto left = vector_view(lhs);
+    auto right = vector_view(rhs);
+    lmmc_real_t result = 0.0;
+    const auto status = lmmc_vec_correlation_sample(&left, &right, &result);
+    return lmmc_real_result("stats_correlation", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_stats_histogram(VectorObj* value, const LmInt bins) {
+    if (!value || bins <= 0) return real_result_error("stats_histogram: invalid argument");
+    auto input = vector_view(value);
+    std::vector<double> edges(static_cast<std::size_t>(bins) + 1);
+    std::vector<std::size_t> counts(static_cast<std::size_t>(bins));
+    const auto status = lmmc_vec_histogram(&input, static_cast<std::size_t>(bins),
+                                           edges.data(), counts.data());
+    if (status != LMMC_STATUS_OK) return lmmc_object_error("stats_histogram", status);
+    std::vector<double> count_values;
+    count_values.reserve(counts.size());
+    for (const auto count : counts) count_values.push_back(static_cast<double>(count));
+    std::vector<TableObj::Entry> entries;
+    entries.emplace_back("counts", Value(new VectorObj(std::move(count_values)), ValueKind::Vector));
+    entries.emplace_back("edges", Value(new VectorObj(std::move(edges)), ValueKind::Vector));
+    return object_result_ok(new TableObj(std::move(entries)), ValueKind::Table);
+}
+
+extern "C" LM_API AdtObj* lmx_rng_create(const LmInt seed) {
+    lmmc_rng_t* rng = nullptr;
+    auto status = lmmc_rng_create(&rng);
+    if (status == LMMC_STATUS_OK) {
+        status = lmmc_rng_seed(rng, static_cast<std::uint64_t>(seed));
+    }
+    if (status != LMMC_STATUS_OK) {
+        lmmc_rng_destroy(rng);
+        return lmmc_object_error("rng", status);
+    }
+    return object_result_ok(new RandomObj(rng), ValueKind::Random);
+}
+
+extern "C" LM_API AdtObj* lmx_rng_clone(RandomObj* source) {
+    if (!source) return real_result_error("rng_clone: null rng");
+    lmmc_rng_t* rng = nullptr;
+    const auto status = lmmc_rng_clone(source->handle(), &rng);
+    if (status != LMMC_STATUS_OK) return lmmc_object_error("rng_clone", status);
+    return object_result_ok(new RandomObj(rng), ValueKind::Random);
+}
+
+extern "C" LM_API AdtObj* lmx_rng_jump(RandomObj* value) {
+    if (!value) return real_result_error("rng_jump: null rng");
+    const auto status = lmmc_rng_jump(value->handle());
+    if (status != LMMC_STATUS_OK) return lmmc_object_error("rng_jump", status);
+    return object_result_ok(value->get(), ValueKind::Random);
+}
+
+extern "C" LM_API AdtObj* lmx_rng_uniform(RandomObj* value, const double lower,
+                                             const double upper) {
+    if (!value) return real_result_error("random_uniform: null rng");
+    lmmc_real_t result = 0.0;
+    const auto status = lmmc_rng_uniform(value->handle(), lower, upper, &result);
+    return lmmc_real_result("random_uniform", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_rng_normal(RandomObj* value, const double mean,
+                                            const double stddev) {
+    if (!value) return real_result_error("random_normal: null rng");
+    lmmc_real_t result = 0.0;
+    const auto status = lmmc_rng_normal(value->handle(), mean, stddev, &result);
+    return lmmc_real_result("random_normal", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_rng_exponential(RandomObj* value, const double rate) {
+    if (!value) return real_result_error("random_exponential: null rng");
+    lmmc_real_t result = 0.0;
+    const auto status = lmmc_rng_exponential(value->handle(), rate, &result);
+    return lmmc_real_result("random_exponential", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_rng_int(RandomObj* value, const LmInt lower,
+                                         const LmInt upper) {
+    if (!value) return real_result_error("random_int: null rng");
+    std::int64_t result = 0;
+    const auto status = lmmc_rng_int_uniform(value->handle(), lower, upper, &result);
+    if (status != LMMC_STATUS_OK) return lmmc_object_error("random_int", status);
+    return int_result_ok(static_cast<LmInt>(result));
+}
+
+extern "C" LM_API AdtObj* lmx_rng_vector(RandomObj* value, const LmInt count,
+                                            const double lower, const double upper) {
+    if (!value || count <= 0) return real_result_error("random_vector: invalid argument");
+    std::vector<double> data(static_cast<std::size_t>(count));
+    const auto status = lmmc_rng_fill_uniform(value->handle(), lower, upper,
+                                               data.data(), data.size());
+    if (status != LMMC_STATUS_OK) return lmmc_object_error("random_vector", status);
+    return object_result_ok(new VectorObj(std::move(data)), ValueKind::Vector);
+}
+
+extern "C" LM_API AdtObj* lmx_quantity_make(const double value, const char* unit) {
+    if (!unit) return real_result_error("quantity: null unit");
+    lmmc_real_t si_value = 0.0;
+    const auto status = lmmc_lsr_units_strip_num(value, unit, &si_value);
+    if (status != LMMC_STATUS_OK) return lmmc_object_error("quantity", status);
+    return quantity_result(si_value, unit, "quantity");
+}
+
+extern "C" LM_API AdtObj* lmx_quantity_convert(QuantityObj* value,
+                                                  const char* target_unit) {
+    if (!value || !target_unit) return real_result_error("quantity_convert: invalid argument");
+    lmmc_real_t ignored = 0.0;
+    const auto status = lmmc_lsr_units_convert(1.0, value->unit().c_str(),
+                                               target_unit, &ignored);
+    if (status != LMMC_STATUS_OK) return lmmc_object_error("quantity_convert", status);
+    return quantity_result(value->si_value(), target_unit, "quantity_convert");
+}
+
+extern "C" LM_API AdtObj* lmx_quantity_value(QuantityObj* value) {
+    if (!value) return real_result_error("quantity_value: null quantity");
+    lmmc_real_t displayed = 0.0;
+    const auto status = lmmc_lsr_units_convert_from_si(
+        value->si_value(), value->unit().c_str(), &displayed);
+    return lmmc_real_result("quantity_value", status, displayed);
+}
+
+extern "C" LM_API double lmx_quantity_strip(QuantityObj* value) {
+    return value ? value->si_value() : 0.0;
+}
+
+extern "C" LM_API StringObj* lmx_quantity_unit(QuantityObj* value) {
+    return new StringObj(value ? value->unit() : "");
+}
+
+extern "C" LM_API AdtObj* lmx_quantity_is_dimensionless(QuantityObj* value) {
+    if (!value) return real_result_error("quantity_is_dimensionless: null quantity");
+    int result = 0;
+    const auto status = lmmc_lsr_units_is_dimensionless(value->unit().c_str(), &result);
+    if (status != LMMC_STATUS_OK) {
+        return lmmc_object_error("quantity_is_dimensionless", status);
+    }
+    return bool_result_ok(result != 0);
+}
+
+extern "C" LM_API AdtObj* lmx_quantity_add(QuantityObj* lhs, QuantityObj* rhs) {
+    if (!lhs || !rhs) return real_result_error("quantity_add: null quantity");
+    lmmc_real_t ignored = 0.0;
+    const auto status = lmmc_lsr_units_convert(1.0, rhs->unit().c_str(),
+                                               lhs->unit().c_str(), &ignored);
+    if (status != LMMC_STATUS_OK) return lmmc_object_error("quantity_add", status);
+    return quantity_result(lhs->si_value() + rhs->si_value(), lhs->unit(), "quantity_add");
+}
+
+extern "C" LM_API AdtObj* lmx_quantity_sub(QuantityObj* lhs, QuantityObj* rhs) {
+    if (!lhs || !rhs) return real_result_error("quantity_sub: null quantity");
+    lmmc_real_t ignored = 0.0;
+    const auto status = lmmc_lsr_units_convert(1.0, rhs->unit().c_str(),
+                                               lhs->unit().c_str(), &ignored);
+    if (status != LMMC_STATUS_OK) return lmmc_object_error("quantity_sub", status);
+    return quantity_result(lhs->si_value() - rhs->si_value(), lhs->unit(), "quantity_sub");
+}
+
+extern "C" LM_API AdtObj* lmx_quantity_mul(QuantityObj* lhs, QuantityObj* rhs) {
+    if (!lhs || !rhs) return real_result_error("quantity_mul: null quantity");
+    std::string unit;
+    if (!unit_product_expression(lhs->unit(), rhs->unit(), false, unit)) {
+        return real_result_error("quantity_mul: invalid resulting dimension");
+    }
+    return quantity_result(lhs->si_value() * rhs->si_value(), std::move(unit),
+                           "quantity_mul");
+}
+
+extern "C" LM_API AdtObj* lmx_quantity_div(QuantityObj* lhs, QuantityObj* rhs) {
+    if (!lhs || !rhs) return real_result_error("quantity_div: null quantity");
+    if (rhs->si_value() == 0.0) return real_result_error("quantity_div: division by zero");
+    std::string unit;
+    if (!unit_product_expression(lhs->unit(), rhs->unit(), true, unit)) {
+        return real_result_error("quantity_div: invalid resulting dimension");
+    }
+    return quantity_result(lhs->si_value() / rhs->si_value(), std::move(unit),
+                           "quantity_div");
+}
+
+extern "C" LM_API AdtObj* lmx_quantity_pow(QuantityObj* value,
+                                              const LmInt exponent) {
+    if (!value || exponent < -32 || exponent > 32) {
+        return real_result_error("quantity_pow: exponent must be in [-32, 32]");
+    }
+    if (value->si_value() == 0.0 && exponent < 0) {
+        return real_result_error("quantity_pow: division by zero");
+    }
+    std::string unit;
+    if (!unit_power_expression(value->unit(), static_cast<int>(exponent), unit)) {
+        return real_result_error("quantity_pow: invalid resulting dimension");
+    }
+    return quantity_result(std::pow(value->si_value(), static_cast<double>(exponent)),
+                           std::move(unit), "quantity_pow");
+}
+
 LM_API LmState* lmx_newState() {
     auto* node = static_cast<LmLinkedNode *>(malloc(sizeof(LmLinkedNode)));
     memset(node, 0, sizeof(LmLinkedNode));
@@ -621,7 +1182,6 @@ LmModule *lmx_doFile(LmState *state, const char* name, bool is_main_module) {
 
 int lmx_vmRunModule(LmState* state, LaminaVM* vm, LmModule* module) {
     if (module == nullptr) return 1;
-    // std::cout << mod.disassemble() << std::endl;
     return
     reinterpret_cast<lmx::runtime::LaminaVM*>(vm)
     ->

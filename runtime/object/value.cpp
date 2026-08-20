@@ -8,6 +8,10 @@
 #include "literal.hpp"
 #include "tuple.hpp"
 #include "complex.hpp"
+#include "vector.hpp"
+#include "matrix.hpp"
+#include "table.hpp"
+#include "quantity.hpp"
 
 #include <functional>
 
@@ -24,6 +28,11 @@ bool Value::operator==(const Value &other) const noexcept {
     case ValueKind::Set:
     case ValueKind::Interval:
     case ValueKind::Complex:
+    case ValueKind::Vector:
+    case ValueKind::Matrix:
+    case ValueKind::Table:
+    case ValueKind::Random:
+    case ValueKind::Quantity:
         if (obj == other.obj) return true;
         if (!obj || !other.obj || obj->get_kind() != other.obj->get_kind()) return false;
         if (obj->get_kind() == ObjectKind::Adt) {
@@ -43,6 +52,22 @@ bool Value::operator==(const Value &other) const noexcept {
         if (obj->get_kind() == ObjectKind::Complex) {
             return reinterpret_cast<const ComplexObj*>(obj)->equals(
                 *reinterpret_cast<const ComplexObj*>(other.obj));
+        }
+        if (obj->get_kind() == ObjectKind::Vector) {
+            return reinterpret_cast<const VectorObj*>(obj)->equals(
+                *reinterpret_cast<const VectorObj*>(other.obj));
+        }
+        if (obj->get_kind() == ObjectKind::Matrix) {
+            return reinterpret_cast<const MatrixObj*>(obj)->equals(
+                *reinterpret_cast<const MatrixObj*>(other.obj));
+        }
+        if (obj->get_kind() == ObjectKind::Table) {
+            return reinterpret_cast<const TableObj*>(obj)->equals(
+                *reinterpret_cast<const TableObj*>(other.obj));
+        }
+        if (obj->get_kind() == ObjectKind::Quantity) {
+            return reinterpret_cast<const QuantityObj*>(obj)->equals(
+                *reinterpret_cast<const QuantityObj*>(other.obj));
         }
         return false;
     case ValueKind::Int: return int_val == other.int_val;
@@ -74,6 +99,11 @@ std::size_t Value::hash() const noexcept {
     case ValueKind::Set:
     case ValueKind::Interval:
     case ValueKind::Complex:
+    case ValueKind::Vector:
+    case ValueKind::Matrix:
+    case ValueKind::Table:
+    case ValueKind::Random:
+    case ValueKind::Quantity:
         if (!obj) return 0;
         switch (obj->get_kind()) {
         case ObjectKind::String:
@@ -86,6 +116,14 @@ std::size_t Value::hash() const noexcept {
             return reinterpret_cast<const TupleObj*>(obj)->hash();
         case ObjectKind::Complex:
             return reinterpret_cast<const ComplexObj*>(obj)->hash();
+        case ObjectKind::Vector:
+            return reinterpret_cast<const VectorObj*>(obj)->hash();
+        case ObjectKind::Matrix:
+            return reinterpret_cast<const MatrixObj*>(obj)->hash();
+        case ObjectKind::Table:
+            return reinterpret_cast<const TableObj*>(obj)->hash();
+        case ObjectKind::Quantity:
+            return reinterpret_cast<const QuantityObj*>(obj)->hash();
         default:
             return std::hash<const Object*>{}(obj);
         }
@@ -109,6 +147,11 @@ std::string Value::to_string() const noexcept {
     case ValueKind::Set: return Object::to_string(obj);
     case ValueKind::Interval: return Object::to_string(obj);
     case ValueKind::Complex: return Object::to_string(obj);
+    case ValueKind::Vector: return Object::to_string(obj);
+    case ValueKind::Matrix: return Object::to_string(obj);
+    case ValueKind::Table: return Object::to_string(obj);
+    case ValueKind::Random: return Object::to_string(obj);
+    case ValueKind::Quantity: return Object::to_string(obj);
     case ValueKind::C_Ptr: return "RawPtr";
     case ValueKind::Null: return "Null";
     case ValueKind::Fraction: return frac_val.to_string();

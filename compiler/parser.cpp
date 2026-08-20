@@ -359,11 +359,16 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
     case TokenType::LBRACK: {
         advance();
         std::vector<std::shared_ptr<ExprNode>> elements;
+        bool trailing_comma = false;
         if (!match(TokenType::RBRACK) && !match(TokenType::RPAREN)) {
             while (true) {
                 elements.push_back(parse_expr());
                 if (match(TokenType::RBRACK) || match(TokenType::RPAREN)) break;
                 consume(TokenType::COMMA, ",");
+                if (match(TokenType::RBRACK) || match(TokenType::RPAREN)) {
+                    trailing_comma = true;
+                    break;
+                }
             }
         }
         const bool upper_closed = match(TokenType::RBRACK);
@@ -372,7 +377,7 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         } else {
             consume(TokenType::RPAREN, ")");
         }
-        if (elements.size() == 2) {
+        if (elements.size() == 2 && !trailing_comma) {
             primary = std::make_shared<LiteralPayloadNode>(
                 line, col, LiteralPayloadNode::Kind::Interval,
                 std::move(elements), true, upper_closed);
@@ -386,12 +391,19 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
     }
     case TokenType::LBRACE: {
         size_t scan = pos + 1;
-        size_t depth = 1;
+        size_t brace_depth = 1;
+        size_t paren_depth = 0;
+        size_t bracket_depth = 0;
         bool has_comma = false;
-        while (scan < tokens.size() && depth > 0) {
-            if (tokens[scan].type == TokenType::LBRACE) depth++;
-            else if (tokens[scan].type == TokenType::RBRACE) depth--;
-            else if (depth == 1 && tokens[scan].type == TokenType::COMMA) {
+        while (scan < tokens.size() && brace_depth > 0) {
+            if (tokens[scan].type == TokenType::LBRACE) brace_depth++;
+            else if (tokens[scan].type == TokenType::RBRACE) brace_depth--;
+            else if (tokens[scan].type == TokenType::LPAREN) paren_depth++;
+            else if (tokens[scan].type == TokenType::RPAREN && paren_depth > 0) paren_depth--;
+            else if (tokens[scan].type == TokenType::LBRACK) bracket_depth++;
+            else if (tokens[scan].type == TokenType::RBRACK && bracket_depth > 0) bracket_depth--;
+            else if (brace_depth == 1 && paren_depth == 0 && bracket_depth == 0 &&
+                     tokens[scan].type == TokenType::COMMA) {
                 has_comma = true;
                 break;
             }
@@ -892,6 +904,11 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
             {"null", runtime::ValueKind::Null}, {"frac", runtime::ValueKind::Fraction},
             {"real", runtime::ValueKind::Real}, {"expr", runtime::ValueKind::Expr},
             {"complex", runtime::ValueKind::Complex},
+            {"vector", runtime::ValueKind::Vector},
+            {"matrix", runtime::ValueKind::Matrix},
+            {"table", runtime::ValueKind::Table},
+            {"rng", runtime::ValueKind::Random},
+            {"quantity", runtime::ValueKind::Quantity},
             {"cptr", runtime::ValueKind::C_Ptr}
         };
         std::shared_ptr<Type> type;
@@ -916,6 +933,18 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
                 consume(TokenType::COMMA, ",");
             } while (true);
             consume(TokenType::GT, ">");
+        }
+        if (id == "array") {
+            if (args.size() != 1) {
+                throw_error(ErrorType::Parse, "array type requires exactly one element type", cur().line, cur().col);
+                return type_pool.array(type_pool.unknown());
+            }
+            auto array_type = type_pool.array(std::move(args.front()));
+            if (match(TokenType::QUESTION)) {
+                advance();
+                return type_pool.nullable(std::move(array_type));
+            }
+            return array_type;
         }
         auto named_type = type_pool.named(id, std::move(args));
         if (match(TokenType::QUESTION)) {

@@ -9,6 +9,16 @@ add_library(lamina_runtime OBJECT
     object/value.cpp
     object/complex.cpp
     object/complex.hpp
+    object/vector.cpp
+    object/vector.hpp
+    object/matrix.cpp
+    object/matrix.hpp
+    object/table.cpp
+    object/table.hpp
+    object/random.cpp
+    object/random.hpp
+    object/quantity.cpp
+    object/quantity.hpp
     object/code_module.cpp
     gc.cpp
         object/array.cpp

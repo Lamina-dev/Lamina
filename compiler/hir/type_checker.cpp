@@ -875,11 +875,31 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 {BinaryNode::Op::Lt, runtime::ValueKind::Bool},
                 {BinaryNode::Op::Le, runtime::ValueKind::Bool},
             }},
+            {runtime::ValueKind::Real, {
+                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
+                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
+            }},
             {runtime::ValueKind::Bool, {
                 {BinaryNode::Op::And, runtime::ValueKind::Bool},
                 {BinaryNode::Op::Or, runtime::ValueKind::Bool},
             }},
             {runtime::ValueKind::Complex, {
+                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
+                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
+            }},
+            {runtime::ValueKind::Vector, {
+                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
+                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
+            }},
+            {runtime::ValueKind::Matrix, {
+                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
+                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
+            }},
+            {runtime::ValueKind::Table, {
+                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
+                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
+            }},
+            {runtime::ValueKind::Quantity, {
                 {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
                 {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
             }}

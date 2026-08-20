@@ -19,6 +19,8 @@ enum {
     Adt,
     Literal,
     Complex,
+    Random,
+    Quantity,
 };
 }
 class Object {

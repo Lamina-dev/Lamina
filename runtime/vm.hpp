@@ -89,7 +89,12 @@ class LaminaVM {
         case ValueKind::Tuple:
         case ValueKind::Set:
         case ValueKind::Interval:
-        case ValueKind::Complex: {
+        case ValueKind::Complex:
+        case ValueKind::Vector:
+        case ValueKind::Matrix:
+        case ValueKind::Table:
+        case ValueKind::Random:
+        case ValueKind::Quantity: {
             dcArgPointer(call_vm, (DCpointer)v->obj);
             break;
         }
@@ -186,6 +191,11 @@ public:
             case ValueKind::Set:
             case ValueKind::Interval:
             case ValueKind::Complex:
+            case ValueKind::Vector:
+            case ValueKind::Matrix:
+            case ValueKind::Table:
+            case ValueKind::Random:
+            case ValueKind::Quantity:
                 regs[0].~Value();
                 regs[0].kind = meta->ret_ty;
                 regs[0].obj = static_cast<Object *>(dcCallPointer(call_vm, (DCpointer) meta->addr));

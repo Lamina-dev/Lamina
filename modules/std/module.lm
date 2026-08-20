@@ -26,6 +26,62 @@ func complex_div(lhs complex, rhs complex) -> Result<complex, text> = "lmx_compl
 func complex_conj(value complex) -> Result<complex, text> = "lmx_complex_conj"
 func complex_abs(value complex) -> Result<real, text> = "lmx_complex_abs"
 
+func vector(values array<int>) -> Result<vector, text> = "lmx_vector_from_array"
+func vector(values array<frac>) -> Result<vector, text> = "lmx_vector_from_array"
+func vector(values array<real>) -> Result<vector, text> = "lmx_vector_from_array"
+func vector_size(value vector) -> int = "lmx_vector_size"
+func vector_at(value vector, index int) -> Result<real, text> = "lmx_vector_at"
+
+func matrix(rows array<array<int>>) -> Result<matrix, text> = "lmx_matrix_from_array"
+func matrix(rows array<array<frac>>) -> Result<matrix, text> = "lmx_matrix_from_array"
+func matrix(rows array<array<real>>) -> Result<matrix, text> = "lmx_matrix_from_array"
+func matrix_rows(value matrix) -> int = "lmx_matrix_rows"
+func matrix_cols(value matrix) -> int = "lmx_matrix_cols"
+func matrix_at(value matrix, row int, column int) -> Result<real, text> = "lmx_matrix_at"
+
+func table_size(value table) -> int = "lmx_table_size"
+func table_has(value table, key text) -> bool = "lmx_table_has"
+func table_vector(value table, key text) -> Result<vector, text> = "lmx_table_vector"
+
+func vector_dot(lhs vector, rhs vector) -> Result<real, text> = "lmx_vector_dot"
+func vector_norm(value vector) -> Result<real, text> = "lmx_vector_norm"
+func matrix_norm(value matrix) -> Result<real, text> = "lmx_matrix_norm"
+func matrix_transpose(value matrix) -> Result<matrix, text> = "lmx_matrix_transpose"
+func matrix_mul(lhs matrix, rhs matrix) -> Result<matrix, text> = "lmx_matrix_mul"
+func matrix_vector_mul(matrix matrix, vector vector) -> Result<vector, text> = "lmx_matrix_vector_mul"
+
+func mean(value vector) -> Result<real, text> = "lmx_stats_mean"
+func variance(value vector) -> Result<real, text> = "lmx_stats_variance"
+func variance_population(value vector) -> Result<real, text> = "lmx_stats_variance_population"
+func stddev(value vector) -> Result<real, text> = "lmx_stats_stddev"
+func stddev_population(value vector) -> Result<real, text> = "lmx_stats_stddev_population"
+func median(value vector) -> Result<real, text> = "lmx_stats_median"
+func quantile(value vector, p frac) -> Result<real, text> = "lmx_stats_quantile"
+func covariance(lhs vector, rhs vector) -> Result<real, text> = "lmx_stats_covariance"
+func correlation(lhs vector, rhs vector) -> Result<real, text> = "lmx_stats_correlation"
+func histogram(value vector, bins int) -> Result<table, text> = "lmx_stats_histogram"
+
+func rng(seed int) -> Result<rng, text> = "lmx_rng_create"
+func rng_clone(value rng) -> Result<rng, text> = "lmx_rng_clone"
+func rng_jump(value rng) -> Result<rng, text> = "lmx_rng_jump"
+func random_uniform(value rng, lower frac, upper frac) -> Result<real, text> = "lmx_rng_uniform"
+func random_normal(value rng, mean frac, stddev frac) -> Result<real, text> = "lmx_rng_normal"
+func random_exponential(value rng, rate frac) -> Result<real, text> = "lmx_rng_exponential"
+func random_int(value rng, lower int, upper int) -> Result<int, text> = "lmx_rng_int"
+func random_vector(value rng, count int, lower frac, upper frac) -> Result<vector, text> = "lmx_rng_vector"
+
+func quantity(value frac, unit text) -> Result<quantity, text> = "lmx_quantity_make"
+func quantity_convert(value quantity, unit text) -> Result<quantity, text> = "lmx_quantity_convert"
+func quantity_value(value quantity) -> Result<real, text> = "lmx_quantity_value"
+func quantity_strip(value quantity) -> real = "lmx_quantity_strip"
+func quantity_unit(value quantity) -> text = "lmx_quantity_unit"
+func quantity_is_dimensionless(value quantity) -> Result<bool, text> = "lmx_quantity_is_dimensionless"
+func quantity_add(lhs quantity, rhs quantity) -> Result<quantity, text> = "lmx_quantity_add"
+func quantity_sub(lhs quantity, rhs quantity) -> Result<quantity, text> = "lmx_quantity_sub"
+func quantity_mul(lhs quantity, rhs quantity) -> Result<quantity, text> = "lmx_quantity_mul"
+func quantity_div(lhs quantity, rhs quantity) -> Result<quantity, text> = "lmx_quantity_div"
+func quantity_pow(value quantity, exponent int) -> Result<quantity, text> = "lmx_quantity_pow"
+
 func int_to_frac(n int) -> frac {
     n / 1
 }
