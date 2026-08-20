@@ -395,6 +395,10 @@ static const char* value_kind_name(ValueKind kind) noexcept {
     case ValueKind::Expr:     return "Expr";
     case ValueKind::C_VaList: return "CVaList";
     case ValueKind::C_ValueRef: return "CValueRef";
+    case ValueKind::Tuple:    return "Tuple";
+    case ValueKind::Set:      return "Set";
+    case ValueKind::Interval: return "Interval";
+    case ValueKind::Complex:  return "Complex";
     default:                  return "?";
     }
 }

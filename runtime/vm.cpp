@@ -159,8 +159,8 @@ static AdtObj* make_adt_value(const CodeModuleObj* module, Value* regs, const ui
     return new AdtObj(type_name, constructor, std::move(fields));
 }
 
-static LiteralObj* make_literal_value(Value* regs, const uint8_t count,
-                                      const uint8_t flags) {
+static Value make_literal_value(Value* regs, const uint8_t count,
+                                const uint8_t flags) {
     std::vector<Value> elements;
     elements.reserve(count);
     for (uint8_t i = 0; i < count; ++i) {
@@ -168,8 +168,10 @@ static LiteralObj* make_literal_value(Value* regs, const uint8_t count,
     }
     const auto kind = (flags & 1U) != 0
         ? LiteralObj::Kind::Interval : LiteralObj::Kind::Set;
-    return new LiteralObj(kind, std::move(elements),
-                          (flags & 2U) != 0, (flags & 4U) != 0);
+    auto* literal = new LiteralObj(kind, std::move(elements),
+                                   (flags & 2U) != 0, (flags & 4U) != 0);
+    return Value(literal, kind == LiteralObj::Kind::Interval
+        ? ValueKind::Interval : ValueKind::Set);
 }
 
 int LaminaVM::run(CodeModuleObj *prog) noexcept {
@@ -217,7 +219,7 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
 
     VM_LABEL(NewTuple) {
-        regs[ip[1]] = allocator.alloc_tuple(ip[2]);
+        regs[ip[1]] = Value(allocator.alloc_tuple(ip[2]), ValueKind::Tuple);
         VM_NEXT
     }
 
@@ -523,7 +525,8 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
     VM_LABEL(Contains) {
         const auto& container = regs[ip[3]];
-        const bool result = container.kind == ValueKind::Obj && container.obj &&
+        const bool result = (container.kind == ValueKind::Set ||
+                             container.kind == ValueKind::Interval) && container.obj &&
             container.obj->get_kind() == ObjectKind::Literal &&
             reinterpret_cast<const LiteralObj*>(container.obj)->contains(regs[ip[2]]);
         regs[ip[1]] = result;
@@ -531,7 +534,8 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
     VM_LABEL(NotContains) {
         const auto& container = regs[ip[3]];
-        const bool result = container.kind == ValueKind::Obj && container.obj &&
+        const bool result = (container.kind == ValueKind::Set ||
+                             container.kind == ValueKind::Interval) && container.obj &&
             container.obj->get_kind() == ObjectKind::Literal &&
             reinterpret_cast<const LiteralObj*>(container.obj)->contains(regs[ip[2]]);
         regs[ip[1]] = !result;

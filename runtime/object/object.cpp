@@ -10,6 +10,7 @@
 #include "adt.hpp"
 #include "literal.hpp"
 #include "tuple.hpp"
+#include "complex.hpp"
 
 using namespace lmx::runtime;
 
@@ -40,7 +41,7 @@ std::string Object::to_string(Object *obj) noexcept {
         return "";
     }
     case ObjectKind::Tuple: {
-        return TupleObj::to_string();
+        return reinterpret_cast<TupleObj*>(obj)->to_string();
     }
     case ObjectKind::Expr: {
         return reinterpret_cast<ExprObj*>(obj)->to_string();
@@ -50,6 +51,9 @@ std::string Object::to_string(Object *obj) noexcept {
     }
     case ObjectKind::Literal: {
         return reinterpret_cast<LiteralObj*>(obj)->to_string();
+    }
+    case ObjectKind::Complex: {
+        return reinterpret_cast<ComplexObj*>(obj)->to_string();
     }
     default: {
         return "";
@@ -111,6 +115,10 @@ void Object::release() noexcept {
         }
         case ObjectKind::Literal: {
             delete reinterpret_cast<LiteralObj*>(this);
+            return;
+        }
+        case ObjectKind::Complex: {
+            delete reinterpret_cast<ComplexObj*>(this);
             return;
         }
         default: {

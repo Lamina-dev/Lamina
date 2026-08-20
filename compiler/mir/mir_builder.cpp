@@ -22,6 +22,20 @@ bool is_float_type(const Type *type) noexcept {
            reinterpret_cast<const BasicType *>(type)->type == runtime::ValueKind::Fraction;
 }
 
+runtime::ValueKind native_value_kind(const std::shared_ptr<Type>& type) noexcept {
+    if (!type) return runtime::ValueKind::Obj;
+    if (type->kind == TypeKind::Basic) {
+        return std::static_pointer_cast<BasicType>(type)->type;
+    }
+    if (type->kind == TypeKind::Tuple) return runtime::ValueKind::Tuple;
+    if (type->kind == TypeKind::Named) {
+        const auto& name = std::static_pointer_cast<NamedType>(type)->name;
+        if (name == "set") return runtime::ValueKind::Set;
+        if (name == "interval") return runtime::ValueKind::Interval;
+    }
+    return runtime::ValueKind::Obj;
+}
+
 class Builder {
     std::vector<std::string> break_labels;
     std::vector<std::string> continue_labels;
@@ -520,20 +534,9 @@ public:
     void build_native_decl(NativeFuncDeclNode *node) const noexcept {
         std::vector<runtime::ValueKind> params;
         for (auto &ty: node->params->stmts | std::views::values) {
-            if (ty->kind == TypeKind::Basic) {
-                const auto t = std::static_pointer_cast<BasicType>(ty);
-                params.push_back(t->type);
-            } else {
-                params.push_back(runtime::ValueKind::Obj);
-            }
+            params.push_back(native_value_kind(ty));
         }
-        runtime::ValueKind ret_ty;
-        if (node->return_type->kind == TypeKind::Basic) {
-            const auto t = std::static_pointer_cast<BasicType>(node->return_type);
-            ret_ty = t->type;
-        } else {
-            ret_ty = runtime::ValueKind::Obj;
-        }
+        const auto ret_ty = native_value_kind(node->return_type);
         emit(std::make_shared<MirNativeFuncDefine>(node->func_id, node->symbol, std::move(params), ret_ty));
     }
 
@@ -546,16 +549,9 @@ public:
                     std::static_pointer_cast<NativeFunctionType>(exported.type);
                 std::vector<runtime::ValueKind> params;
                 for (const auto& param : native_type->params_ty) {
-                    if (param->kind == TypeKind::Basic) {
-                        params.push_back(std::static_pointer_cast<BasicType>(param)->type);
-                    } else {
-                        params.push_back(runtime::ValueKind::Obj);
-                    }
+                    params.push_back(native_value_kind(param));
                 }
-                runtime::ValueKind ret_ty = runtime::ValueKind::Obj;
-                if (native_type->ret_ty->kind == TypeKind::Basic) {
-                    ret_ty = std::static_pointer_cast<BasicType>(native_type->ret_ty)->type;
-                }
+                const auto ret_ty = native_value_kind(native_type->ret_ty);
                 emit(std::make_shared<MirNativeFuncDefine>(
                     mod_ty->binding_name + "." + exported.name,
                     native_type->name,

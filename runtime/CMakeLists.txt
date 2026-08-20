@@ -7,6 +7,8 @@ add_library(lamina_runtime OBJECT
     object/literal.cpp
     object/object.cpp
     object/value.cpp
+    object/complex.cpp
+    object/complex.hpp
     object/code_module.cpp
     gc.cpp
         object/array.cpp

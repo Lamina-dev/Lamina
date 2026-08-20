@@ -29,6 +29,7 @@ bool is_numeric_or_expr_type(const std::shared_ptr<Type>& type) noexcept {
     return kind == runtime::ValueKind::Int ||
            kind == runtime::ValueKind::Fraction ||
            kind == runtime::ValueKind::Real ||
+           kind == runtime::ValueKind::Complex ||
            kind == runtime::ValueKind::Expr;
 }
 
@@ -42,6 +43,7 @@ bool is_expr_constructible(const std::shared_ptr<Type>& type) noexcept {
     return kind == runtime::ValueKind::Int ||
            kind == runtime::ValueKind::Fraction ||
            kind == runtime::ValueKind::Real ||
+           kind == runtime::ValueKind::Complex ||
            kind == runtime::ValueKind::Expr;
 }
 
@@ -730,6 +732,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             if (
             t2->type != runtime::ValueKind::Int &&
             t2->type != runtime::ValueKind::Fraction &&
+            t2->type != runtime::ValueKind::Real &&
             t2->type != runtime::ValueKind::Expr) {
                 throw_error(ErrorType::Analysis, "unary`-` cannot applied to this type", expr->line, expr->col);
                 break;
@@ -875,6 +878,10 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             {runtime::ValueKind::Bool, {
                 {BinaryNode::Op::And, runtime::ValueKind::Bool},
                 {BinaryNode::Op::Or, runtime::ValueKind::Bool},
+            }},
+            {runtime::ValueKind::Complex, {
+                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
+                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
             }}
         };
         {

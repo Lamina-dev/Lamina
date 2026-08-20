@@ -18,6 +18,7 @@ enum {
     Tuple,
     Adt,
     Literal,
+    Complex,
 };
 }
 class Object {

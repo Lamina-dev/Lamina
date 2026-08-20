@@ -14,6 +14,7 @@
 #include "runtime/object/lsr_expr_obj.hpp"
 #include "runtime/object/StringObj.hpp"
 #include "runtime/object/adt.hpp"
+#include "runtime/object/complex.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -26,6 +27,7 @@
 
 #include "compiler/mir/mir_printer.hpp"
 #include "lmmc/numeric.h"
+#include "lmmc/complex.h"
 
 LmState global_state;
 
@@ -34,6 +36,7 @@ namespace {
 using lmx::runtime::ExprObj;
 using lmx::runtime::StringObj;
 using lmx::runtime::AdtObj;
+using lmx::runtime::ComplexObj;
 
 bool debug_dump_enabled() noexcept {
     const char* value = std::getenv("LMX_DEBUG_DUMP");
@@ -123,6 +126,31 @@ AdtObj* lmmc_real_result(const char* operation, const lmmc_status_t status,
     return real_result_error(std::move(error));
 }
 
+AdtObj* complex_result_ok(const lmmc_complex_t& value) {
+    std::vector<lmx::runtime::Value> fields;
+    fields.emplace_back(static_cast<lmx::runtime::Object*>(
+        new ComplexObj(value.real, value.imag)),
+        lmx::runtime::ValueKind::Complex);
+    return new AdtObj("Result", "Ok", std::move(fields));
+}
+
+AdtObj* lmmc_complex_result(const char* operation,
+                            const lmmc_status_t status,
+                            const lmmc_complex_t& value) {
+    if (status == LMMC_STATUS_OK) return complex_result_ok(value);
+    std::string error = operation ? operation : "LMMC";
+    error += ": ";
+    error += lmmc_status_string(status);
+    return real_result_error(std::move(error));
+}
+
+bool checked_complex(ComplexObj* value, lmmc_complex_t& result) noexcept {
+    if (!value) return false;
+    result.real = value->real();
+    result.imag = value->imag();
+    return true;
+}
+
 bool expr_to_real(ExprObj* expr, double& result, std::string& error) {
     const auto* value = checked_expr(expr, error);
     if (!value) return false;
@@ -183,6 +211,19 @@ extern "C" LM_API ExprObj* cas_expr_value(const lmx::runtime::Value* value) {
         const auto* expression = checked_expr(
             reinterpret_cast<ExprObj*>(value->obj), error);
         return expression ? new ExprObj(*expression) : expr_error(std::move(error));
+    }
+    case lmx::runtime::ValueKind::Complex: {
+        const auto* complex = reinterpret_cast<const ComplexObj*>(value->obj);
+        if (!complex) {
+            return expr_from_result(invalid_expr_operation(
+                "null complex value cannot be promoted to Expr",
+                "runtime.expr_value"));
+        }
+        const auto real = lamina::lsr::approx_real(complex->real());
+        if (!real) return expr_from_result(real);
+        const auto imag = lamina::lsr::approx_real(complex->imag());
+        if (!imag) return expr_from_result(imag);
+        return expr_from_result(lamina::lsr::complex(real.value(), imag.value()));
     }
     default:
         return expr_from_result(invalid_expr_operation(
@@ -367,6 +408,81 @@ extern "C" LM_API AdtObj* lmmc_num_exp2(ExprObj* expr) {
     lmmc_real_t out = 0.0;
     const auto status = lmmc_exp2(x, &out);
     return lmmc_real_result("lmmc_num_exp2", status, out);
+}
+
+extern "C" LM_API ComplexObj* lmx_complex_make(const double real,
+                                                  const double imag) {
+    lmmc_complex_t value{};
+    const auto status = lmmc_complex_create(real, imag, &value);
+    if (status != LMMC_STATUS_OK) return nullptr;
+    return new ComplexObj(value.real, value.imag);
+}
+
+extern "C" LM_API double lmx_complex_real(ComplexObj* value) {
+    return value ? value->real() : 0.0;
+}
+
+extern "C" LM_API double lmx_complex_imag(ComplexObj* value) {
+    return value ? value->imag() : 0.0;
+}
+
+extern "C" LM_API AdtObj* lmx_complex_add(ComplexObj* lhs,
+                                             ComplexObj* rhs) {
+    lmmc_complex_t left{}, right{}, result{};
+    if (!checked_complex(lhs, left) || !checked_complex(rhs, right)) {
+        return real_result_error("lmx_complex_add: invalid argument");
+    }
+    const auto status = lmmc_complex_add(&left, &right, &result);
+    return lmmc_complex_result("lmx_complex_add", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_complex_sub(ComplexObj* lhs,
+                                             ComplexObj* rhs) {
+    lmmc_complex_t left{}, right{}, result{};
+    if (!checked_complex(lhs, left) || !checked_complex(rhs, right)) {
+        return real_result_error("lmx_complex_sub: invalid argument");
+    }
+    const auto status = lmmc_complex_sub(&left, &right, &result);
+    return lmmc_complex_result("lmx_complex_sub", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_complex_mul(ComplexObj* lhs,
+                                             ComplexObj* rhs) {
+    lmmc_complex_t left{}, right{}, result{};
+    if (!checked_complex(lhs, left) || !checked_complex(rhs, right)) {
+        return real_result_error("lmx_complex_mul: invalid argument");
+    }
+    const auto status = lmmc_complex_mul(&left, &right, &result);
+    return lmmc_complex_result("lmx_complex_mul", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_complex_div(ComplexObj* lhs,
+                                             ComplexObj* rhs) {
+    lmmc_complex_t left{}, right{}, result{};
+    if (!checked_complex(lhs, left) || !checked_complex(rhs, right)) {
+        return real_result_error("lmx_complex_div: invalid argument");
+    }
+    const auto status = lmmc_complex_div(&left, &right, &result);
+    return lmmc_complex_result("lmx_complex_div", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_complex_conj(ComplexObj* value) {
+    lmmc_complex_t input{}, result{};
+    if (!checked_complex(value, input)) {
+        return real_result_error("lmx_complex_conj: invalid argument");
+    }
+    const auto status = lmmc_complex_conj(&input, &result);
+    return lmmc_complex_result("lmx_complex_conj", status, result);
+}
+
+extern "C" LM_API AdtObj* lmx_complex_abs(ComplexObj* value) {
+    lmmc_complex_t input{};
+    if (!checked_complex(value, input)) {
+        return real_result_error("lmx_complex_abs: invalid argument");
+    }
+    lmmc_real_t result = 0.0;
+    const auto status = lmmc_complex_modulus(&input, &result);
+    return lmmc_real_result("lmx_complex_abs", status, result);
 }
 
 LM_API LmState* lmx_newState() {

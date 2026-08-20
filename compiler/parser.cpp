@@ -891,6 +891,7 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
             {"int", runtime::ValueKind::Int}, {"bool", runtime::ValueKind::Bool},
             {"null", runtime::ValueKind::Null}, {"frac", runtime::ValueKind::Fraction},
             {"real", runtime::ValueKind::Real}, {"expr", runtime::ValueKind::Expr},
+            {"complex", runtime::ValueKind::Complex},
             {"cptr", runtime::ValueKind::C_Ptr}
         };
         std::shared_ptr<Type> type;

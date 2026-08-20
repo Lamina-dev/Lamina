@@ -29,6 +29,19 @@ set_target_properties(test_compilation_pipeline PROPERTIES
 )
 add_test(NAME compilation_pipeline COMMAND test_compilation_pipeline)
 
+add_executable(test_runtime_values
+    test_runtime_values.cpp
+    ../lmx.cpp
+    ../utils/utils.cpp
+    $<TARGET_OBJECTS:lamina_runtime>
+    $<TARGET_OBJECTS:laminac>
+)
+target_link_libraries(test_runtime_values PRIVATE dyncall_s dynload_s lmcas)
+set_target_properties(test_runtime_values PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME runtime_values COMMAND test_runtime_values)
+
 add_lamina_test(language_adt adt.lm)
 add_lamina_test(language_adt_module adt_module.lm)
 add_lamina_test(language_literal_payload literal_payload.lm)
@@ -58,3 +71,4 @@ add_lamina_error_test(unexpected_uninterpreted_function unexpected_uninterpreted
 add_lamina_output_test(lowercase_i_symbol lowercase_i_symbol.lm "i + 1")
 add_lamina_output_test(lowercase_i_variable lowercase_i_variable.lm "2")
 add_lamina_output_test(numeric_result numeric_result.lm "3.0|ok|err|err")
+add_lamina_output_test(complex_runtime complex_runtime.lm "4.0,2.0|11.0,-2.0|2.0,6.0|3.0,-4.0|5.0|err|1|1")

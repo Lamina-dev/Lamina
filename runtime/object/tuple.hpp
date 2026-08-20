@@ -6,12 +6,18 @@
 #include "object.hpp"
 #include "value.hpp"
 
+#include <cstddef>
+#include <string>
+
 namespace lmx::runtime {
 class TupleObj : public Object {
     Value* data{nullptr};
+    std::size_t len_{0};
 public:
-    LMX_INLINE explicit TupleObj(Value* data) noexcept : Object(ObjectKind::Tuple), data(data) {}
-    LMX_INLINE explicit TupleObj(const size_t len) noexcept : Object(ObjectKind::Tuple), data(new Value[len]) {}
+    LMX_INLINE explicit TupleObj(Value* data, const std::size_t len) noexcept
+        : Object(ObjectKind::Tuple), data(data), len_(len) {}
+    LMX_INLINE explicit TupleObj(const std::size_t len) noexcept
+        : Object(ObjectKind::Tuple), data(new Value[len]), len_(len) {}
     LMX_INLINE explicit TupleObj() noexcept : Object(ObjectKind::Tuple) {}
 
     LMX_INLINE ~TupleObj() noexcept {
@@ -29,6 +35,9 @@ public:
         return data[i];
     }
 
-    static std::string to_string() noexcept;
+    [[nodiscard]] LMX_INLINE std::size_t size() const noexcept { return len_; }
+    [[nodiscard]] bool equals(const TupleObj& other) const noexcept;
+    [[nodiscard]] std::size_t hash() const noexcept;
+    [[nodiscard]] std::string to_string() const noexcept;
 };
 }

@@ -16,6 +16,16 @@ func num_hypot(x expr, y expr) -> Result<real, text> = "lmmc_num_hypot"
 func num_log2(x expr) -> Result<real, text> = "lmmc_num_log2"
 func num_exp2(x expr) -> Result<real, text> = "lmmc_num_exp2"
 
+func complex(real frac, imag frac) -> complex = "lmx_complex_make"
+func complex_real(value complex) -> real = "lmx_complex_real"
+func complex_imag(value complex) -> real = "lmx_complex_imag"
+func complex_add(lhs complex, rhs complex) -> Result<complex, text> = "lmx_complex_add"
+func complex_sub(lhs complex, rhs complex) -> Result<complex, text> = "lmx_complex_sub"
+func complex_mul(lhs complex, rhs complex) -> Result<complex, text> = "lmx_complex_mul"
+func complex_div(lhs complex, rhs complex) -> Result<complex, text> = "lmx_complex_div"
+func complex_conj(value complex) -> Result<complex, text> = "lmx_complex_conj"
+func complex_abs(value complex) -> Result<real, text> = "lmx_complex_abs"
+
 func int_to_frac(n int) -> frac {
     n / 1
 }

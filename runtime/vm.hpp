@@ -86,6 +86,13 @@ class LaminaVM {
             dcArgPointer(call_vm, (DCpointer)v->obj);
             break;
         }
+        case ValueKind::Tuple:
+        case ValueKind::Set:
+        case ValueKind::Interval:
+        case ValueKind::Complex: {
+            dcArgPointer(call_vm, (DCpointer)v->obj);
+            break;
+        }
         case ValueKind::C_VaList: {
             return;
         }
@@ -175,8 +182,12 @@ public:
             case ValueKind::Bool:   regs[0] = static_cast<bool>(dcCallBool(call_vm, (DCpointer) meta->addr)); break;
             case ValueKind::Real:   regs[0] = dcCallDouble(call_vm, (DCpointer) meta->addr); break;
             case ValueKind::Expr:
+            case ValueKind::Tuple:
+            case ValueKind::Set:
+            case ValueKind::Interval:
+            case ValueKind::Complex:
                 regs[0].~Value();
-                regs[0].kind = ValueKind::Expr;
+                regs[0].kind = meta->ret_ty;
                 regs[0].obj = static_cast<Object *>(dcCallPointer(call_vm, (DCpointer) meta->addr));
                 break;
             case ValueKind::Fraction: dcCallVoid(call_vm, (DCpointer)meta->addr); break;

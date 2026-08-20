@@ -6,6 +6,8 @@
 #include "adt.hpp"
 #include "StringObj.hpp"
 #include "literal.hpp"
+#include "tuple.hpp"
+#include "complex.hpp"
 
 #include <functional>
 
@@ -18,6 +20,10 @@ bool Value::operator==(const Value &other) const noexcept {
     case ValueKind::C_Ptr: return c_ptr == other.c_ptr;
     case ValueKind::Obj:
     case ValueKind::Expr:
+    case ValueKind::Tuple:
+    case ValueKind::Set:
+    case ValueKind::Interval:
+    case ValueKind::Complex:
         if (obj == other.obj) return true;
         if (!obj || !other.obj || obj->get_kind() != other.obj->get_kind()) return false;
         if (obj->get_kind() == ObjectKind::Adt) {
@@ -29,6 +35,14 @@ bool Value::operator==(const Value &other) const noexcept {
         if (obj->get_kind() == ObjectKind::Literal) {
             return reinterpret_cast<const LiteralObj*>(obj)->equals(
                 *reinterpret_cast<const LiteralObj*>(other.obj));
+        }
+        if (obj->get_kind() == ObjectKind::Tuple) {
+            return reinterpret_cast<const TupleObj*>(obj)->equals(
+                *reinterpret_cast<const TupleObj*>(other.obj));
+        }
+        if (obj->get_kind() == ObjectKind::Complex) {
+            return reinterpret_cast<const ComplexObj*>(obj)->equals(
+                *reinterpret_cast<const ComplexObj*>(other.obj));
         }
         return false;
     case ValueKind::Int: return int_val == other.int_val;
@@ -56,6 +70,10 @@ std::size_t Value::hash() const noexcept {
     case ValueKind::Real: return std::hash<double>{}(real_val);
     case ValueKind::Obj:
     case ValueKind::Expr:
+    case ValueKind::Tuple:
+    case ValueKind::Set:
+    case ValueKind::Interval:
+    case ValueKind::Complex:
         if (!obj) return 0;
         switch (obj->get_kind()) {
         case ObjectKind::String:
@@ -64,6 +82,10 @@ std::size_t Value::hash() const noexcept {
             return reinterpret_cast<const LiteralObj*>(obj)->hash();
         case ObjectKind::Adt:
             return reinterpret_cast<const AdtObj*>(obj)->hash();
+        case ObjectKind::Tuple:
+            return reinterpret_cast<const TupleObj*>(obj)->hash();
+        case ObjectKind::Complex:
+            return reinterpret_cast<const ComplexObj*>(obj)->hash();
         default:
             return std::hash<const Object*>{}(obj);
         }
@@ -83,6 +105,10 @@ std::string Value::to_string() const noexcept {
     case ValueKind::Real: return std::to_string(real_val);
     case ValueKind::Obj: return Object::to_string(obj);
     case ValueKind::Expr: return Object::to_string(obj);
+    case ValueKind::Tuple: return Object::to_string(obj);
+    case ValueKind::Set: return Object::to_string(obj);
+    case ValueKind::Interval: return Object::to_string(obj);
+    case ValueKind::Complex: return Object::to_string(obj);
     case ValueKind::C_Ptr: return "RawPtr";
     case ValueKind::Null: return "Null";
     case ValueKind::Fraction: return frac_val.to_string();

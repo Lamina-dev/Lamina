@@ -14,8 +14,14 @@
 namespace lmx::runtime {
 enum class ValueKind : uint8_t {
     Null, C_Ptr, Obj, Int, Bool, Fraction, Real, Expr, C_VaList,
-    C_ValueRef
+    C_ValueRef, Tuple, Set, Interval, Complex
 };
+
+LMX_INLINE constexpr bool is_object_value_kind(const ValueKind kind) noexcept {
+    return kind == ValueKind::Obj || kind == ValueKind::Expr ||
+           kind == ValueKind::Tuple || kind == ValueKind::Set ||
+           kind == ValueKind::Interval || kind == ValueKind::Complex;
+}
 
 struct Value;
 // #pragma pack(push, 1)
@@ -34,6 +40,7 @@ struct Value {
     explicit Value()            noexcept;
     explicit Value(void* ptr)   noexcept;
     explicit Value(Object* obj) noexcept;
+    explicit Value(Object* obj, ValueKind kind) noexcept;
     explicit Value(LmInt val) noexcept;
     explicit Value(double val) noexcept;
     explicit Value(bool val)    noexcept;
@@ -96,6 +103,9 @@ LMX_INLINE Value::Value(const LmInt int_val) noexcept : kind(ValueKind::Int), in
 LMX_INLINE Value::Value(const double real_val) noexcept : kind(ValueKind::Real), real_val(real_val) {}
 
 LMX_INLINE Value::Value(Object *obj) noexcept : kind(ValueKind::Obj), obj(obj) {}
+
+LMX_INLINE Value::Value(Object *obj, const ValueKind kind) noexcept
+    : kind(is_object_value_kind(kind) ? kind : ValueKind::Obj), obj(obj) {}
 
 LMX_INLINE Value::Value(const int num, const int den) noexcept : kind(ValueKind::Fraction), frac_val(num, den) {}
 
@@ -263,7 +273,7 @@ LMX_INLINE Value::Value(Value &&other) noexcept : kind(ValueKind::Null), c_ptr(n
 LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
     if (this == &other) return *this;
     this->~Value();
-    if ((other.kind == ValueKind::Obj || other.kind == ValueKind::Expr) && other.obj) {
+    if (is_object_value_kind(other.kind) && other.obj) {
         this->obj = other.obj->get();
         this->kind = other.kind;
     } else {
@@ -280,6 +290,10 @@ LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
         case ValueKind::C_ValueRef: c_ptr = nullptr; break;
         case ValueKind::Obj:
         case ValueKind::Expr:
+        case ValueKind::Tuple:
+        case ValueKind::Set:
+        case ValueKind::Interval:
+        case ValueKind::Complex:
             obj = nullptr;
             break;
         }
@@ -295,7 +309,13 @@ LMX_INLINE Value &Value::operator=(Value &&other) noexcept {
     case ValueKind::Null: null_val = nullptr; break;
     case ValueKind::C_Ptr: c_ptr = other.c_ptr; break;
     case ValueKind::Obj:
-    case ValueKind::Expr: obj = other.obj; break;
+    case ValueKind::Expr:
+    case ValueKind::Tuple:
+    case ValueKind::Set:
+    case ValueKind::Interval:
+    case ValueKind::Complex:
+        obj = other.obj;
+        break;
     case ValueKind::Int: int_val = other.int_val; break;
     case ValueKind::Bool: bool_val = other.bool_val; break;
     case ValueKind::Fraction: new (&frac_val) Fraction(other.frac_val); break;
@@ -303,7 +323,7 @@ LMX_INLINE Value &Value::operator=(Value &&other) noexcept {
     case ValueKind::C_VaList: c_ptr = nullptr; break;
     case ValueKind::C_ValueRef: c_ptr = nullptr; break;
     }
-    if (kind == ValueKind::Obj || kind == ValueKind::Expr || kind == ValueKind::C_Ptr ||
+    if (is_object_value_kind(kind) || kind == ValueKind::C_Ptr ||
         kind == ValueKind::C_ValueRef) {
         other.kind = ValueKind::Null;
         other.c_ptr = nullptr;
@@ -314,7 +334,11 @@ LMX_INLINE Value &Value::operator=(Value &&other) noexcept {
 LMX_INLINE Value::~Value() noexcept {
     switch (this->kind) {
     case ValueKind::Obj:
-    case ValueKind::Expr: {
+    case ValueKind::Expr:
+    case ValueKind::Tuple:
+    case ValueKind::Set:
+    case ValueKind::Interval:
+    case ValueKind::Complex: {
         if (this->obj) this->obj->release();
         break;
     }

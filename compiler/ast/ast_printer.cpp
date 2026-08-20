@@ -25,6 +25,10 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
             case runtime::ValueKind::Expr: ss << "Expr"; break;
             case runtime::ValueKind::C_VaList: ss << "..."; break;
             case runtime::ValueKind::C_ValueRef: ss << "ValueRef"; break;
+            case runtime::ValueKind::Tuple: ss << "Tuple"; break;
+            case runtime::ValueKind::Set: ss << "Set"; break;
+            case runtime::ValueKind::Interval: ss << "Interval"; break;
+            case runtime::ValueKind::Complex: ss << "Complex"; break;
         }
         break;
     }
