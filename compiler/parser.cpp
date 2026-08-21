@@ -240,7 +240,7 @@ std::shared_ptr<ExprNode> Parser::parse_open_interval_or_group() noexcept {
         consume(TokenType::RPAREN, ")");
         return std::make_shared<LiteralPayloadNode>(
             line, col, LiteralPayloadNode::Kind::Interval,
-            std::vector<std::shared_ptr<ExprNode>>{first, second}, false, false);
+            std::vector{first, second}, false, false);
     }
     consume(TokenType::RPAREN, ")");
     return first;
@@ -278,7 +278,7 @@ std::shared_ptr<ExprNode> Parser::parse_interval_literal(const bool lower_closed
     }
     return std::make_shared<LiteralPayloadNode>(
         line, col, LiteralPayloadNode::Kind::Interval,
-        std::vector<std::shared_ptr<ExprNode>>{lower, upper},
+        std::vector{lower, upper},
         lower_closed, upper_closed);
 }
 
@@ -599,7 +599,7 @@ Pattern Parser::parse_pattern() noexcept {
     }
     if (match(TokenType::NUM_LITERAL) || match(TokenType::STRING_LITERAL) ||
         match(TokenType::TRUE_LITERAL) || match(TokenType::FALSE_LITERAL) || match(TokenType::NULL_LITERAL)) {
-        LiteralNode::Kind literal_kind = LiteralNode::Kind::Integer;
+        auto literal_kind = LiteralNode::Kind::Integer;
         auto value = cur().text;
         if (match(TokenType::NULL_LITERAL)) {
             literal_kind = LiteralNode::Kind::Null;
@@ -645,8 +645,8 @@ Pattern Parser::parse_pattern() noexcept {
         }
         return pattern;
     }
-    if (name == "_") return Pattern(Pattern::Kind::Wildcard, line, col);
-    if (!match(TokenType::LPAREN)) return Pattern(Pattern::Kind::Binding, line, col, std::move(name));
+    if (name == "_") return {Pattern::Kind::Wildcard, line, col};
+    if (!match(TokenType::LPAREN)) return {Pattern::Kind::Binding, line, col, std::move(name)};
 
     Pattern pattern(Pattern::Kind::Constructor, line, col, std::move(name));
     pos++;

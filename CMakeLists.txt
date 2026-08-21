@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.26)
 project(Lamina LANGUAGES CXX)
 
-#set(FETCHCONTENT_FULLY_DISCONNECTED ON)
+set(FETCHCONTENT_FULLY_DISCONNECTED ON)
 option(LMX_BUILD_TESTS "Build Lamina tests" OFF)
 if(LMX_BUILD_TESTS)
     enable_testing()
