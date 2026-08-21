@@ -1,0 +1,14 @@
+import std
+
+func make_length() -> expr {
+    let value = 2<m>
+    value
+}
+
+func keep_expr(value expr) -> expr {
+    value
+}
+
+std.printf("%s|%s\n",
+    std.cas_to_text(make_length()),
+    std.cas_to_text(keep_expr(3<m>)))

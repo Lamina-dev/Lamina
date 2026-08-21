@@ -1,0 +1,6 @@
+unit tick
+unit frame = 2<tick>
+
+func frame_ticks(value num<frame>) -> num<tick> {
+    value as <tick>
+}

@@ -1,0 +1,25 @@
+import std
+
+let x = std.cas_sym("x")
+let simplified = std.cas_simplify(x + 0)
+let expanded = std.cas_expand((x + 1) * (x + 1))
+let invalid = std.cas_diff(x, "")
+
+std.printf("%s|%d,%d|", std.cas_to_text(x), std.cas_is_ok(simplified),
+    std.cas_is_ok(expanded))
+match std.num_hypot(3 as expr, 4 as expr) {
+    Result.Ok(value) => std.printf("%.1f|", value),
+    Result.Err(error) => std.printf("%s", error)
+}
+match std.num_exp2(3 as expr) {
+    Result.Ok(value) => std.printf("%.1f|", value),
+    Result.Err(error) => std.printf("%s", error)
+}
+match std.matrix([[3, 4,], [0, 0,],]) {
+    Result.Ok(matrix) => match std.matrix_norm(matrix) {
+        Result.Ok(value) => std.printf("%.1f|", value),
+        Result.Err(error) => std.printf("%s", error)
+    },
+    Result.Err(error) => std.printf("%s", error)
+}
+std.printf("%.1f|%s", std.int_to_frac(3), std.cas_error(invalid))

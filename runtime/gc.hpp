@@ -3,7 +3,6 @@
 // 这个作为后期实现，暂时这样吧
 
 #pragma once
-#include <list>
 #include <cstdint>
 #include <memory>
 
@@ -17,28 +16,16 @@ class GC;
 
 // using GCObject = std::shared_ptr<Object>;
 class LmGCAllocator {
-    std::list<Object*> objects;
 public:
     LMX_INLINE Object* alloc_string(const char *str, uint32_t len) noexcept {
-        const auto ptr = new StringObj(str, len);
-        objects.push_back(ptr);
-        return ptr;
+        return new StringObj(str, len);
     }
     LMX_INLINE Object* alloc_array(const size_t len) noexcept {
-        const auto ptr = new ArrayObj(len);
-        objects.push_back(ptr);
-        return ptr;
+        return new ArrayObj(len);
     }
     LMX_INLINE Object* alloc_tuple(const size_t len) noexcept {
-        const auto ptr = new TupleObj(len);
-        objects.push_back(ptr);
-        return ptr;
+        return new TupleObj(len);
     }
-    ~LmGCAllocator() noexcept {
-        for (const auto obj : objects) {
-            if (obj->get_rc() > 0) obj->release();
-        }
-    };
 };
 
 }

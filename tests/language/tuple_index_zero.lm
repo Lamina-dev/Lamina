@@ -1,0 +1,2 @@
+let pair = (1, 2)
+pair.0

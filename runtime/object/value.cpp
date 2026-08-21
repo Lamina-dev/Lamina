@@ -86,12 +86,7 @@ std::size_t Value::hash() const noexcept {
     case ValueKind::C_Ptr: return std::hash<void*>{}(c_ptr);
     case ValueKind::Int: return std::hash<LmInt>{}(int_val);
     case ValueKind::Bool: return std::hash<bool>{}(bool_val);
-    case ValueKind::Fraction: {
-        auto result = std::hash<int32_t>{}(frac_val.num);
-        result ^= std::hash<int32_t>{}(frac_val.den) + 0x9e3779b9U +
-                  (result << 6U) + (result >> 2U);
-        return result;
-    }
+    case ValueKind::Fraction: return frac_val.hash();
     case ValueKind::Real: return std::hash<double>{}(real_val);
     case ValueKind::Obj:
     case ValueKind::Expr:

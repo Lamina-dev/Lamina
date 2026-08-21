@@ -1,0 +1,3 @@
+func invalid(value (int,)) -> int {
+    0
+}

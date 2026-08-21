@@ -1,10 +1,13 @@
 #include "mir_builder.hpp"
 #include "lmx_expr.h"
 #include <cassert>
+#include <cstdlib>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -18,8 +21,50 @@ bool is_int_type(const Type *type) noexcept {
 }
 
 bool is_float_type(const Type *type) noexcept {
-    return type && type->kind == TypeKind::Basic &&
-           reinterpret_cast<const BasicType *>(type)->type == runtime::ValueKind::Fraction;
+    return type && (type->kind == TypeKind::Dimensioned ||
+           (type->kind == TypeKind::Basic &&
+            reinterpret_cast<const BasicType *>(type)->type == runtime::ValueKind::Fraction));
+}
+
+bool is_comparison_op(const BinaryNode::Op op) noexcept {
+    switch (op) {
+    case BinaryNode::Op::Eq:
+    case BinaryNode::Op::Ne:
+    case BinaryNode::Op::Lt:
+    case BinaryNode::Op::Le:
+    case BinaryNode::Op::Gt:
+    case BinaryNode::Op::Ge:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool is_named_type(const std::shared_ptr<Type>& type,
+                   const std::string_view name) noexcept {
+    return type && type->kind == TypeKind::Named &&
+           std::static_pointer_cast<NamedType>(type)->name == name;
+}
+
+std::optional<int> signed_integer_literal(const ExprNode* expression) noexcept {
+    if (!expression) return std::nullopt;
+    if (expression->kind == ASTKind::Literal) {
+        const auto* literal = static_cast<const LiteralNode*>(expression);
+        if (literal->kind != LiteralNode::Kind::Integer) return std::nullopt;
+        try {
+            std::size_t used = 0;
+            const auto value = std::stoi(literal->val, &used);
+            return used == literal->val.size()
+                ? std::optional<int>(value) : std::nullopt;
+        } catch (...) {
+            return std::nullopt;
+        }
+    }
+    if (expression->kind != ASTKind::Unary) return std::nullopt;
+    const auto* unary = static_cast<const UnaryNode*>(expression);
+    if (unary->op != UnaryNode::Op::Neg) return std::nullopt;
+    const auto value = signed_integer_literal(unary->expr.get());
+    return value ? std::optional<int>(-*value) : std::nullopt;
 }
 
 runtime::ValueKind native_value_kind(const std::shared_ptr<Type>& type) noexcept {
@@ -27,6 +72,7 @@ runtime::ValueKind native_value_kind(const std::shared_ptr<Type>& type) noexcept
     if (type->kind == TypeKind::Basic) {
         return std::static_pointer_cast<BasicType>(type)->type;
     }
+    if (type->kind == TypeKind::Dimensioned) return runtime::ValueKind::Fraction;
     if (type->kind == TypeKind::Tuple) return runtime::ValueKind::Tuple;
     if (type->kind == TypeKind::Named) {
         const auto& name = std::static_pointer_cast<NamedType>(type)->name;
@@ -97,16 +143,25 @@ class Builder {
         const auto boolean = runtime::ValueKind::Bool;
         const auto va_list = runtime::ValueKind::C_VaList;
         const auto value_ref = runtime::ValueKind::C_ValueRef;
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_sym", "cas_sym", std::vector{text}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_imaginary", "cas_expr_imaginary", std::vector<runtime::ValueKind>{}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_integer", "cas_expr_integer", std::vector{integer}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_rational", "cas_expr_rational", std::vector{integer, integer}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_value", "cas_expr_value", std::vector{value_ref}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_unary", "cas_expr_unary", std::vector{integer, expr}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_binary", "cas_expr_binary", std::vector{integer, expr, expr}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_function", "cas_expr_function", std::vector{text, integer, va_list}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_set", "cas_expr_set", std::vector{integer, va_list}, expr));
-        emit(std::make_shared<MirNativeFuncDefine>("__cas_expr_interval", "cas_expr_interval", std::vector{expr, expr, boolean, boolean}, expr));
+        const auto declare = [this](std::shared_ptr<MirNativeFuncDefine> definition) {
+            module_.nodes.push_back(std::move(definition));
+        };
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_sym", "cas_sym", std::vector{text}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_imaginary", "cas_expr_imaginary", std::vector<runtime::ValueKind>{}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_integer", "cas_expr_integer", std::vector{integer}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_rational", "cas_expr_rational", std::vector{integer, integer}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_value", "cas_expr_value", std::vector{value_ref}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_unary", "cas_expr_unary", std::vector{integer, expr}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_binary", "cas_expr_binary", std::vector{integer, expr, expr}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_function", "cas_expr_function", std::vector{text, integer, va_list}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_set", "cas_expr_set", std::vector{integer, va_list}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_interval", "cas_expr_interval", std::vector{expr, expr, boolean, boolean}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_with_unit", "cas_expr_with_unit",
+            std::vector{expr, text, text, integer, integer}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_convert_unit", "cas_expr_convert_unit",
+            std::vector{expr, text, text, integer, integer}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_strip_base", "cas_expr_strip_base", std::vector{expr}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_strip_display", "cas_expr_strip_display", std::vector{expr}, expr));
     }
 
     std::shared_ptr<MirCCallExpr> cas_call(std::string name, std::vector<std::shared_ptr<MirRefExpr>> args) noexcept {
@@ -164,14 +219,26 @@ class Builder {
     }
 
     static std::shared_ptr<MirExpr> eval_binary_cmp(const BinaryNode::Op op, std::shared_ptr<MirExpr> lhs,
-                                             std::shared_ptr<MirExpr> rhs) {
+                                             std::shared_ptr<MirExpr> rhs, const bool is_float) {
         switch (op) {
-        case BinaryNode::Op::Eq:  return std::make_shared<MirICmpEqExpr>(std::move(lhs), std::move(rhs));
-        case BinaryNode::Op::Ne:  return std::make_shared<MirICmpNeExpr>(std::move(lhs), std::move(rhs));
-        case BinaryNode::Op::Lt:  return std::make_shared<MirICmpLtExpr>(std::move(lhs), std::move(rhs));
-        case BinaryNode::Op::Le:  return std::make_shared<MirICmpLeExpr>(std::move(lhs), std::move(rhs));
-        case BinaryNode::Op::Gt:  return std::make_shared<MirICmpGtExpr>(std::move(lhs), std::move(rhs));
-        case BinaryNode::Op::Ge:  return std::make_shared<MirICmpGeExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Eq:
+            if (is_float) return std::make_shared<MirFCmpEqExpr>(std::move(lhs), std::move(rhs));
+            return std::make_shared<MirICmpEqExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Ne:
+            if (is_float) return std::make_shared<MirFCmpNeExpr>(std::move(lhs), std::move(rhs));
+            return std::make_shared<MirICmpNeExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Lt:
+            if (is_float) return std::make_shared<MirFCmpLtExpr>(std::move(lhs), std::move(rhs));
+            return std::make_shared<MirICmpLtExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Le:
+            if (is_float) return std::make_shared<MirFCmpLeExpr>(std::move(lhs), std::move(rhs));
+            return std::make_shared<MirICmpLeExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Gt:
+            if (is_float) return std::make_shared<MirFCmpGtExpr>(std::move(lhs), std::move(rhs));
+            return std::make_shared<MirICmpGtExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Ge:
+            if (is_float) return std::make_shared<MirFCmpGeExpr>(std::move(lhs), std::move(rhs));
+            return std::make_shared<MirICmpGeExpr>(std::move(lhs), std::move(rhs));
         default: std::unreachable();
         }
     }
@@ -201,6 +268,38 @@ class Builder {
     std::shared_ptr<MirRefExpr> integer_arg(const long long value) {
         return ensure_temp(std::make_shared<MirLiteralExpr>(
             MirLiteralKind::Integer, std::to_string(value)));
+    }
+
+    std::shared_ptr<MirRefExpr> string_arg(std::string value) {
+        return ensure_temp(std::make_shared<MirLiteralExpr>(
+            MirLiteralKind::String, std::move(value)));
+    }
+
+    std::vector<std::shared_ptr<MirRefExpr>> unit_arguments(
+        std::shared_ptr<MirExpr> value, const UnitDefinition& unit) {
+        return {ensure_temp(std::move(value)), string_arg(unit.display_unit),
+                string_arg(unit.dimension.to_string()),
+                integer_arg(unit.scale_to_base.numerator),
+                integer_arg(unit.scale_to_base.denominator)};
+    }
+
+    std::shared_ptr<MirExpr> promote_runtime_value(
+        std::shared_ptr<MirExpr> value, const std::shared_ptr<Type>& type) {
+        auto promoted = cas_call("__cas_expr_value", {
+            ensure_temp(std::move(value))});
+        if (!type || type->kind != TypeKind::Dimensioned) return promoted;
+        const auto dimensioned = std::static_pointer_cast<DimensionedType>(type);
+        return cas_call("__cas_expr_with_unit",
+                        unit_arguments(std::move(promoted), dimensioned->unit));
+    }
+
+    std::shared_ptr<MirExpr> apply_scale(std::shared_ptr<MirExpr> value,
+                                         const RationalScale& scale) {
+        if (scale.numerator == scale.denominator) return value;
+        auto factor = std::make_shared<MirLiteralExpr>(
+            MirLiteralKind::Float, scale.to_string());
+        return std::make_shared<MirFMulExpr>(
+            ensure_temp(std::move(value)), ensure_temp(std::move(factor)));
     }
 
     static LmExprBinaryOp expr_binary_op(const BinaryNode::Op op) {
@@ -233,8 +332,10 @@ class Builder {
             if (id->id == "I")
                 return cas_call("__cas_expr_imaginary", {});
             auto value = std::make_shared<MirRefExpr>(id->id, false);
-            if (is_expr_type(expr->type)) return value;
-            return cas_call("__cas_expr_value", {ensure_temp(std::move(value))});
+            if (is_expr_type(expr->type) && !expr->promoted_from_type) return value;
+            return promote_runtime_value(
+                std::move(value), expr->promoted_from_type
+                    ? expr->promoted_from_type : expr->type);
         }
         case ASTKind::Literal: {
             const auto* literal = reinterpret_cast<const LiteralNode*>(expr);
@@ -263,7 +364,28 @@ class Builder {
         }
         case ASTKind::SuffixParen: {
             const auto* call = reinterpret_cast<const SuffixParenNode*>(expr);
-            if (!call->is_symbolic_call) return eval(expr);
+            if (!call->is_symbolic_call) {
+                std::vector<std::shared_ptr<MirRefExpr>> arguments;
+                if (call->suffix) {
+                    for (const auto& argument : call->suffix->exprs)
+                        arguments.push_back(ensure_temp(eval(argument.get())));
+                }
+                std::shared_ptr<MirExpr> value;
+                if (call->can_fast) {
+                    value = std::make_shared<MirCallFastExpr>(
+                        reinterpret_cast<IdentifierNode*>(call->expr.get())->id,
+                        std::move(arguments));
+                } else {
+                    value = std::make_shared<MirCallExpr>(
+                        temp_assign(eval(call->expr.get())), std::move(arguments));
+                }
+                if (expr->promoted_from_type) {
+                    return promote_runtime_value(
+                        std::move(value), expr->promoted_from_type);
+                }
+                if (is_expr_type(expr->type)) return value;
+                return promote_runtime_value(std::move(value), expr->type);
+            }
             std::vector<std::shared_ptr<MirRefExpr>> args;
             args.push_back(ensure_temp(std::make_shared<MirLiteralExpr>(
                 MirLiteralKind::String, dotted_name(call->expr.get()))));
@@ -292,8 +414,41 @@ class Builder {
                 args.push_back(ensure_temp(eval_as_expr(element.get())));
             return cas_call("__cas_expr_set", std::move(args));
         }
-        case ASTKind::AsExpr:
-            return eval_as_expr(reinterpret_cast<const AsExprNode*>(expr)->expr.get());
+        case ASTKind::NativeFuncCall: {
+            const auto* call = reinterpret_cast<const NativeFuncCallExpr*>(expr);
+            std::vector<std::shared_ptr<MirRefExpr>> arguments;
+            if (call->suffix) {
+                for (const auto& argument : call->suffix->exprs)
+                    arguments.push_back(ensure_temp(eval(argument.get())));
+            }
+            auto value = std::make_shared<MirCCallExpr>(
+                dotted_name(call->expr.get()), std::move(arguments));
+            if (expr->promoted_from_type)
+                return promote_runtime_value(std::move(value), expr->promoted_from_type);
+            if (is_expr_type(expr->type)) return value;
+            return promote_runtime_value(std::move(value), expr->type);
+        }
+        case ASTKind::UnitAnnotated: {
+            const auto* unit = reinterpret_cast<const UnitAnnotatedExprNode*>(expr);
+            return cas_call("__cas_expr_with_unit",
+                            unit_arguments(eval_as_expr(unit->value.get()), unit->resolved_unit));
+        }
+        case ASTKind::AsExpr: {
+            const auto* as = reinterpret_cast<const AsExprNode*>(expr);
+            auto value = eval_as_expr(as->expr.get());
+            switch (as->cast_kind) {
+            case AsExprNode::Kind::Unit:
+                return cas_call("__cas_expr_convert_unit",
+                                unit_arguments(std::move(value), as->resolved_unit));
+            case AsExprNode::Kind::Num:
+                return cas_call("__cas_expr_strip_base", {ensure_temp(std::move(value))});
+            case AsExprNode::Kind::Scalar:
+                return cas_call("__cas_expr_strip_display", {ensure_temp(std::move(value))});
+            case AsExprNode::Kind::Type:
+                return value;
+            }
+            std::unreachable();
+        }
         default:
             std::unreachable();
         }
@@ -582,8 +737,10 @@ public:
 
 std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
     if (is_expr_type(expr->type)) {
+        if (expr->promoted_from_type) return eval_as_expr(expr);
         if (expr->kind == ASTKind::Literal ||
             expr->kind == ASTKind::LiteralPayload ||
+            expr->kind == ASTKind::UnitAnnotated ||
             expr->kind == ASTKind::AsExpr) {
             return eval_as_expr(expr);
         }
@@ -610,6 +767,10 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         }
         return std::make_shared<MirLiteralExpr>(lk, lit->val);
     }
+    case ASTKind::UnitAnnotated: {
+        const auto* unit = reinterpret_cast<UnitAnnotatedExprNode*>(expr);
+        return eval(unit->value.get());
+    }
     case ASTKind::Identifier: {
         auto *id = reinterpret_cast<IdentifierNode *>(expr);
         if (id->is_zero_adt_constructor) {
@@ -625,6 +786,12 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
             return eval_as_expr(expr);
         }
         auto operand = ensure_temp(eval(un->expr.get()));
+        if (un->op == UnaryNode::Op::Not) {
+            auto false_lit = std::make_shared<MirLiteralExpr>(MirLiteralKind::Boolean, "false");
+            auto false_ref = ensure_temp(std::move(false_lit));
+            return temp_assign(std::make_shared<MirICmpEqExpr>(
+                std::move(operand), std::move(false_ref)));
+        }
         if (is_int_type(expr->type.get())) {
             return temp_assign(std::make_shared<MirINegExpr>(std::move(operand)));
         }
@@ -639,8 +806,16 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
             return eval_adt_binding(bin);
         }
         if (bin->op == BinaryNode::Op::In || bin->op == BinaryNode::Op::NotIn) {
+            auto element = eval(bin->lhs.get());
+            if (bin->lhs->type->kind == TypeKind::Dimensioned &&
+                is_named_type(bin->rhs->type, "interval")) {
+                const auto dimensioned =
+                    std::static_pointer_cast<DimensionedType>(bin->lhs->type);
+                element = apply_scale(std::move(element),
+                                      dimensioned->unit.scale_to_base);
+            }
             return temp_assign(std::make_shared<MirContainsExpr>(
-                eval(bin->lhs.get()), eval(bin->rhs.get()),
+                std::move(element), eval(bin->rhs.get()),
                 bin->op == BinaryNode::Op::NotIn));
         }
         switch (bin->op) {
@@ -675,14 +850,54 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
             return result_ref;
         }
         default: {
-            if (bin->op >= BinaryNode::Op::Eq && bin->op <= BinaryNode::Op::Ge) {
+            if (is_comparison_op(bin->op)) {
+                const bool is_float = is_float_type(bin->lhs->type.get()) ||
+                                      is_float_type(bin->rhs->type.get());
                 auto lhs = ensure_temp(eval(bin->lhs.get()));
                 auto rhs = ensure_temp(eval(bin->rhs.get()));
-                return temp_assign(eval_binary_cmp(bin->op, std::move(lhs), std::move(rhs)));
+                return temp_assign(eval_binary_cmp(bin->op, std::move(lhs), std::move(rhs), is_float));
             }
-            bool is_float = is_float_type(bin->lhs->type.get());
-            auto lhs = ensure_temp(eval(bin->lhs.get()));
-            auto rhs = ensure_temp(eval(bin->rhs.get()));
+            const auto exponent_value = signed_integer_literal(bin->rhs.get());
+            if (bin->op == BinaryNode::Op::Pow &&
+                bin->lhs->type->kind == TypeKind::Dimensioned && exponent_value) {
+                const auto exponent = *exponent_value;
+                auto base = ensure_temp(eval(bin->lhs.get()));
+                if (exponent == 0) {
+                    return std::make_shared<MirLiteralExpr>(MirLiteralKind::Float, "1");
+                }
+                std::shared_ptr<MirExpr> result = base;
+                for (int i = 1; i < std::abs(exponent); ++i) {
+                    result = temp_assign(std::make_shared<MirFMulExpr>(
+                        ensure_temp(std::move(result)), base));
+                }
+                if (exponent < 0) {
+                    result = temp_assign(std::make_shared<MirFDivExpr>(
+                        ensure_temp(std::make_shared<MirLiteralExpr>(
+                            MirLiteralKind::Float, "1")),
+                        ensure_temp(std::move(result))));
+                }
+                return result;
+            }
+            bool is_float = is_float_type(bin->lhs->type.get()) ||
+                            is_float_type(bin->rhs->type.get()) ||
+                            is_float_type(expr->type.get());
+            auto lhs_value = eval(bin->lhs.get());
+            auto rhs_value = eval(bin->rhs.get());
+            if ((bin->op == BinaryNode::Op::Mul || bin->op == BinaryNode::Op::Div) &&
+                expr->type->kind != TypeKind::Dimensioned &&
+                bin->lhs->type->kind == TypeKind::Dimensioned &&
+                bin->rhs->type->kind == TypeKind::Dimensioned) {
+                const auto lhs_type =
+                    std::static_pointer_cast<DimensionedType>(bin->lhs->type);
+                const auto rhs_type =
+                    std::static_pointer_cast<DimensionedType>(bin->rhs->type);
+                lhs_value = apply_scale(std::move(lhs_value),
+                                        lhs_type->unit.scale_to_base);
+                rhs_value = apply_scale(std::move(rhs_value),
+                                        rhs_type->unit.scale_to_base);
+            }
+            auto lhs = ensure_temp(std::move(lhs_value));
+            auto rhs = ensure_temp(std::move(rhs_value));
             return temp_assign(eval_binary_arith(bin->op, std::move(lhs), std::move(rhs), is_float));
         }
         }
@@ -692,7 +907,15 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         std::vector<std::shared_ptr<MirRefExpr>> elements;
         elements.reserve(payload->elements.size());
         for (auto& element : payload->elements) {
-            elements.push_back(ensure_temp(eval(element.get())));
+            auto value = eval(element.get());
+            if (payload->payload_kind == LiteralPayloadNode::Kind::Interval &&
+                element->type->kind == TypeKind::Dimensioned) {
+                const auto dimensioned =
+                    std::static_pointer_cast<DimensionedType>(element->type);
+                value = apply_scale(std::move(value),
+                                    dimensioned->unit.scale_to_base);
+            }
+            elements.push_back(ensure_temp(std::move(value)));
         }
         return std::make_shared<MirLiteralNewExpr>(
             payload->payload_kind, std::move(elements),
@@ -778,7 +1001,18 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         return eval_match(reinterpret_cast<MatchExprNode*>(expr));
     case ASTKind::AsExpr: {
         auto *as = reinterpret_cast<AsExprNode *>(expr);
-        return eval(as->expr.get());
+        if (as->cast_kind == AsExprNode::Kind::Type) return eval(as->expr.get());
+        if (is_expr_type(as->expr->type)) return eval_as_expr(expr);
+        auto value = eval(as->expr.get());
+        if (as->cast_kind == AsExprNode::Kind::Scalar) return value;
+        if (as->expr->type->kind != TypeKind::Dimensioned) return value;
+        const auto source = std::static_pointer_cast<DimensionedType>(as->expr->type);
+        if (as->cast_kind == AsExprNode::Kind::Num) {
+            return apply_scale(std::move(value), source->unit.scale_to_base);
+        }
+        const auto factor = source->unit.scale_to_base.divided_by(
+            as->resolved_unit.scale_to_base);
+        return factor ? apply_scale(std::move(value), *factor) : value;
     }
     case ASTKind::NativeFuncCall: {
         auto *call = reinterpret_cast<NativeFuncCallExpr*>(expr);

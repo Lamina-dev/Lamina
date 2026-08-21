@@ -457,7 +457,13 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
         case runtime::Opcode::FSub:
         case runtime::Opcode::FMul:
         case runtime::Opcode::FDiv:
-        case runtime::Opcode::FMod: {
+        case runtime::Opcode::FMod:
+        case runtime::Opcode::FCmpEq:
+        case runtime::Opcode::FCmpNe:
+        case runtime::Opcode::FCmpLt:
+        case runtime::Opcode::FCmpLe:
+        case runtime::Opcode::FCmpGt:
+        case runtime::Opcode::FCmpGe: {
             const auto& op = *reinterpret_cast<mir::MirFAddExpr*>(node);
             const auto rl = asm_mir_expr(insts, op.lhs.get());
             const auto rr = asm_mir_expr(insts, op.rhs.get());
@@ -651,7 +657,7 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
 
             const auto it = imports.find(n.mod_name);
             if (it == imports.end()) return 0;
-            const auto attr_idx = it->second.second->find_var_idx(n.name);
+            const auto attr_idx = it->second.second->find_func_idx(n.name);
             if (!attr_idx) return 0;
 
             const auto r = *reg.alloc();

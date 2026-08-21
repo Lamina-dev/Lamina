@@ -16,6 +16,15 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(Git QUIET)
 
+if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
+    add_custom_target(update_math_stack
+        COMMAND "${CMAKE_COMMAND}"
+            -DROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/scripts/update_math_stack.cmake
+        USES_TERMINAL
+    )
+endif()
+
 function(lmx_ensure_submodule name path marker)
     if(EXISTS "${path}/${marker}")
         return()
@@ -100,6 +109,9 @@ target_link_libraries(laminaCore PRIVATE
 
 set(_lmx_saved_build_testing "${BUILD_TESTING}")
 set(BUILD_TESTING OFF)
+set(LMMC_BUILD_TESTS OFF CACHE BOOL "Build LMMC tests" FORCE)
+set(LAMMP_BUILD_TESTS OFF CACHE BOOL "Build LAMMP tests" FORCE)
+set(LAMMP_BUILD_BENCHMARKS OFF CACHE BOOL "Build LAMMP benchmarks" FORCE)
 add_subdirectory("${LMX_LMCAS_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external/LMCAS" EXCLUDE_FROM_ALL)
 set(BUILD_TESTING "${_lmx_saved_build_testing}")
 target_link_libraries(laminaCore PRIVATE

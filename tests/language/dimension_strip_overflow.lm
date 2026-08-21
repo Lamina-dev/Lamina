@@ -1,0 +1,2 @@
+unit huge = 2147483648<m>
+let invalid = 1<huge> as num

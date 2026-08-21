@@ -1,0 +1,54 @@
+import std
+
+unit score
+unit level = 100<score>
+
+func add_meters(left num<m>, right num<m>) -> num<m> {
+    left + right
+}
+
+func kinetic_energy(mass num<kg>, velocity num<m/s>) -> num<J> {
+    1 / 2 * mass * velocity ^ 2
+}
+
+let distance = 2<km>
+let meters = distance as <m>
+let base_value = distance as num
+let display_value = distance as scalar
+let sum = add_meters(3<m>, 4<m>)
+let speed = 10<m> / 2<s>
+let area = 3<m> ^ 2
+let ratio = 8<m> / 2<m>
+let score_value = 2<level> as <score>
+let kilometres_per_hour = 20<m/s> as <km/h>
+let target_magnitude = kilometres_per_hour as scalar
+let target_base = kilometres_per_hour as num
+let unitless = 5<1>
+let energy = kinetic_energy(2<kg>, 3<m/s>)
+let in_lengths = 2<m> in {1<m>, 2<m>}
+let in_range = 2<m> in std.interval_closed(1<m>, 3<m>)
+let scaled_range = 1500<m> in std.interval_closed(1<km>, 2<km>)
+let scaled_ratio = 1<km> / 1<m>
+let inverse_area = 2<m> ^ -2
+let in_kilometres = 1<km> in {1<km>, 2<km>}
+
+std.printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+    meters == 2000<m>,
+    base_value == 2000.0,
+    display_value == 2.0,
+    sum == 7<m>,
+    speed == 5<m/s>,
+    area == 9<m^2>,
+    ratio == 4.0,
+    score_value == 200<score>,
+    kilometres_per_hour == 72<km/h>,
+    target_magnitude == 72.0,
+    target_base == 20.0,
+    unitless == 5.0,
+    energy == 9<J>,
+    in_lengths,
+    in_range,
+    scaled_range,
+    scaled_ratio == 1000.0,
+    inverse_area == 0.25<m^-2>,
+    in_kilometres)

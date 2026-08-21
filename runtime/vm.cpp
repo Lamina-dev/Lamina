@@ -54,6 +54,15 @@ Frame::~Frame() noexcept = default;
 namespace {
 void build_constant(LmGCAllocator &allocator, const ConstantPoolInfo &c, Value &dest);
 
+Fraction as_fraction(const Value& value) noexcept {
+    if (value.kind == ValueKind::Fraction) return value.frac_val;
+    if (value.kind == ValueKind::Int) {
+        return Fraction(static_cast<std::int32_t>(value.int_val), 1);
+    }
+    assert(false && "fraction opcode received a non-numeric value");
+    return Fraction();
+}
+
 void make_elem(LmGCAllocator &allocator, ArrayObj *arr, const uint32_t idx, const ConstantPoolInfo &e) {
     // alloc_array(len) 已预建 len 个默认元素，用 store 按索引填充
     switch (e.id) {
@@ -391,32 +400,32 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
 
     VM_LABEL(FAdd) {
-        regs[ip[1]] = regs[ip[2]].frac_val + regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) + as_fraction(regs[ip[3]]);
         VM_NEXT
     }
 
     VM_LABEL(FSub) {
-        regs[ip[1]] = regs[ip[2]].frac_val - regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) - as_fraction(regs[ip[3]]);
         VM_NEXT
     }
 
     VM_LABEL(FMul) {
-        regs[ip[1]] = regs[ip[2]].frac_val * regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) * as_fraction(regs[ip[3]]);
         VM_NEXT
     }
 
     VM_LABEL(FDiv) {
-        regs[ip[1]] = regs[ip[2]].frac_val / regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) / as_fraction(regs[ip[3]]);
         VM_NEXT
     }
 
     VM_LABEL(FMod) {
-        regs[ip[1]] = regs[ip[2]].frac_val % regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) % as_fraction(regs[ip[3]]);
         VM_NEXT
     }
 
     VM_LABEL(FNeg) {
-        regs[ip[1]] = -regs[ip[2]].frac_val;
+        regs[ip[1]] = -as_fraction(regs[ip[2]]);
         VM_NEXT
     }
     VM_LABEL(MovRR) {
@@ -445,31 +454,37 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
         VM_NEXT
     }
     VM_LABEL(FCmpEq) {
-        regs[ip[1]] = regs[ip[2]].frac_val == regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) == as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(FCmpNe) {
-        regs[ip[1]] = regs[ip[2]].frac_val != regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) != as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(FCmpLt) {
-        regs[ip[1]] = regs[ip[2]].frac_val < regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) < as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(FCmpLe) {
-        regs[ip[1]] = regs[ip[2]].frac_val <= regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) <= as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(FCmpGt) {
-        regs[ip[1]] = regs[ip[2]].frac_val > regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) > as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(FCmpGe) {
-        regs[ip[1]] = regs[ip[2]].frac_val >= regs[ip[3]].frac_val;
+        regs[ip[1]] = as_fraction(regs[ip[2]]) >= as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(GetModule) {
-        regs[ip[1]] = cur_frame->mod->imports[read_u16(ip + 2)]->get();
+        const auto index = read_u16(ip + 2);
+        if (index >= cur_frame->mod->imports.size() ||
+            !cur_frame->mod->imports[index]) {
+            VM_ERROR(RuntimeErrorType::ModuleLoad,
+                     "imported module " + std::to_string(index) + " is unavailable");
+        }
+        regs[ip[1]] = cur_frame->mod->imports[index]->get();
         VM_NEXT
     }
     VM_LABEL(GetModuleAttr) {

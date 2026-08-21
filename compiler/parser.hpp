@@ -37,6 +37,8 @@ class Parser {
     std::shared_ptr<StmtNode> parse_return() noexcept;
     std::shared_ptr<StmtNode> parse_import() noexcept;
     std::shared_ptr<StmtNode> parse_type_decl() noexcept;
+    std::shared_ptr<StmtNode> parse_unit_decl() noexcept;
+    UnitSpec parse_unit_spec() noexcept;
 
 
     // void advance() noexcept;
@@ -44,12 +46,12 @@ class Parser {
     [[nodiscard]] bool match(TokenType t) const noexcept;
 
     [[nodiscard]] bool peek_match(TokenType t) const noexcept;
+    [[nodiscard]] bool follows_unit_spec() const noexcept;
 
     std::shared_ptr<ExprNode> parse_pipe() noexcept;
     std::shared_ptr<ExprNode> parse_arrow() noexcept;
     std::shared_ptr<ExprNode> parse_set_literal() noexcept;
-    std::shared_ptr<ExprNode> parse_interval_literal(bool lower_closed) noexcept;
-    std::shared_ptr<ExprNode> parse_open_interval_or_group() noexcept;
+    std::shared_ptr<ExprNode> parse_parenthesized_expression() noexcept;
 
     [[nodiscard]] Token& cur() const noexcept;
     [[nodiscard]] Token& peek() const noexcept;

@@ -11,7 +11,8 @@ let ordinary = identity(x)
 let uninterpreted = f(x, 2)
 let expected expr = g(2)
 let values = {x, 2}
-let domain = [0, x]
+let domain = std.interval_closed(0, x)
+let forced expr = std.interval_open(0, 1)
 let imaginary = 4I
 let binding = x => 2
 let substituted = std.cas_substitute(x + 1, binding)
@@ -19,13 +20,14 @@ let replacement = match binding {
     Binding.Binding(_, right) => right
 }
 
-std.printf("%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
+std.printf("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
     std.cas_to_text(sum),
     std.cas_to_text(ordinary),
     std.cas_to_text(uninterpreted),
     std.cas_to_text(expected),
     std.cas_to_text(values),
     std.cas_to_text(domain),
+    std.cas_to_text(forced),
     std.cas_to_text(imaginary),
     std.cas_to_text(substituted),
     std.cas_to_text(replacement))

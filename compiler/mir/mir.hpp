@@ -206,6 +206,30 @@ struct MirICmpGeExpr : MirOperateExpr {
     std::shared_ptr<MirExpr> lhs, rhs;
     explicit MirICmpGeExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept;
 };
+struct MirFCmpEqExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> lhs, rhs;
+    explicit MirFCmpEqExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept;
+};
+struct MirFCmpNeExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> lhs, rhs;
+    explicit MirFCmpNeExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept;
+};
+struct MirFCmpLtExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> lhs, rhs;
+    explicit MirFCmpLtExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept;
+};
+struct MirFCmpLeExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> lhs, rhs;
+    explicit MirFCmpLeExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept;
+};
+struct MirFCmpGtExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> lhs, rhs;
+    explicit MirFCmpGtExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept;
+};
+struct MirFCmpGeExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> lhs, rhs;
+    explicit MirFCmpGeExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept;
+};
 struct MirCmpAndExpr : MirOperateExpr {
     std::shared_ptr<MirExpr> lhs, rhs;
     explicit MirCmpAndExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept;

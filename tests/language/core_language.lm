@@ -1,0 +1,54 @@
+import std
+
+func factorial(n int) -> int {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+func square(value int) -> int {
+    value * value
+}
+
+func classify(value int) -> text {
+    if value < 0 {
+        "negative"
+    } else if value == 0 {
+        "zero"
+    } else {
+        "positive"
+    }
+}
+
+var total = 0
+var i = 0
+loop {
+    i = i + 1
+    if i == 2 {
+        continue
+    }
+    total = total + i
+    if i == 4 {
+        break
+    }
+}
+
+var repeated = 0
+loop 3 {
+    repeated = repeated + 2
+}
+
+var values = [1, 2, 3,]
+values[1] = 8
+
+let piped = 5 |> square
+let square_ref = square
+let selected = if total == 8 and not false { "ok" } else { "bad" }
+
+std.printf("%lld,%lld,%lld|%lld,%lld,%lld|%lld,%lld|%s,%s,%s|%s|%d,%d,%lld,%lld",
+    factorial(5), piped, square_ref(6),
+    values[0], values[1], values[2], total, repeated,
+    classify(-1), classify(0), classify(1), selected,
+    true or false, true and not false, 17 % 5, 2 ^ 5)

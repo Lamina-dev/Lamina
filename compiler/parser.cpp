@@ -94,6 +94,41 @@ bool Parser::match(const TokenType t) const noexcept {
 bool Parser::peek_match(const TokenType t) const noexcept {
     return peek().type == t;
 }
+
+bool Parser::follows_unit_spec() const noexcept {
+    if (!match(TokenType::LT) || pos + 1 >= tokens.size()) return false;
+    auto cursor = pos + 1;
+    if (tokens[cursor].type == TokenType::NUM_LITERAL) {
+        return tokens[cursor].text == "1" && cursor + 1 < tokens.size() &&
+               tokens[cursor + 1].type == TokenType::GT;
+    }
+    while (cursor < tokens.size()) {
+        if (tokens[cursor].type != TokenType::IDENTIFIER) return false;
+        ++cursor;
+        while (cursor < tokens.size() && tokens[cursor].type == TokenType::DOT) {
+            ++cursor;
+            if (cursor >= tokens.size() ||
+                tokens[cursor].type != TokenType::IDENTIFIER) return false;
+            ++cursor;
+        }
+        if (cursor < tokens.size() && tokens[cursor].type == TokenType::OPER_POW) {
+            ++cursor;
+            if (cursor < tokens.size() &&
+                (tokens[cursor].type == TokenType::OPER_PLUS ||
+                 tokens[cursor].type == TokenType::OPER_MINUS)) ++cursor;
+            if (cursor >= tokens.size() ||
+                tokens[cursor].type != TokenType::NUM_LITERAL ||
+                tokens[cursor].text.find('.') != std::string::npos) return false;
+            ++cursor;
+        }
+        if (cursor >= tokens.size()) return false;
+        if (tokens[cursor].type == TokenType::GT) return true;
+        if (tokens[cursor].type != TokenType::OPER_MUL &&
+            tokens[cursor].type != TokenType::OPER_DIV) return false;
+        ++cursor;
+    }
+    return false;
+}
 #define PARSER_BINOP(then, last, logic, ...) \
 auto line = cur().line, col = cur().col;\
 std::shared_ptr<ExprNode> node = last();   \
@@ -230,20 +265,29 @@ std::shared_ptr<ExprNode> Parser::parse_factor() noexcept {
     return parse_primary();
 }
 
-std::shared_ptr<ExprNode> Parser::parse_open_interval_or_group() noexcept {
+std::shared_ptr<ExprNode> Parser::parse_parenthesized_expression() noexcept {
     const size_t line = cur().line, col = cur().col;
     consume(TokenType::LPAREN, "(");
     auto first = parse_expr();
-    if (match(TokenType::COMMA)) {
-        advance();
-        auto second = parse_expr();
+    if (!match(TokenType::COMMA)) {
         consume(TokenType::RPAREN, ")");
-        return std::make_shared<LiteralPayloadNode>(
-            line, col, LiteralPayloadNode::Kind::Interval,
-            std::vector<std::shared_ptr<ExprNode>>{first, second}, false, false);
+        return first;
+    }
+
+    std::vector<std::shared_ptr<ExprNode>> elements;
+    elements.push_back(std::move(first));
+    while (match(TokenType::COMMA)) {
+        advance();
+        if (match(TokenType::RPAREN)) {
+            throw_error(ErrorType::Parse,
+                        "TupleArityMismatch: tuple literals require at least two elements",
+                        line, col);
+            break;
+        }
+        elements.push_back(parse_expr());
     }
     consume(TokenType::RPAREN, ")");
-    return first;
+    return std::make_shared<TupleLiteralNode>(line, col, std::move(elements));
 }
 
 std::shared_ptr<ExprNode> Parser::parse_set_literal() noexcept {
@@ -260,26 +304,6 @@ std::shared_ptr<ExprNode> Parser::parse_set_literal() noexcept {
     consume(TokenType::RBRACE, "}");
     return std::make_shared<LiteralPayloadNode>(
         line, col, LiteralPayloadNode::Kind::Set, std::move(elements));
-}
-
-std::shared_ptr<ExprNode> Parser::parse_interval_literal(const bool lower_closed) noexcept {
-    const size_t line = cur().line, col = cur().col;
-    consume(lower_closed ? TokenType::LBRACK : TokenType::LPAREN,
-            lower_closed ? "[" : "(");
-    auto lower = parse_expr();
-    consume(TokenType::COMMA, ",");
-    auto upper = parse_expr();
-    bool upper_closed = false;
-    if (match(TokenType::RBRACK)) {
-        upper_closed = true;
-        advance();
-    } else {
-        consume(TokenType::RPAREN, ")");
-    }
-    return std::make_shared<LiteralPayloadNode>(
-        line, col, LiteralPayloadNode::Kind::Interval,
-        std::vector<std::shared_ptr<ExprNode>>{lower, upper},
-        lower_closed, upper_closed);
 }
 
 std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
@@ -302,6 +326,10 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
                 advance();
                 primary = std::make_shared<BinaryNode>(line, col, primary,
                                                        BinaryNode::Op::Mul, imaginary);
+            } else if (match(TokenType::LT) && cur().line == line &&
+                       cur().col == decimal_end_col && follows_unit_spec()) {
+                primary = std::make_shared<UnitAnnotatedExprNode>(
+                    line, col, primary, parse_unit_spec());
             }
             break;
         }
@@ -312,6 +340,10 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
             advance();
             primary = std::make_shared<BinaryNode>(line, col, primary,
                                                    BinaryNode::Op::Mul, imaginary);
+        } else if (match(TokenType::LT) && cur().line == line &&
+                   cur().col == number_end_col && follows_unit_spec()) {
+            primary = std::make_shared<UnitAnnotatedExprNode>(
+                line, col, primary, parse_unit_spec());
         }
         break;
     }
@@ -327,7 +359,7 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         break;
     }
     case TokenType::LPAREN: {
-        primary = parse_open_interval_or_group();
+        primary = parse_parenthesized_expression();
         break;
     }
     case TokenType::IDENTIFIER: {
@@ -359,34 +391,16 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
     case TokenType::LBRACK: {
         advance();
         std::vector<std::shared_ptr<ExprNode>> elements;
-        bool trailing_comma = false;
-        if (!match(TokenType::RBRACK) && !match(TokenType::RPAREN)) {
+        if (!match(TokenType::RBRACK)) {
             while (true) {
                 elements.push_back(parse_expr());
-                if (match(TokenType::RBRACK) || match(TokenType::RPAREN)) break;
+                if (match(TokenType::RBRACK)) break;
                 consume(TokenType::COMMA, ",");
-                if (match(TokenType::RBRACK) || match(TokenType::RPAREN)) {
-                    trailing_comma = true;
-                    break;
-                }
+                if (match(TokenType::RBRACK)) break;
             }
         }
-        const bool upper_closed = match(TokenType::RBRACK);
-        if (upper_closed) {
-            advance();
-        } else {
-            consume(TokenType::RPAREN, ")");
-        }
-        if (elements.size() == 2 && !trailing_comma) {
-            primary = std::make_shared<LiteralPayloadNode>(
-                line, col, LiteralPayloadNode::Kind::Interval,
-                std::move(elements), true, upper_closed);
-        } else if (upper_closed) {
-            primary = std::make_shared<ArrayLiteralNode>(line, col, std::move(elements));
-        } else {
-            throw_error(ErrorType::Parse, "interval requires two bounds", line, col);
-            primary = nullptr;
-        }
+        consume(TokenType::RBRACK, "]");
+        primary = std::make_shared<ArrayLiteralNode>(line, col, std::move(elements));
         break;
     }
     case TokenType::LBRACE: {
@@ -451,9 +465,21 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
             advance();
             auto ident = cur();
             if (match(TokenType::NUM_LITERAL)) {
-                uint8_t i = std::stoi(ident.text);
+                unsigned long position = 0;
+                try {
+                    position = std::stoul(ident.text);
+                } catch (...) {
+                    position = 0;
+                }
                 advance();
-                primary = std::make_shared<TupleGetExprNode>(line, col, primary, i);
+                if (position == 0 || position > 256) {
+                    throw_error(ErrorType::Parse,
+                                "TupleIndexOutOfBounds: tuple positions start at 1",
+                                ident.line, ident.col);
+                    position = 1;
+                }
+                primary = std::make_shared<TupleGetExprNode>(
+                    line, col, primary, static_cast<uint8_t>(position - 1));
             } else {
                 consume(TokenType::IDENTIFIER, "identifier");
                 primary = std::make_shared<DotExprNode>(line, col, primary, std::make_shared<IdentifierNode>(ident.line, ident.col, ident.text));
@@ -468,9 +494,16 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         }
     }
     if (cur().line == line && is_primary_start(cur().type)) {
-        throw_error(ErrorType::Parse,
-                    "implicit multiplication is not supported; insert `*`",
-                    cur().line, cur().col);
+        if (primary && primary->kind == ASTKind::Literal &&
+            match(TokenType::IDENTIFIER) && cur().text == "I") {
+            throw_error(ErrorType::Parse,
+                        "ComplexLiteralSpacing: `I` must immediately follow the numeric literal",
+                        cur().line, cur().col);
+        } else {
+            throw_error(ErrorType::Parse,
+                        "implicit multiplication is not supported; insert `*`",
+                        cur().line, cur().col);
+        }
     }
     if (cur().line == line && cur().type == TokenType::UNKNOWN && cur().text == "**") {
         throw_error(ErrorType::Parse,
@@ -486,8 +519,27 @@ std::shared_ptr<ExprNode> Parser::parse_expr() noexcept {
     auto result = parse_arrow();
     if (match(TokenType::KW_AS)) {
         advance();
-        auto cast_type = parse_type();
-        result = std::make_shared<AsExprNode>(line, col, result, cast_type);
+        if (match(TokenType::LT)) {
+            result = std::make_shared<AsExprNode>(
+                line, col, result, AsExprNode::Kind::Unit, parse_unit_spec());
+        } else if (match(TokenType::IDENTIFIER) && cur().text == "num") {
+            advance();
+            if (match(TokenType::LT)) {
+                throw_error(ErrorType::Parse,
+                            "UnitStripLegacySyntax: use `as num` without a unit argument",
+                            cur().line, cur().col);
+                (void)parse_unit_spec();
+            }
+            result = std::make_shared<AsExprNode>(
+                line, col, result, AsExprNode::Kind::Num);
+        } else if (match(TokenType::IDENTIFIER) && cur().text == "scalar") {
+            advance();
+            result = std::make_shared<AsExprNode>(
+                line, col, result, AsExprNode::Kind::Scalar);
+        } else {
+            auto cast_type = parse_type();
+            result = std::make_shared<AsExprNode>(line, col, result, cast_type);
+        }
     }
     return result;
 }
@@ -502,6 +554,10 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
     }
     case TokenType::KW_TYPE: {
         return parse_type_decl();
+    }
+    case TokenType::KW_UNIT: {
+        advance();
+        return parse_unit_decl();
     }
     case TokenType::KW_VAR: case TokenType::KW_LET: {
         return std::static_pointer_cast<VarDeclNode>(parse_var());
@@ -894,6 +950,10 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
     case TokenType::IDENTIFIER: {
         auto id = cur().text;
         advance();
+        if (id == "num") {
+            if (match(TokenType::LT)) return type_pool.dimensioned(parse_unit_spec());
+            return type_pool.basic(runtime::ValueKind::Fraction);
+        }
         while (match(TokenType::DOT)) {
             advance();
             id += "." + cur().text;
@@ -953,11 +1013,112 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
         }
         return named_type;
     }
+    case TokenType::LPAREN: {
+        const auto line = cur().line;
+        const auto col = cur().col;
+        advance();
+        std::vector<std::shared_ptr<Type>> elements;
+        elements.push_back(parse_type());
+        if (!match(TokenType::COMMA)) {
+            consume(TokenType::RPAREN, ")");
+            throw_error(ErrorType::Parse,
+                        "TupleArityMismatch: tuple types require at least two elements",
+                        line, col);
+            return type_pool.unknown();
+        }
+        while (match(TokenType::COMMA)) {
+            advance();
+            if (match(TokenType::RPAREN)) break;
+            elements.push_back(parse_type());
+        }
+        consume(TokenType::RPAREN, ")");
+        if (elements.size() < 2) {
+            throw_error(ErrorType::Parse,
+                        "TupleArityMismatch: tuple types require at least two elements",
+                        line, col);
+            return type_pool.unknown();
+        }
+        auto tuple_type = type_pool.tuple(std::move(elements));
+        if (match(TokenType::QUESTION)) {
+            advance();
+            return type_pool.nullable(std::move(tuple_type));
+        }
+        return tuple_type;
+    }
     default: {
         throw_error(ErrorType::Parse, "wrong type decl: `" + cur().text + "`", cur().line, cur().col);
         return nullptr;
     }
     }
+}
+
+UnitSpec Parser::parse_unit_spec() noexcept {
+    UnitSpec result;
+    consume(TokenType::LT, "<");
+    if (match(TokenType::NUM_LITERAL) && cur().text == "1") {
+        ++pos;
+        consume(TokenType::GT, ">");
+        return result;
+    }
+    int operation_sign = 1;
+    while (pos < tokens.size() && !match(TokenType::GT) &&
+           !match(TokenType::END_OF_FILE)) {
+        const auto factor_line = cur().line;
+        const auto factor_col = cur().col;
+        std::string name = cur().text;
+        consume(TokenType::IDENTIFIER, "unit name");
+        while (match(TokenType::DOT)) {
+            ++pos;
+            name += "." + cur().text;
+            consume(TokenType::IDENTIFIER, "unit name");
+        }
+        int exponent = 1;
+        if (match(TokenType::OPER_POW)) {
+            ++pos;
+            int sign = 1;
+            if (match(TokenType::OPER_MINUS) || match(TokenType::OPER_PLUS)) {
+                if (match(TokenType::OPER_MINUS)) sign = -1;
+                ++pos;
+            }
+            if (!match(TokenType::NUM_LITERAL) || cur().text.find('.') != std::string::npos) {
+                throw_error(ErrorType::Parse, "unit exponent must be an integer", factor_line, factor_col);
+                exponent = 0;
+            } else {
+                try {
+                    exponent = sign * std::stoi(cur().text);
+                } catch (...) {
+                    throw_error(ErrorType::Parse, "unit exponent is out of range", factor_line, factor_col);
+                    exponent = 0;
+                }
+                ++pos;
+            }
+        }
+        result.factors.push_back({std::move(name), exponent * operation_sign});
+        if (match(TokenType::GT)) break;
+        if (match(TokenType::OPER_MUL)) operation_sign = 1;
+        else if (match(TokenType::OPER_DIV)) operation_sign = -1;
+        else {
+            throw_error(ErrorType::Parse, "expected `*`, `/`, or `>` in unit expression",
+                        cur().line, cur().col);
+            break;
+        }
+        ++pos;
+    }
+    consume(TokenType::GT, ">");
+    return result;
+}
+
+std::shared_ptr<StmtNode> Parser::parse_unit_decl() noexcept {
+    const auto line = cur().line;
+    const auto col = cur().col;
+    const auto name = cur().text;
+    consume(TokenType::IDENTIFIER, "unit name");
+    std::shared_ptr<ExprNode> definition;
+    if (match(TokenType::ASSIGN)) {
+        advance();
+        definition = parse_expr();
+    }
+    return std::make_shared<UnitDeclNode>(line, col, name, std::move(definition));
 }
 
 std::shared_ptr<Module> Parser::parse_module(const std::string &name) noexcept {

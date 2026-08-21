@@ -41,6 +41,7 @@ class TypeCkContext {
     std::vector<Scope::Var> global_scope;
     std::unordered_map<std::string, TypeDeclNode*> adt_types;
     std::unordered_map<std::string, std::pair<TypeDeclNode*, AdtConstructorDecl*>> adt_constructors;
+    UnitSystem unit_system;
 
     // Scope *parse_scope(ExprNode *node) noexcept;
 

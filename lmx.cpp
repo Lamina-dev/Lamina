@@ -29,6 +29,8 @@
 #include <cstdarg>
 #include <fstream>
 #include <limits>
+#include <map>
+#include <optional>
 #include <utility>
 #include <cctype>
 
@@ -341,6 +343,50 @@ bool expr_to_real(ExprObj* expr, double& result, std::string& error) {
     return true;
 }
 
+std::optional<lamina::UnitDefinition> resolved_unit_definition(
+    const char* dimension_text, const LmInt numerator,
+    const LmInt denominator, std::string& error) {
+    if (!dimension_text || denominator <= 0 || numerator <= 0) {
+        error = "CasError(UnitInvalid: invalid unit definition)";
+        return std::nullopt;
+    }
+    lamina::DimensionSignature::Exponents exponents;
+    const std::string dimension(dimension_text);
+    if (dimension != "1") {
+        std::size_t cursor = 0;
+        while (cursor < dimension.size()) {
+            const auto separator = dimension.find('*', cursor);
+            const auto factor = dimension.substr(
+                cursor, separator == std::string::npos
+                    ? std::string::npos : separator - cursor);
+            const auto power = factor.rfind('^');
+            const auto name = factor.substr(0, power);
+            int exponent = 1;
+            if (power != std::string::npos) {
+                try {
+                    std::size_t used = 0;
+                    exponent = std::stoi(factor.substr(power + 1), &used);
+                    if (used != factor.size() - power - 1) throw std::invalid_argument("unit exponent");
+                } catch (...) {
+                    error = "CasError(UnitInvalid: malformed dimension exponent)";
+                    return std::nullopt;
+                }
+            }
+            if (name.empty() || exponent == 0) {
+                error = "CasError(UnitInvalid: malformed dimension signature)";
+                return std::nullopt;
+            }
+            exponents.emplace(name, Rational(exponent));
+            if (separator == std::string::npos) break;
+            cursor = separator + 1;
+        }
+    }
+    return lamina::UnitDefinition{
+        lamina::DimensionSignature(std::move(exponents)),
+        Rational(BigInt(std::to_string(numerator)),
+                 BigInt(std::to_string(denominator)))};
+}
+
 } // namespace
 
 extern "C" LM_API int lmx_printf(const char* fmt, ...) {
@@ -487,6 +533,54 @@ extern "C" LM_API ExprObj* cas_expr_interval(ExprObj* lower, ExprObj* upper,
     if (!upper_value) return expr_error(std::move(error));
     return expr_from_result(lamina::lsr::interval(
         *lower_value, *upper_value, lower_closed, upper_closed));
+}
+
+extern "C" LM_API ExprObj* cas_expr_with_unit(
+    ExprObj* value, const char* display_unit, const char* dimension,
+    const LmInt scale_numerator, const LmInt scale_denominator) {
+    std::string error;
+    const auto* expression = checked_expr(value, error);
+    if (!expression) return expr_error(std::move(error));
+    auto definition = resolved_unit_definition(
+        dimension, scale_numerator, scale_denominator, error);
+    if (!definition) return expr_error(std::move(error));
+    lamina::ComputationContext context;
+    return expr_from_result(lamina::lsr::with_unit_definition(
+        *expression, display_unit ? display_unit : "1",
+        std::move(*definition), context));
+}
+
+extern "C" LM_API ExprObj* cas_expr_convert_unit(
+    ExprObj* value, const char* display_unit, const char* dimension,
+    const LmInt scale_numerator, const LmInt scale_denominator) {
+    std::string error;
+    const auto* expression = checked_expr(value, error);
+    if (!expression) return expr_error(std::move(error));
+    auto definition = resolved_unit_definition(
+        dimension, scale_numerator, scale_denominator, error);
+    if (!definition) return expr_error(std::move(error));
+    lamina::ComputationContext context;
+    return expr_from_result(lamina::lsr::convert_to_unit_definition(
+        *expression, display_unit ? display_unit : "1",
+        std::move(*definition), context));
+}
+
+extern "C" LM_API ExprObj* cas_expr_strip_base(ExprObj* value) {
+    std::string error;
+    const auto* expression = checked_expr(value, error);
+    if (!expression) return expr_error(std::move(error));
+    lamina::ComputationContext context;
+    return expr_from_result(lamina::lsr::strip_to_base_value(
+        *expression, context));
+}
+
+extern "C" LM_API ExprObj* cas_expr_strip_display(ExprObj* value) {
+    std::string error;
+    const auto* expression = checked_expr(value, error);
+    if (!expression) return expr_error(std::move(error));
+    lamina::ComputationContext context;
+    return expr_from_result(lamina::lsr::strip_to_display_value(
+        *expression, context));
 }
 
 extern "C" LM_API ExprObj* cas_simplify(ExprObj* expr) {

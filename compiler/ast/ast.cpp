@@ -21,6 +21,30 @@ std::shared_ptr<Type> TypePool::basic(const runtime::ValueKind v) noexcept {
     return ty;
 }
 
+std::shared_ptr<Type> TypePool::dimensioned(UnitSpec syntax) noexcept {
+    for (const auto& type : types) {
+        if (type->kind != TypeKind::Dimensioned) continue;
+        const auto* dimensioned = static_cast<const DimensionedType*>(type.get());
+        if (!dimensioned->resolved && dimensioned->syntax.to_string() == syntax.to_string()) return type;
+    }
+    auto type = std::shared_ptr<Type>(new DimensionedType(std::move(syntax)));
+    types.push_back(type);
+    return type;
+}
+
+std::shared_ptr<Type> TypePool::dimensioned(UnitDefinition unit) noexcept {
+    for (const auto& type : types) {
+        if (type->kind != TypeKind::Dimensioned) continue;
+        const auto* dimensioned = static_cast<const DimensionedType*>(type.get());
+        if (dimensioned->resolved &&
+            dimensioned->unit.dimension == unit.dimension &&
+            dimensioned->unit.scale_to_base == unit.scale_to_base) return type;
+    }
+    auto type = std::shared_ptr<Type>(new DimensionedType(std::move(unit)));
+    types.push_back(type);
+    return type;
+}
+
 std::shared_ptr<Type> TypePool::string() noexcept {
     for (const auto& t : types) if (t->kind == TypeKind::String) return t;
     auto ty = std::shared_ptr<Type>(new StringType());
@@ -112,7 +136,8 @@ std::shared_ptr<Type> TypePool::module(std::string target_path,
                                        std::string load_path,
                                        std::string binding_name,
                                        std::vector<hir::Scope::Var> exports,
-                                       std::vector<std::shared_ptr<TypeDeclNode>> adt_exports) noexcept {
+                                       std::vector<std::shared_ptr<TypeDeclNode>> adt_exports,
+                                       std::vector<std::pair<std::string, UnitDefinition>> unit_exports) noexcept {
     for (const auto& t : types) {
         if (t->kind != TypeKind::Module) continue;
         auto* module = static_cast<ModuleType*>(t.get());
@@ -121,11 +146,12 @@ std::shared_ptr<Type> TypePool::module(std::string target_path,
         module->binding_name = std::move(binding_name);
         module->exports = std::move(exports);
         module->adt_exports = std::move(adt_exports);
+        module->unit_exports = std::move(unit_exports);
         return t;
     }
     auto ty = std::make_shared<ModuleType>(
         std::move(target_path), std::move(load_path), std::move(binding_name),
-        std::move(exports), std::move(adt_exports));
+        std::move(exports), std::move(adt_exports), std::move(unit_exports));
     types.push_back(ty);
     return ty;
 }
@@ -174,6 +200,15 @@ bool BasicType::equals(Type *other) const noexcept {
     const auto *o = reinterpret_cast<BasicType *>(other);
     if (o->type != this->type) return false;
     return true;
+}
+
+bool DimensionedType::equals(Type* other) const noexcept {
+    if (!other || other->kind != TypeKind::Dimensioned) return false;
+    const auto* dimensioned = static_cast<const DimensionedType*>(other);
+    if (resolved != dimensioned->resolved) return false;
+    if (!resolved) return syntax.to_string() == dimensioned->syntax.to_string();
+    return unit.dimension == dimensioned->unit.dimension &&
+           unit.scale_to_base == dimensioned->unit.scale_to_base;
 }
 
 bool ArrayType::equals(Type *other) const noexcept {
@@ -432,6 +467,24 @@ AsExprNode::AsExprNode(const size_t line, const size_t col,
                        std::shared_ptr<ExprNode> expr,
                        std::shared_ptr<Type> cast_type) noexcept
     : ExprNode(ASTKind::AsExpr, line, col), expr(std::move(expr)), cast_type(std::move(cast_type)) {}
+
+AsExprNode::AsExprNode(const size_t line, const size_t col,
+                       std::shared_ptr<ExprNode> expr,
+                       const Kind cast_kind,
+                       UnitSpec unit_syntax) noexcept
+    : ExprNode(ASTKind::AsExpr, line, col), expr(std::move(expr)),
+      cast_kind(cast_kind), unit_syntax(std::move(unit_syntax)) {}
+
+UnitAnnotatedExprNode::UnitAnnotatedExprNode(const size_t line, const size_t col,
+                                             std::shared_ptr<ExprNode> value,
+                                             UnitSpec unit_syntax) noexcept
+    : ExprNode(ASTKind::UnitAnnotated, line, col), value(std::move(value)),
+      unit_syntax(std::move(unit_syntax)) {}
+
+UnitDeclNode::UnitDeclNode(const size_t line, const size_t col, std::string name,
+                           std::shared_ptr<ExprNode> definition) noexcept
+    : StmtNode(ASTKind::UnitDecl, line, col), name(std::move(name)),
+      definition(std::move(definition)) {}
 
 LiteralPayloadNode::LiteralPayloadNode(
     const size_t line,

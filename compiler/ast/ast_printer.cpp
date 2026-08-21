@@ -37,6 +37,12 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
         }
         break;
     }
+    case TypeKind::Dimensioned: {
+        const auto& dimensioned = static_cast<const DimensionedType&>(type);
+        ss << "num<" << (dimensioned.resolved
+            ? dimensioned.unit.display_unit : dimensioned.syntax.to_string()) << ">";
+        break;
+    }
     case TypeKind::String:
         ss << "String";
         break;
@@ -262,6 +268,14 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
             }
             break;
         }
+        case ASTKind::UnitAnnotated: {
+            const auto& unit = static_cast<const UnitAnnotatedExprNode&>(node);
+            ss << line_prefix << "Unit <" << unit.unit_syntax.to_string() << ">";
+            if (node.type) { ss << " : "; print_type(ss, *node.type); }
+            ss << "\n";
+            if (unit.value) print_expr(ss, *unit.value, child_prefix + "└── ", child_prefix + "    ");
+            break;
+        }
         case ASTKind::LiteralPayload: {
             auto &payload = static_cast<const LiteralPayloadNode &>(node);
             if (payload.payload_kind == LiteralPayloadNode::Kind::Set) {
@@ -463,6 +477,13 @@ void AstPrinter::print_stmt(std::ostringstream &ss, const StmtNode &node,
             ss << line_prefix << "Type " << declaration.name << "\n";
             break;
         }
+        case ASTKind::UnitDecl: {
+            const auto& declaration = static_cast<const UnitDeclNode&>(node);
+            ss << line_prefix << "UnitDecl " << declaration.name << "\n";
+            if (declaration.definition)
+                print_expr(ss, *declaration.definition, child_prefix + "└── ", child_prefix + "    ");
+            break;
+        }
         default:
             ss << line_prefix << "UnknownStmt(" << static_cast<int>(node.kind) << ")\n";
             break;
@@ -485,6 +506,7 @@ static bool is_expr_kind(ASTKind kind) {
         case ASTKind::NativeFuncCall:
         case ASTKind::LiteralPayload:
         case ASTKind::MatchExpr:
+        case ASTKind::UnitAnnotated:
             return true;
         default:
             return false;

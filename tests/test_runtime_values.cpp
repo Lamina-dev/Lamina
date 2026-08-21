@@ -29,6 +29,13 @@ bool require(const bool condition, const char* message) {
 }
 
 int main() {
+    const Value left_fraction(2, 4);
+    const Value right_fraction(1, 2);
+    if (!require(left_fraction == right_fraction,
+                 "fraction equality must use normalized numeric components") ||
+        !require(left_fraction.hash() == right_fraction.hash(),
+                 "equal fractions must have equal structural hashes")) return 1;
+
     auto* left_tuple_object = new TupleObj(2);
     left_tuple_object->set(0, Value(static_cast<LmInt>(1)));
     left_tuple_object->set(1, Value(static_cast<LmInt>(2)));

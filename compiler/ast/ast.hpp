@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../../runtime/object/value.hpp"
+#include "unit.hpp"
 
 #include <memory>
 #include <optional>
@@ -70,11 +71,13 @@ enum class ASTKind {
     ArrayLiteral,
     TupleLiteral,
     TupleGetExpr,
+    UnitAnnotated,
+    UnitDecl,
 };
 
 enum class TypeKind {
     Basic, Array, Named, Unknown, String, Function, None, NativeFunction,
-    Module, AdtConstructor, Nullable, Tuple
+    Module, AdtConstructor, Nullable, Tuple, Dimensioned
 };
 struct Type {
     TypeKind kind;
@@ -107,14 +110,16 @@ struct ModuleType : Type {
     std::string binding_name;
     std::vector<hir::Scope::Var> exports;
     std::vector<std::shared_ptr<TypeDeclNode>> adt_exports;
+    std::vector<std::pair<std::string, UnitDefinition>> unit_exports;
     explicit ModuleType(std::string target_path,
                         std::string load_path,
                         std::string binding_name,
                         std::vector<hir::Scope::Var> exports,
-                        std::vector<std::shared_ptr<TypeDeclNode>> adt_exports = {}) noexcept
+                        std::vector<std::shared_ptr<TypeDeclNode>> adt_exports = {},
+                        std::vector<std::pair<std::string, UnitDefinition>> unit_exports = {}) noexcept
     : Type(TypeKind::Module), target_path(std::move(target_path)), load_path(std::move(load_path)),
       binding_name(std::move(binding_name)), exports(std::move(exports)),
-      adt_exports(std::move(adt_exports)) {}
+      adt_exports(std::move(adt_exports)), unit_exports(std::move(unit_exports)) {}
 
 public:
     bool equals(Type *other) const noexcept override;
@@ -125,9 +130,12 @@ public:
         }
         return std::nullopt;
     }
-    [[nodiscard]] std::optional<size_t> find_var_idx(const std::string& n) const noexcept {
-        for (size_t i = 0; i < exports.size(); i++) {
-            if (exports[i].name == n) return i;
+    [[nodiscard]] std::optional<size_t> find_func_idx(const std::string& n) const noexcept {
+        size_t func_idx = 0;
+        for (const auto& exported : exports) {
+            if (exported.type->kind != TypeKind::Function) continue;
+            if (exported.name == n) return func_idx;
+            ++func_idx;
         }
         return std::nullopt;
     }
@@ -182,6 +190,23 @@ public:
     ~BasicType() override;
 
     bool equals(Type *other) const noexcept override;
+};
+
+struct DimensionedType : Type {
+    friend class TypePool;
+
+    UnitSpec syntax;
+    UnitDefinition unit;
+    bool resolved{false};
+
+private:
+    explicit DimensionedType(UnitSpec syntax) noexcept
+        : Type(TypeKind::Dimensioned), syntax(std::move(syntax)) {}
+    explicit DimensionedType(UnitDefinition unit) noexcept
+        : Type(TypeKind::Dimensioned), unit(std::move(unit)), resolved(true) {}
+
+public:
+    bool equals(Type* other) const noexcept override;
 };
 
 struct StringType : Type {
@@ -272,6 +297,7 @@ struct ASTNode {
 };
 struct ExprNode : ASTNode {
     std::shared_ptr<Type> type;
+    std::shared_ptr<Type> promoted_from_type;
     explicit ExprNode(ASTKind kind, size_t line, size_t col) noexcept;
 
     [[nodiscard]] LMX_INLINE bool have_ret_value() const noexcept {
@@ -486,12 +512,40 @@ struct IfExprNode : ExprNode {
 };
 
 struct AsExprNode : ExprNode {
+    enum class Kind { Type, Unit, Num, Scalar };
+
     std::shared_ptr<ExprNode> expr;
     std::shared_ptr<Type> cast_type;
+    Kind cast_kind{Kind::Type};
+    UnitSpec unit_syntax;
+    UnitDefinition resolved_unit;
 
     explicit AsExprNode(size_t line, size_t col,
                         std::shared_ptr<ExprNode> expr,
                         std::shared_ptr<Type> cast_type) noexcept;
+    explicit AsExprNode(size_t line, size_t col,
+                        std::shared_ptr<ExprNode> expr,
+                        Kind cast_kind,
+                        UnitSpec unit_syntax = {}) noexcept;
+};
+
+struct UnitAnnotatedExprNode : ExprNode {
+    std::shared_ptr<ExprNode> value;
+    UnitSpec unit_syntax;
+    UnitDefinition resolved_unit;
+
+    UnitAnnotatedExprNode(size_t line, size_t col,
+                          std::shared_ptr<ExprNode> value,
+                          UnitSpec unit_syntax) noexcept;
+};
+
+struct UnitDeclNode : StmtNode {
+    std::string name;
+    std::shared_ptr<ExprNode> definition;
+    UnitDefinition resolved_unit;
+
+    UnitDeclNode(size_t line, size_t col, std::string name,
+                 std::shared_ptr<ExprNode> definition = nullptr) noexcept;
 };
 
 struct LiteralPayloadNode : ExprNode {
@@ -637,6 +691,7 @@ struct Module {
     std::vector<std::shared_ptr<StmtNode>> decls;
     std::vector<std::shared_ptr<NativeFuncDeclNode>> native_funcs;
     std::vector<std::shared_ptr<TypeDeclNode>> adt_exports;
+    std::vector<std::pair<std::string, UnitDefinition>> unit_exports;
 
     // key 是展开后的源码绝对路径，value是输出的module编码文件路径
     std::unordered_map<std::string, std::shared_ptr<ModuleType>> imports;
@@ -661,6 +716,8 @@ class TypePool {
     std::vector<std::shared_ptr<Type>> types;
 public:
     [[nodiscard]] std::shared_ptr<Type> basic(runtime::ValueKind v) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> dimensioned(UnitSpec syntax) noexcept;
+    [[nodiscard]] std::shared_ptr<Type> dimensioned(UnitDefinition unit) noexcept;
     [[nodiscard]] std::shared_ptr<Type> string() noexcept;
     [[nodiscard]] std::shared_ptr<Type> array(const std::shared_ptr<Type>& type) noexcept;
     [[nodiscard]] std::shared_ptr<Type> function(std::vector<std::shared_ptr<Type>> params,
@@ -679,7 +736,8 @@ public:
                                                std::string load_path,
                                                std::string binding_name,
                                                std::vector<hir::Scope::Var> exports,
-                                               std::vector<std::shared_ptr<TypeDeclNode>> adt_exports = {}) noexcept;
+                                               std::vector<std::shared_ptr<TypeDeclNode>> adt_exports = {},
+                                               std::vector<std::pair<std::string, UnitDefinition>> unit_exports = {}) noexcept;
 
     [[nodiscard]] std::shared_ptr<Type> unknown() noexcept;
     [[nodiscard]] std::shared_ptr<Type> none() noexcept;

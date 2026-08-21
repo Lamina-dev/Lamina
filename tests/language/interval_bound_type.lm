@@ -1,0 +1,2 @@
+import std
+std.interval_closed(1, true)

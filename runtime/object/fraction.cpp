@@ -1,5 +1,6 @@
 #include "fraction.hpp"
 #include <cmath>
+#include <functional>
 #include <numeric>
 
 using namespace lmx::runtime;
@@ -11,6 +12,24 @@ Fraction::Fraction(const int32_t num, const int32_t den) noexcept
 : num(num), den(den) {simplify();}
 
 Fraction::Fraction(const std::string& num_str) noexcept {
+    const auto slash = num_str.find('/');
+    if (slash != std::string::npos) {
+        try {
+            const auto parsed_numerator = std::stoll(num_str.substr(0, slash));
+            const auto parsed_denominator = std::stoll(num_str.substr(slash + 1));
+            if (parsed_numerator >= INT32_MIN && parsed_numerator <= INT32_MAX &&
+                parsed_denominator > 0 && parsed_denominator <= INT32_MAX) {
+                num = static_cast<int32_t>(parsed_numerator);
+                den = static_cast<int32_t>(parsed_denominator);
+                simplify();
+                return;
+            }
+        } catch (...) {
+        }
+        num = 0;
+        den = 0;
+        return;
+    }
     bool negative = false;
     bool has_dot = false;
     bool has_digit = false;
@@ -152,6 +171,13 @@ Fraction Fraction::operator-(const Fraction& other) const noexcept {
 
 Fraction Fraction::clone() const noexcept {
     return Fraction(num, den);
+}
+
+std::size_t Fraction::hash() const noexcept {
+    auto result = std::hash<int32_t>{}(num);
+    result ^= std::hash<int32_t>{}(den) + 0x9e3779b9U +
+              (result << 6U) + (result >> 2U);
+    return result;
 }
 
 bool Fraction::equals(const Fraction* other) const noexcept {

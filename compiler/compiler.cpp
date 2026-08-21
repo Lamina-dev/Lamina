@@ -232,14 +232,14 @@ std::optional<hir::ResolvedModule> Compiler::resolve_module(
         return std::nullopt;
     }
 
-    std::error_code relative_error;
-    auto load_path = std::filesystem::relative(output_path, cache_root, relative_error);
-    if (relative_error) load_path = output_path.filename();
+    auto load_path = output_path.lexically_relative(cache_root);
+    if (load_path.empty()) load_path = output_path.filename();
     const auto binding_name = logical_path.filename().string();
     auto type = std::static_pointer_cast<ModuleType>(type_pool.module(
         output_path.string(), load_path.string(), binding_name,
         std::move(compilation.exports),
-        std::move(compilation.module->adt_exports)));
+        std::move(compilation.module->adt_exports),
+        std::move(compilation.module->unit_exports)));
     hir::ResolvedModule result{
         identity,
         binding_name,

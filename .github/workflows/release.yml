@@ -37,6 +37,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Update math stack
+        run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
+
       - name: Install NASM (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y nasm
@@ -75,6 +78,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Update math stack
+        shell: pwsh
+        run: cmake -DROOT="$env:GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
 
       - uses: msys2/setup-msys2@v2
         with:

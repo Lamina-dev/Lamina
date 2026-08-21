@@ -1,0 +1,83 @@
+import std
+
+func real_error(result Result<real, text>) -> int {
+    match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
+}
+
+func vector_error(result Result<vector, text>) -> int {
+    match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
+}
+
+func matrix_error(result Result<matrix, text>) -> int {
+    match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
+}
+
+match std.vector([1, 2, 3]) {
+    Result.Ok(v) => {
+        match std.vector_at(v, 0) {
+            Result.Ok(first) => match std.vector_at(v, 2) {
+                Result.Ok(last) => std.printf("%.1f,%.1f,%d|", first, last,
+                    real_error(std.vector_at(v, 3))),
+                Result.Err(error) => std.printf("%s", error)
+            },
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.vector_dot(v, v) {
+            Result.Ok(dot) => std.printf("%.1f|", dot),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.vector([1, 2,]) {
+            Result.Ok(short) => std.printf("%d|", real_error(std.vector_dot(v, short))),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.matrix([[1, 2, 3], [4, 5, 6],]) {
+            Result.Ok(a) => {
+                match std.matrix_at(a, 1, 2) {
+                    Result.Ok(value) => std.printf("%lldx%lld,%.1f,%d|",
+                        std.matrix_rows(a), std.matrix_cols(a), value,
+                        real_error(std.matrix_at(a, 2, 0))),
+                    Result.Err(error) => std.printf("%s", error)
+                }
+                match std.matrix([[7, 8,], [9, 10,], [11, 12,]]) {
+                    Result.Ok(b) => match std.matrix_mul(a, b) {
+                        Result.Ok(product) => {
+                            match std.matrix_at(product, 0, 0) {
+                                Result.Ok(first) => match std.matrix_at(product, 1, 1) {
+                                    Result.Ok(last) => std.printf("%lldx%lld,%.1f,%.1f|",
+                                        std.matrix_rows(product), std.matrix_cols(product),
+                                        first, last),
+                                    Result.Err(error) => std.printf("%s", error)
+                                },
+                                Result.Err(error) => std.printf("%s", error)
+                            }
+                            match std.matrix_mul(a, b) {
+                                Result.Ok(same) => std.printf("%d|", product == same),
+                                Result.Err(error) => std.printf("%s", error)
+                            }
+                        },
+                        Result.Err(error) => std.printf("%s", error)
+                    },
+                    Result.Err(error) => std.printf("%s", error)
+                }
+                match std.vector([1, 2,]) {
+                    Result.Ok(short_vector) => std.printf("%d|",
+                        vector_error(std.matrix_vector_mul(a, short_vector))),
+                    Result.Err(error) => std.printf("%s", error)
+                }
+            },
+            Result.Err(error) => std.printf("%s", error)
+        }
+        std.printf("%d|", matrix_error(std.matrix([[1, 2, 3], [4, 5, 6, 7],])))
+        match std.histogram(v, 2) {
+            Result.Ok(table) => match std.table_vector(table, "edges") {
+                Result.Ok(edges) => std.printf("%lld,%d,%d,%lld,%d",
+                    std.table_size(table), std.table_has(table, "counts"),
+                    std.table_has(table, "missing"), std.vector_size(edges),
+                    vector_error(std.table_vector(table, "missing"))),
+                Result.Err(error) => std.printf("%s", error)
+            },
+            Result.Err(error) => std.printf("%s", error)
+        }
+    },
+    Result.Err(error) => std.printf("%s", error)
+}

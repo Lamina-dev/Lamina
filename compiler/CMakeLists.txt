@@ -1,6 +1,7 @@
 add_library(laminac OBJECT
         ast/ast.cpp
         ast/ast_printer.cpp
+        ast/unit.cpp
     error.cpp
     lexer.cpp
     parser.cpp

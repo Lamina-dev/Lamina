@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <functional>
 #include <ranges>
-#include <map>
+#include <limits>
 #include <string_view>
 #include <unordered_set>
 
@@ -24,6 +24,7 @@ bool is_basic_type(const std::shared_ptr<Type>& type, runtime::ValueKind kind) n
 }
 
 bool is_numeric_or_expr_type(const std::shared_ptr<Type>& type) noexcept {
+    if (type && type->kind == TypeKind::Dimensioned) return true;
     if (!type || type->kind != TypeKind::Basic) return false;
     const auto kind = std::reinterpret_pointer_cast<BasicType>(type)->type;
     return kind == runtime::ValueKind::Int ||
@@ -38,6 +39,10 @@ bool is_expr_type(const std::shared_ptr<Type>& type) noexcept {
 }
 
 bool is_expr_constructible(const std::shared_ptr<Type>& type) noexcept {
+    if (type && type->kind == TypeKind::Dimensioned) return true;
+    if (type && type->kind == TypeKind::Named) {
+        return std::static_pointer_cast<NamedType>(type)->name == "interval";
+    }
     if (!type || type->kind != TypeKind::Basic) return false;
     const auto kind = std::reinterpret_pointer_cast<BasicType>(type)->type;
     return kind == runtime::ValueKind::Int ||
@@ -47,9 +52,230 @@ bool is_expr_constructible(const std::shared_ptr<Type>& type) noexcept {
            kind == runtime::ValueKind::Expr;
 }
 
+bool supports_basic_equality(const runtime::ValueKind kind) noexcept {
+    switch (kind) {
+    case runtime::ValueKind::Int:
+    case runtime::ValueKind::Fraction:
+    case runtime::ValueKind::Real:
+    case runtime::ValueKind::Complex:
+    case runtime::ValueKind::Vector:
+    case runtime::ValueKind::Matrix:
+    case runtime::ValueKind::Table:
+    case runtime::ValueKind::Quantity:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool is_int_or_fraction(const runtime::ValueKind kind) noexcept {
+    return kind == runtime::ValueKind::Int ||
+           kind == runtime::ValueKind::Fraction;
+}
+
+std::optional<runtime::ValueKind> basic_binary_result(
+    const runtime::ValueKind operand,
+    const BinaryNode::Op op) noexcept {
+    switch (op) {
+    case BinaryNode::Op::Add:
+    case BinaryNode::Op::Sub:
+    case BinaryNode::Op::Mul:
+    case BinaryNode::Op::Mod:
+    case BinaryNode::Op::Pow:
+        if (is_int_or_fraction(operand)) return operand;
+        return std::nullopt;
+    case BinaryNode::Op::Div:
+        if (is_int_or_fraction(operand))
+            return runtime::ValueKind::Fraction;
+        return std::nullopt;
+    case BinaryNode::Op::Eq:
+    case BinaryNode::Op::Ne:
+        if (supports_basic_equality(operand)) return runtime::ValueKind::Bool;
+        return std::nullopt;
+    case BinaryNode::Op::Gt:
+    case BinaryNode::Op::Ge:
+    case BinaryNode::Op::Lt:
+    case BinaryNode::Op::Le:
+        if (is_int_or_fraction(operand)) return runtime::ValueKind::Bool;
+        return std::nullopt;
+    case BinaryNode::Op::And:
+    case BinaryNode::Op::Or:
+        if (operand == runtime::ValueKind::Bool) return runtime::ValueKind::Bool;
+        return std::nullopt;
+    default:
+        return std::nullopt;
+    }
+}
+
 bool is_named_type(const std::shared_ptr<Type>& type, const std::string_view name) noexcept {
     return type && type->kind == TypeKind::Named &&
            std::static_pointer_cast<NamedType>(type)->name == name;
+}
+
+bool is_dimensioned_type(const std::shared_ptr<Type>& type) noexcept;
+
+std::optional<std::pair<bool, bool>> interval_constructor_bounds(
+    const ExprNode* expression) noexcept {
+    if (!expression || expression->kind != ASTKind::DotExpr) return std::nullopt;
+    const auto* dot = static_cast<const DotExprNode*>(expression);
+    if (!dot->expr || dot->expr->kind != ASTKind::Identifier || !dot->rhs) {
+        return std::nullopt;
+    }
+    const auto* module = static_cast<const IdentifierNode*>(dot->expr.get());
+    if (module->id != "std") return std::nullopt;
+    if (dot->rhs->id == "interval_closed") return std::pair{true, true};
+    if (dot->rhs->id == "interval_open") return std::pair{false, false};
+    if (dot->rhs->id == "interval_closed_open") return std::pair{true, false};
+    if (dot->rhs->id == "interval_open_closed") return std::pair{false, true};
+    return std::nullopt;
+}
+
+bool is_interval_ordered_type(const std::shared_ptr<Type>& type) noexcept {
+    if (!type) return false;
+    if (type->kind == TypeKind::Dimensioned) return true;
+    if (type->kind != TypeKind::Basic) return false;
+    switch (std::static_pointer_cast<BasicType>(type)->type) {
+    case runtime::ValueKind::Int:
+    case runtime::ValueKind::Fraction:
+    case runtime::ValueKind::Real:
+        return true;
+    default:
+        return false;
+    }
+}
+
+int numeric_rank(const std::shared_ptr<Type>& type) noexcept {
+    if (!type || type->kind != TypeKind::Basic) return -1;
+    switch (std::static_pointer_cast<BasicType>(type)->type) {
+    case runtime::ValueKind::Int: return 0;
+    case runtime::ValueKind::Fraction: return 1;
+    case runtime::ValueKind::Real: return 2;
+    default: return -1;
+    }
+}
+
+std::shared_ptr<Type> unify_interval_bounds(const std::shared_ptr<Type>& lhs,
+                                           const std::shared_ptr<Type>& rhs) noexcept {
+    if (!lhs || !rhs) return nullptr;
+    if (lhs->equals(rhs.get())) return lhs;
+    const auto left_rank = numeric_rank(lhs);
+    const auto right_rank = numeric_rank(rhs);
+    if (left_rank >= 0 && right_rank >= 0) {
+        const auto rank = std::max(left_rank, right_rank);
+        const auto kind = rank == 0 ? runtime::ValueKind::Int
+            : rank == 1 ? runtime::ValueKind::Fraction
+                        : runtime::ValueKind::Real;
+        return type_pool.basic(kind);
+    }
+    if (is_dimensioned_type(lhs) && is_dimensioned_type(rhs)) {
+        const auto left = std::static_pointer_cast<DimensionedType>(lhs);
+        const auto right = std::static_pointer_cast<DimensionedType>(rhs);
+        if (left->unit.dimension == right->unit.dimension) return lhs;
+    }
+    return nullptr;
+}
+
+bool interval_member_assignable(const std::shared_ptr<Type>& expected,
+                                const std::shared_ptr<Type>& actual) noexcept;
+
+void mark_expr_promotion(const std::shared_ptr<ExprNode>& expression) {
+    if (!expression || is_expr_type(expression->type)) return;
+    expression->promoted_from_type = expression->type;
+    expression->type = type_pool.basic(runtime::ValueKind::Expr);
+}
+
+bool is_dimensioned_type(const std::shared_ptr<Type>& type) noexcept {
+    return type && type->kind == TypeKind::Dimensioned &&
+           std::static_pointer_cast<DimensionedType>(type)->resolved;
+}
+
+std::optional<RationalScale> constant_numeric_value(const ExprNode* expression) noexcept {
+    if (!expression) return std::nullopt;
+    switch (expression->kind) {
+    case ASTKind::Literal: {
+        const auto* literal = static_cast<const LiteralNode*>(expression);
+        if (literal->kind != LiteralNode::Kind::Integer &&
+            literal->kind != LiteralNode::Kind::Float) return std::nullopt;
+        return RationalScale::from_decimal(literal->val);
+    }
+    case ASTKind::Unary: {
+        const auto* unary = static_cast<const UnaryNode*>(expression);
+        if (unary->op != UnaryNode::Op::Neg) return std::nullopt;
+        auto value = constant_numeric_value(unary->expr.get());
+        if (!value) return std::nullopt;
+        value->numerator = -value->numerator;
+        return value;
+    }
+    case ASTKind::Binary: {
+        const auto* binary = static_cast<const BinaryNode*>(expression);
+        auto lhs = constant_numeric_value(binary->lhs.get());
+        auto rhs = constant_numeric_value(binary->rhs.get());
+        if (!lhs || !rhs) return std::nullopt;
+        switch (binary->op) {
+        case BinaryNode::Op::Mul: return lhs->multiplied_by(*rhs);
+        case BinaryNode::Op::Div: return lhs->divided_by(*rhs);
+        case BinaryNode::Op::Add: return lhs->added_to(*rhs);
+        case BinaryNode::Op::Sub: return lhs->subtracted_by(*rhs);
+        case BinaryNode::Op::Pow:
+            if (rhs->denominator != 1 || rhs->numerator < -32 || rhs->numerator > 32)
+                return std::nullopt;
+            return lhs->raised_to(static_cast<int>(rhs->numerator));
+        default: return std::nullopt;
+        }
+    }
+    case ASTKind::UnitAnnotated: {
+        const auto* unit = static_cast<const UnitAnnotatedExprNode*>(expression);
+        auto value = constant_numeric_value(unit->value.get());
+        return value ? value->multiplied_by(unit->resolved_unit.scale_to_base)
+                     : std::nullopt;
+    }
+    default: return std::nullopt;
+    }
+}
+
+std::optional<std::int64_t> signed_integer_literal(
+    const ExprNode* expression) noexcept {
+    if (!expression) return std::nullopt;
+    if (expression->kind == ASTKind::Literal) {
+        const auto* literal = static_cast<const LiteralNode*>(expression);
+        if (literal->kind != LiteralNode::Kind::Integer) return std::nullopt;
+        try {
+            std::size_t used = 0;
+            const auto value = std::stoll(literal->val, &used);
+            return used == literal->val.size()
+                ? std::optional<std::int64_t>(value) : std::nullopt;
+        } catch (...) {
+            return std::nullopt;
+        }
+    }
+    if (expression->kind != ASTKind::Unary) return std::nullopt;
+    const auto* unary = static_cast<const UnaryNode*>(expression);
+    if (unary->op != UnaryNode::Op::Neg) return std::nullopt;
+    const auto value = signed_integer_literal(unary->expr.get());
+    if (!value || *value == std::numeric_limits<std::int64_t>::min())
+        return std::nullopt;
+    return -*value;
+}
+
+std::optional<UnitDefinition> combined_unit(const UnitDefinition& lhs,
+                                            const UnitDefinition& rhs,
+                                            const bool divide) {
+    UnitDefinition result;
+    result.dimension = divide ? lhs.dimension.divided_by(rhs.dimension)
+                              : lhs.dimension.multiplied_by(rhs.dimension);
+    const auto scale = divide ? lhs.scale_to_base.divided_by(rhs.scale_to_base)
+                              : lhs.scale_to_base.multiplied_by(rhs.scale_to_base);
+    if (!scale) return std::nullopt;
+    result.scale_to_base = *scale;
+    result.display_unit = lhs.display_unit + (divide ? "/" : "*") + rhs.display_unit;
+    return result;
+}
+
+bool runtime_scale_representable(const RationalScale& scale) noexcept {
+    return scale.numerator >= std::numeric_limits<std::int32_t>::min() &&
+           scale.numerator <= std::numeric_limits<std::int32_t>::max() &&
+           scale.denominator > 0 &&
+           scale.denominator <= std::numeric_limits<std::int32_t>::max();
 }
 
 std::shared_ptr<Type> unify_types(const std::shared_ptr<Type>& lhs,
@@ -67,7 +293,8 @@ std::shared_ptr<Type> literal_payload_type(const LiteralPayloadNode& node) noexc
     }
     if (node.payload_kind == LiteralPayloadNode::Kind::Interval) {
         if (node.elements.size() != 2) return type_pool.unknown();
-        auto element = unify_types(node.elements[0]->type, node.elements[1]->type);
+        auto element = unify_interval_bounds(node.elements[0]->type,
+                                             node.elements[1]->type);
         return element ? type_pool.named("interval", {std::move(element)}) : type_pool.unknown();
     }
 
@@ -143,6 +370,16 @@ bool type_assignable(const std::shared_ptr<Type>& expected,
     return true;
 }
 
+bool interval_member_assignable(const std::shared_ptr<Type>& expected,
+                                const std::shared_ptr<Type>& actual) noexcept {
+    if (numeric_rank(expected) >= 0 && numeric_rank(actual) >= 0) return true;
+    if (is_dimensioned_type(expected) && is_dimensioned_type(actual)) {
+        return std::static_pointer_cast<DimensionedType>(expected)->unit.dimension ==
+               std::static_pointer_cast<DimensionedType>(actual)->unit.dimension;
+    }
+    return type_assignable(expected, actual);
+}
+
 std::shared_ptr<Type> unify_types(const std::shared_ptr<Type>& lhs,
                                   const std::shared_ptr<Type>& rhs) noexcept {
     if (!lhs || !rhs) return nullptr;
@@ -181,6 +418,10 @@ bool contains_unknown_type(const std::shared_ptr<Type>& type) noexcept {
     if (type->kind == TypeKind::Unknown) return true;
     if (type->kind == TypeKind::Nullable)
         return contains_unknown_type(std::static_pointer_cast<NullableType>(type)->value_type);
+    if (type->kind == TypeKind::Tuple) {
+        const auto tuple = std::static_pointer_cast<TupleType>(type);
+        return std::any_of(tuple->tys.begin(), tuple->tys.end(), contains_unknown_type);
+    }
     if (type->kind != TypeKind::Named) return false;
     const auto named = std::static_pointer_cast<NamedType>(type);
     return std::any_of(named->args.begin(), named->args.end(), contains_unknown_type);
@@ -243,6 +484,20 @@ std::pair<TypeDeclNode*, AdtConstructorDecl*> TypeCkContext::find_module_constru
 
 std::shared_ptr<Type> TypeCkContext::resolve_type(const std::shared_ptr<Type>& type) noexcept {
     if (!type) return type;
+    if (type->kind == TypeKind::Dimensioned) {
+        const auto dimensioned = std::static_pointer_cast<DimensionedType>(type);
+        if (dimensioned->resolved) return type;
+        const auto resolved = unit_system.resolve(dimensioned->syntax);
+        if (!resolved) {
+            throw_error(ErrorType::Analysis,
+                        "UnitInvalid: unknown or invalid unit expression `" +
+                            dimensioned->syntax.to_string() + "`", 0, 0);
+            return type_pool.unknown();
+        }
+        return resolved->dimension.is_dimensionless()
+            ? type_pool.basic(runtime::ValueKind::Fraction)
+            : type_pool.dimensioned(*resolved);
+    }
     if (type->kind == TypeKind::Named) {
         const auto named = std::static_pointer_cast<NamedType>(type);
         std::vector<std::shared_ptr<Type>> args;
@@ -280,6 +535,13 @@ std::shared_ptr<Type> TypeCkContext::resolve_type(const std::shared_ptr<Type>& t
         const auto array = std::static_pointer_cast<ArrayType>(type);
         return type_pool.array(resolve_type(array->type));
     }
+    if (type->kind == TypeKind::Tuple) {
+        const auto tuple = std::static_pointer_cast<TupleType>(type);
+        std::vector<std::shared_ptr<Type>> elements;
+        elements.reserve(tuple->tys.size());
+        for (const auto& element : tuple->tys) elements.push_back(resolve_type(element));
+        return type_pool.tuple(std::move(elements));
+    }
     if (type->kind == TypeKind::Function) {
         const auto function = std::static_pointer_cast<FunctionType>(type);
         std::vector<std::shared_ptr<Type>> params;
@@ -304,8 +566,13 @@ bool TypeCkContext::is_equality_comparable(const std::shared_ptr<Type>& type) no
             current->kind == TypeKind::Function || current->kind == TypeKind::NativeFunction ||
             current->kind == TypeKind::Module || current->kind == TypeKind::AdtConstructor ||
             current->kind == TypeKind::Array) return false;
+        if (current->kind == TypeKind::Dimensioned) return true;
         if (current->kind == TypeKind::Nullable)
             return comparable(std::static_pointer_cast<NullableType>(current)->value_type);
+        if (current->kind == TypeKind::Tuple) {
+            const auto tuple = std::static_pointer_cast<TupleType>(current);
+            return std::all_of(tuple->tys.begin(), tuple->tys.end(), comparable);
+        }
         if (current->kind == TypeKind::Basic) {
             return std::static_pointer_cast<BasicType>(current)->type != runtime::ValueKind::C_VaList;
         }
@@ -412,6 +679,8 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
     case ASTKind::LiteralPayload: {
         return literal_payload_type(*reinterpret_cast<LiteralPayloadNode*>(type));
     }
+    case ASTKind::UnitAnnotated:
+        return type->type ? type->type : type_pool.unknown();
     case ASTKind::MatchExpr: {
         return type->type ? type->type : type_pool.unknown();
     }
@@ -451,7 +720,8 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
     }
     case ASTKind::AsExpr: {
         const auto node = reinterpret_cast<AsExprNode*>(type);
-        return node->cast_type;
+        return node->type ? node->type
+                          : (node->cast_type ? node->cast_type : type_pool.unknown());
     }
     case ASTKind::DotExpr: {
         const auto node = reinterpret_cast<DotExprNode*>(type);
@@ -482,19 +752,15 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
     }
     case ASTKind::TupleLiteral: {
         const auto node = reinterpret_cast<TupleLiteralNode*>(type);
-        if (node->exprs.empty()) return type_pool.tuple({type_pool.unknown()});
-        const auto elem_ty = node->exprs[0]->type->kind == TypeKind::Unknown
-            ? inference_type(node->exprs[0].get())
-            : node->exprs[0]->type;
-        for (size_t i = 1; i < node->exprs.size(); i++) {
-            const auto& ety = node->exprs[i]->type->kind == TypeKind::Unknown
-                ? inference_type(node->exprs[i].get())
-                : node->exprs[i]->type;
-            if (!elem_ty->equals(ety.get())) return type_pool.unknown();
+        std::vector<std::shared_ptr<Type>> elements;
+        elements.reserve(node->exprs.size());
+        for (const auto& expression : node->exprs) {
+            auto element = expression->type && expression->type->kind != TypeKind::Unknown
+                ? expression->type : inference_type(expression.get());
+            if (!element || Type::is_null_type(element.get())) return type_pool.unknown();
+            elements.push_back(std::move(element));
         }
-        if (Type::is_null_type(elem_ty.get())) return type_pool.unknown();
-        return type_pool.array(elem_ty);
-        break;
+        return type_pool.tuple(std::move(elements));
     }
     case ASTKind::TupleGetExpr: {
         break;
@@ -541,6 +807,7 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
     const auto save_cur_module = cur_module;
     cur_module = mod;
     mod->adt_exports.clear();
+    mod->unit_exports.clear();
 
     if (!mod->native_funcs.empty() && mod->lib_name.empty()) {
         throw_error(ErrorType::Analysis, "module not `static` declare dynamic library, cannot declare native function", 0 , 0);
@@ -576,6 +843,12 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
                 declaration->qualified_name, constructor.name, declaration->type_params, constructor.fields));
         }
     }
+    for (auto& node : mod->decls) {
+        if (node->kind == ASTKind::ImportStmt) check_stmt(node);
+    }
+    for (auto& node : mod->decls) {
+        if (node->kind == ASTKind::UnitDecl) check_stmt(node);
+    }
     for (const auto& n : mod->native_funcs) {
         for (auto& [name, type] : n->params->stmts) type = resolve_type(type);
         n->return_type = resolve_type(n->return_type);
@@ -601,9 +874,6 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
             new_global_var(constructor.name, type_pool.adt_constructor(
                 declaration->qualified_name, constructor.name, declaration->type_params, constructor.fields));
         }
-    }
-    for (auto& node : mod->decls) {
-        if (node->kind == ASTKind::ImportStmt) check_stmt(node);
     }
     for (const auto& node : mod->decls) {
         if (node->kind != ASTKind::TypeDecl) continue;
@@ -667,7 +937,7 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
     }
     // reset();
     for (auto& node : mod->decls) {
-        if (node->kind == ASTKind::ImportStmt) continue;
+        if (node->kind == ASTKind::ImportStmt || node->kind == ASTKind::UnitDecl) continue;
         check_stmt(node);
     }
 
@@ -688,6 +958,30 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     switch (expr->kind) {
     case ASTKind::Literal: {
         expr->type = inference_type(expr.get());
+        break;
+    }
+    case ASTKind::UnitAnnotated: {
+        auto* node = static_cast<UnitAnnotatedExprNode*>(expr.get());
+        check_expr(node->value);
+        if (!is_basic_type(node->value->type, runtime::ValueKind::Int) &&
+            !is_basic_type(node->value->type, runtime::ValueKind::Fraction)) {
+            throw_error(ErrorType::Analysis,
+                        "UnitTypeMismatch: units can only annotate numeric literals",
+                        node->line, node->col);
+            break;
+        }
+        const auto resolved = unit_system.resolve(node->unit_syntax);
+        if (!resolved) {
+            throw_error(ErrorType::Analysis,
+                        "UnitInvalid: unknown or invalid unit expression `" +
+                            node->unit_syntax.to_string() + "`",
+                        node->line, node->col);
+            break;
+        }
+        node->resolved_unit = *resolved;
+        node->type = resolved->dimension.is_dimensionless()
+            ? type_pool.basic(runtime::ValueKind::Fraction)
+            : type_pool.dimensioned(*resolved);
         break;
     }
     case ASTKind::Identifier: {
@@ -723,6 +1017,15 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         auto* node = reinterpret_cast<UnaryNode*>(expr.get());
         check_expr(node->expr);
         const auto type = node->expr->type;
+        if (type->kind == TypeKind::Dimensioned) {
+            if (node->op != UnaryNode::Op::Neg) {
+                throw_error(ErrorType::Analysis, "unary `not` requires bool",
+                            expr->line, expr->col);
+                break;
+            }
+            node->type = type;
+            break;
+        }
         if (type->kind != TypeKind::Basic) {
             throw_error(ErrorType::Analysis, "unary cannot applied to this type", expr->line, expr->col);
             break;
@@ -758,8 +1061,8 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             if (is_expr_type(lty) || is_expr_type(rty)) {
                 if (!is_expr_constructible(lty) || !is_expr_constructible(rty))
                     goto binary_type_mismatch;
-                node->lhs->type = type_pool.basic(runtime::ValueKind::Expr);
-                node->rhs->type = type_pool.basic(runtime::ValueKind::Expr);
+                mark_expr_promotion(node->lhs);
+                mark_expr_promotion(node->rhs);
                 node->type = type_pool.named("Binding", {
                     type_pool.basic(runtime::ValueKind::Expr),
                     type_pool.basic(runtime::ValueKind::Expr)});
@@ -768,11 +1071,131 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             node->type = type_pool.named("Binding", {lty, rty});
             break;
         }
-        if ((node->op == BinaryNode::Op::Eq || node->op == BinaryNode::Op::Ne) &&
-            lty->kind == TypeKind::Named && rty->kind == TypeKind::Named) {
+        if ((is_dimensioned_type(lty) || is_dimensioned_type(rty)) &&
+            !is_expr_type(lty) && !is_expr_type(rty) &&
+            node->op != BinaryNode::Op::In &&
+            node->op != BinaryNode::Op::NotIn) {
+            const auto left_dimensioned = is_dimensioned_type(lty);
+            const auto right_dimensioned = is_dimensioned_type(rty);
+            const auto plain_numeric = [](const std::shared_ptr<Type>& type) {
+                return is_basic_type(type, runtime::ValueKind::Int) ||
+                       is_basic_type(type, runtime::ValueKind::Fraction);
+            };
+            if (left_dimensioned && right_dimensioned) {
+                const auto left = std::static_pointer_cast<DimensionedType>(lty);
+                const auto right = std::static_pointer_cast<DimensionedType>(rty);
+                switch (node->op) {
+                case BinaryNode::Op::Add:
+                case BinaryNode::Op::Sub:
+                case BinaryNode::Op::Mod:
+                    if (!left->equals(right.get())) {
+                        throw_error(ErrorType::Analysis,
+                                    "DimensionMismatch: addition, subtraction, and remainder require identical units",
+                                    node->line, node->col);
+                        break;
+                    }
+                    node->type = lty;
+                    break;
+                case BinaryNode::Op::Eq:
+                case BinaryNode::Op::Ne:
+                case BinaryNode::Op::Gt:
+                case BinaryNode::Op::Ge:
+                case BinaryNode::Op::Lt:
+                case BinaryNode::Op::Le:
+                    if (!left->equals(right.get())) {
+                        throw_error(ErrorType::Analysis,
+                                    "DimensionMismatch: comparison requires identical units",
+                                    node->line, node->col);
+                        break;
+                    }
+                    node->type = type_pool.basic(runtime::ValueKind::Bool);
+                    break;
+                case BinaryNode::Op::Mul:
+                case BinaryNode::Op::Div: {
+                    auto unit = combined_unit(left->unit, right->unit,
+                                              node->op == BinaryNode::Op::Div);
+                    if (!unit) {
+                        throw_error(ErrorType::Analysis, "UnitScaleOverflow",
+                                    node->line, node->col);
+                        break;
+                    }
+                    node->type = unit->dimension.is_dimensionless()
+                        ? type_pool.basic(runtime::ValueKind::Fraction)
+                        : type_pool.dimensioned(std::move(*unit));
+                    break;
+                }
+                default:
+                    throw_error(ErrorType::Analysis,
+                                "binary operation cannot be applied to dimensioned values",
+                                node->line, node->col);
+                    break;
+                }
+                break;
+            }
+            if (left_dimensioned && node->op == BinaryNode::Op::Pow) {
+                const auto exponent_value = signed_integer_literal(node->rhs.get());
+                if (!is_basic_type(rty, runtime::ValueKind::Int) || !exponent_value) {
+                    throw_error(ErrorType::Analysis,
+                                "DimensionExponentMustBeConstantInteger",
+                                node->line, node->col);
+                    break;
+                }
+                if (*exponent_value < -32 || *exponent_value > 32) {
+                    throw_error(ErrorType::Analysis,
+                                "DimensionExponentOutOfRange", node->line, node->col);
+                    break;
+                }
+                const auto exponent = static_cast<int>(*exponent_value);
+                const auto left = std::static_pointer_cast<DimensionedType>(lty);
+                UnitDefinition unit;
+                unit.dimension = left->unit.dimension.raised_to(exponent);
+                const auto scale = left->unit.scale_to_base.raised_to(exponent);
+                if (!scale) {
+                    throw_error(ErrorType::Analysis, "UnitScaleOverflow",
+                                node->line, node->col);
+                    break;
+                }
+                unit.scale_to_base = *scale;
+                unit.display_unit = left->unit.display_unit + "^" + std::to_string(exponent);
+                node->type = unit.dimension.is_dimensionless()
+                    ? type_pool.basic(runtime::ValueKind::Fraction)
+                    : type_pool.dimensioned(std::move(unit));
+                break;
+            }
+            if ((node->op == BinaryNode::Op::Mul || node->op == BinaryNode::Op::Div) &&
+                ((left_dimensioned && plain_numeric(rty)) ||
+                 (right_dimensioned && plain_numeric(lty)))) {
+                if (left_dimensioned) {
+                    node->type = lty;
+                } else if (node->op == BinaryNode::Op::Mul) {
+                    node->type = rty;
+                } else {
+                    const auto right = std::static_pointer_cast<DimensionedType>(rty);
+                    UnitDefinition unit;
+                    unit.dimension = right->unit.dimension.raised_to(-1);
+                    const auto scale = right->unit.scale_to_base.raised_to(-1);
+                    if (!scale) {
+                        throw_error(ErrorType::Analysis, "UnitScaleOverflow",
+                                    node->line, node->col);
+                        break;
+                    }
+                    unit.scale_to_base = *scale;
+                    unit.display_unit = "1/" + right->unit.display_unit;
+                    node->type = type_pool.dimensioned(std::move(unit));
+                }
+                break;
+            }
+            throw_error(ErrorType::Analysis,
+                        "DimensionMismatch: incompatible dimensioned operands",
+                        node->line, node->col);
+            break;
+        }
+        if (node->op == BinaryNode::Op::Eq || node->op == BinaryNode::Op::Ne) {
             if (auto unified = unify_types(lty, rty)) {
                 if (!is_equality_comparable(unified)) {
-                    throw_error(ErrorType::Analysis, "ADT fields are not equality comparable", node->line, node->col);
+                    throw_error(ErrorType::Analysis,
+                                "values are not equality comparable",
+                                node->line, node->col);
                     break;
                 }
                 if (contains_unknown_type(lty)) node->lhs->type = unified;
@@ -784,10 +1207,10 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         if (node->op == BinaryNode::Op::In || node->op == BinaryNode::Op::NotIn) {
             if (is_expr_type(lty) || is_expr_type(rty)) {
                 if (is_expr_constructible(lty)) {
-                    node->lhs->type = type_pool.basic(runtime::ValueKind::Expr);
+                    mark_expr_promotion(node->lhs);
                 }
                 if (node->rhs->kind == ASTKind::LiteralPayload || is_expr_constructible(rty)) {
-                    node->rhs->type = type_pool.basic(runtime::ValueKind::Expr);
+                    mark_expr_promotion(node->rhs);
                 }
                 node->type = type_pool.basic(runtime::ValueKind::Expr);
                 break;
@@ -796,7 +1219,10 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 goto binary_type_mismatch;
             }
             const auto container = std::static_pointer_cast<NamedType>(rty);
-            if (container->args.size() != 1 || !type_assignable(container->args.front(), lty)) {
+            if (container->args.size() != 1 ||
+                !(container->name == "interval"
+                      ? interval_member_assignable(container->args.front(), lty)
+                      : type_assignable(container->args.front(), lty))) {
                 goto binary_type_mismatch;
             }
             node->type = type_pool.basic(runtime::ValueKind::Bool);
@@ -844,84 +1270,11 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             break;
         }
         if (lty->kind != TypeKind::Basic) goto binary_type_mismatch;
-        //if (const auto t2 = std::reinterpret_pointer_cast<BasicType>(lty);
-         //   t2->type != runtime::ValueKind::Int && t2->type != runtime::ValueKind::Fraction) goto binary_type_mismatch;
-        static const std::map<runtime::ValueKind, std::map<BinaryNode::Op, runtime::ValueKind>> op_types = {
-            {runtime::ValueKind::Int, {
-                {BinaryNode::Op::Add, runtime::ValueKind::Int},
-                {BinaryNode::Op::Sub, runtime::ValueKind::Int},
-                {BinaryNode::Op::Mul, runtime::ValueKind::Int},
-                {BinaryNode::Op::Div, runtime::ValueKind::Fraction},
-                {BinaryNode::Op::Mod, runtime::ValueKind::Int},
-                {BinaryNode::Op::Pow, runtime::ValueKind::Int},
-                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Gt, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Ge, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Lt, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Le, runtime::ValueKind::Bool},
-            }},
-            {runtime::ValueKind::Fraction, {
-                {BinaryNode::Op::Add, runtime::ValueKind::Fraction},
-                {BinaryNode::Op::Sub, runtime::ValueKind::Fraction},
-                {BinaryNode::Op::Mul, runtime::ValueKind::Fraction},
-                {BinaryNode::Op::Div, runtime::ValueKind::Fraction},
-                {BinaryNode::Op::Mod, runtime::ValueKind::Fraction},
-                {BinaryNode::Op::Pow, runtime::ValueKind::Fraction},
-                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Gt, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Ge, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Lt, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Le, runtime::ValueKind::Bool},
-            }},
-            {runtime::ValueKind::Real, {
-                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
-            }},
-            {runtime::ValueKind::Bool, {
-                {BinaryNode::Op::And, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Or, runtime::ValueKind::Bool},
-            }},
-            {runtime::ValueKind::Complex, {
-                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
-            }},
-            {runtime::ValueKind::Vector, {
-                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
-            }},
-            {runtime::ValueKind::Matrix, {
-                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
-            }},
-            {runtime::ValueKind::Table, {
-                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
-            }},
-            {runtime::ValueKind::Quantity, {
-                {BinaryNode::Op::Eq, runtime::ValueKind::Bool},
-                {BinaryNode::Op::Ne, runtime::ValueKind::Bool},
-            }}
-        };
         {
-            const auto t2 = std::reinterpret_pointer_cast<BasicType>(lty)->type;
-            const auto &type_map_it = op_types.find(t2);
-            if (type_map_it == op_types.end()) {
-                throw_error(
-                    ErrorType::Analysis,
-                    "binary operation type mismatch, (" +
-                    Type::to_string(lty.get()) + " " +
-                    BinaryNode::op_to_string(node->op) + " " + Type::to_string(rty.get()) + ")", expr->line, expr->col
-                    );
-                break;
-            }
-            const auto& type_map = type_map_it->second;
-            if (const auto it = type_map.find(node->op); it != type_map.end()) {
-                node->type = type_pool.basic(it->second);
-            } else {
-                goto binary_type_mismatch;
-            }
+            const auto operand = std::reinterpret_pointer_cast<BasicType>(lty)->type;
+            const auto result = basic_binary_result(operand, node->op);
+            if (!result) goto binary_type_mismatch;
+            node->type = type_pool.basic(*result);
         }
         break;
         binary_type_mismatch:
@@ -937,8 +1290,29 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         if (node->type->kind == TypeKind::Unknown) {
             const char* diagnostic = node->payload_kind == LiteralPayloadNode::Kind::Set
                 ? "set elements must have one type"
-                : "interval bounds must have one type";
+                : "IntervalBoundTypeMismatch: interval bounds cannot be unified";
             throw_error(ErrorType::Analysis, diagnostic, node->line, node->col);
+            break;
+        }
+        if (node->payload_kind == LiteralPayloadNode::Kind::Interval &&
+            !is_expr_type(node->type)) {
+            const auto interval = std::static_pointer_cast<NamedType>(node->type);
+            if (interval->args.size() != 1 ||
+                !is_interval_ordered_type(interval->args.front())) {
+                throw_error(ErrorType::Analysis,
+                            "IntervalBoundNotOrdered: interval bounds must be ordered values",
+                            node->line, node->col);
+                break;
+            }
+            const auto lower = constant_numeric_value(node->elements[0].get());
+            const auto upper = constant_numeric_value(node->elements[1].get());
+            if (lower && upper &&
+                static_cast<long double>(lower->numerator) / lower->denominator >
+                static_cast<long double>(upper->numerator) / upper->denominator) {
+                throw_error(ErrorType::Analysis,
+                            "IntervalBoundsReversed: lower bound exceeds upper bound",
+                            node->line, node->col);
+            }
         }
         break;
     }
@@ -952,6 +1326,23 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
     }
     case ASTKind::SuffixParen: {
         const auto node = reinterpret_cast<SuffixParenNode*>(expr.get());
+        if (const auto bounds = interval_constructor_bounds(node->expr.get())) {
+            const auto standard_module = find_global("std");
+            if (standard_module.has_value() &&
+                (*standard_module)->type->kind == TypeKind::Module) {
+                if (!node->suffix || node->suffix->exprs.size() != 2) {
+                    throw_error(ErrorType::Analysis,
+                                "IntervalArityMismatch: interval constructors require two bounds",
+                                node->line, node->col);
+                    break;
+                }
+                expr = std::make_shared<LiteralPayloadNode>(
+                    node->line, node->col, LiteralPayloadNode::Kind::Interval,
+                    std::move(node->suffix->exprs), bounds->first, bounds->second);
+                check_expr(expr);
+                break;
+            }
+        }
         if (node->expr->kind == ASTKind::Identifier) {
             const auto id = reinterpret_cast<IdentifierNode*>(node->expr.get());
             if (const auto found = find_global(id->id);
@@ -1048,7 +1439,10 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             for (auto i = 0; i < len; i++) {
                 const auto param = func_ty->params_ty[i];
                 check_expr(node->suffix->exprs[i]);
-                TypeBindings call_bindings;
+                if (is_expr_type(param) &&
+                    is_expr_constructible(node->suffix->exprs[i]->type)) {
+                    mark_expr_promotion(node->suffix->exprs[i]);
+                }
                 if (contains_unknown_type(node->suffix->exprs[i]->type) &&
                     type_assignable(param, node->suffix->exprs[i]->type)) {
                     node->suffix->exprs[i]->type = param;
@@ -1064,7 +1458,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                     throw_error(ErrorType::Analysis,
                         "type mismatch arg in function calling in arg(s) " + std::to_string(i) +
                         ": (" + Type::to_string(node->suffix->exprs[i]->type.get()) +
-                        " != " + Type::to_string(node->suffix->exprs[i]->type.get()) + ")"
+                        " != " + Type::to_string(param.get()) + ")"
                         , node->line, node->col);
                     break;
                 }
@@ -1105,7 +1499,11 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             for (; i < fixed_arg_cnt; i++) {
                 const auto param = func_ty->params_ty[i];
                 check_expr(node->suffix->exprs[i]);
-                if (!param->equals(node->suffix->exprs[i]->type.get())) {
+                if (is_expr_type(param) &&
+                    is_expr_constructible(node->suffix->exprs[i]->type)) {
+                    mark_expr_promotion(node->suffix->exprs[i]);
+                }
+                if (!type_assignable(param, node->suffix->exprs[i]->type)) {
                     throw_error(ErrorType::Analysis, "type mismatch arg in function calling", node->line, node->col);
                     break;
                 }
@@ -1163,12 +1561,83 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         break;
     }
     case ASTKind::AsExpr: {
-        const auto node = reinterpret_cast<AsExprNode*>(expr.get());
+        auto* node = reinterpret_cast<AsExprNode*>(expr.get());
+        if (node->cast_kind == AsExprNode::Kind::Unit) {
+            check_expr(node->expr);
+            const bool symbolic = is_expr_type(node->expr->type);
+            if (!is_dimensioned_type(node->expr->type) && !symbolic) {
+                throw_error(ErrorType::Analysis,
+                            "UnitTypeMismatch: unit conversion requires a dimensioned value",
+                            node->line, node->col);
+                break;
+            }
+            const auto target = unit_system.resolve(node->unit_syntax);
+            if (!target) {
+                throw_error(ErrorType::Analysis,
+                            "UnitInvalid: unknown or invalid target unit `" +
+                                node->unit_syntax.to_string() + "`",
+                            node->line, node->col);
+                break;
+            }
+            const auto source = symbolic ? nullptr
+                : std::static_pointer_cast<DimensionedType>(node->expr->type);
+            if (source && source->unit.dimension != target->dimension) {
+                throw_error(ErrorType::Analysis,
+                            "DimensionMismatch: unit conversion requires equal dimensions",
+                            node->line, node->col);
+                break;
+            }
+            node->resolved_unit = *target;
+            if (!symbolic) {
+                const auto factor = source->unit.scale_to_base.divided_by(
+                    target->scale_to_base);
+                if (!factor || !runtime_scale_representable(*factor)) {
+                    throw_error(ErrorType::Analysis, "UnitConversionOverflow",
+                                node->line, node->col);
+                    break;
+                }
+            }
+            node->type = symbolic ? type_pool.basic(runtime::ValueKind::Expr)
+                                  : type_pool.dimensioned(*target);
+            break;
+        }
+        if (node->cast_kind == AsExprNode::Kind::Num ||
+            node->cast_kind == AsExprNode::Kind::Scalar) {
+            check_expr(node->expr);
+            if (is_expr_type(node->expr->type)) {
+                node->type = type_pool.basic(runtime::ValueKind::Expr);
+                break;
+            }
+            if (is_dimensioned_type(node->expr->type)) {
+                if (node->cast_kind == AsExprNode::Kind::Num) {
+                    const auto dimensioned =
+                        std::static_pointer_cast<DimensionedType>(node->expr->type);
+                    if (!runtime_scale_representable(
+                            dimensioned->unit.scale_to_base)) {
+                        throw_error(ErrorType::Analysis, "UnitStripOverflow",
+                                    node->line, node->col);
+                        break;
+                    }
+                }
+                node->type = type_pool.basic(runtime::ValueKind::Fraction);
+                break;
+            }
+            if (is_basic_type(node->expr->type, runtime::ValueKind::Int) ||
+                is_basic_type(node->expr->type, runtime::ValueKind::Fraction) ||
+                is_basic_type(node->expr->type, runtime::ValueKind::Real)) {
+                node->type = node->expr->type;
+                break;
+            }
+            throw_error(ErrorType::Analysis, "UnitStripTypeMismatch",
+                        node->line, node->col);
+            break;
+        }
+        node->cast_type = resolve_type(node->cast_type);
         if (is_expr_type(node->cast_type) && node->expr->kind == ASTKind::SuffixParen)
             reinterpret_cast<SuffixParenNode*>(node->expr.get())->allow_symbolic_call = true;
         check_expr(node->expr);
         if (is_expr_type(node->cast_type) && is_expr_constructible(node->expr->type)) {
-            node->expr->type = type_pool.basic(runtime::ValueKind::Expr);
+            mark_expr_promotion(node->expr);
         } else if (!node->cast_type->equals(node->expr->type.get())) {
             throw_error(ErrorType::Analysis, "cast type mismatch", node->line, node->col);
             break;
@@ -1519,13 +1988,18 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         auto* node = reinterpret_cast<TupleGetExprNode*>(expr.get());
         check_expr(node->tup);
         if (node->tup->type->kind != TypeKind::Tuple) {
-            throw_error(ErrorType::Analysis, "left not tuple type", node->line, node->col);
+            throw_error(ErrorType::Analysis,
+                        "TupleTypeMismatch: position access requires a tuple",
+                        node->line, node->col);
             break;
         }
         const auto* tup_ty = reinterpret_cast<TupleType*>(node->tup->type.get());
         if (node->i >= tup_ty->tys.size()) {
             throw_error(ErrorType::Analysis,
-                "tuple member count is " + std::to_string(tup_ty->tys.size()) + " but getting " + std::to_string(node->i),
+                "TupleIndexOutOfBounds: tuple has " +
+                    std::to_string(tup_ty->tys.size()) +
+                    " elements but position " + std::to_string(node->i + 1) +
+                    " was requested",
                 node->line, node->col
                 );
             break;
@@ -1565,8 +2039,54 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
 
         for (const auto& declaration : resolved->type->adt_exports)
             adt_types[declaration->qualified_name] = declaration.get();
+        for (const auto& [name, definition] : resolved->type->unit_exports)
+            unit_system.import_unit(resolved->binding_name + "." + name, definition);
         new_global_var(resolved->binding_name, resolved->type);
         cur_module->imports[resolved->source_path] = resolved->type;
+        break;
+    }
+    case ASTKind::UnitDecl: {
+        auto* node = static_cast<UnitDeclNode*>(stmt.get());
+        if (!is_global_scope()) {
+            throw_error(ErrorType::Analysis, "unit declarations must be module scoped",
+                        node->line, node->col);
+            break;
+        }
+        if (!node->definition) {
+            if (!unit_system.declare_base(
+                    node->name, cur_module->name + "::" + node->name)) {
+                throw_error(ErrorType::Analysis, "UnitRedefined: `" + node->name + "`",
+                            node->line, node->col);
+                break;
+            }
+            node->resolved_unit = *unit_system.resolve(node->name);
+        } else {
+            check_expr(node->definition);
+            if (!is_dimensioned_type(node->definition->type)) {
+                throw_error(ErrorType::Analysis,
+                            "UnitInvalid: derived unit requires a dimensioned constant",
+                            node->line, node->col);
+                break;
+            }
+            const auto scale = constant_numeric_value(node->definition.get());
+            if (!scale || scale->numerator <= 0) {
+                throw_error(ErrorType::Analysis,
+                            "UnitInvalid: derived unit scale must be a positive compile-time constant",
+                            node->line, node->col);
+                break;
+            }
+            const auto dimensioned =
+                std::static_pointer_cast<DimensionedType>(node->definition->type);
+            UnitDefinition definition{
+                dimensioned->unit.dimension, *scale, node->name};
+            if (!unit_system.declare_derived(node->name, definition)) {
+                throw_error(ErrorType::Analysis, "UnitRedefined: `" + node->name + "`",
+                            node->line, node->col);
+                break;
+            }
+            node->resolved_unit = *unit_system.resolve(node->name);
+        }
+        cur_module->unit_exports.emplace_back(node->name, node->resolved_unit);
         break;
     }
     case ASTKind::SymDecl: {
@@ -1640,6 +2160,8 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
                 }
                 if (contains_unknown_type(node->expr->type) && type_assignable(s.return_type, node->expr->type))
                     node->expr->type = s.return_type;
+                if (is_expr_type(s.return_type) && is_expr_constructible(node->expr->type))
+                    mark_expr_promotion(node->expr);
                 if (!type_assignable(s.return_type, node->expr->type)) {
                     throw_error(ErrorType::Analysis, "return type mismatch in function `" + s.name + "`", node->line, node->col);
                     goto return_fail_break;
@@ -1661,6 +2183,9 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
             if (contains_unknown_type(node->expr->type) &&
                 type_assignable(scope_stack.back().return_type, node->expr->type))
                 node->expr->type = scope_stack.back().return_type;
+            if (is_expr_type(scope_stack.back().return_type) &&
+                is_expr_constructible(node->expr->type))
+                mark_expr_promotion(node->expr);
             if (!type_assignable(scope_stack.back().return_type, node->expr->type)) {
                 throw_error(ErrorType::Analysis, "return type is inconsistent with the above", node->line, node->col);
                 break;
@@ -1693,7 +2218,7 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
             }
         } else {
             if (is_expr_type(node->type) && is_expr_constructible(node->init_value->type)) {
-                node->init_value->type = type_pool.basic(runtime::ValueKind::Expr);
+                mark_expr_promotion(node->init_value);
             } else if (contains_unknown_type(node->init_value->type) &&
                        type_assignable(node->type, node->init_value->type)) {
                 node->init_value->type = node->type;
@@ -1712,7 +2237,10 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
         if (node->lhs->kind == ASTKind::SuffixBracket) {
             // 数组元素赋值 a[i] = v，元素类型已由 check_expr 赋到 node->lhs->type
         } else if (node->lhs->kind == ASTKind::TupleGetExpr) {
-            // 元组元素赋值 tup.i = v，元素类型已由 check_expr 赋到 node->lhs->type
+            throw_error(ErrorType::Analysis,
+                        "TupleAssignment: tuple element bindings are immutable",
+                        node->line, node->col);
+            break;
         } else if (node->lhs->kind == ASTKind::Identifier) {
             const auto id = reinterpret_cast<IdentifierNode*>(node->lhs.get());
             const auto var = find_var(id->id);

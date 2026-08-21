@@ -1,0 +1,78 @@
+import std
+
+func real_error(result Result<real, text>) -> int {
+    match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
+}
+
+func table_error(result Result<table, text>) -> int {
+    match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
+}
+
+match std.vector([1, 2, 3, 4]) {
+    Result.Ok(values) => {
+        match std.mean(values) {
+            Result.Ok(value) => std.printf("%.3f|", value),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.variance(values) {
+            Result.Ok(value) => std.printf("%.3f|", value),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.variance_population(values) {
+            Result.Ok(value) => std.printf("%.3f|", value),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.stddev(values) {
+            Result.Ok(value) => std.printf("%.3f|", value),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.stddev_population(values) {
+            Result.Ok(value) => std.printf("%.3f|", value),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.median(values) {
+            Result.Ok(value) => std.printf("%.3f|", value),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.quantile(values, 0.25) {
+            Result.Ok(value) => std.printf("%.3f|", value),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.vector([2, 4, 6, 8]) {
+            Result.Ok(doubled) => {
+                match std.covariance(values, doubled) {
+                    Result.Ok(value) => std.printf("%.3f|", value),
+                    Result.Err(error) => std.printf("%s", error)
+                }
+                match std.correlation(values, doubled) {
+                    Result.Ok(value) => std.printf("%.3f|", value),
+                    Result.Err(error) => std.printf("%s", error)
+                }
+            },
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.histogram(values, 3) {
+            Result.Ok(histogram) => match std.table_vector(histogram, "edges") {
+                Result.Ok(edges) => match std.table_vector(histogram, "counts") {
+                    Result.Ok(counts) => std.printf("%lld,%lld|",
+                        std.vector_size(edges), std.vector_size(counts)),
+                    Result.Err(error) => std.printf("%s", error)
+                },
+                Result.Err(error) => std.printf("%s", error)
+            },
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.vector([5]) {
+            Result.Ok(single) => std.printf("%d,%d,",
+                real_error(std.variance(single)), real_error(std.stddev(single))),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        match std.vector([1, 2,]) {
+            Result.Ok(short) => std.printf("%d,", real_error(std.covariance(values, short))),
+            Result.Err(error) => std.printf("%s", error)
+        }
+        std.printf("%d,%d,%d", real_error(std.quantile(values, -0.1)),
+            real_error(std.quantile(values, 1.1)), table_error(std.histogram(values, 0)))
+    },
+    Result.Err(error) => std.printf("%s", error)
+}

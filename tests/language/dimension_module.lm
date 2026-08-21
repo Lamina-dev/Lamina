@@ -1,0 +1,13 @@
+import std
+import dimension_support
+
+unit clip = 3<dimension_support.frame>
+
+let value = 3<dimension_support.frame>
+let ticks = dimension_support.frame_ticks(value)
+let clip_ticks = 2<clip> as <dimension_support.tick>
+let symbolic_clip expr = 2<clip>
+std.printf("%d,%d,%d\n",
+    ticks == 6<dimension_support.tick>,
+    clip_ticks == 12<dimension_support.tick>,
+    std.cas_is_ok(symbolic_clip))

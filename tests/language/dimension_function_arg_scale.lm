@@ -1,0 +1,5 @@
+func length(value num<m>) -> num<m> {
+    value
+}
+
+let invalid = length(1<km>)

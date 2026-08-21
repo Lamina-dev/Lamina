@@ -193,6 +193,18 @@ void MirPrinter::format_operate(std::ostringstream &ss, const MirOperateExpr &op
         DISPATCH(MirFDivExpr, format_binary(ss, name, d.lhs, d.rhs));
     case runtime::Opcode::FMod:
         DISPATCH(MirFModExpr, format_binary(ss, name, d.lhs, d.rhs));
+    case runtime::Opcode::FCmpEq:
+        DISPATCH(MirFCmpEqExpr, format_binary(ss, name, d.lhs, d.rhs));
+    case runtime::Opcode::FCmpNe:
+        DISPATCH(MirFCmpNeExpr, format_binary(ss, name, d.lhs, d.rhs));
+    case runtime::Opcode::FCmpLt:
+        DISPATCH(MirFCmpLtExpr, format_binary(ss, name, d.lhs, d.rhs));
+    case runtime::Opcode::FCmpLe:
+        DISPATCH(MirFCmpLeExpr, format_binary(ss, name, d.lhs, d.rhs));
+    case runtime::Opcode::FCmpGt:
+        DISPATCH(MirFCmpGtExpr, format_binary(ss, name, d.lhs, d.rhs));
+    case runtime::Opcode::FCmpGe:
+        DISPATCH(MirFCmpGeExpr, format_binary(ss, name, d.lhs, d.rhs));
     case runtime::Opcode::FNeg:
         DISPATCH(MirFNegExpr, format_unary(ss, name, d.e));
     case runtime::Opcode::ICmpEq:

@@ -1,0 +1,8 @@
+import std
+
+unit km = 1000<m>
+unit N = 1<kg*m/s^2>
+
+let distance = 2<km> as <m>
+let force = 3<N>
+std.printf("%d,%d\n", distance == 2000<m>, force == 3<N>)

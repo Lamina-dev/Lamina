@@ -107,6 +107,19 @@ MirICmpGtExpr::MirICmpGtExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirEx
 MirICmpGeExpr::MirICmpGeExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::ICmpGe), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
+MirFCmpEqExpr::MirFCmpEqExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
+    : MirOperateExpr(runtime::Opcode::Opcode::FCmpEq), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+MirFCmpNeExpr::MirFCmpNeExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
+    : MirOperateExpr(runtime::Opcode::Opcode::FCmpNe), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+MirFCmpLtExpr::MirFCmpLtExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
+    : MirOperateExpr(runtime::Opcode::Opcode::FCmpLt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+MirFCmpLeExpr::MirFCmpLeExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
+    : MirOperateExpr(runtime::Opcode::Opcode::FCmpLe), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+MirFCmpGtExpr::MirFCmpGtExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
+    : MirOperateExpr(runtime::Opcode::Opcode::FCmpGt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+MirFCmpGeExpr::MirFCmpGeExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
+    : MirOperateExpr(runtime::Opcode::Opcode::FCmpGe), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+
 MirLabel::MirLabel(std::string name) noexcept
     : MirNode(MirNodeKind::Label), name(std::move(name)) {}
 

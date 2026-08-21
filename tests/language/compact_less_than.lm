@@ -1,0 +1,3 @@
+import std
+
+std.printf("%d,%d,%d", 1<2, 2<1, 1<1)

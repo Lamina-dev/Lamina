@@ -17,6 +17,7 @@ namespace lmx::runtime {
      explicit Fraction(const std::string& num_str) noexcept;
 
      [[nodiscard]] Fraction clone() const noexcept;
+     [[nodiscard]] std::size_t hash() const noexcept;
      [[nodiscard]] std::string to_string() const noexcept;
      [[nodiscard]] bool equals(const Fraction* other) const noexcept;
      [[nodiscard]] Fraction operator-() const noexcept;

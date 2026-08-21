@@ -1,0 +1,31 @@
+import std
+
+func make_pair() -> (int, text) {
+    (7, "ok")
+}
+
+let pair = make_pair()
+let same = (7, "ok")
+let pair_set = {(1, 2), (1, 2)}
+let array = [1, 2]
+let closed = std.interval_closed(1, 3)
+let open = std.interval_open(1, 3)
+let closed_open = std.interval_closed_open(1, 3)
+let open_closed = std.interval_open_closed(1, 3)
+let singleton = std.interval_closed(2, 2)
+let empty = std.interval_open(2, 2)
+
+std.printf("%lld,%s|%d|%lld|%d,%d,%d,%d,%d,%d|%d|%d|%d\n",
+    pair.1,
+    pair.2,
+    pair == same,
+    array[1],
+    1 in closed,
+    3 in closed,
+    1 in open,
+    1 in closed_open,
+    3 in open_closed,
+    3 not in closed_open,
+    2 in singleton,
+    2 not in empty,
+    pair_set == {(1, 2), (1, 2)})
