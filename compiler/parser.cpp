@@ -683,7 +683,7 @@ Pattern Parser::parse_pattern() noexcept {
     }
     if (match(TokenType::NUM_LITERAL) || match(TokenType::STRING_LITERAL) ||
         match(TokenType::TRUE_LITERAL) || match(TokenType::FALSE_LITERAL) || match(TokenType::NULL_LITERAL)) {
-        LiteralNode::Kind literal_kind = LiteralNode::Kind::Integer;
+        auto literal_kind = LiteralNode::Kind::Integer;
         auto value = cur().text;
         if (match(TokenType::NULL_LITERAL)) {
             literal_kind = LiteralNode::Kind::Null;
@@ -729,8 +729,8 @@ Pattern Parser::parse_pattern() noexcept {
         }
         return pattern;
     }
-    if (name == "_") return Pattern(Pattern::Kind::Wildcard, line, col);
-    if (!match(TokenType::LPAREN)) return Pattern(Pattern::Kind::Binding, line, col, std::move(name));
+    if (name == "_") return {Pattern::Kind::Wildcard, line, col};
+    if (!match(TokenType::LPAREN)) return {Pattern::Kind::Binding, line, col, std::move(name)};
 
     Pattern pattern(Pattern::Kind::Constructor, line, col, std::move(name));
     pos++;

@@ -9,14 +9,15 @@
 namespace lmx::runtime {
 
 class StringObj : public Object {
-    std::string data;
+    using StringObjImpl = std::string;
+    StringObjImpl data;
 public:
     explicit StringObj() noexcept;
 
-    explicit StringObj(const std::string& data) noexcept;
+    explicit StringObj(const StringObjImpl& data) noexcept;
 
-    explicit StringObj(std::string&& data) noexcept;
-    explicit StringObj(const std::string& data, size_t index) noexcept;
+    explicit StringObj(StringObjImpl&& data) noexcept;
+    explicit StringObj(const StringObjImpl& data, size_t index) noexcept;
     explicit StringObj(const char* data, size_t size) noexcept;
 
     explicit StringObj(const char* data) noexcept;

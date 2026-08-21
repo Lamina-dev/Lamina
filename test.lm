@@ -2,10 +2,10 @@ static "laminaCore"
 import examples.bernoulli
 func printf(fmt text, ...) -> int = "printf"
 
-let arr = [4,7,4]
+let arr = [7,0,3]
 
 func bar() {
-    arr
+    [4,7,4]
 }
 
 func foo(a int) {

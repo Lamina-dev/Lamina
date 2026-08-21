@@ -26,6 +26,7 @@ public:
     LMX_INLINE Object* alloc_tuple(const size_t len) noexcept {
         return new TupleObj(len);
     }
+    ~LmGCAllocator() noexcept = default;
 };
 
 }

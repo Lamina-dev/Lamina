@@ -11,13 +11,13 @@ using namespace lmx::runtime;
 
 StringObj::StringObj() noexcept: Object(ObjectKind::String) { }
 
-StringObj::StringObj(const std::string& data) noexcept: Object(ObjectKind::String), data(data) { }
+StringObj::StringObj(const StringObjImpl& data) noexcept: Object(ObjectKind::String), data(data) { }
 
 StringObj::StringObj(const char *data, const size_t size) noexcept: Object(ObjectKind::String), data(data, size) { }
 
-StringObj::StringObj(std::string &&data) noexcept: Object(ObjectKind::String), data(std::move(data)) { }
+StringObj::StringObj(StringObjImpl &&data) noexcept: Object(ObjectKind::String), data(std::move(data)) { }
 
-StringObj::StringObj(const std::string &data, const size_t index) noexcept: Object(ObjectKind::String), data (data, index) { }
+StringObj::StringObj(const StringObjImpl &data, const size_t index) noexcept: Object(ObjectKind::String), data (data, index) { }
 
 StringObj::StringObj(const char *data) noexcept: Object(ObjectKind::String), data (data) { }
 

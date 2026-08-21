@@ -58,11 +58,11 @@ struct Value {
     LMX_INLINE Value& operator=(void* c_ptr)       noexcept;
     LMX_INLINE Value& operator=(Object* obj)       noexcept;
     LMX_INLINE Value& operator=(LmInt int_val)     noexcept;
-    LMX_INLINE Value& operator=(double real_val)   noexcept;
     LMX_INLINE Value& operator=(bool bool_val)     noexcept;
     LMX_INLINE Value& operator=(const Value& other)noexcept;
     LMX_INLINE Value& operator=(Value&& other)     noexcept;
     LMX_INLINE Value& operator=(const Fraction& fraction);
+    LMX_INLINE Value& operator=(double val) noexcept;
     LMX_INLINE Value& operator=(std::nullptr_t)    noexcept;
     LMX_INLINE Value operator+(const Value& other) const noexcept;
     LMX_INLINE Value operator-(const Value& other) const noexcept;
@@ -104,8 +104,6 @@ LMX_INLINE Value::Value(void *c_ptr) noexcept : kind(ValueKind::C_Ptr), c_ptr(c_
 
 LMX_INLINE Value::Value(const LmInt int_val) noexcept : kind(ValueKind::Int), int_val(int_val) {}
 
-LMX_INLINE Value::Value(const double real_val) noexcept : kind(ValueKind::Real), real_val(real_val) {}
-
 LMX_INLINE Value::Value(Object *obj) noexcept : kind(ValueKind::Obj), obj(obj) {}
 
 LMX_INLINE Value::Value(Object *obj, const ValueKind kind) noexcept
@@ -114,6 +112,8 @@ LMX_INLINE Value::Value(Object *obj, const ValueKind kind) noexcept
 LMX_INLINE Value::Value(const int num, const int den) noexcept : kind(ValueKind::Fraction), frac_val(num, den) {}
 
 LMX_INLINE Value::Value(const Fraction& frac) noexcept : kind(ValueKind::Fraction), frac_val(frac) {}
+
+LMX_INLINE Value::Value(double val) noexcept : kind(ValueKind::Real), real_val(val) {}
 
 LMX_INLINE Value &Value::operator=(std::nullptr_t) noexcept {
     VALUE_DESTRUCT_UNSAFE(this);
@@ -126,6 +126,14 @@ LMX_INLINE Value &Value::operator=(std::nullptr_t) noexcept {
 LMX_INLINE Object *Value::operator->() const noexcept {
     // assert(this->kind == ValueKind::Obj);
     return obj;
+}
+
+LMX_INLINE Value &Value::operator=(double val) noexcept {
+    VALUE_DESTRUCT_UNSAFE(this);
+    // assert(this->kind == ValueKind::C_Ptr);
+    this->kind = ValueKind::Real;
+    this->real_val = val;
+    return *this;
 }
 
 LMX_INLINE Value &Value::operator=(void *ptr) noexcept {
@@ -149,13 +157,6 @@ LMX_INLINE Value &Value::operator=(const LmInt val) noexcept {
     // assert(this->kind == ValueKind::Int);
     this->kind = ValueKind::Int;
     this->int_val = val;
-    return *this;
-}
-
-LMX_INLINE Value &Value::operator=(const double val) noexcept {
-    VALUE_DESTRUCT_UNSAFE(this);
-    this->kind = ValueKind::Real;
-    this->real_val = val;
     return *this;
 }
 
