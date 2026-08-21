@@ -34,11 +34,7 @@ public:
         objects.push_back(ptr);
         return ptr;
     }
-    ~LmGCAllocator() noexcept {
-        for (const auto obj : objects) {
-            if (obj->get_rc() > 0) obj->release();
-        }
-    };
+    ~LmGCAllocator() noexcept = default;
 };
 
 }
