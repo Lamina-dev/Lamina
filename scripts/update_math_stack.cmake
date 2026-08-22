@@ -24,6 +24,14 @@ function(run_git directory)
     message(FATAL_ERROR "git command failed in ${directory}")
 endfunction()
 
+function(update_branch directory branch)
+    # CI checks out submodules at a detached commit and may not create the
+    # corresponding remote-tracking branch.  Merge the explicitly fetched
+    # FETCH_HEAD instead, and avoid recursively fetching stale nested pointers.
+    run_git("${directory}" fetch --no-recurse-submodules origin "${branch}")
+    run_git("${directory}" merge --ff-only FETCH_HEAD)
+endfunction()
+
 set(lmcas "${ROOT}/external/LMCAS")
 set(lmmc "${lmcas}/LMMC")
 set(lammp "${lmmc}/LAMMP")
@@ -33,9 +41,6 @@ if(NOT EXISTS "${lammp}/CMakeLists.txt")
     run_git("${ROOT}" submodule update --init --recursive -- external/LMCAS)
 endif()
 
-run_git("${lmcas}" fetch origin lmcas-2-current)
-run_git("${lmcas}" merge --ff-only origin/lmcas-2-current)
-run_git("${lmmc}" fetch origin main)
-run_git("${lmmc}" merge --ff-only origin/main)
-run_git("${lammp}" fetch origin main)
-run_git("${lammp}" merge --ff-only origin/main)
+update_branch("${lmcas}" main)
+update_branch("${lmmc}" main)
+update_branch("${lammp}" main)
