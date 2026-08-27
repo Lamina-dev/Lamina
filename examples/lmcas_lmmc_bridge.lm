@@ -1,34 +1,32 @@
+import std.mathematics_error
 import std
 
 sym x, y
 
 let expr = x^2 + 1
-let derivative = std.cas_diff(expr, "x")
-let value = std.cas_evalf(8 as expr)
+let derivative = std.cas.differentiate(expr, "x")
+let value = std.cas.evaluate_real(8 as expr)
 let rational_expr = 5/2 + x
 let complex_expr = x + 2 * I
 let neg_expr = -x
 let eight expr = 8
 let three expr = 3
 
-std.printf("%s\n", std.cas_to_text(expr))
-std.printf("%s\n", std.cas_to_text(derivative))
-match value {
+std.printf("%s\n", std.cas.to_text(expr))
+std.printf("%s\n", std.cas.to_text(derivative))
+std.printf("%.1f\n", value)
+std.printf("%s\n", std.cas.to_text(rational_expr))
+std.printf("%s\n", std.cas.to_text(complex_expr))
+std.printf("%s\n", std.cas.to_text(neg_expr))
+match std.math.hypotenuse(eight, eight) {
     Result.Ok(number) => std.printf("%.1f\n", number),
-    Result.Err(error) => std.printf("%s\n", error)
+    Result.Err(error) => std.printf("%s\n", mathematics_error.message(error))
 }
-std.printf("%s\n", std.cas_to_text(rational_expr))
-std.printf("%s\n", std.cas_to_text(complex_expr))
-std.printf("%s\n", std.cas_to_text(neg_expr))
-match std.num_hypot(eight, eight) {
+match std.math.binary_logarithm(eight) {
     Result.Ok(number) => std.printf("%.1f\n", number),
-    Result.Err(error) => std.printf("%s\n", error)
+    Result.Err(error) => std.printf("%s\n", mathematics_error.message(error))
 }
-match std.num_log2(eight) {
+match std.math.binary_exponential(three) {
     Result.Ok(number) => std.printf("%.1f\n", number),
-    Result.Err(error) => std.printf("%s\n", error)
-}
-match std.num_exp2(three) {
-    Result.Ok(number) => std.printf("%.1f\n", number),
-    Result.Err(error) => std.printf("%s\n", error)
+    Result.Err(error) => std.printf("%s\n", mathematics_error.message(error))
 }

@@ -1,0 +1,80 @@
+import std.mathematics_error
+import std
+
+match std.math.square_root(2.0) {
+    Result.Ok(value) => std.printf("sqrt(2) = %.6f\n", value),
+    Result.Err(error) => std.printf("sqrt failed: %s\n", mathematics_error.message(error))
+}
+match std.math.sine(0.5) {
+    Result.Ok(value) => std.printf("sin(0.5) = %.6f\n", value),
+    Result.Err(error) => std.printf("sin failed: %s\n", mathematics_error.message(error))
+}
+match std.stats.normal_cumulative_distribution(0.0, 0.0, 1.0) {
+    Result.Ok(value) => std.printf("normal CDF at zero = %.3f\n", value),
+    Result.Err(error) => std.printf("normal CDF failed: %s\n", mathematics_error.message(error))
+}
+
+# 稠密线性代数使用运行时 matrix/vector 对象。
+match std.linalg.matrix([[2.0, 0.0], [0.0, 4.0]]) {
+    Result.Ok(matrix) => {
+        match std.linalg.determinant(matrix) {
+            Result.Ok(value) => std.printf("det(A) = %.1f\n", value),
+            Result.Err(error) => std.printf("det failed: %s\n", mathematics_error.message(error))
+        }
+        match std.linalg.infinity_norm(matrix) {
+            Result.Ok(value) => std.printf("||A||_inf = %.1f\n", value),
+            Result.Err(error) => std.printf("norm failed: %s\n", mathematics_error.message(error))
+        }
+        match std.linalg.shape(matrix) {
+            Result.Ok(shape) => match std.linalg.element_at(shape, 0) {
+                Result.Ok(rows) => match std.linalg.element_at(shape, 1) {
+                    Result.Ok(cols) => std.printf("shape(A) = %.0f x %.0f\n", rows, cols),
+                    Result.Err(error) => std.printf("shape read failed: %s\n", mathematics_error.message(error))
+                },
+                Result.Err(error) => std.printf("shape read failed: %s\n", mathematics_error.message(error))
+            },
+            Result.Err(error) => std.printf("shape failed: %s\n", mathematics_error.message(error))
+        }
+
+        match std.sparse.from_dense(matrix, 0.0) {
+            Result.Ok(s) => {
+                match std.sparse.diagonal(s) {
+                    Result.Ok(diagonal) => match std.linalg.element_at(diagonal, 1) {
+                        Result.Ok(value) => std.printf("sparse diagonal[1] = %.1f\n", value),
+                        Result.Err(error) => std.printf("diag read failed: %s\n", mathematics_error.message(error))
+                    },
+                    Result.Err(error) => std.printf("diag failed: %s\n", mathematics_error.message(error))
+                }
+                match std.sparse.scale(s, 0.5) {
+                    Result.Ok(_) => std.printf("sparse scaling completed\n"),
+                    Result.Err(error) => std.printf("sparse scaling failed: %s\n", mathematics_error.message(error))
+                }
+            },
+            Result.Err(error) => std.printf("sparse conversion failed: %s\n", mathematics_error.message(error))
+        }
+    },
+    Result.Err(error) => std.printf("matrix construction failed: %s\n", mathematics_error.message(error))
+}
+
+# 固定 seed 可重放默认随机引擎序列。
+match std.random.seed(2026) {
+    Result.Ok(_) => match std.random.random_real() {
+        Result.Ok(value) => std.printf("seeded rand = %.6f\n", value),
+        Result.Err(error) => std.printf("rand failed: %s\n", mathematics_error.message(error))
+    },
+    Result.Err(error) => std.printf("seed failed: %s\n", mathematics_error.message(error))
+}
+
+match std.linalg.vector([1.0, 2.0, 3.0, 4.0]) {
+    Result.Ok(values) => {
+        match std.stats.mean(values) {
+            Result.Ok(value) => std.printf("mean = %.2f\n", value),
+            Result.Err(error) => std.printf("mean failed: %s\n", mathematics_error.message(error))
+        }
+        match std.stats.std(values) {
+            Result.Ok(value) => std.printf("sample std = %.3f\n", value),
+            Result.Err(error) => std.printf("std failed: %s\n", mathematics_error.message(error))
+        }
+    },
+    Result.Err(error) => std.printf("vector construction failed: %s\n", mathematics_error.message(error))
+}

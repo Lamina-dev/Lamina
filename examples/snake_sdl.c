@@ -1,13 +1,5 @@
-//
-// snake_sdl.c : 小型辅助库, 供 examples/snake.lm 通过 `static "snake_sdl"` 加载。
-// 作用: 语言层无法读取指针指向的内存(SDL_Event/SDL_FRect), 由 C 层代劳。
-//
-//   snake_key_pressed(scancode) : 当前帧该键是否按下 (内部 SDL_PumpEvents)
-//   snake_quit_pending()        : 是否有 SDL_EVENT_QUIT 待处理
-//   snake_fill_rect(ren,x,y,w,h): 构造 SDL_FRect 并填充
-//
+// C 辅助函数负责读取 SDL_Event/SDL_FRect 指针数据。
 // 编译: gcc -O2 -fPIC -shared -o libsnake_sdl.so snake_sdl.c -lSDL3
-//
 
 #define SDL_MAIN_HANDLED
 #include <SDL3/SDL.h>

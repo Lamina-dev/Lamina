@@ -1,0 +1,23 @@
+import std.mathematics_error
+import std
+
+sym x, y
+
+let polynomial = x^3 - 2*x + 1
+let derivative = std.cas.differentiate(polynomial, x)
+let antiderivative = std.cas.integrate(polynomial, x)
+std.printf("integral   = %s\n", std.cas.to_text(antiderivative))
+let one_point expr = 1
+let limit_at_one = std.cas.limit((x^2 - 1)/(x - 1), x, one_point, "")
+let zero_point expr = 0
+let taylor = std.cas.series(std.cas.exponential(x), x, zero_point, 4)
+std.printf("e^x taylor = %s\n", std.cas.to_text(taylor))
+
+let two_variable = x^2 * y + y^3
+{
+    let values = std.cas.gradient(two_variable, [x, y])
+    std.printf("grad = %s, %s\n",
+        std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]))
+}
+

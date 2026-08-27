@@ -1,18 +1,15 @@
 static "snake_sdl"
 
-# ======================================================================
 #  Lamina Snake : 纯图形界面版 (SDL3 渲染)
 #  玩法  : 方向键 / WASD 转向, 空格或回车开始
 #          吃红色食物变长, 长到 maxlen(90) 获胜
 #          撞墙或咬到自己即死, 死后按 R 重新开始, Q/Esc 退出
 #  依赖  : 本目录下 libsnake_sdl.so (源码见 snake_sdl.c)
-#  运行  : LD_LIBRARY_PATH=examples ./cmake-build-release/lamina examples/snake.lm
-# ======================================================================
+#  运行  : LD_LIBRARY_PATH=examples ./build/lamina examples/snake.lm
 
-# ---- 原生函数声明 (SDL3 + snake_sdl 辅助库) ----
 func malloc(n int) -> cptr = "malloc"
 func snprintf(buf cptr, n int, fmt text, ...) -> int = "snprintf"
-func rand() -> int = "rand"
+func random_real() -> int = "rand"
 func srand(seed int) -> null = "srand"
 
 func SDL_Init(s int) -> bool = "SDL_Init"
@@ -33,7 +30,6 @@ func snake_key_pressed(sc int) -> bool = "snake_key_pressed"
 func snake_quit_pending() -> bool = "snake_quit_pending"
 func snake_fill_rect(ren cptr, x int, y int, w int, h int) -> null = "snake_fill_rect"
 
-# ---- 窗口标题封装 (vararg snprintf) ----
 func settitle(buf cptr, s int, l int) -> int {
     snprintf(buf, 128, "Lamina Snake   score=%lld len=%lld   [Arrows/WASD] [Q quit]", s, l)
 }
@@ -803,7 +799,6 @@ func play(ren cptr, win cptr, tbuf cptr) -> int {
         if snake_quit_pending() {
             quit = true
         }
-    # ---- 渲染一帧 ----
     SDL_SetRenderDrawColor(ren, 13, 15, 28, 255)
     SDL_RenderClear(ren)
     px = foodx * cell
@@ -1286,7 +1281,6 @@ func play(ren cptr, win cptr, tbuf cptr) -> int {
                 rest = true
                 break
             }
-    # ---- 渲染一帧 ----
     SDL_SetRenderDrawColor(ren, 13, 15, 28, 255)
     SDL_RenderClear(ren)
     px = foodx * cell
@@ -1774,7 +1768,6 @@ func play(ren cptr, win cptr, tbuf cptr) -> int {
                 rest = true
                 break
             }
-    # ---- 渲染一帧 ----
     SDL_SetRenderDrawColor(ren, 13, 15, 28, 255)
     SDL_RenderClear(ren)
     px = foodx * cell

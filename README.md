@@ -24,7 +24,7 @@ cmake --build build --parallel
 | 目标                         | 类型           | 说明                                   |
 |------------------------------|----------------|----------------------------------------|
 | `lamina`                     | 可执行文件     | CLI 入口，`./lamina <file.lm>`         |
-| `laminaCore`                 | 共享库         | 运行时 + 编译器，导出 C ABI（`lmx.h`） |
+| `liblamina`                  | 共享库         | 运行时 + 编译器，导出 C ABI（`lmx.h`） |
 | `laminac` / `lamina_runtime` | OBJECT 库      | 编译器前端 / 虚拟机                    |
 | `lmcas`                      | cas计算库      | 仓库LMCAS构建产物                      |
 | `Lammpore`                   | 核心数字计算库 | 仓库LAMMP构建产物                      |

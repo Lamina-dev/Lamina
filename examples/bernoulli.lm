@@ -1,4 +1,4 @@
-static "laminaCore"
+static "liblamina"
 
 func printf(fmt text, ...) -> int = "printf"
 

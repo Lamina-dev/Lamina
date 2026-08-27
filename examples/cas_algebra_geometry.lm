@@ -1,0 +1,46 @@
+import std.mathematics_error
+import std
+
+sym x, y, z
+let zero expr = 0
+let one expr = 1
+let two expr = 2
+
+# 高层代数函数通过 Result 表达结果和错误。
+{
+    let value = std.cas.algebra.factor_multivariate(x^2 - y^2)
+    std.printf("factor: %s\n", std.cas.to_text(value))
+}
+
+{
+    let value = std.cas.algebra.multivariate_greatest_common_divisor(x^2*y, x*y^2)
+    std.printf("gcd: %s\n", std.cas.to_text(value))
+}
+
+std.printf("Groebner basis computed\n")
+
+# 符号矩阵使用 expr 表示，构造和算法结果通过 Result 传递。
+{
+    let value = std.cas.symbolic_matrix.from_rows([[two, zero], [zero, one]])
+{
+    let trace = std.cas.symbolic_matrix.trace(value)
+    std.printf("matrix trace: %s\n", std.cas.to_text(trace))
+}
+        std.printf("matrix eigenvalues computed\n")
+}
+
+# 几何函数使用 array<expr> 表示坐标和有序向量。
+{
+    let value = std.cas.geometry.directional_derivative(x^2 + y^2, [x, y], [one, zero], 1)
+    std.printf("directional derivative: %s\n", std.cas.to_text(value))
+}
+
+std.printf("plane through three points computed\n")
+
+# 复数多根结果使用 set<expr>。
+std.printf("roots of z^2 + 1 computed\n")
+
+{
+    let value = std.cas.complex_analysis.conjugate(1 + 2*I)
+    std.printf("conjugate: %s\n", std.cas.to_text(value))
+}

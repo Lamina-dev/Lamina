@@ -13,10 +13,6 @@ func SDL_DestroyWindow(win cptr) -> null = "SDL_DestroyWindow"
 
 if SDL_Init(32) {
     let win = SDL_CreateWindow("Hello SDL3", 640, 480, 0)
-#    if (win == 0) {
-#        printf("%s\n", SDL_GetError())
-#        exit(1)
-#    }
     let ren = SDL_CreateRenderer(win, 0)
     SDL_SetRenderDrawColor(ren, 255, 255, 255, 255)
     SDL_RenderClear(ren)

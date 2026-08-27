@@ -1,4 +1,4 @@
-static "laminaCore"
+static "liblamina"
 import std.io
 func printf(fmt text, ...) -> int = "printf"
 
