@@ -25,10 +25,19 @@ function(run_git directory)
 endfunction()
 
 function(update_branch directory branch)
-    # CI checks out submodules at a detached commit and may not create the
-    # corresponding remote-tracking branch.  Merge the explicitly fetched
-    # FETCH_HEAD instead, and avoid recursively fetching stale nested pointers.
-    run_git("${directory}" fetch --no-recurse-submodules origin "${branch}")
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --is-shallow-repository
+        WORKING_DIRECTORY "${directory}"
+        OUTPUT_VARIABLE shallow
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE shallow_status
+    )
+    if(shallow_status EQUAL 0 AND shallow STREQUAL "true")
+        run_git("${directory}" fetch --unshallow --no-recurse-submodules
+                origin "${branch}")
+    else()
+        run_git("${directory}" fetch --no-recurse-submodules origin "${branch}")
+    endif()
     run_git("${directory}" merge --ff-only FETCH_HEAD)
 endfunction()
 
