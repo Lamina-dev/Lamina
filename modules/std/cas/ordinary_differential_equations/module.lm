@@ -1,0 +1,170 @@
+import std.mathematics_error
+import std.cas.raw.ordinary_differential_equations
+
+func solve_separable(rhs expr, independent text, dependent text) -> expr {
+    match ordinary_differential_equations.solve_separable(rhs, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_separable(rhs expr, independent expr, dependent expr) -> expr {
+    match ordinary_differential_equations.solve_separable(rhs, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_first_order_linear(coefficient expr, forcing expr, independent text, dependent text) -> expr {
+    match ordinary_differential_equations.solve_first_order_linear(coefficient, forcing, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_first_order_linear(coefficient expr, forcing expr, independent expr, dependent expr) -> expr {
+    match ordinary_differential_equations.solve_first_order_linear(coefficient, forcing, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_second_order_linear(a frac, b frac, c frac, forcing expr, independent text, dependent text) -> expr {
+    match ordinary_differential_equations.solve_second_order_linear(a, b, c, forcing, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_second_order_linear(a frac, b frac, c frac, forcing expr, independent expr, dependent expr) -> expr {
+    match ordinary_differential_equations.solve_second_order_linear(a, b, c, forcing, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_bernoulli(p expr, q expr, power int, independent text, dependent text) -> expr {
+    match ordinary_differential_equations.solve_bernoulli(p, q, power, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_bernoulli(p expr, q expr, power int, independent expr, dependent expr) -> expr {
+    match ordinary_differential_equations.solve_bernoulli(p, q, power, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_exact(m expr, n expr, independent text, dependent text) -> expr {
+    match ordinary_differential_equations.solve_exact(m, n, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_exact(m expr, n expr, independent expr, dependent expr) -> expr {
+    match ordinary_differential_equations.solve_exact(m, n, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_homogeneous(rhs expr, independent text, dependent text) -> expr {
+    match ordinary_differential_equations.solve_homogeneous(rhs, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_homogeneous(rhs expr, independent expr, dependent expr) -> expr {
+    match ordinary_differential_equations.solve_homogeneous(rhs, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_higher_order(coefficients array<frac>, forcing expr, independent text, dependent text) -> expr {
+    match ordinary_differential_equations.solve_higher_order(coefficients, forcing, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_higher_order(coefficients array<frac>, forcing expr, independent expr, dependent expr) -> expr {
+    match ordinary_differential_equations.solve_higher_order(coefficients, forcing, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_euler(coefficients array<frac>, forcing expr, independent text, dependent text) -> expr {
+    match ordinary_differential_equations.solve_euler(coefficients, forcing, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_euler(coefficients array<frac>, forcing expr, independent expr, dependent expr) -> expr {
+    match ordinary_differential_equations.solve_euler(coefficients, forcing, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_variation_of_parameters(y1 expr, y2 expr, forcing expr, independent text) -> expr {
+    match ordinary_differential_equations.solve_variation_of_parameters(y1, y2, forcing, independent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_variation_of_parameters(y1 expr, y2 expr, forcing expr, independent expr) -> expr {
+    match ordinary_differential_equations.solve_variation_of_parameters(y1, y2, forcing, independent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_frobenius(p expr, q expr, point expr, independent text, order int) -> ordinary_differential_equations.FrobeniusSolution {
+    match ordinary_differential_equations.solve_frobenius(p, q, point, independent, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_frobenius(p expr, q expr, point expr, independent expr, order int) -> ordinary_differential_equations.FrobeniusSolution {
+    match ordinary_differential_equations.solve_frobenius(p, q, point, independent, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func classify_first_order(rhs expr, independent text, dependent text) -> text {
+    match ordinary_differential_equations.classify_first_order(rhs, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func classify_first_order(rhs expr, independent expr, dependent expr) -> text {
+    match ordinary_differential_equations.classify_first_order(rhs, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func classify_higher_order(coefficients array<expr>, forcing expr, independent text, dependent text) -> text {
+    match ordinary_differential_equations.classify_higher_order(coefficients, forcing, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func classify_higher_order(coefficients array<expr>, forcing expr, independent expr, dependent expr) -> text {
+    match ordinary_differential_equations.classify_higher_order(coefficients, forcing, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}

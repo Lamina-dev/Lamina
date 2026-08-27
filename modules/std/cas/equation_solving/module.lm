@@ -1,0 +1,156 @@
+import std.mathematics_error
+import std.cas.raw.equation_solving
+
+func with_assumptions(context assumptions, equation expr, variable text) -> array<expr> {
+    match equation_solving.with_assumptions(context, equation, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func system(equations array<expr>, variables array<text>) -> array<table> {
+    match equation_solving.system(equations, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func system(equations array<expr>, variables array<expr>) -> array<table> {
+    match equation_solving.system(equations, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func polynomial_system(equations array<expr>, variables array<text>) -> array<table> {
+    match equation_solving.polynomial_system(equations, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func polynomial_system(equations array<expr>, variables array<expr>) -> array<table> {
+    match equation_solving.polynomial_system(equations, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func parametric_system(equations array<expr>, unknowns array<text>, parameters array<text>) -> array<table> {
+    match equation_solving.parametric_system(equations, unknowns, parameters) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func parametric_system(equations array<expr>, unknowns array<expr>, parameters array<expr>) -> array<table> {
+    match equation_solving.parametric_system(equations, unknowns, parameters) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func parametric_piecewise(equations array<expr>, unknowns array<text>, parameters array<text>) -> equation_solving.ParametricPiecewise {
+    match equation_solving.parametric_piecewise(equations, unknowns, parameters) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func parametric_piecewise(equations array<expr>, unknowns array<expr>, parameters array<expr>) -> equation_solving.ParametricPiecewise {
+    match equation_solving.parametric_piecewise(equations, unknowns, parameters) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func groebner_basis(polynomials array<expr>, variables array<text>) -> set<expr> {
+    match equation_solving.groebner_basis(polynomials, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func groebner_basis(polynomials array<expr>, variables array<expr>) -> set<expr> {
+    match equation_solving.groebner_basis(polynomials, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func reduced_groebner_basis(polynomials array<expr>, variables array<text>) -> set<expr> {
+    match equation_solving.reduced_groebner_basis(polynomials, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func reduced_groebner_basis(polynomials array<expr>, variables array<expr>) -> set<expr> {
+    match equation_solving.reduced_groebner_basis(polynomials, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func ideal_membership(polynomial expr, basis array<expr>, variables array<text>) -> bool {
+    match equation_solving.ideal_membership(polynomial, basis, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func ideal_membership(polynomial expr, basis array<expr>, variables array<expr>) -> bool {
+    match equation_solving.ideal_membership(polynomial, basis, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func elimination_ideal(basis array<expr>, variables array<text>, count int) -> set<expr> {
+    match equation_solving.elimination_ideal(basis, variables, count) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func elimination_ideal(basis array<expr>, variables array<expr>, count int) -> set<expr> {
+    match equation_solving.elimination_ideal(basis, variables, count) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inequalities(expressions array<expr>, relations array<text>, variable text) -> expr {
+    match equation_solving.inequalities(expressions, relations, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inequalities(expressions array<expr>, relations array<text>, variable expr) -> expr {
+    match equation_solving.inequalities(expressions, relations, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func rational_inequality(numerator expr, denominator expr, relation text, variable text) -> expr {
+    match equation_solving.rational_inequality(numerator, denominator, relation, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func rational_inequality(numerator expr, denominator expr, relation text, variable expr) -> expr {
+    match equation_solving.rational_inequality(numerator, denominator, relation, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inequality(expression expr, relation text, variable text) -> expr {
+    match equation_solving.inequality(expression, relation, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}

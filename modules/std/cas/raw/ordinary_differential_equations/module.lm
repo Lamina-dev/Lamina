@@ -1,0 +1,30 @@
+import std.mathematics_error
+
+type FrobeniusSolution = FrobeniusSolution(expr, text, array<real>, int)
+
+static "liblamina"
+
+func solve_separable(rhs expr, independent text, dependent text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_separable_by_names"
+func solve_separable(rhs expr, independent expr, dependent expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_separable_by_symbols"
+func solve_first_order_linear(coefficient expr, forcing expr, independent text, dependent text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_first_order_linear_by_names"
+func solve_first_order_linear(coefficient expr, forcing expr, independent expr, dependent expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_first_order_linear_by_symbols"
+func solve_second_order_linear(a frac, b frac, c frac, forcing expr, independent text, dependent text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_second_order_linear_by_names"
+func solve_second_order_linear(a frac, b frac, c frac, forcing expr, independent expr, dependent expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_second_order_linear_by_symbols"
+func solve_bernoulli(p expr, q expr, power int, independent text, dependent text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_bernoulli_by_names"
+func solve_bernoulli(p expr, q expr, power int, independent expr, dependent expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_bernoulli_by_symbols"
+func solve_exact(m expr, n expr, independent text, dependent text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_exact_by_names"
+func solve_exact(m expr, n expr, independent expr, dependent expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_exact_by_symbols"
+func solve_homogeneous(rhs expr, independent text, dependent text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_homogeneous_by_names"
+func solve_homogeneous(rhs expr, independent expr, dependent expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_homogeneous_by_symbols"
+func solve_higher_order(coefficients array<frac>, forcing expr, independent text, dependent text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_higher_order_by_names"
+func solve_higher_order(coefficients array<frac>, forcing expr, independent expr, dependent expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_higher_order_by_symbols"
+func solve_euler(coefficients array<frac>, forcing expr, independent text, dependent text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_euler_by_names"
+func solve_euler(coefficients array<frac>, forcing expr, independent expr, dependent expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_euler_by_symbols"
+func solve_variation_of_parameters(y1 expr, y2 expr, forcing expr, independent text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_variation_of_parameters_by_name"
+func solve_variation_of_parameters(y1 expr, y2 expr, forcing expr, independent expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_variation_of_parameters_by_symbol"
+func solve_frobenius(p expr, q expr, point expr, independent text, order int) -> Result<FrobeniusSolution, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_frobenius_by_name"
+func solve_frobenius(p expr, q expr, point expr, independent expr, order int) -> Result<FrobeniusSolution, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_solve_frobenius_by_symbol"
+func classify_first_order(rhs expr, independent text, dependent text) -> Result<text, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_classify_first_order_by_names"
+func classify_first_order(rhs expr, independent expr, dependent expr) -> Result<text, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_classify_first_order_by_symbols"
+func classify_higher_order(coefficients array<expr>, forcing expr, independent text, dependent text) -> Result<text, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_classify_higher_order_by_names"
+func classify_higher_order(coefficients array<expr>, forcing expr, independent expr, dependent expr) -> Result<text, mathematics_error.MathError> = "lmx_computer_algebra_ordinary_differential_equations_classify_higher_order_by_symbols"

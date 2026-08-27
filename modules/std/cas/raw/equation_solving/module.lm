@@ -1,0 +1,29 @@
+import std.mathematics_error
+
+type ParametricCase = ParametricCase(expr, array<table>)
+type ParametricPiecewise = ParametricPiecewise(array<ParametricCase>)
+
+static "liblamina"
+
+func with_assumptions(context assumptions, equation expr, variable text) -> Result<array<expr>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_with_assumptions"
+func system(equations array<expr>, variables array<text>) -> Result<array<table>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_system_by_names"
+func system(equations array<expr>, variables array<expr>) -> Result<array<table>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_system_by_symbols"
+func polynomial_system(equations array<expr>, variables array<text>) -> Result<array<table>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_polynomial_system_full_by_names"
+func polynomial_system(equations array<expr>, variables array<expr>) -> Result<array<table>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_polynomial_system_full_by_symbols"
+func parametric_system(equations array<expr>, unknowns array<text>, parameters array<text>) -> Result<array<table>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_parametric_system_by_names"
+func parametric_system(equations array<expr>, unknowns array<expr>, parameters array<expr>) -> Result<array<table>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_parametric_system_by_symbols"
+func parametric_piecewise(equations array<expr>, unknowns array<text>, parameters array<text>) -> Result<ParametricPiecewise, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_parametric_piecewise_by_names"
+func parametric_piecewise(equations array<expr>, unknowns array<expr>, parameters array<expr>) -> Result<ParametricPiecewise, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_parametric_piecewise_by_symbols"
+func groebner_basis(polynomials array<expr>, variables array<text>) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_groebner_basis_by_names"
+func groebner_basis(polynomials array<expr>, variables array<expr>) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_groebner_basis_by_symbols"
+func reduced_groebner_basis(polynomials array<expr>, variables array<text>) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_reduced_groebner_basis_by_names"
+func reduced_groebner_basis(polynomials array<expr>, variables array<expr>) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_reduced_groebner_basis_by_symbols"
+func ideal_membership(polynomial expr, basis array<expr>, variables array<text>) -> Result<bool, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_ideal_membership_by_names"
+func ideal_membership(polynomial expr, basis array<expr>, variables array<expr>) -> Result<bool, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_ideal_membership_by_symbols"
+func elimination_ideal(basis array<expr>, variables array<text>, count int) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_elimination_ideal_by_names"
+func elimination_ideal(basis array<expr>, variables array<expr>, count int) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_elimination_ideal_by_symbols"
+func inequalities(expressions array<expr>, relations array<text>, variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_inequalities_by_name"
+func inequalities(expressions array<expr>, relations array<text>, variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_inequalities_by_symbol"
+func rational_inequality(numerator expr, denominator expr, relation text, variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_rational_inequality_by_name"
+func rational_inequality(numerator expr, denominator expr, relation text, variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_rational_inequality_by_symbol"
+func inequality(expression expr, relation text, variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_equation_solving_inequality"

@@ -1,0 +1,65 @@
+import std.mathematics_error
+import std.cas.raw.algebra
+
+func factor(value expr) -> expr {
+    match algebra.factor(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func cancel(value expr) -> expr {
+    match algebra.cancel(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func simplify_trigonometric(value expr) -> expr {
+    match algebra.simplify_trigonometric(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func factor_multivariate(value expr) -> expr {
+    match algebra.factor_multivariate(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func multivariate_greatest_common_divisor(lhs expr, rhs expr) -> expr {
+    match algebra.multivariate_greatest_common_divisor(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func factor_transcendental(value expr, variable text) -> set<expr> {
+    match algebra.factor_transcendental(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func factor_transcendental(value expr, variable expr) -> set<expr> {
+    match algebra.factor_transcendental(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func polynomial_greatest_common_divisor(lhs expr, rhs expr) -> expr {
+    match algebra.polynomial_greatest_common_divisor(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func polynomial_resultant(lhs expr, rhs expr, variable text) -> expr {
+    match algebra.polynomial_resultant(lhs, rhs, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}

@@ -1,0 +1,32 @@
+import std.mathematics_error
+
+static "liblamina"
+
+func hypotenuse(x expr, y expr) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_hypotenuse"
+func binary_logarithm(x expr) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_binary_logarithm"
+func binary_exponential(x expr) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_binary_exponential"
+
+func pi() -> Result<real, mathematics_error.MathError> = "lmx_mathematics_pi"
+func euler_number() -> Result<real, mathematics_error.MathError> = "lmx_mathematics_euler_number"
+func golden_ratio() -> Result<real, mathematics_error.MathError> = "lmx_mathematics_golden_ratio"
+func constants() -> array<text> = "lmx_mathematics_constants"
+func constant(name text) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_constant"
+func constant_unit(name text) -> Result<text, mathematics_error.MathError> = "lmx_mathematics_constant_unit"
+
+func sine(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_sine"
+func cosine(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_cosine"
+func tangent(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_tangent"
+func inverse_sine(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_inverse_sine"
+func inverse_cosine(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_inverse_cosine"
+func inverse_tangent(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_inverse_tangent"
+func square_root(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_square_root"
+func exponential(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_exponential"
+func natural_logarithm(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_natural_logarithm"
+func logarithm(value frac, base frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_logarithm"
+func common_logarithm(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_common_logarithm"
+func power(base frac, exponent frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_power"
+func absolute_value(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_absolute_value"
+func floor(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_floor"
+func ceil(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_ceil"
+func round(value frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_round"
+func clamp(value frac, lower frac, upper frac) -> Result<real, mathematics_error.MathError> = "lmx_mathematics_clamp"

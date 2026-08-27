@@ -1,0 +1,11 @@
+import std.mathematics_error
+
+static "liblamina"
+
+func linear(x vector, y vector, query vector) -> Result<vector, mathematics_error.MathError> = "lmx_interpolation_linear"
+func lagrange(x vector, y vector, query vector) -> Result<vector, mathematics_error.MathError> = "lmx_interpolation_lagrange"
+func cubic_spline(x vector, y vector, query vector) -> Result<vector, mathematics_error.MathError> = "lmx_interpolation_cubic_spline"
+func piecewise_cubic_hermite(x vector, y vector, query vector) -> Result<vector, mathematics_error.MathError> = "lmx_interpolation_piecewise_cubic_hermite"
+func akima(x vector, y vector, query vector) -> Result<vector, mathematics_error.MathError> = "lmx_interpolation_akima"
+func bilinear(x vector, y vector, values matrix, query_x vector, query_y vector) -> Result<vector, mathematics_error.MathError> = "lmx_interpolation_bilinear"
+func bicubic(x vector, y vector, values matrix, query_x vector, query_y vector) -> Result<vector, mathematics_error.MathError> = "lmx_interpolation_bicubic"

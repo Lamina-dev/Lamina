@@ -1,0 +1,27 @@
+import std.mathematics_error
+
+type ConvergenceInfo = ConvergenceInfo(text, text)
+
+static "liblamina"
+
+func laurent(value expr, variable text, center expr, negative_order int, positive_order int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_laurent_series_by_name"
+func laurent(value expr, variable expr, center expr, negative_order int, positive_order int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_laurent_series_by_symbol"
+func asymptotic(value expr, variable text, order int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_asymptotic_by_name"
+func asymptotic(value expr, variable expr, order int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_asymptotic_by_symbol"
+func symbolic_sum(value expr, variable text, lower expr, upper expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_symbolic_sum_by_name"
+func symbolic_sum(value expr, variable expr, lower expr, upper expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_symbolic_sum_by_symbol"
+func symbolic_product(value expr, variable text, lower expr, upper expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_symbolic_product_by_name"
+func symbolic_product(value expr, variable expr, lower expr, upper expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_symbolic_product_by_symbol"
+func fourier_series(value expr, variable text, period expr, terms int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_fourier_by_name"
+func fourier_series(value expr, variable expr, period expr, terms int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_fourier_by_symbol"
+func convergence_radius(coefficients array<expr>, variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_convergence_radius_by_name"
+func convergence_radius(coefficients array<expr>, variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_convergence_radius_by_symbol"
+func convergence_test(value expr, variable text) -> Result<ConvergenceInfo, mathematics_error.MathError> = "lmx_computer_algebra_series_convergence_test_by_name"
+func convergence_test(value expr, variable expr) -> Result<ConvergenceInfo, mathematics_error.MathError> = "lmx_computer_algebra_series_convergence_test_by_symbol"
+func limit_inferior(value expr, variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_limit_inferior_by_name"
+func limit_inferior(value expr, variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_limit_inferior_by_symbol"
+func limit_superior(value expr, variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_limit_superior_by_name"
+func limit_superior(value expr, variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_series_limit_superior_by_symbol"
+func add(lhs array<expr>, rhs array<expr>) -> Result<array<expr>, mathematics_error.MathError> = "lmx_computer_algebra_series_add"
+func multiply(lhs array<expr>, rhs array<expr>, order int) -> Result<array<expr>, mathematics_error.MathError> = "lmx_computer_algebra_series_multiply"
+func compose(outer array<expr>, inner array<expr>, order int) -> Result<array<expr>, mathematics_error.MathError> = "lmx_computer_algebra_series_compose"

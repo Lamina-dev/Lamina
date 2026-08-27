@@ -1,0 +1,21 @@
+type MathErrorCode = InvalidArgument | ParseError | UnboundSymbol | DomainError | DimensionMismatch | UnitInvalid | UnitStripTypeMismatch | SetElementTypeMismatch | SetOperandTypeMismatch | SetElementNotHashable | UnsupportedExpression | Inconclusive | ResourceLimit | Cancelled | NumericalFailure | SingularMatrix | NotPositiveDefinite | ConvergenceFailure | IndexOutOfBounds | EmptyInput | CallbackFailure | InternalError
+
+type MathError = MathError(MathErrorCode, text, text)
+
+func code(error MathError) -> MathErrorCode {
+    match error {
+        MathError(value, _, _) => value
+    }
+}
+
+func operation(error MathError) -> text {
+    match error {
+        MathError(_, value, _) => value
+    }
+}
+
+func message(error MathError) -> text {
+    match error {
+        MathError(_, _, value) => value
+    }
+}

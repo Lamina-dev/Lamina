@@ -1,0 +1,13 @@
+import std.mathematics_error
+
+static "liblamina"
+
+func factor(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_algebra_factor"
+func cancel(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_algebra_cancel"
+func simplify_trigonometric(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_algebra_simplify_trigonometric"
+func factor_multivariate(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_algebra_factor_multivariate"
+func multivariate_greatest_common_divisor(lhs expr, rhs expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_algebra_multivariate_greatest_common_divisor"
+func factor_transcendental(value expr, variable text) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_algebra_factor_transcendental_by_name"
+func factor_transcendental(value expr, variable expr) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_algebra_factor_transcendental_by_symbol"
+func polynomial_greatest_common_divisor(lhs expr, rhs expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_algebra_polynomial_greatest_common_divisor"
+func polynomial_resultant(lhs expr, rhs expr, variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_algebra_polynomial_resultant"

@@ -1,0 +1,18 @@
+import std.mathematics_error
+
+type OdeResult = OdeResult(vector, bool, int, int, real, text)
+
+static "liblamina"
+
+func euler(rhs func(real, vector) -> vector, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_euler"
+func runge_kutta_fourth_order(rhs func(real, vector) -> vector, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_runge_kutta_fourth_order"
+func runge_kutta_fourth_fifth_order(rhs func(real, vector) -> vector, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_runge_kutta_fourth_fifth_order"
+func implicit_euler(rhs func(real, vector) -> vector, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_implicit_euler"
+func implicit_euler_with_jacobian(rhs func(real, vector) -> vector, jacobian func(real, vector) -> matrix, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_implicit_euler_with_jacobian"
+func trapezoidal(rhs func(real, vector) -> vector, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_trapezoidal"
+func trapezoidal_with_jacobian(rhs func(real, vector) -> vector, jacobian func(real, vector) -> matrix, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_trapezoidal_with_jacobian"
+func singly_diagonally_implicit_runge_kutta_fourth_order(rhs func(real, vector) -> vector, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_singly_diagonally_implicit_runge_kutta_fourth_order"
+func sdirk4_with_jacobian(rhs func(real, vector) -> vector, jacobian func(real, vector) -> matrix, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_singly_diagonally_implicit_runge_kutta_fourth_order_with_jacobian"
+func rosenbrock_generalized_runge_kutta_fourth_order(rhs func(real, vector) -> vector, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_rosenbrock_generalized_runge_kutta_fourth_order"
+func rosenbrock_grk4t_with_jacobian(rhs func(real, vector) -> vector, jacobian func(real, vector) -> matrix, initial vector, start frac, end frac, step frac, abs_tol frac, rel_tol frac, max_steps int) -> Result<OdeResult, mathematics_error.MathError> = "lmx_ordinary_differential_equations_rosenbrock_generalized_runge_kutta_fourth_order_with_jacobian"
+func final_state(result OdeResult) -> Result<vector, mathematics_error.MathError> = "lmx_ordinary_differential_equations_final_state"

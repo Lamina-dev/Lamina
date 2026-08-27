@@ -1,0 +1,114 @@
+import std.mathematics_error
+import std.cas.raw.complex_analysis
+
+func residue(value expr, variable text, point expr, order int) -> expr {
+    match complex_analysis.residue(value, variable, point, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func residue(value expr, variable expr, point expr, order int) -> expr {
+    match complex_analysis.residue(value, variable, point, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func cauchy_integral(value expr, variable text, point expr, order int) -> expr {
+    match complex_analysis.cauchy_integral(value, variable, point, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func cauchy_integral(value expr, variable expr, point expr, order int) -> expr {
+    match complex_analysis.cauchy_integral(value, variable, point, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func is_analytic(value expr, variable text) -> bool {
+    match complex_analysis.is_analytic(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func is_analytic(value expr, variable expr) -> bool {
+    match complex_analysis.is_analytic(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func argument(value expr) -> expr {
+    match complex_analysis.argument(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func exponential_form(radius expr, angle expr) -> expr {
+    match complex_analysis.exponential_form(radius, angle) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func trigonometric_form(radius expr, angle expr) -> expr {
+    match complex_analysis.trigonometric_form(radius, angle) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func nth_roots(value expr, degree int) -> set<expr> {
+    match complex_analysis.nth_roots(value, degree) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func quadratic_roots(a expr, b expr, c expr) -> set<expr> {
+    match complex_analysis.quadratic_roots(a, b, c) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func analytic_continuation(value expr, variable text) -> expr {
+    match complex_analysis.analytic_continuation(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func analytic_continuation(value expr, variable expr) -> expr {
+    match complex_analysis.analytic_continuation(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func real_part(value expr) -> expr {
+    match complex_analysis.real_part(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func imag_part(value expr) -> expr {
+    match complex_analysis.imag_part(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func conjugate(value expr) -> expr {
+    match complex_analysis.conjugate(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}

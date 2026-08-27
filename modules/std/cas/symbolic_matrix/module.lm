@@ -1,0 +1,149 @@
+import std.mathematics_error
+import std.cas.raw.symbolic_matrix
+
+func from_rows(rows array<array<expr>>) -> expr {
+    match symbolic_matrix.from_rows(rows) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func multiply(lhs expr, rhs expr) -> expr {
+    match symbolic_matrix.multiply(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func determinant(value expr) -> expr {
+    match symbolic_matrix.determinant(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse(value expr) -> expr {
+    match symbolic_matrix.inverse(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func lower_upper_decomposition(value expr) -> symbolic_matrix.SymbolicLU {
+    match symbolic_matrix.lower_upper_decomposition(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func orthogonal_triangular_decomposition(value expr) -> symbolic_matrix.SymbolicQR {
+    match symbolic_matrix.orthogonal_triangular_decomposition(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func cholesky(value expr) -> symbolic_matrix.SymbolicCholesky {
+    match symbolic_matrix.cholesky(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func singular_value_decomposition(value expr) -> symbolic_matrix.SymbolicSvd {
+    match symbolic_matrix.singular_value_decomposition(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func jordan(value expr) -> symbolic_matrix.JordanForm {
+    match symbolic_matrix.jordan(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func eigenvalues(value expr) -> set<expr> {
+    match symbolic_matrix.eigenvalues(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func eigenvectors(value expr) -> array<array<expr>> {
+    match symbolic_matrix.eigenvectors(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func rotation(theta frac, dimension int) -> expr {
+    match symbolic_matrix.rotation(theta, dimension) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func reflection(angle frac, dimension int) -> expr {
+    match symbolic_matrix.reflection(angle, dimension) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func scaling(sx frac, sy frac, dimension int) -> expr {
+    match symbolic_matrix.scaling(sx, sy, dimension) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func trace(value expr) -> expr {
+    match symbolic_matrix.trace(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func rank(value expr) -> int {
+    match symbolic_matrix.rank(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func exponential(value expr) -> expr {
+    match symbolic_matrix.exponential(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func natural_logarithm(value expr) -> expr {
+    match symbolic_matrix.natural_logarithm(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func kronecker(lhs expr, rhs expr) -> expr {
+    match symbolic_matrix.kronecker(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func gram_schmidt(vectors array<array<expr>>, normalize bool) -> array<array<expr>> {
+    match symbolic_matrix.gram_schmidt(vectors, normalize) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func classify_quadratic_form(value expr) -> text {
+    match symbolic_matrix.classify_quadratic_form(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}

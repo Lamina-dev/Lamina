@@ -1,0 +1,35 @@
+import std.mathematics_error
+
+type IterativeOptions = IterativeOptions(frac, frac, int, int, text, frac, int)
+type IterativeResult = IterativeResult(vector, bool, int, real, real)
+
+static "liblamina"
+
+func from_dense(value matrix, epsilon frac) -> Result<sparse, mathematics_error.MathError> = "lmx_sparse_linear_algebra_from_dense"
+func from_triplets(rows int, cols int, row_indices array<int>, col_indices array<int>, values array<frac>) -> Result<sparse, mathematics_error.MathError> = "lmx_sparse_linear_algebra_from_triplets"
+func to_dense(value sparse) -> Result<matrix, mathematics_error.MathError> = "lmx_sparse_linear_algebra_to_dense"
+func row_count(value sparse) -> int = "lmx_sparse_linear_algebra_row_count"
+func column_count(value sparse) -> int = "lmx_sparse_linear_algebra_column_count"
+func nonzero_count(value sparse) -> int = "lmx_sparse_linear_algebra_nonzero_count"
+func transpose(value sparse) -> Result<sparse, mathematics_error.MathError> = "lmx_sparse_linear_algebra_transpose"
+func add(lhs sparse, rhs sparse) -> Result<sparse, mathematics_error.MathError> = "lmx_sparse_linear_algebra_add"
+func multiply(lhs sparse, rhs sparse) -> Result<sparse, mathematics_error.MathError> = "lmx_sparse_linear_algebra_multiply"
+func subtract(lhs sparse, rhs sparse) -> Result<sparse, mathematics_error.MathError> = "lmx_sparse_linear_algebra_subtract"
+func scale(value sparse, scalar frac) -> Result<sparse, mathematics_error.MathError> = "lmx_sparse_linear_algebra_scale"
+func diagonal(value sparse) -> Result<vector, mathematics_error.MathError> = "lmx_sparse_linear_algebra_diagonal"
+func matmul_dense(lhs sparse, rhs matrix) -> Result<matrix, mathematics_error.MathError> = "lmx_sparse_linear_algebra_matmul_dense"
+func matrix_vector_product(matrix sparse, vector vector) -> Result<vector, mathematics_error.MathError> = "lmx_sparse_linear_algebra_matrix_vector_product"
+func norm(value sparse) -> Result<real, mathematics_error.MathError> = "lmx_sparse_linear_algebra_norm"
+func solve_with_lower_upper_factorization(matrix sparse, rhs vector) -> Result<vector, mathematics_error.MathError> = "lmx_sparse_linear_algebra_solve_with_lower_upper_factorization"
+func cholesky_solve(matrix sparse, rhs vector) -> Result<vector, mathematics_error.MathError> = "lmx_sparse_linear_algebra_cholesky_solve"
+
+func default_options(size int) -> Result<IterativeOptions, mathematics_error.MathError> = "lmx_sparse_linear_algebra_default_options"
+func conjugate_gradient(matrix sparse, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_conjugate_gradient"
+func biconjugate_gradient_stabilized(matrix sparse, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_biconjugate_gradient_stabilized"
+func generalized_minimal_residual(matrix sparse, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_generalized_minimal_residual"
+func minimum_residual(matrix sparse, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_minimum_residual"
+func least_squares_orthogonal_triangular(matrix sparse, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_least_squares_orthogonal_triangular"
+func minres_operator(operation func(vector) -> vector, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_minres_operator"
+func lsqr_operator(operation func(vector) -> vector, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_lsqr_operator"
+func solution(result IterativeResult) -> Result<vector, mathematics_error.MathError> = "lmx_sparse_linear_algebra_iterative_solution"
+func converged(result IterativeResult) -> bool = "lmx_sparse_linear_algebra_iterative_converged"

@@ -1,0 +1,22 @@
+import std.mathematics_error
+
+static "liblamina"
+
+func from_flat(values vector, shape array<int>) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_from_flat"
+func shape(value tensor) -> array<int> = "lmx_tensor_shape"
+func element_at(value tensor, indices array<int>) -> Result<real, mathematics_error.MathError> = "lmx_tensor_element_at"
+func reshape(value tensor, shape array<int>) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_reshape"
+func permute(value tensor, permutation array<int>) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_permute"
+func contract(lhs tensor, rhs tensor, lhs_axes array<int>, rhs_axes array<int>) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_contract"
+func mode_n_product(value tensor, matrix matrix, mode int) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_mode_n_product"
+func add(lhs tensor, rhs tensor) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_add"
+func subtract(lhs tensor, rhs tensor) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_subtract"
+func multiply(lhs tensor, rhs tensor) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_multiply"
+func divide(lhs tensor, rhs tensor) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_divide"
+func scale(value tensor, scalar frac) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_scale"
+func norm(value tensor) -> Result<real, mathematics_error.MathError> = "lmx_tensor_norm"
+func sum(value tensor) -> Result<real, mathematics_error.MathError> = "lmx_tensor_sum"
+func minimum(value tensor) -> Result<real, mathematics_error.MathError> = "lmx_tensor_minimum"
+func maximum(value tensor) -> Result<real, mathematics_error.MathError> = "lmx_tensor_maximum"
+func sum_axis(value tensor, axis int) -> Result<matrix, mathematics_error.MathError> = "lmx_tensor_sum_axis"
+func slice(value tensor, begin0 int, end0 int, begin1 int, end1 int, begin2 int, end2 int) -> Result<tensor, mathematics_error.MathError> = "lmx_tensor_slice"

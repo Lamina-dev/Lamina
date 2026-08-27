@@ -1,0 +1,11 @@
+import std.mathematics_error
+
+type RootResult = RootResult(bool, int, real, real, real, text)
+
+static "liblamina"
+
+func bisection(function func(real) -> real, left frac, right frac, abs_tol frac, rel_tol frac, max_iterations int) -> Result<RootResult, mathematics_error.MathError> = "lmx_nonlinear_equations_bisection"
+func newton(function func(real) -> real, initial frac, abs_tol frac, rel_tol frac, max_iterations int) -> Result<RootResult, mathematics_error.MathError> = "lmx_nonlinear_equations_newton"
+func newton_with_derivative(function func(real) -> real, derivative func(real) -> real, initial frac, abs_tol frac, rel_tol frac, max_iterations int) -> Result<RootResult, mathematics_error.MathError> = "lmx_nonlinear_equations_newton_with_derivative"
+func secant(function func(real) -> real, first frac, second frac, abs_tol frac, rel_tol frac, max_iterations int) -> Result<RootResult, mathematics_error.MathError> = "lmx_nonlinear_equations_secant"
+func root(result RootResult) -> real = "lmx_nonlinear_equations_root"

@@ -1,0 +1,31 @@
+import std.mathematics_error
+
+type SymbolicLU = SymbolicLU(expr, expr)
+type SymbolicQR = SymbolicQR(expr, expr)
+type SymbolicCholesky = SymbolicCholesky(expr)
+type SymbolicSvd = SymbolicSvd(expr, expr, expr)
+type JordanForm = JordanForm(expr, expr)
+
+static "liblamina"
+
+func from_rows(rows array<array<expr>>) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_from_rows"
+func multiply(lhs expr, rhs expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_multiply"
+func determinant(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_determinant"
+func inverse(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_inverse"
+func lower_upper_decomposition(value expr) -> Result<SymbolicLU, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_lower_upper_decomposition"
+func orthogonal_triangular_decomposition(value expr) -> Result<SymbolicQR, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_orthogonal_triangular_decomposition"
+func cholesky(value expr) -> Result<SymbolicCholesky, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_cholesky"
+func singular_value_decomposition(value expr) -> Result<SymbolicSvd, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_singular_value_decomposition"
+func jordan(value expr) -> Result<JordanForm, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_jordan"
+func eigenvalues(value expr) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_eigenvalues"
+func eigenvectors(value expr) -> Result<array<array<expr>>, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_eigenvectors"
+func rotation(theta frac, dimension int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_rotation"
+func reflection(angle frac, dimension int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_reflection"
+func scaling(sx frac, sy frac, dimension int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_scaling"
+func trace(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_trace"
+func rank(value expr) -> Result<int, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_rank"
+func exponential(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_exponential"
+func natural_logarithm(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_natural_logarithm"
+func kronecker(lhs expr, rhs expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_kronecker"
+func gram_schmidt(vectors array<array<expr>>, normalize bool) -> Result<array<array<expr>>, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_gram_schmidt"
+func classify_quadratic_form(value expr) -> Result<text, mathematics_error.MathError> = "lmx_computer_algebra_symbolic_matrix_classify_quadratic_form"

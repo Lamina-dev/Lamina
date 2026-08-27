@@ -1,0 +1,73 @@
+import std.mathematics_error
+import std.cas.raw.assumptions
+
+func empty() -> assumptions {
+    assumptions.empty()
+}
+
+func push(value assumptions) -> assumptions {
+    match assumptions.push(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func pop(value assumptions) -> assumptions {
+    match assumptions.pop(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func with_domain(value assumptions, symbol text, domain text) -> assumptions {
+    match assumptions.with_domain(value, symbol, domain) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func with_sign(value assumptions, symbol text, sign text) -> assumptions {
+    match assumptions.with_sign(value, symbol, sign) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func with_relation(value assumptions, relation expr) -> assumptions {
+    match assumptions.with_relation(value, relation) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func with_conditional(value assumptions, condition expr, conclusion expr) -> assumptions {
+    match assumptions.with_conditional(value, condition, conclusion) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func query(value assumptions, expression expr, property text) -> assumptions.Truth {
+    match assumptions.query(value, expression, property) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func period(value assumptions, expression expr) -> expr {
+    match assumptions.period(value, expression) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func serialize(value assumptions) -> text {
+    assumptions.serialize(value)
+}
+
+func parse(source text) -> assumptions {
+    match assumptions.parse(source) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}

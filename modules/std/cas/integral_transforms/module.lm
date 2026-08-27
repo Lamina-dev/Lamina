@@ -1,0 +1,86 @@
+import std.mathematics_error
+import std.cas.raw.integral_transforms
+
+func laplace(value expr, time_variable text, frequency_variable text) -> expr {
+    match integral_transforms.laplace(value, time_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laplace(value expr, time_variable expr, frequency_variable expr) -> expr {
+    match integral_transforms.laplace(value, time_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_laplace(value expr, frequency_variable text, time_variable text) -> expr {
+    match integral_transforms.inverse_laplace(value, frequency_variable, time_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_laplace(value expr, frequency_variable expr, time_variable expr) -> expr {
+    match integral_transforms.inverse_laplace(value, frequency_variable, time_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func fourier(value expr, time_variable text, frequency_variable text) -> expr {
+    match integral_transforms.fourier(value, time_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func fourier(value expr, time_variable expr, frequency_variable expr) -> expr {
+    match integral_transforms.fourier(value, time_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_fourier(value expr, frequency_variable text, time_variable text) -> expr {
+    match integral_transforms.inverse_fourier(value, frequency_variable, time_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_fourier(value expr, frequency_variable expr, time_variable expr) -> expr {
+    match integral_transforms.inverse_fourier(value, frequency_variable, time_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func z(value expr, index_variable text, frequency_variable text) -> expr {
+    match integral_transforms.z(value, index_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func z(value expr, index_variable expr, frequency_variable expr) -> expr {
+    match integral_transforms.z(value, index_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func convolve(lhs expr, rhs expr, variable text) -> expr {
+    match integral_transforms.convolve(lhs, rhs, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func convolve(lhs expr, rhs expr, variable expr) -> expr {
+    match integral_transforms.convolve(lhs, rhs, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}

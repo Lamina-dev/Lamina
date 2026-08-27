@@ -1,0 +1,20 @@
+import std.mathematics_error
+
+static "liblamina"
+
+func residue(value expr, variable text, point expr, order int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_residue_by_name"
+func residue(value expr, variable expr, point expr, order int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_residue_by_symbol"
+func cauchy_integral(value expr, variable text, point expr, order int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_cauchy_integral_by_name"
+func cauchy_integral(value expr, variable expr, point expr, order int) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_cauchy_integral_by_symbol"
+func is_analytic(value expr, variable text) -> Result<bool, mathematics_error.MathError> = "lmx_computer_algebra_is_analytic_by_name"
+func is_analytic(value expr, variable expr) -> Result<bool, mathematics_error.MathError> = "lmx_computer_algebra_is_analytic_by_symbol"
+func argument(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_complex_analysis_argument"
+func exponential_form(radius expr, angle expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_complex_analysis_exponential_form"
+func trigonometric_form(radius expr, angle expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_complex_analysis_trigonometric_form"
+func nth_roots(value expr, degree int) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_complex_analysis_nth_roots"
+func quadratic_roots(a expr, b expr, c expr) -> Result<set<expr>, mathematics_error.MathError> = "lmx_computer_algebra_complex_analysis_quadratic_roots"
+func analytic_continuation(value expr, variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_complex_analysis_analytic_continuation_by_name"
+func analytic_continuation(value expr, variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_complex_analysis_analytic_continuation_by_symbol"
+func real_part(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_complex_analysis_real_part"
+func imag_part(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_complex_analysis_imag_part"
+func conjugate(value expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_complex_analysis_conjugate"

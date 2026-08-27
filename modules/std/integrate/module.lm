@@ -1,0 +1,19 @@
+import std.mathematics_error
+
+type IntegralResult = IntegralResult(real, real, int, text)
+
+static "liblamina"
+func adaptive(integrand func(real) -> real, lower frac, upper frac,
+              absolute_tolerance frac, relative_tolerance frac,
+              max_depth int) -> Result<IntegralResult, mathematics_error.MathError> = "lmx_integration_adaptive"
+
+
+func value(result IntegralResult) -> real = "lmx_integration_value"
+func status(result IntegralResult) -> text = "lmx_integration_status"
+func trapezoid(integrand func(real) -> real, lower frac, upper frac, intervals int) -> Result<real, mathematics_error.MathError> = "lmx_integration_trapezoid"
+func simpson(integrand func(real) -> real, lower frac, upper frac, intervals int) -> Result<real, mathematics_error.MathError> = "lmx_integration_simpson"
+func gauss_legendre(integrand func(real) -> real, lower frac, upper frac, order int) -> Result<real, mathematics_error.MathError> = "lmx_integration_gauss_legendre"
+func romberg(integrand func(real) -> real, lower frac, upper frac, tolerance frac, max_iterations int) -> Result<IntegralResult, mathematics_error.MathError> = "lmx_integration_romberg"
+func tanh_sinh(integrand func(real) -> real, lower frac, upper frac, tolerance frac, max_nodes int) -> Result<IntegralResult, mathematics_error.MathError> = "lmx_integration_tanh_sinh"
+func gauss_hermite(integrand func(real) -> real, order int) -> Result<real, mathematics_error.MathError> = "lmx_integration_gauss_hermite"
+func gauss_laguerre(integrand func(real) -> real, order int) -> Result<real, mathematics_error.MathError> = "lmx_integration_gauss_laguerre"

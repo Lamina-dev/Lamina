@@ -1,0 +1,233 @@
+import std.mathematics_error
+import std.cas.raw.geometry
+
+func gradient(value expr, variables array<text>) -> array<expr> {
+    match geometry.gradient(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func divergence(field array<expr>, variables array<text>) -> expr {
+    match geometry.divergence(field, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func curl(field array<expr>, variables array<text>) -> array<expr> {
+    match geometry.curl(field, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laplacian(value expr, variables array<text>) -> expr {
+    match geometry.laplacian(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func jacobian(functions array<expr>, variables array<text>) -> expr {
+    match geometry.jacobian(functions, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func hessian(value expr, variables array<text>) -> expr {
+    match geometry.hessian(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func volume_revolution_x(value expr, lower expr, upper expr) -> expr {
+    match geometry.volume_revolution_x(value, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func vector_dot(lhs array<expr>, rhs array<expr>) -> expr {
+    match geometry.vector_dot(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func vector_cross(lhs array<expr>, rhs array<expr>) -> array<expr> {
+    match geometry.vector_cross(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func line_plane_intersection(point array<expr>, direction array<expr>, normal array<expr>, offset expr) -> array<expr> {
+    match geometry.line_plane_intersection(point, direction, normal, offset) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func metric_inverse(metric expr) -> expr {
+    match geometry.metric_inverse(metric) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func arc_length_x(value expr, lower expr, upper expr) -> expr {
+    match geometry.arc_length_x(value, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func vector_angle(lhs array<expr>, rhs array<expr>) -> real {
+    match geometry.vector_angle(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func point_plane_distance(point array<expr>, normal array<expr>, offset expr) -> expr {
+    match geometry.point_plane_distance(point, normal, offset) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func line_from_two_points(lhs array<expr>, rhs array<expr>) -> geometry.Line {
+    match geometry.line_from_two_points(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func plane_from_three_points(a array<expr>, b array<expr>, c array<expr>) -> geometry.Plane {
+    match geometry.plane_from_three_points(a, b, c) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func surface_normal(surface expr, variables array<expr>, point array<expr>) -> array<expr> {
+    match geometry.surface_normal(surface, variables, point) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func tangent_plane(surface expr, variables array<expr>, point array<expr>) -> geometry.Plane {
+    match geometry.tangent_plane(surface, variables, point) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func directional_derivative(value expr, variables array<expr>, direction array<expr>, order int) -> expr {
+    match geometry.directional_derivative(value, variables, direction, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func curve_integral_scalar(value expr, path array<expr>, parameter expr, lower expr, upper expr) -> expr {
+    match geometry.curve_integral_scalar(value, path, parameter, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func curve_integral_vector(field array<expr>, path array<expr>, parameter expr, lower expr, upper expr) -> expr {
+    match geometry.curve_integral_vector(field, path, parameter, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func surface_integral_scalar(value expr, path array<expr>, u expr, v expr, u_bounds array<expr>, v_bounds array<expr>) -> expr {
+    match geometry.surface_integral_scalar(value, path, u, v, u_bounds, v_bounds) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func surface_integral_vector(field array<expr>, path array<expr>, u expr, v expr, u_bounds array<expr>, v_bounds array<expr>) -> expr {
+    match geometry.surface_integral_vector(field, path, u, v, u_bounds, v_bounds) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func greens_theorem(p expr, q expr, variables array<expr>, x_bounds array<expr>, y_bounds array<expr>) -> expr {
+    match geometry.greens_theorem(p, q, variables, x_bounds, y_bounds) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func stokes_theorem(field array<expr>, variables array<expr>, path array<expr>, u expr, v expr, u_bounds array<expr>, v_bounds array<expr>) -> expr {
+    match geometry.stokes_theorem(field, variables, path, u, v, u_bounds, v_bounds) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func divergence_theorem(field array<expr>, variables array<expr>, x_bounds array<expr>, y_bounds array<expr>, z_bounds array<expr>) -> expr {
+    match geometry.divergence_theorem(field, variables, x_bounds, y_bounds, z_bounds) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func find_extrema(value expr, variables array<expr>) -> array<table> {
+    match geometry.find_extrema(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func lagrange_multipliers(value expr, constraints array<expr>, variables array<expr>) -> array<table> {
+    match geometry.lagrange_multipliers(value, constraints, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func christoffel_first_kind(metric expr, variables array<expr>, k int, i int, j int) -> expr {
+    match geometry.christoffel_first_kind(metric, variables, k, i, j) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func christoffel_second_kind(metric expr, inverse expr, variables array<expr>, k int, i int, j int) -> expr {
+    match geometry.christoffel_second_kind(metric, inverse, variables, k, i, j) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func riemann_curvature_tensor(metric expr, variables array<expr>, rho int, sigma int, mu int, nu int) -> expr {
+    match geometry.riemann_curvature_tensor(metric, variables, rho, sigma, mu, nu) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func exterior_derivative(coefficients array<expr>, degree int, variables array<expr>) -> array<expr> {
+    match geometry.exterior_derivative(coefficients, degree, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func lie_derivative(value expr, field array<expr>, variables array<expr>, order int) -> expr {
+    match geometry.lie_derivative(value, field, variables, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}

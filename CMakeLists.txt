@@ -92,20 +92,61 @@ elseif(UNIX)
 endif ()
 
 message(STATUS "Your System is '${CMAKE_SYSTEM_NAME}'")
-add_library(laminaCore SHARED
+add_library(lamina_shared SHARED
         lmx.cpp
+        bridge/result.cpp
+        bridge/conversions.cpp
+        bridge/runtime_views.cpp
+        bridge/unit_bridge.cpp
+        bridge/mathematics_error.cpp
+        bridge/computer_algebra_expression.cpp
+        bridge/computer_algebra_evaluation.cpp
+        bridge/computer_algebra_sets.cpp
+        bridge/computer_algebra_equation_solving.cpp
+        bridge/computer_algebra_equation_solving_systems.cpp
+        bridge/computer_algebra_calculus.cpp
+        bridge/computer_algebra_integral_transforms.cpp
+        bridge/computer_algebra_algebra.cpp
+        bridge/computer_algebra_symbolic_matrix.cpp
+        bridge/computer_algebra_matrix_analysis.cpp
+        bridge/computer_algebra_series.cpp
+        bridge/computer_algebra_complex_analysis.cpp
+        bridge/computer_algebra_ordinary_differential_equations.cpp
+        bridge/computer_algebra_geometry.cpp
+        bridge/mathematics.cpp
+        bridge/complex_numbers.cpp
+        bridge/special_functions.cpp
+        bridge/units.cpp
+        bridge/statistics.cpp
+        bridge/random_numbers.cpp
+        bridge/linear_algebra_vector.cpp
+        bridge/linear_algebra_matrix.cpp
+        bridge/linear_algebra_decompositions.cpp
+        bridge/nonlinear_equations.cpp
+        bridge/ordinary_differential_equations.cpp
+        bridge/optimization.cpp
+        bridge/sparse_linear_algebra_storage.cpp
+        bridge/sparse_linear_algebra_solvers.cpp
+        bridge/tensor.cpp
+        bridge/interpolation.cpp
+        bridge/callback.cpp
+        bridge/math_internal.cpp
+        bridge/computer_algebra_assumptions.cpp
+        bridge/computer_algebra_equation_solving_advanced.cpp
+        bridge/lmmc_quadrature.cpp
     $<TARGET_OBJECTS:laminac>
     $<TARGET_OBJECTS:lamina_runtime>
         utils/utils.cpp
 )
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    set_target_properties(laminaCore PROPERTIES PREFIX "")
-endif ()
-target_link_libraries(laminaCore PRIVATE
+target_include_directories(lamina_shared PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+set_target_properties(lamina_shared PROPERTIES
+    OUTPUT_NAME "lamina"
+    PREFIX "lib"
+)
+target_link_libraries(lamina_shared PRIVATE
         dyncall_s
         dynload_s
 )
-#message( ${LMX_DYNCALL_SOURCE_DIR})
 
 set(_lmx_saved_build_testing "${BUILD_TESTING}")
 set(BUILD_TESTING OFF)
@@ -114,7 +155,7 @@ set(LAMMP_BUILD_TESTS OFF CACHE BOOL "Build LAMMP tests" FORCE)
 set(LAMMP_BUILD_BENCHMARKS OFF CACHE BOOL "Build LAMMP benchmarks" FORCE)
 add_subdirectory("${LMX_LMCAS_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external/LMCAS" EXCLUDE_FROM_ALL)
 set(BUILD_TESTING "${_lmx_saved_build_testing}")
-target_link_libraries(laminaCore PRIVATE
+target_link_libraries(lamina_shared PRIVATE
     lmcas
 )
 
@@ -122,8 +163,8 @@ if(TARGET LammpCore AND UNIX AND NOT APPLE)
     target_link_options(LammpCore PRIVATE -Wl,-Bsymbolic-functions)
 endif()
 
-target_compile_definitions(laminaCore PRIVATE LMX_DLL)
-target_compile_definitions(laminaCore PRIVATE LMX_BUILD)
+target_compile_definitions(lamina_shared PRIVATE LMX_DLL)
+target_compile_definitions(lamina_shared PRIVATE LMX_BUILD)
 if(LMX_BUILD_STATIC)
     add_library(laminac_s STATIC $<TARGET_OBJECTS:laminac>)
     add_library(lamina_runtime_s STATIC $<TARGET_OBJECTS:lamina_runtime>)
@@ -134,12 +175,12 @@ endif()
 set_target_properties(laminac PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 
-target_link_libraries(lamina PRIVATE laminaCore)
+target_link_libraries(lamina PRIVATE lamina_shared)
 
 if(WIN32)
     add_custom_command(TARGET lamina POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:laminaCore>
+            $<TARGET_FILE:lamina_shared>
             $<TARGET_FILE_DIR:lamina>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:lmcas>
@@ -198,7 +239,6 @@ function(apply_pgo target)
     endif()
 endfunction()
 
-# set(CMAKE_CXX_FLAGS_  "${CMAKE_CXX_FLAGS} -g -pg -fno-omit-frame-pointer")
 
 # 各编译器对应的性能优化参数, 通过 target_compile_options 应用到所有目标
 # (含 laminac / lamina_runtime 两个 OBJECT 库, 否则虚拟机与编译器得不到任何优化)
@@ -256,7 +296,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(LMX_LINK_FLAGS -flto=thin -s -Wl,--gc-sections -Wl,-O3 -Wl,--as-needed)
 endif()
 
-set(LMX_ALL_TARGETS laminac lamina_runtime laminaCore lamina)
+set(LMX_ALL_TARGETS laminac lamina_runtime lamina_shared lamina)
 if(LMX_BUILD_STATIC)
     list(APPEND LMX_ALL_TARGETS laminac_s lamina_runtime_s)
 endif()
@@ -267,7 +307,7 @@ foreach(tgt IN ITEMS ${LMX_ALL_TARGETS})
     endif()
 endforeach()
 if(LMX_LINK_FLAGS)
-    target_link_options(laminaCore PRIVATE ${LMX_LINK_FLAGS})
+    target_link_options(lamina_shared PRIVATE ${LMX_LINK_FLAGS})
     target_link_options(lamina PRIVATE ${LMX_LINK_FLAGS})
 endif()
 

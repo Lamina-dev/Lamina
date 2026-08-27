@@ -1,0 +1,15 @@
+import std.mathematics_error
+
+static "liblamina"
+
+func quantity(value frac, unit text) -> Result<quantity, mathematics_error.MathError> = "lmx_units_from_cartesian"
+func convert(value quantity, unit text) -> Result<quantity, mathematics_error.MathError> = "lmx_units_convert"
+func value(value quantity) -> Result<real, mathematics_error.MathError> = "lmx_units_value"
+func strip(value quantity) -> real = "lmx_units_strip"
+func unit_text(value quantity) -> text = "lmx_units_unit"
+func is_dimensionless(value quantity) -> Result<bool, mathematics_error.MathError> = "lmx_units_is_dimensionless"
+func add(lhs quantity, rhs quantity) -> Result<quantity, mathematics_error.MathError> = "lmx_units_add"
+func subtract(lhs quantity, rhs quantity) -> Result<quantity, mathematics_error.MathError> = "lmx_units_subtract"
+func multiply(lhs quantity, rhs quantity) -> Result<quantity, mathematics_error.MathError> = "lmx_units_multiply"
+func divide(lhs quantity, rhs quantity) -> Result<quantity, mathematics_error.MathError> = "lmx_units_divide"
+func power(value quantity, exponent int) -> Result<quantity, mathematics_error.MathError> = "lmx_units_power"

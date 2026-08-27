@@ -1,0 +1,149 @@
+import std.mathematics_error
+import std.cas.raw.series
+
+func laurent(value expr, variable text, center expr, negative_order int, positive_order int) -> expr {
+    match series.laurent(value, variable, center, negative_order, positive_order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laurent(value expr, variable expr, center expr, negative_order int, positive_order int) -> expr {
+    match series.laurent(value, variable, center, negative_order, positive_order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func asymptotic(value expr, variable text, order int) -> expr {
+    match series.asymptotic(value, variable, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func asymptotic(value expr, variable expr, order int) -> expr {
+    match series.asymptotic(value, variable, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func symbolic_sum(value expr, variable text, lower expr, upper expr) -> expr {
+    match series.symbolic_sum(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func symbolic_sum(value expr, variable expr, lower expr, upper expr) -> expr {
+    match series.symbolic_sum(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func symbolic_product(value expr, variable text, lower expr, upper expr) -> expr {
+    match series.symbolic_product(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func symbolic_product(value expr, variable expr, lower expr, upper expr) -> expr {
+    match series.symbolic_product(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func fourier_series(value expr, variable text, period expr, terms int) -> expr {
+    match series.fourier_series(value, variable, period, terms) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func fourier_series(value expr, variable expr, period expr, terms int) -> expr {
+    match series.fourier_series(value, variable, period, terms) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func convergence_radius(coefficients array<expr>, variable text) -> expr {
+    match series.convergence_radius(coefficients, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func convergence_radius(coefficients array<expr>, variable expr) -> expr {
+    match series.convergence_radius(coefficients, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func convergence_test(value expr, variable text) -> series.ConvergenceInfo {
+    match series.convergence_test(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func convergence_test(value expr, variable expr) -> series.ConvergenceInfo {
+    match series.convergence_test(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func limit_inferior(value expr, variable text) -> expr {
+    match series.limit_inferior(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func limit_inferior(value expr, variable expr) -> expr {
+    match series.limit_inferior(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func limit_superior(value expr, variable text) -> expr {
+    match series.limit_superior(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func limit_superior(value expr, variable expr) -> expr {
+    match series.limit_superior(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func add(lhs array<expr>, rhs array<expr>) -> array<expr> {
+    match series.add(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func multiply(lhs array<expr>, rhs array<expr>, order int) -> array<expr> {
+    match series.multiply(lhs, rhs, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func compose(outer array<expr>, inner array<expr>, order int) -> array<expr> {
+    match series.compose(outer, inner, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}

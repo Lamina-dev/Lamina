@@ -1,0 +1,14 @@
+import std.mathematics_error
+
+type OptimizeResult = OptimizeResult(vector, bool, int, real, text)
+
+static "liblamina"
+
+func newton_system(function func(vector) -> vector, initial vector, abs_tol frac, rel_tol frac, max_iterations int) -> Result<OptimizeResult, mathematics_error.MathError> = "lmx_optimization_newton_system"
+func newton_system_with_jacobian(function func(vector) -> vector, jacobian func(vector) -> matrix, initial vector, abs_tol frac, rel_tol frac, max_iterations int) -> Result<OptimizeResult, mathematics_error.MathError> = "lmx_optimization_newton_system_with_jacobian"
+func broyden(function func(vector) -> vector, initial vector, abs_tol frac, rel_tol frac, max_iterations int) -> Result<OptimizeResult, mathematics_error.MathError> = "lmx_optimization_broyden"
+func limited_memory_broyden_fletcher_goldfarb_shanno(objective func(vector) -> real, gradient func(vector) -> vector, initial vector, abs_tol frac, rel_tol frac, max_iterations int) -> Result<OptimizeResult, mathematics_error.MathError> = "lmx_optimization_limited_memory_broyden_fletcher_goldfarb_shanno"
+func levenberg_marquardt(residual func(vector) -> vector, initial vector, abs_tol frac, rel_tol frac, max_iterations int) -> Result<OptimizeResult, mathematics_error.MathError> = "lmx_optimization_levenberg_marquardt"
+func levenberg_marquardt_with_jacobian(residual func(vector) -> vector, jacobian func(vector) -> matrix, initial vector, abs_tol frac, rel_tol frac, max_iterations int) -> Result<OptimizeResult, mathematics_error.MathError> = "lmx_optimization_levenberg_marquardt_with_jacobian"
+func gradient_descent(objective func(vector) -> real, gradient func(vector) -> vector, initial vector, abs_tol frac, rel_tol frac, max_iterations int) -> Result<OptimizeResult, mathematics_error.MathError> = "lmx_optimization_gradient_descent"
+func solution(result OptimizeResult) -> Result<vector, mathematics_error.MathError> = "lmx_optimization_solution"

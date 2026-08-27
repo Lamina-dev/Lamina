@@ -1,0 +1,21 @@
+import std.mathematics_error
+
+static "liblamina"
+
+func from_cartesian(real frac, imag frac) -> complex = "lmx_complex_numbers_from_cartesian"
+func from_polar(radius frac, angle frac) -> complex = "lmx_complex_numbers_from_polar"
+func real_part(value complex) -> real = "lmx_complex_numbers_real_part"
+func imaginary_part(value complex) -> real = "lmx_complex_numbers_imaginary_part"
+func argument(value complex) -> Result<real, mathematics_error.MathError> = "lmx_complex_numbers_argument"
+func add(lhs complex, rhs complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_add"
+func subtract(lhs complex, rhs complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_subtract"
+func multiply(lhs complex, rhs complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_multiply"
+func divide(lhs complex, rhs complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_divide"
+func conjugate(value complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_conjugate"
+func absolute_value(value complex) -> Result<real, mathematics_error.MathError> = "lmx_complex_numbers_absolute_value"
+func exponential(value complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_exponential"
+func natural_logarithm(value complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_natural_logarithm"
+func square_root(value complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_square_root"
+func power(base complex, exponent complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_power"
+func sine(value complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_sine"
+func cosine(value complex) -> Result<complex, mathematics_error.MathError> = "lmx_complex_numbers_cosine"

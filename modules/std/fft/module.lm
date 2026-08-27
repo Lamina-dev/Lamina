@@ -1,0 +1,6 @@
+import std.mathematics_error
+
+static "liblamina"
+
+func forward(values array<complex>) -> Result<array<complex>, mathematics_error.MathError> = "lmx_fast_fourier_transform_forward"
+func inverse(values array<complex>) -> Result<array<complex>, mathematics_error.MathError> = "lmx_fast_fourier_transform_inverse"

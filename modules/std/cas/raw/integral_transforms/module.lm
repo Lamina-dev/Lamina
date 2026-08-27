@@ -1,0 +1,16 @@
+import std.mathematics_error
+
+static "liblamina"
+
+func laplace(value expr, time_variable text, frequency_variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_laplace_by_names"
+func laplace(value expr, time_variable expr, frequency_variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_laplace_by_symbols"
+func inverse_laplace(value expr, frequency_variable text, time_variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_inverse_laplace_by_names"
+func inverse_laplace(value expr, frequency_variable expr, time_variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_inverse_laplace_by_symbols"
+func fourier(value expr, time_variable text, frequency_variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_fourier_by_names"
+func fourier(value expr, time_variable expr, frequency_variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_fourier_by_symbols"
+func inverse_fourier(value expr, frequency_variable text, time_variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_inverse_fourier_by_names"
+func inverse_fourier(value expr, frequency_variable expr, time_variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_inverse_fourier_by_symbols"
+func z(value expr, index_variable text, frequency_variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_z_transform_by_names"
+func z(value expr, index_variable expr, frequency_variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_z_transform_by_symbols"
+func convolve(lhs expr, rhs expr, variable text) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_convolve_by_name"
+func convolve(lhs expr, rhs expr, variable expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_integral_transforms_convolve_by_symbol"

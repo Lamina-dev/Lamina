@@ -1,0 +1,17 @@
+import std.mathematics_error
+
+type Truth = Proven | Disproven | Undetermined
+
+static "liblamina"
+
+func empty() -> assumptions = "lmx_computer_algebra_assumptions_empty"
+func push(value assumptions) -> Result<assumptions, mathematics_error.MathError> = "lmx_computer_algebra_assumptions_push"
+func pop(value assumptions) -> Result<assumptions, mathematics_error.MathError> = "lmx_computer_algebra_assumptions_pop"
+func with_domain(value assumptions, symbol text, domain text) -> Result<assumptions, mathematics_error.MathError> = "lmx_computer_algebra_assumptions_with_domain"
+func with_sign(value assumptions, symbol text, sign text) -> Result<assumptions, mathematics_error.MathError> = "lmx_computer_algebra_assumptions_with_sign"
+func with_relation(value assumptions, relation expr) -> Result<assumptions, mathematics_error.MathError> = "lmx_computer_algebra_assumptions_with_relation"
+func with_conditional(value assumptions, condition expr, conclusion expr) -> Result<assumptions, mathematics_error.MathError> = "lmx_computer_algebra_assumptions_with_conditional"
+func query(value assumptions, expression expr, property text) -> Result<Truth, mathematics_error.MathError> = "lmx_computer_algebra_assumptions_query"
+func period(value assumptions, expression expr) -> Result<expr, mathematics_error.MathError> = "lmx_computer_algebra_assumptions_period"
+func serialize(value assumptions) -> text = "lmx_computer_algebra_assumptions_serialize"
+func parse(source text) -> Result<assumptions, mathematics_error.MathError> = "lmx_computer_algebra_assumptions_parse"

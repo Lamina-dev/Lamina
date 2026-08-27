@@ -1,0 +1,268 @@
+import std.mathematics_error
+import std.cas.raw.calculus
+
+func implicit_differentiate(value expr, independent text, dependent text) -> expr {
+    match calculus.implicit_differentiate(value, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func implicit_differentiate(value expr, independent expr, dependent expr) -> expr {
+    match calculus.implicit_differentiate(value, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func gradient(value expr, variables array<text>) -> array<expr> {
+    match calculus.gradient(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func gradient(value expr, variables array<expr>) -> array<expr> {
+    match calculus.gradient(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func jacobian(functions array<expr>, variables array<text>) -> expr {
+    match calculus.jacobian(functions, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func jacobian(functions array<expr>, variables array<expr>) -> expr {
+    match calculus.jacobian(functions, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func hessian(value expr, variables array<text>) -> expr {
+    match calculus.hessian(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func hessian(value expr, variables array<expr>) -> expr {
+    match calculus.hessian(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laplacian(value expr, variables array<text>) -> expr {
+    match calculus.laplacian(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laplacian(value expr, variables array<expr>) -> expr {
+    match calculus.laplacian(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func volume_revolution_x(value expr, lower expr, upper expr) -> expr {
+    match calculus.volume_revolution_x(value, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func arc_length_x(value expr, lower expr, upper expr) -> expr {
+    match calculus.arc_length_x(value, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func total_differential(value expr, variables array<text>) -> array<table> {
+    match calculus.total_differential(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func total_differential(value expr, variables array<expr>) -> array<table> {
+    match calculus.total_differential(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func log_differentiate(value expr, variable text) -> expr {
+    match calculus.log_differentiate(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func log_differentiate(value expr, variable expr) -> expr {
+    match calculus.log_differentiate(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_derivative(value expr, variable text, point expr) -> expr {
+    match calculus.inverse_derivative(value, variable, point) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_derivative(value expr, variable expr, point expr) -> expr {
+    match calculus.inverse_derivative(value, variable, point) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_function(value expr, variable text, target expr) -> set<expr> {
+    match calculus.inverse_function(value, variable, target) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_function(value expr, variable expr, target expr) -> set<expr> {
+    match calculus.inverse_function(value, variable, target) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func asymptotes(value expr, variable text) -> calculus.Asymptotes {
+    match calculus.asymptotes(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func asymptotes(value expr, variable expr) -> calculus.Asymptotes {
+    match calculus.asymptotes(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func continuity_at(value expr, variable text, point expr) -> text {
+    match calculus.continuity_at(value, variable, point) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func continuity_at(value expr, variable expr, point expr) -> text {
+    match calculus.continuity_at(value, variable, point) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inflection_points(value expr, variable text) -> set<expr> {
+    match calculus.inflection_points(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inflection_points(value expr, variable expr) -> set<expr> {
+    match calculus.inflection_points(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func curvature(value expr, variable text) -> expr {
+    match calculus.curvature(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func curvature(value expr, variable expr) -> expr {
+    match calculus.curvature(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func curvature_parametric(x expr, y expr, variable text) -> expr {
+    match calculus.curvature_parametric(x, y, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func curvature_parametric(x expr, y expr, variable expr) -> expr {
+    match calculus.curvature_parametric(x, y, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func surface_area_revolution_x(value expr, variable text, lower expr, upper expr) -> expr {
+    match calculus.surface_area_revolution_x(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func surface_area_revolution_x(value expr, variable expr, lower expr, upper expr) -> expr {
+    match calculus.surface_area_revolution_x(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func surface_area_revolution_y(value expr, variable text, lower expr, upper expr) -> expr {
+    match calculus.surface_area_revolution_y(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func surface_area_revolution_y(value expr, variable expr, lower expr, upper expr) -> expr {
+    match calculus.surface_area_revolution_y(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func volume_revolution_y(value expr, lower expr, upper expr) -> expr {
+    match calculus.volume_revolution_y(value, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func arc_length_y(value expr, lower expr, upper expr) -> expr {
+    match calculus.arc_length_y(value, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func integrate_multiple(value expr, variables array<text>, lowers array<expr>, uppers array<expr>) -> expr {
+    match calculus.integrate_multiple(value, variables, lowers, uppers) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func integrate_multiple(value expr, variables array<expr>, lowers array<expr>, uppers array<expr>) -> expr {
+    match calculus.integrate_multiple(value, variables, lowers, uppers) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}

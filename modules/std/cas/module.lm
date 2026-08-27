@@ -1,0 +1,824 @@
+import std.mathematics_error
+import std.cas.raw
+
+import std.cas.assumptions
+import std.cas.equation_solving
+import std.cas.algebra
+import std.cas.symbolic_matrix
+import std.cas.calculus
+import std.cas.series
+import std.cas.integral_transforms
+import std.cas.complex_analysis
+import std.cas.ordinary_differential_equations
+import std.cas.geometry
+
+func symbol(name text) -> expr {
+    match raw.symbol(name) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func parse(source text) -> expr {
+    match raw.parse(source) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func pi() -> expr {
+    match raw.pi() {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func euler_number() -> expr {
+    match raw.euler_number() {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func golden_ratio() -> expr {
+    match raw.golden_ratio() {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func simplify(value expr) -> expr {
+    match raw.simplify(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func expand(value expr) -> expr {
+    match raw.expand(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func differentiate(value expr, variable text) -> expr {
+    match raw.differentiate(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func differentiate(value expr, variable expr) -> expr {
+    match raw.differentiate(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func integrate(value expr, variable text) -> expr {
+    match raw.integrate(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func integrate(value expr, variable expr) -> expr {
+    match raw.integrate(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func integrate_simpson(value expr, variable text, lower expr, upper expr, intervals int) -> real {
+    match raw.integrate_simpson(value, variable, lower, upper, intervals) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func integrate_simpson(value expr, variable expr, lower expr, upper expr, intervals int) -> real {
+    match raw.integrate_simpson(value, variable, lower, upper, intervals) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func integrate_gaussian(value expr, variable text, lower expr, upper expr, points int) -> real {
+    match raw.integrate_gaussian(value, variable, lower, upper, points) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func integrate_gaussian(value expr, variable expr, lower expr, upper expr, points int) -> real {
+    match raw.integrate_gaussian(value, variable, lower, upper, points) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func integrate_adaptive(value expr, variable text, lower expr, upper expr, tolerance real, max_depth int) -> real {
+    match raw.integrate_adaptive(value, variable, lower, upper, tolerance, max_depth) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func integrate_adaptive(value expr, variable expr, lower expr, upper expr, tolerance real, max_depth int) -> real {
+    match raw.integrate_adaptive(value, variable, lower, upper, tolerance, max_depth) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func limit(value expr, variable text, point expr, direction text) -> expr {
+    match raw.limit(value, variable, point, direction) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func limit(value expr, variable expr, point expr, direction text) -> expr {
+    match raw.limit(value, variable, point, direction) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func series(value expr, variable text, point expr, order int) -> expr {
+    match raw.series(value, variable, point, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func series(value expr, variable expr, point expr, order int) -> expr {
+    match raw.series(value, variable, point, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laurent_series(value expr, variable text, center expr, negative_order int, positive_order int) -> expr {
+    match raw.laurent_series(value, variable, center, negative_order, positive_order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laurent_series(value expr, variable expr, center expr, negative_order int, positive_order int) -> expr {
+    match raw.laurent_series(value, variable, center, negative_order, positive_order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func asymptotic(value expr, variable text, order int) -> expr {
+    match raw.asymptotic(value, variable, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func asymptotic(value expr, variable expr, order int) -> expr {
+    match raw.asymptotic(value, variable, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func symbolic_sum(value expr, variable text, lower expr, upper expr) -> expr {
+    match raw.symbolic_sum(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func symbolic_sum(value expr, variable expr, lower expr, upper expr) -> expr {
+    match raw.symbolic_sum(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func symbolic_product(value expr, variable text, lower expr, upper expr) -> expr {
+    match raw.symbolic_product(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func symbolic_product(value expr, variable expr, lower expr, upper expr) -> expr {
+    match raw.symbolic_product(value, variable, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func substitute(value expr, binding Binding<expr, expr>) -> expr {
+    match raw.substitute(value, binding) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func substitute_named(value expr, variable text, replacement expr) -> expr {
+    match raw.substitute_named(value, variable, replacement) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func substitute_named(value expr, variable expr, replacement expr) -> expr {
+    match raw.substitute_named(value, variable, replacement) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func substitute_many(value expr, variables array<text>, replacements array<expr>) -> expr {
+    match raw.substitute_many(value, variables, replacements) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func finite_set(elements array<expr>) -> expr {
+    match raw.finite_set(elements) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func interval(lower expr, upper expr, lower_closed bool, upper_closed bool) -> expr {
+    match raw.interval(lower, upper, lower_closed, upper_closed) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func square_root(value expr) -> expr {
+    match raw.square_root(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func sine(value expr) -> expr {
+    match raw.sine(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func cosine(value expr) -> expr {
+    match raw.cosine(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func tangent(value expr) -> expr {
+    match raw.tangent(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_sine(value expr) -> expr {
+    match raw.inverse_sine(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_cosine(value expr) -> expr {
+    match raw.inverse_cosine(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_tangent(value expr) -> expr {
+    match raw.inverse_tangent(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func exponential(value expr) -> expr {
+    match raw.exponential(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func natural_logarithm(value expr) -> expr {
+    match raw.natural_logarithm(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func common_logarithm(value expr) -> expr {
+    match raw.common_logarithm(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func floor(value expr) -> expr {
+    match raw.floor(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func ceil(value expr) -> expr {
+    match raw.ceil(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func round(value expr) -> expr {
+    match raw.round(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func clamp(value expr, lower expr, upper expr) -> expr {
+    match raw.clamp(value, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func real_part(value expr) -> expr {
+    match raw.real_part(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func imaginary_part(value expr) -> expr {
+    match raw.imaginary_part(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func conjugate(value expr) -> expr {
+    match raw.conjugate(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func absolute_value(value expr) -> expr {
+    match raw.absolute_value(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func evaluate_real(value expr) -> real {
+    match raw.evaluate_real(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func evaluate_real_with(value expr, variables array<text>, values array<int>) -> real {
+    match raw.evaluate_real_with(value, variables, values) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func evaluate_real_with(value expr, variables array<text>, values array<frac>) -> real {
+    match raw.evaluate_real_with(value, variables, values) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func evaluate_real_with(value expr, variables array<text>, values array<real>) -> real {
+    match raw.evaluate_real_with(value, variables, values) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func evaluate_complex(value expr) -> complex {
+    match raw.evaluate_complex(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func evaluate_complex_with(value expr, variables array<text>, values array<int>) -> complex {
+    match raw.evaluate_complex_with(value, variables, values) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func evaluate_complex_with(value expr, variables array<text>, values array<frac>) -> complex {
+    match raw.evaluate_complex_with(value, variables, values) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func evaluate_complex_with(value expr, variables array<text>, values array<real>) -> complex {
+    match raw.evaluate_complex_with(value, variables, values) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func structurally_equal(lhs expr, rhs expr) -> bool {
+    raw.structurally_equal(lhs, rhs)
+}
+
+func equivalent(lhs expr, rhs expr) -> bool {
+    match raw.equivalent(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func set_contains(set array<expr>, element expr) -> bool {
+    match raw.set_contains(set, element) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func set_subset(lhs array<expr>, rhs array<expr>) -> bool {
+    match raw.set_subset(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func set_union(lhs array<expr>, rhs array<expr>) -> array<expr> {
+    match raw.set_union(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func set_intersection(lhs array<expr>, rhs array<expr>) -> array<expr> {
+    match raw.set_intersection(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func set_difference(lhs array<expr>, rhs array<expr>) -> array<expr> {
+    match raw.set_difference(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func set_symmetric_difference(lhs array<expr>, rhs array<expr>) -> array<expr> {
+    match raw.set_symmetric_difference(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func domain_contains(domain text, element expr) -> bool {
+    match raw.domain_contains(domain, element) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func domain_subset(lhs text, rhs text) -> bool {
+    match raw.domain_subset(lhs, rhs) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func set_subset_domain(set array<expr>, domain text) -> bool {
+    match raw.set_subset_domain(set, domain) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func match_bindings(pattern expr, target expr, wildcards array<text>) -> table {
+    match raw.match_bindings(pattern, target, wildcards) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func table_size(value table) -> int {
+    raw.table_size(value)
+}
+
+func table_has(value table, key text) -> bool {
+    raw.table_has(value, key)
+}
+
+func table_expr(value table, key text) -> expr {
+    match raw.table_expr(value, key) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func table_vector(value table, key text) -> vector {
+    match raw.table_vector(value, key) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func table_matrix(value table, key text) -> matrix {
+    match raw.table_matrix(value, key) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laplace(value expr, time_variable text, frequency_variable text) -> expr {
+    match raw.laplace(value, time_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laplace(value expr, time_variable expr, frequency_variable expr) -> expr {
+    match raw.laplace(value, time_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_laplace(value expr, frequency_variable text, time_variable text) -> expr {
+    match raw.inverse_laplace(value, frequency_variable, time_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_laplace(value expr, frequency_variable expr, time_variable expr) -> expr {
+    match raw.inverse_laplace(value, frequency_variable, time_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func fourier(value expr, time_variable text, frequency_variable text) -> expr {
+    match raw.fourier(value, time_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func fourier(value expr, time_variable expr, frequency_variable expr) -> expr {
+    match raw.fourier(value, time_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_fourier(value expr, frequency_variable text, time_variable text) -> expr {
+    match raw.inverse_fourier(value, frequency_variable, time_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func inverse_fourier(value expr, frequency_variable expr, time_variable expr) -> expr {
+    match raw.inverse_fourier(value, frequency_variable, time_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func z_transform(value expr, index_variable text, frequency_variable text) -> expr {
+    match raw.z_transform(value, index_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func z_transform(value expr, index_variable expr, frequency_variable expr) -> expr {
+    match raw.z_transform(value, index_variable, frequency_variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func convolve(lhs expr, rhs expr, variable text) -> expr {
+    match raw.convolve(lhs, rhs, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func convolve(lhs expr, rhs expr, variable expr) -> expr {
+    match raw.convolve(lhs, rhs, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func residue(value expr, variable text, point expr, order int) -> expr {
+    match raw.residue(value, variable, point, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func residue(value expr, variable expr, point expr, order int) -> expr {
+    match raw.residue(value, variable, point, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func cauchy_integral(value expr, variable text, point expr, order int) -> expr {
+    match raw.cauchy_integral(value, variable, point, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func cauchy_integral(value expr, variable expr, point expr, order int) -> expr {
+    match raw.cauchy_integral(value, variable, point, order) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func is_analytic(value expr, variable text) -> bool {
+    match raw.is_analytic(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func is_analytic(value expr, variable expr) -> bool {
+    match raw.is_analytic(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func implicit_differentiate(value expr, independent text, dependent text) -> expr {
+    match raw.implicit_differentiate(value, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func implicit_differentiate(value expr, independent expr, dependent expr) -> expr {
+    match raw.implicit_differentiate(value, independent, dependent) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func gradient(value expr, variables array<text>) -> array<expr> {
+    match raw.gradient(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func gradient(value expr, variables array<expr>) -> array<expr> {
+    match raw.gradient(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func divergence(field array<expr>, variables array<text>) -> expr {
+    match raw.divergence(field, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func divergence(field array<expr>, variables array<expr>) -> expr {
+    match raw.divergence(field, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func curl(field array<expr>, variables array<text>) -> array<expr> {
+    match raw.curl(field, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func curl(field array<expr>, variables array<expr>) -> array<expr> {
+    match raw.curl(field, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laplacian(value expr, variables array<text>) -> expr {
+    match raw.laplacian(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func laplacian(value expr, variables array<expr>) -> expr {
+    match raw.laplacian(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func jacobian(functions array<expr>, variables array<text>) -> expr {
+    match raw.jacobian(functions, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func jacobian(functions array<expr>, variables array<expr>) -> expr {
+    match raw.jacobian(functions, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func hessian(value expr, variables array<text>) -> expr {
+    match raw.hessian(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func hessian(value expr, variables array<expr>) -> expr {
+    match raw.hessian(value, variables) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func volume_revolution_x(value expr, lower expr, upper expr) -> expr {
+    match raw.volume_revolution_x(value, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func arc_length_x(value expr, lower expr, upper expr) -> expr {
+    match raw.arc_length_x(value, lower, upper) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve(equation expr, variable text) -> set<expr> {
+    match raw.solve(equation, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve(equation expr, variable expr) -> set<expr> {
+    match raw.solve(equation, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func roots(value expr, variable text) -> set<expr> {
+    match raw.roots(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func roots(value expr, variable expr) -> set<expr> {
+    match raw.roots(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func to_text(value expr) -> text {
+    raw.to_text(value)
+}
+
+func set_to_array(values set<expr>) -> array<expr> {
+    raw.set_to_array(values)
+}
