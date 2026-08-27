@@ -3,14 +3,30 @@
 #include "bridge/runtime_views.hpp"
 #include "bridge/unit_bridge.hpp"
 #include <cstdarg>
-
+#include "symbolic_ast.hpp"
 using namespace lmx::bridge;
+
+namespace {
+bool is_equality_relation(const SymbolicExpr& expression) {
+    const auto relation = std::dynamic_pointer_cast<const RelationalNode>(
+        lamina::detail::node(expression));
+    return relation && relation->op() == lamina::RelationOp::EQ;
+}
+
+AdtObj* equality_required() {
+    return result_error(MathErrorCode::InvalidArgument, "lsr.solve_expr_set",
+                        "solve requires an equality relation");
+}
+}
+
+
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_solve_by_name(ExprObj* equation,
                                       const char* variable) {
     std::string error;
     const auto* value = checked_expr(equation, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (!is_equality_relation(**value)) return equality_required();
     return expression_set_literal_result(
         lamina::lsr::solve(*value, variable ? variable : ""));
 }
@@ -39,6 +55,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_symbol(ExprObj* 
     if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     const auto* value = checked_expr(equation, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (!is_equality_relation(**value)) return equality_required();
     return expression_set_literal_result(lamina::lsr::solve(*value, name));
 }
 
