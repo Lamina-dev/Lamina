@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/4/3.
-//
 
 #include "parser.hpp"
 
@@ -18,6 +15,10 @@ static BinaryNode::Op token_to_binary_op(const TokenType type) {
     case TokenType::KW_OR: return BinaryNode::Op::Or;
     case TokenType::KW_AND: return BinaryNode::Op::And;
     case TokenType::KW_IN: return BinaryNode::Op::In;
+    case TokenType::KW_SUBSET: return BinaryNode::Op::Subset;
+    case TokenType::BAR: return BinaryNode::Op::SetUnion;
+    case TokenType::AMP: return BinaryNode::Op::SetIntersection;
+    case TokenType::KW_XOR: return BinaryNode::Op::SetSymmetricDifference;
     case TokenType::DOUBLE_ARROW: return BinaryNode::Op::Bind;
     case TokenType::EQ: return BinaryNode::Op::Eq;
     case TokenType::NE: return BinaryNode::Op::Ne;
@@ -31,7 +32,6 @@ static BinaryNode::Op token_to_binary_op(const TokenType type) {
     case TokenType::OPER_DIV: return BinaryNode::Op::Div;
     case TokenType::OPER_MOD: return BinaryNode::Op::Mod;
     case TokenType::OPER_POW: return BinaryNode::Op::Pow;
-        // case TokenType::COL_COLON: return BinaryNode::Op::ColonColon;
     default: std::unreachable();
     }
 }
@@ -145,7 +145,6 @@ return node;
 std::shared_ptr<ExprNode> Parser::parse_pipe() noexcept {
     auto line = cur().line, col = cur().col;
     auto node = parse_logical();
-    //printf("|awaa %s\n", match(TokenType::PIPE) ? "true" : "false");
     while (match(TokenType::PIPE)) {
         advance();
         auto rhs = parse_logical();
@@ -188,6 +187,7 @@ std::shared_ptr<ExprNode> Parser::parse_relational() noexcept {
            cur().type == TokenType::LE ||
            cur().type == TokenType::GE ||
            cur().type == TokenType::KW_IN ||
+           cur().type == TokenType::KW_SUBSET ||
            (cur().type == TokenType::NOT && peek_match(TokenType::KW_IN))) {
         BinaryNode::Op op;
         if (cur().type == TokenType::NOT) {
@@ -206,7 +206,9 @@ std::shared_ptr<ExprNode> Parser::parse_relational() noexcept {
 std::shared_ptr<ExprNode> Parser::parse_addition() noexcept {
     PARSER_BINOP_L(parse_multi, while,
         match(TokenType::OPER_PLUS) ||
-        match(TokenType::OPER_MINUS)
+        match(TokenType::OPER_MINUS) ||
+        match(TokenType::BAR) ||
+        match(TokenType::KW_XOR)
         )
 }
 
@@ -214,7 +216,8 @@ std::shared_ptr<ExprNode> Parser::parse_multi() noexcept {
     PARSER_BINOP_L(parse_exponent, while,
         cur().type == TokenType::OPER_MUL ||
         cur().type == TokenType::OPER_DIV ||
-        cur().type == TokenType::OPER_MOD
+        cur().type == TokenType::OPER_MOD ||
+        cur().type == TokenType::AMP
         )
 }
 
@@ -227,7 +230,6 @@ std::shared_ptr<ExprNode> Parser::parse_term() noexcept {
 
     switch (cur().type) {
     case TokenType::OPER_MINUS:
-        // case TokenType::OPER_MUL:
     {
         advance();
         return std::make_shared<UnaryNode>(line, col, UnaryNode::Op::Neg, parse_factor());
@@ -237,17 +239,6 @@ std::shared_ptr<ExprNode> Parser::parse_term() noexcept {
 
 }
 
-// std::shared_ptr<ExprStmtNode> Parser::parse_multi_naming() noexcept {
-//     size_t line = cur().line, col = cur().col;
-//     std::shared_ptr<ExprNode> naming = std::make_shared<IdentifierNode>(line, col, cur().text);
-//     advance();
-//     while (match(TokenType::COL_COLON)) {
-//         advance();
-//         naming = std::make_shared<BinaryNode>(line, col, naming, BinaryNode::Op::ColonColon, std::make_shared<IdentifierNode>(cur().line, cur().col, cur().text));
-//         advance();
-//     }
-//     return std::make_shared<ExprStmtNode>(line, col, naming);
-// }
 
 std::shared_ptr<ExprStmtNode> Parser::parse_param_name() noexcept {
     size_t line = cur().line, col = cur().col;
@@ -409,21 +400,45 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
         size_t paren_depth = 0;
         size_t bracket_depth = 0;
         bool has_comma = false;
+        bool has_statement = false;
         while (scan < tokens.size() && brace_depth > 0) {
-            if (tokens[scan].type == TokenType::LBRACE) brace_depth++;
-            else if (tokens[scan].type == TokenType::RBRACE) brace_depth--;
-            else if (tokens[scan].type == TokenType::LPAREN) paren_depth++;
-            else if (tokens[scan].type == TokenType::RPAREN && paren_depth > 0) paren_depth--;
-            else if (tokens[scan].type == TokenType::LBRACK) bracket_depth++;
-            else if (tokens[scan].type == TokenType::RBRACK && bracket_depth > 0) bracket_depth--;
-            else if (brace_depth == 1 && paren_depth == 0 && bracket_depth == 0 &&
-                     tokens[scan].type == TokenType::COMMA) {
-                has_comma = true;
-                break;
+            const auto token = tokens[scan].type;
+            if (token == TokenType::LBRACE) brace_depth++;
+            else if (token == TokenType::RBRACE) brace_depth--;
+            else if (token == TokenType::LPAREN) paren_depth++;
+            else if (token == TokenType::RPAREN && paren_depth > 0) paren_depth--;
+            else if (token == TokenType::LBRACK) bracket_depth++;
+            else if (token == TokenType::RBRACK && bracket_depth > 0) bracket_depth--;
+            else if (brace_depth == 1 && paren_depth == 0 &&
+                     bracket_depth == 0) {
+                if (token == TokenType::COMMA) {
+                    has_comma = true;
+                    break;
+                }
+                switch (token) {
+                case TokenType::KW_LET:
+                case TokenType::KW_VAR:
+                case TokenType::KW_RETURN:
+                case TokenType::KW_IF:
+                case TokenType::KW_LOOP:
+                case TokenType::KW_BREAK:
+                case TokenType::KW_CONTINUE:
+                case TokenType::KW_SYM:
+                case TokenType::KW_MATCH:
+                case TokenType::KW_UNIT:
+                case TokenType::KW_TYPE:
+                case TokenType::KW_IMPORT:
+                case TokenType::KW_FUNC:
+                case TokenType::ASSIGN:
+                    has_statement = true;
+                    break;
+                default:
+                    break;
+                }
             }
             scan++;
         }
-        if (has_comma) {
+        if (has_comma || !has_statement) {
             primary = parse_set_literal();
             break;
         }
@@ -481,13 +496,13 @@ std::shared_ptr<ExprNode> Parser::parse_primary() noexcept {
                 primary = std::make_shared<TupleGetExprNode>(
                     line, col, primary, static_cast<uint8_t>(position - 1));
             } else {
-                consume(TokenType::IDENTIFIER, "identifier");
+                if (match(TokenType::KW_SYM)) advance();
+                else consume(TokenType::IDENTIFIER, "identifier");
                 primary = std::make_shared<DotExprNode>(line, col, primary, std::make_shared<IdentifierNode>(ident.line, ident.col, ident.text));
             }
             break;
         }
         default: {
-            // 不会到达这里
             throw_error(ErrorType::Parse, "`" + cur().text + "` is wrong primary token", cur().line, cur().col);
             break;
         }
@@ -563,7 +578,6 @@ std::shared_ptr<StmtNode> Parser::parse_stmt() noexcept {
         return std::static_pointer_cast<VarDeclNode>(parse_var());
     }
     case TokenType::KW_RETURN: {
-        // advance();
         return parse_return();
     }
     case TokenType::KW_LOOP: {
@@ -805,7 +819,6 @@ std::shared_ptr<StmtNode> Parser::parse_loop() noexcept {
 
 std::shared_ptr<StmtNode> Parser::parse_return() noexcept {
     const auto old_line = cur().line;
-    // auto old_col = cur().col;
     advance();
     std::shared_ptr<ExprNode> expr = nullptr;
     auto line = cur().line, col = cur().col;
@@ -829,10 +842,8 @@ std::shared_ptr<StmtNode> Parser::parse_var_decl() noexcept {
     if (match(TokenType::KW_VAR)) is_mutable = true;
     advance();
     size_t line = cur().line, col = cur().col;
-    // auto id = parse_multi_naming();
     auto id = cur().text;
     consume(TokenType::IDENTIFIER, "identifier");
-    // consume(TokenType::COLON, ":");
     std::shared_ptr<Type> type;
     if (!match(TokenType::ASSIGN)) type = parse_type();
     else type = type_pool.unknown();
@@ -879,18 +890,19 @@ std::shared_ptr<ExprNode> Parser::parse_block() noexcept {
     if (match(TokenType::RBRACE)) {
         advance();
     }
-    if (stmts.back()->kind == ASTKind::ExprStmt) {
+    if (!stmts.empty() && stmts.back()->kind == ASTKind::ExprStmt) {
         const auto expr_stmt = std::static_pointer_cast<ExprStmtNode>(stmts.back());
-        stmts.back() = std::make_shared<TailReturnNode>(expr_stmt->line, expr_stmt->col, expr_stmt->expr);
+        stmts.back() = std::make_shared<TailReturnNode>(
+            expr_stmt->line, expr_stmt->col, expr_stmt->expr);
     }
     return std::make_shared<BlockExprNode>(line, col, stmts);
 }
 
 std::shared_ptr<StmtNode> Parser::parse_func() noexcept {
     auto line = cur().line, col = cur().col;
-    // auto id = parse_multi_naming();
     auto id = cur().text;
-    consume(TokenType::IDENTIFIER, "identifier");
+    if (match(TokenType::KW_SYM)) advance();
+    else consume(TokenType::IDENTIFIER, "identifier");
 
     decltype(ParamsDeclNode::stmts) params;
 
@@ -947,6 +959,26 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
     case TokenType::NULL_LITERAL:
         advance();
         return type_pool.basic(runtime::ValueKind::Null);
+    case TokenType::KW_FUNC: {
+        advance();
+        consume(TokenType::LPAREN, "(");
+        std::vector<std::shared_ptr<Type>> params;
+        if (!match(TokenType::RPAREN)) {
+            do {
+                params.push_back(parse_type());
+                if (!match(TokenType::COMMA)) break;
+                advance();
+            } while (!match(TokenType::RPAREN));
+        }
+        consume(TokenType::RPAREN, ")");
+        consume(TokenType::ARROW, "->");
+        auto type = type_pool.function(std::move(params), parse_type());
+        if (match(TokenType::QUESTION)) {
+            advance();
+            return type_pool.nullable(std::move(type));
+        }
+        return type;
+    }
     case TokenType::IDENTIFIER: {
         auto id = cur().text;
         advance();
@@ -969,6 +1001,9 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
             {"table", runtime::ValueKind::Table},
             {"rng", runtime::ValueKind::Random},
             {"quantity", runtime::ValueKind::Quantity},
+            {"sparse", runtime::ValueKind::Sparse},
+            {"tensor", runtime::ValueKind::Tensor},
+            {"assumptions", runtime::ValueKind::Assumptions},
             {"cptr", runtime::ValueKind::C_Ptr}
         };
         std::shared_ptr<Type> type;

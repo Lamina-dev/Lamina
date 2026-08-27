@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/4/3.
-//
 
 #include "ast.hpp"
 #include <ranges>
@@ -136,6 +133,7 @@ std::shared_ptr<Type> TypePool::module(std::string target_path,
                                        std::string load_path,
                                        std::string binding_name,
                                        std::vector<hir::Scope::Var> exports,
+                                       std::vector<std::string> function_slots,
                                        std::vector<std::shared_ptr<TypeDeclNode>> adt_exports,
                                        std::vector<std::pair<std::string, UnitDefinition>> unit_exports) noexcept {
     for (const auto& t : types) {
@@ -145,13 +143,15 @@ std::shared_ptr<Type> TypePool::module(std::string target_path,
         module->load_path = std::move(load_path);
         module->binding_name = std::move(binding_name);
         module->exports = std::move(exports);
+        module->function_slots = std::move(function_slots);
         module->adt_exports = std::move(adt_exports);
         module->unit_exports = std::move(unit_exports);
         return t;
     }
     auto ty = std::make_shared<ModuleType>(
         std::move(target_path), std::move(load_path), std::move(binding_name),
-        std::move(exports), std::move(adt_exports), std::move(unit_exports));
+        std::move(exports), std::move(function_slots), std::move(adt_exports),
+        std::move(unit_exports));
     types.push_back(ty);
     return ty;
 }
@@ -159,6 +159,12 @@ std::shared_ptr<Type> TypePool::module(std::string target_path,
 std::shared_ptr<Type> TypePool::unknown() noexcept {
     for (const auto& t : types) if (t->kind == TypeKind::Unknown) return t;
     auto ty = std::shared_ptr<Type>(new UnknownType());
+    types.push_back(ty);
+    return ty;
+}
+std::shared_ptr<Type> TypePool::never() noexcept {
+    for (const auto& t : types) if (t->kind == TypeKind::Never) return t;
+    auto ty = std::shared_ptr<Type>(new NeverType());
     types.push_back(ty);
     return ty;
 }
@@ -221,6 +227,9 @@ bool ArrayType::equals(Type *other) const noexcept {
 
 bool UnknownType::equals(Type *other) const noexcept {
     return false;
+}
+bool NeverType::equals(Type *other) const noexcept {
+    return other && other->kind == TypeKind::Never;
 }
 
 bool StringType::equals(Type *other) const noexcept {
@@ -349,6 +358,14 @@ std::string BinaryNode::op_to_string(const Op op) noexcept {
         return "in";
     case Op::NotIn:
         return "not in";
+    case Op::SetUnion:
+        return "|";
+    case Op::SetIntersection:
+        return "&";
+    case Op::SetSymmetricDifference:
+        return "xor";
+    case Op::Subset:
+        return "subset";
     case Op::Bind:
         return "=>";
     }
@@ -373,7 +390,6 @@ Module::Module(std::string name, decltype(decls) decls) noexcept
     for (auto i = 0; i < decls_len; i++) {
         const auto decl = this->decls[i];
         if (decl->kind == ASTKind::FuncImpl) {
-            // auto node = std::reinterpret_pointer_cast<FuncImplNode>(decl);
             this->decls.erase(this->decls.begin() + i);
             this->decls.insert(this->decls.begin(), decl);
         }

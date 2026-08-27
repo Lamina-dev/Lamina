@@ -1,10 +1,8 @@
-//
-// Created by meian on 2026/3/29.
-//
 #include "value.hpp"
 
 #include "adt.hpp"
 #include "StringObj.hpp"
+#include "lsr_expr_obj.hpp"
 #include "literal.hpp"
 #include "tuple.hpp"
 #include "complex.hpp"
@@ -12,6 +10,9 @@
 #include "matrix.hpp"
 #include "table.hpp"
 #include "quantity.hpp"
+#include "sparse.hpp"
+#include "tensor.hpp"
+#include "assumptions.hpp"
 
 #include <functional>
 
@@ -33,6 +34,9 @@ bool Value::operator==(const Value &other) const noexcept {
     case ValueKind::Table:
     case ValueKind::Random:
     case ValueKind::Quantity:
+    case ValueKind::Sparse:
+    case ValueKind::Tensor:
+    case ValueKind::Assumptions:
         if (obj == other.obj) return true;
         if (!obj || !other.obj || obj->get_kind() != other.obj->get_kind()) return false;
         if (obj->get_kind() == ObjectKind::Adt) {
@@ -44,6 +48,10 @@ bool Value::operator==(const Value &other) const noexcept {
         if (obj->get_kind() == ObjectKind::Literal) {
             return reinterpret_cast<const LiteralObj*>(obj)->equals(
                 *reinterpret_cast<const LiteralObj*>(other.obj));
+        }
+        if (obj->get_kind() == ObjectKind::Expr) {
+            return reinterpret_cast<const ExprObj*>(obj)->equals(
+                *reinterpret_cast<const ExprObj*>(other.obj));
         }
         if (obj->get_kind() == ObjectKind::Tuple) {
             return reinterpret_cast<const TupleObj*>(obj)->equals(
@@ -68,6 +76,18 @@ bool Value::operator==(const Value &other) const noexcept {
         if (obj->get_kind() == ObjectKind::Quantity) {
             return reinterpret_cast<const QuantityObj*>(obj)->equals(
                 *reinterpret_cast<const QuantityObj*>(other.obj));
+        }
+        if (obj->get_kind() == ObjectKind::Sparse) {
+            return reinterpret_cast<const SparseMatrixObj*>(obj)->equals(
+                *reinterpret_cast<const SparseMatrixObj*>(other.obj));
+        }
+        if (obj->get_kind() == ObjectKind::Tensor) {
+            return reinterpret_cast<const TensorObj*>(obj)->equals(
+                *reinterpret_cast<const TensorObj*>(other.obj));
+        }
+        if (obj->get_kind() == ObjectKind::Assumptions) {
+            return reinterpret_cast<const AssumptionsObj*>(obj)->equals(
+                *reinterpret_cast<const AssumptionsObj*>(other.obj));
         }
         return false;
     case ValueKind::Int: return int_val == other.int_val;
@@ -99,6 +119,9 @@ std::size_t Value::hash() const noexcept {
     case ValueKind::Table:
     case ValueKind::Random:
     case ValueKind::Quantity:
+    case ValueKind::Sparse:
+    case ValueKind::Tensor:
+    case ValueKind::Assumptions:
         if (!obj) return 0;
         switch (obj->get_kind()) {
         case ObjectKind::String:
@@ -107,6 +130,8 @@ std::size_t Value::hash() const noexcept {
             return reinterpret_cast<const LiteralObj*>(obj)->hash();
         case ObjectKind::Adt:
             return reinterpret_cast<const AdtObj*>(obj)->hash();
+        case ObjectKind::Expr:
+            return reinterpret_cast<const ExprObj*>(obj)->hash();
         case ObjectKind::Tuple:
             return reinterpret_cast<const TupleObj*>(obj)->hash();
         case ObjectKind::Complex:
@@ -119,6 +144,12 @@ std::size_t Value::hash() const noexcept {
             return reinterpret_cast<const TableObj*>(obj)->hash();
         case ObjectKind::Quantity:
             return reinterpret_cast<const QuantityObj*>(obj)->hash();
+        case ObjectKind::Sparse:
+            return reinterpret_cast<const SparseMatrixObj*>(obj)->hash();
+        case ObjectKind::Tensor:
+            return reinterpret_cast<const TensorObj*>(obj)->hash();
+        case ObjectKind::Assumptions:
+            return reinterpret_cast<const AssumptionsObj*>(obj)->hash();
         default:
             return std::hash<const Object*>{}(obj);
         }
@@ -147,6 +178,9 @@ std::string Value::to_string() const noexcept {
     case ValueKind::Table: return Object::to_string(obj);
     case ValueKind::Random: return Object::to_string(obj);
     case ValueKind::Quantity: return Object::to_string(obj);
+    case ValueKind::Sparse: return Object::to_string(obj);
+    case ValueKind::Tensor: return Object::to_string(obj);
+    case ValueKind::Assumptions: return Object::to_string(obj);
     case ValueKind::C_Ptr: return "RawPtr";
     case ValueKind::Null: return "Null";
     case ValueKind::Fraction: return frac_val.to_string();
@@ -154,7 +188,6 @@ std::string Value::to_string() const noexcept {
     case ValueKind::C_ValueRef: return "ValueRef";
     }
 
-    // 不可能到达这里
     return {};
 }
 

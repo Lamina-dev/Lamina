@@ -27,6 +27,19 @@ bool numeric_value(const Value& value, long double& result) noexcept {
         return false;
     }
 }
+bool set_element_equal(const Value& lhs, const Value& rhs) noexcept {
+    long double left{}, right{};
+    if (numeric_value(lhs, left) && numeric_value(rhs, right))
+        return left == right;
+    return lhs == rhs;
+}
+
+std::size_t set_element_hash(const Value& value) noexcept {
+    long double numeric{};
+    if (numeric_value(value, numeric))
+        return std::hash<long double>{}(numeric);
+    return value.hash();
+}
 }
 
 LiteralObj::LiteralObj(const Kind kind, std::vector<Value> elements,
@@ -37,7 +50,11 @@ LiteralObj::LiteralObj(const Kind kind, std::vector<Value> elements,
         std::vector<Value> unique;
         unique.reserve(elements_.size());
         for (const auto& value : elements_) {
-            if (std::find(unique.begin(), unique.end(), value) == unique.end()) unique.push_back(value);
+            if (std::none_of(unique.begin(), unique.end(),
+                             [&](const Value& existing) {
+                                 return set_element_equal(existing, value);
+                             }))
+                unique.push_back(value);
         }
         elements_ = std::move(unique);
     }
@@ -45,7 +62,10 @@ LiteralObj::LiteralObj(const Kind kind, std::vector<Value> elements,
 
 bool LiteralObj::contains(const Value& value) const noexcept {
     if (kind_ == Kind::Set) {
-        return std::find(elements_.begin(), elements_.end(), value) != elements_.end();
+        return std::any_of(elements_.begin(), elements_.end(),
+                           [&](const Value& element) {
+                               return set_element_equal(element, value);
+                           });
     }
     if (kind_ != Kind::Interval || elements_.size() != 2) return false;
     long double candidate{}, lower{}, upper{};
@@ -69,7 +89,8 @@ std::size_t LiteralObj::hash() const noexcept {
     std::size_t result = std::hash<unsigned>{}(static_cast<unsigned>(kind_));
     if (kind_ == Kind::Set) {
         std::size_t unordered = 0;
-        for (const auto& value : elements_) unordered ^= value.hash();
+        for (const auto& value : elements_)
+            unordered ^= set_element_hash(value);
         combine_hash(result, unordered);
     } else {
         for (const auto& value : elements_) combine_hash(result, value.hash());
@@ -77,6 +98,54 @@ std::size_t LiteralObj::hash() const noexcept {
     combine_hash(result, lower_closed_);
     combine_hash(result, upper_closed_);
     return result;
+}
+std::vector<Value> LiteralObj::union_elements(const LiteralObj& other) const {
+    std::vector<Value> result = elements_;
+    result.reserve(elements_.size() + other.elements_.size());
+    for (const auto& value : other.elements_) {
+        if (std::none_of(result.begin(), result.end(),
+                         [&](const Value& existing) {
+                             return set_element_equal(existing, value);
+                         }))
+            result.push_back(value);
+    }
+    return result;
+}
+
+std::vector<Value> LiteralObj::intersection_elements(
+    const LiteralObj& other) const {
+    std::vector<Value> result;
+    result.reserve(std::min(elements_.size(), other.elements_.size()));
+    for (const auto& value : elements_) {
+        if (other.contains(value)) result.push_back(value);
+    }
+    return result;
+}
+
+std::vector<Value> LiteralObj::difference_elements(
+    const LiteralObj& other) const {
+    std::vector<Value> result;
+    result.reserve(elements_.size());
+    for (const auto& value : elements_) {
+        if (!other.contains(value)) result.push_back(value);
+    }
+    return result;
+}
+
+std::vector<Value> LiteralObj::symmetric_difference_elements(
+    const LiteralObj& other) const {
+    auto result = difference_elements(other);
+    auto right_only = other.difference_elements(*this);
+    result.reserve(result.size() + right_only.size());
+    result.insert(result.end(), right_only.begin(), right_only.end());
+    return result;
+}
+
+bool LiteralObj::subset_of(const LiteralObj& other) const noexcept {
+    return std::all_of(elements_.begin(), elements_.end(),
+                       [&](const Value& value) {
+                           return other.contains(value);
+                       });
 }
 
 std::string LiteralObj::to_string() const noexcept {

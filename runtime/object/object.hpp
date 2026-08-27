@@ -21,6 +21,9 @@ enum {
     Complex,
     Random,
     Quantity,
+    Sparse,
+    Tensor,
+    Assumptions,
 };
 }
 class Object {
@@ -33,7 +36,6 @@ public:
 
     [[nodiscard]] uint32_t get_kind() const noexcept;
 
-    // virtual ~Object() noexcept;
 
     [[nodiscard]] Object*       get() noexcept;
     void release() noexcept;

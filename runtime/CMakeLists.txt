@@ -19,6 +19,12 @@ add_library(lamina_runtime OBJECT
     object/random.hpp
     object/quantity.cpp
     object/quantity.hpp
+    object/sparse.cpp
+    object/sparse.hpp
+    object/tensor.cpp
+    object/tensor.hpp
+    object/assumptions.cpp
+    object/assumptions.hpp
     object/code_module.cpp
     gc.cpp
         object/array.cpp

@@ -10,6 +10,9 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
     case TypeKind::Unknown:
         ss << "?";
         break;
+    case TypeKind::Never:
+        ss << "Never";
+        break;
     case TypeKind::None:
         ss << "none";
         break;
@@ -34,6 +37,9 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
             case runtime::ValueKind::Table: ss << "Table"; break;
             case runtime::ValueKind::Random: ss << "Random"; break;
             case runtime::ValueKind::Quantity: ss << "Quantity"; break;
+            case runtime::ValueKind::Sparse: ss << "Sparse"; break;
+            case runtime::ValueKind::Tensor: ss << "Tensor"; break;
+            case runtime::ValueKind::Assumptions: ss << "Assumptions"; break;
         }
         break;
     }
@@ -139,12 +145,6 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
         case ASTKind::Literal: {
             auto &lit = static_cast<const LiteralNode &>(node);
             ss << line_prefix;
-            // switch (lit.kind) {
-            //     case LiteralNode::Kind::Integer: ss << "Int"; break;
-            //     case LiteralNode::Kind::Float:   ss << "Float"; break;
-            //     case LiteralNode::Kind::String:  ss << "String"; break;
-            //     case LiteralNode::Kind::Boolean: ss << "Bool"; break;
-            // }
             ss << " " << lit.val;
             if (node.type) { ss << " : "; print_type(ss, *node.type); }
             ss << "\n";
@@ -191,7 +191,10 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
                 case BinaryNode::Op::In: ss << "in"; break;
                 case BinaryNode::Op::NotIn: ss << "not in"; break;
                 case BinaryNode::Op::Bind: ss << "=>"; break;
-                // case BinaryNode::Op::ColonColon: ss << "::"; break;
+                case BinaryNode::Op::SetUnion: ss << "|"; break;
+                case BinaryNode::Op::SetIntersection: ss << "&"; break;
+                case BinaryNode::Op::SetSymmetricDifference: ss << "xor"; break;
+                case BinaryNode::Op::Subset: ss << "subset"; break;
             }
             if (node.type) { ss << " : "; print_type(ss, *node.type); }
             ss << "\n";

@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/8/12.
-//
 
 #pragma once
 #include "object.hpp"

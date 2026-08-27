@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/7/5.
-//
 
 #include "type_checker.hpp"
 
@@ -62,6 +59,9 @@ bool supports_basic_equality(const runtime::ValueKind kind) noexcept {
     case runtime::ValueKind::Matrix:
     case runtime::ValueKind::Table:
     case runtime::ValueKind::Quantity:
+    case runtime::ValueKind::Sparse:
+    case runtime::ValueKind::Tensor:
+    case runtime::ValueKind::Assumptions:
         return true;
     default:
         return false;
@@ -82,11 +82,14 @@ std::optional<runtime::ValueKind> basic_binary_result(
     case BinaryNode::Op::Mul:
     case BinaryNode::Op::Mod:
     case BinaryNode::Op::Pow:
-        if (is_int_or_fraction(operand)) return operand;
+        if (is_int_or_fraction(operand) ||
+            operand == runtime::ValueKind::Real) return operand;
         return std::nullopt;
     case BinaryNode::Op::Div:
-        if (is_int_or_fraction(operand))
-            return runtime::ValueKind::Fraction;
+        if (is_int_or_fraction(operand) ||
+            operand == runtime::ValueKind::Real)
+            return operand == runtime::ValueKind::Real
+                ? runtime::ValueKind::Real : runtime::ValueKind::Fraction;
         return std::nullopt;
     case BinaryNode::Op::Eq:
     case BinaryNode::Op::Ne:
@@ -96,11 +99,14 @@ std::optional<runtime::ValueKind> basic_binary_result(
     case BinaryNode::Op::Ge:
     case BinaryNode::Op::Lt:
     case BinaryNode::Op::Le:
-        if (is_int_or_fraction(operand)) return runtime::ValueKind::Bool;
+        if (is_int_or_fraction(operand) ||
+            operand == runtime::ValueKind::Real)
+            return runtime::ValueKind::Bool;
         return std::nullopt;
     case BinaryNode::Op::And:
     case BinaryNode::Op::Or:
-        if (operand == runtime::ValueKind::Bool) return runtime::ValueKind::Bool;
+        if (operand == runtime::ValueKind::Bool)
+            return runtime::ValueKind::Bool;
         return std::nullopt;
     default:
         return std::nullopt;
@@ -285,24 +291,38 @@ std::shared_ptr<Type> literal_payload_type(const LiteralPayloadNode& node) noexc
     const bool has_expr = std::ranges::any_of(node.elements, [](const auto& element) {
         return is_expr_type(element->type);
     });
-    if (has_expr) {
-        const bool promotable = std::ranges::all_of(node.elements, [](const auto& element) {
-            return is_expr_constructible(element->type);
-        });
-        return promotable ? type_pool.basic(runtime::ValueKind::Expr) : type_pool.unknown();
-    }
     if (node.payload_kind == LiteralPayloadNode::Kind::Interval) {
+        if (has_expr) {
+            const bool promotable = std::ranges::all_of(
+                node.elements, [](const auto& element) {
+                    return is_expr_constructible(element->type);
+                });
+            return promotable ? type_pool.basic(runtime::ValueKind::Expr)
+                              : type_pool.unknown();
+        }
         if (node.elements.size() != 2) return type_pool.unknown();
         auto element = unify_interval_bounds(node.elements[0]->type,
                                              node.elements[1]->type);
-        return element ? type_pool.named("interval", {std::move(element)}) : type_pool.unknown();
+        return element ? type_pool.named("interval", {std::move(element)})
+                       : type_pool.unknown();
     }
 
     if (node.elements.empty()) return type_pool.named("set", {type_pool.unknown()});
     auto element = node.elements.front()->type;
     for (std::size_t i = 1; i < node.elements.size(); ++i) {
-        element = unify_types(element, node.elements[i]->type);
-        if (!element) return type_pool.unknown();
+        const auto& candidate = node.elements[i]->type;
+        if (is_expr_type(element) || is_expr_type(candidate)) {
+            if (!is_expr_constructible(element) ||
+                !is_expr_constructible(candidate))
+                return type_pool.unknown();
+            element = type_pool.basic(runtime::ValueKind::Expr);
+            continue;
+        }
+        auto unified = unify_types(element, candidate);
+        if (!unified)
+            unified = unify_interval_bounds(element, candidate);
+        if (!unified) return type_pool.unknown();
+        element = std::move(unified);
     }
     return type_pool.named("set", {std::move(element)});
 }
@@ -315,6 +335,7 @@ bool bind_adt_type(const std::shared_ptr<Type>& expected,
                    TypeBindings& bindings) noexcept {
     if (!expected || !actual) return false;
     if (actual->kind == TypeKind::Unknown) return true;
+    if (actual->kind == TypeKind::Never) return true;
     if (expected->kind == TypeKind::Nullable) {
         const auto nullable = std::static_pointer_cast<NullableType>(expected);
         if (actual->kind == TypeKind::Basic &&
@@ -349,6 +370,17 @@ bool bind_adt_type(const std::shared_ptr<Type>& expected,
 bool type_assignable(const std::shared_ptr<Type>& expected,
                      const std::shared_ptr<Type>& actual) noexcept {
     if (!expected || !actual) return false;
+    if (actual->kind == TypeKind::Never) return true;
+    if (expected->kind == TypeKind::Function && actual->kind == TypeKind::Function) {
+        const auto expected_function = std::static_pointer_cast<FunctionType>(expected);
+        const auto actual_function = std::static_pointer_cast<FunctionType>(actual);
+        if (expected_function->params_ty.size() != actual_function->params_ty.size()) return false;
+        for (size_t i = 0; i < expected_function->params_ty.size(); ++i) {
+            if (!expected_function->params_ty[i]->equals(actual_function->params_ty[i].get())) return false;
+        }
+        return actual_function->ret_ty->kind == TypeKind::Never ||
+               expected_function->ret_ty->equals(actual_function->ret_ty.get());
+    }
     if (expected->kind == TypeKind::Nullable) {
         const auto nullable = std::static_pointer_cast<NullableType>(expected);
         if (actual->kind == TypeKind::Basic &&
@@ -383,8 +415,13 @@ bool interval_member_assignable(const std::shared_ptr<Type>& expected,
 std::shared_ptr<Type> unify_types(const std::shared_ptr<Type>& lhs,
                                   const std::shared_ptr<Type>& rhs) noexcept {
     if (!lhs || !rhs) return nullptr;
+    if (lhs->kind == TypeKind::Never)
+        return rhs->kind == TypeKind::Never ? lhs : rhs;
+    if (rhs->kind == TypeKind::Never) return lhs;
     if (lhs->kind == TypeKind::Unknown) return rhs;
     if (rhs->kind == TypeKind::Unknown) return lhs;
+    if (numeric_rank(lhs) >= 0 && numeric_rank(rhs) >= 0)
+        return unify_interval_bounds(lhs, rhs);
     const auto is_null = [](const std::shared_ptr<Type>& type) {
         return type->kind == TypeKind::Basic &&
                std::static_pointer_cast<BasicType>(type)->type == runtime::ValueKind::Null;
@@ -509,6 +546,25 @@ std::shared_ptr<Type> TypeCkContext::resolve_type(const std::shared_ptr<Type>& t
                             std::to_string(it->second->type_params.size()) + " argument(s)", 0, 0);
             }
             return type_pool.named(it->second->qualified_name, std::move(args));
+        }
+        if (named->name == "set") {
+            if (args.size() != 1) {
+                throw_error(ErrorType::Analysis,
+                            "type `set` expects 1 argument(s)", 0, 0);
+                return type_pool.named("set", std::move(args));
+            }
+            const bool unresolved_type_parameter =
+                args.front()->kind == TypeKind::Named &&
+                std::static_pointer_cast<NamedType>(args.front())->args.empty() &&
+                !adt_types.contains(
+                    std::static_pointer_cast<NamedType>(args.front())->name);
+            if (args.front()->kind != TypeKind::Unknown &&
+                !unresolved_type_parameter &&
+                !is_equality_comparable(args.front())) {
+                throw_error(ErrorType::Analysis,
+                            "SetElementNotHashable", 0, 0);
+            }
+            return type_pool.named("set", std::move(args));
         }
         if (const auto dot = named->name.find('.'); dot != std::string::npos) {
             const auto module_name = named->name.substr(0, dot);
@@ -640,6 +696,8 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
         }
         if (node->type && node->type->kind != TypeKind::Unknown) return node->type;
         if (find_var(node->id).has_value())return (*find_var(node->id))->type;
+        if (find_global(node->id).has_value())
+            return (*find_global(node->id))->type;
         break;
     }
     case ASTKind::Unary: {
@@ -665,11 +723,20 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
         if (node->op == BinaryNode::Op::Bind) {
             return type_pool.named("Binding");
         }
-        if (node->op == BinaryNode::Op::In || node->op == BinaryNode::Op::NotIn) {
+        if (node->op == BinaryNode::Op::In ||
+            node->op == BinaryNode::Op::NotIn ||
+            node->op == BinaryNode::Op::Subset) {
             return is_expr_type(left_ty) || is_expr_type(right_ty)
                 ? type_pool.basic(runtime::ValueKind::Expr)
                 : type_pool.basic(runtime::ValueKind::Bool);
         }
+        if (node->op == BinaryNode::Op::SetUnion ||
+            node->op == BinaryNode::Op::SetIntersection ||
+            node->op == BinaryNode::Op::SetSymmetricDifference ||
+            (node->op == BinaryNode::Op::Sub &&
+             (is_named_type(left_ty, "set") ||
+              is_named_type(right_ty, "set"))))
+            return left_ty;
         if (is_expr_type(left_ty) || is_expr_type(right_ty)) {
             return type_pool.basic(runtime::ValueKind::Expr);
         }
@@ -725,9 +792,12 @@ std::shared_ptr<Type> TypeCkContext::inference_type(ExprNode* type) noexcept {
     }
     case ASTKind::DotExpr: {
         const auto node = reinterpret_cast<DotExprNode*>(type);
-        const auto left = std::reinterpret_pointer_cast<ModuleType>(inference_type(node->expr.get()));
-        return (*left->find_var(node->rhs->id))->type;
-        break;
+        const auto left_type = inference_type(node->expr.get());
+        if (!left_type || left_type->kind != TypeKind::Module)
+            return type_pool.unknown();
+        const auto left = std::static_pointer_cast<ModuleType>(left_type);
+        const auto found = left->find_var(node->rhs->id);
+        return found ? (*found)->type : type_pool.unknown();
     }
     case ASTKind::NativeFuncCall: {
         const auto node = reinterpret_cast<NativeFuncCallExpr*>(type);
@@ -784,7 +854,6 @@ static std::shared_ptr<StmtNode> sugar_loop_count(const std::shared_ptr<LoopStmt
     auto break_stmt_block = std::make_shared<BlockExprNode>(0, 0, decltype(BlockExprNode::stmts){std::make_shared<BreakStmtNode>(0, 0)});
 
     auto break_if = std::make_shared<IfExprNode>(0, 0, break_cond, break_stmt_block, nullptr);
-    // if `@loop_cnt_id` == 0 { break }
 
     stmt->body.insert(stmt->body.begin(), std::make_shared<ExprStmtNode>(0, 0, break_if));
 
@@ -799,9 +868,6 @@ static std::shared_ptr<StmtNode> sugar_loop_count(const std::shared_ptr<LoopStmt
 
 
 
-// void HirContext::reset() noexcept {
-//     scope_stack.clear();
-// }
 
 std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module> &mod) noexcept {
     const auto save_cur_module = cur_module;
@@ -848,11 +914,6 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
     }
     for (auto& node : mod->decls) {
         if (node->kind == ASTKind::UnitDecl) check_stmt(node);
-    }
-    for (const auto& n : mod->native_funcs) {
-        for (auto& [name, type] : n->params->stmts) type = resolve_type(type);
-        n->return_type = resolve_type(n->return_type);
-        new_global_var(n->func_id, n->make_type());
     }
     for (const auto& node : mod->decls) {
         if (node->kind != ASTKind::TypeDecl) continue;
@@ -935,7 +996,108 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
             }
         }
     }
-    // reset();
+    std::unordered_set<std::string> local_adt_names;
+    std::unordered_set<std::string> exported_adt_identities;
+    for (const auto& declaration : mod->adt_exports) {
+        local_adt_names.insert(declaration->name);
+        exported_adt_identities.insert(declaration->qualified_name);
+    }
+    for (const auto& imported_module : mod->imports | std::views::values) {
+        for (const auto& declaration : imported_module->adt_exports) {
+            if (local_adt_names.contains(declaration->name) ||
+                !exported_adt_identities.insert(
+                    declaration->qualified_name).second)
+                continue;
+            mod->adt_exports.push_back(declaration);
+        }
+    }
+    mod->function_slots.clear();
+    std::unordered_map<std::string, std::vector<std::pair<size_t, FuncImplNode*>>>
+        regular_function_groups;
+    for (size_t declaration_order = 0; declaration_order < mod->decls.size();
+         ++declaration_order) {
+        const auto& declaration = mod->decls[declaration_order];
+        if (declaration->kind != ASTKind::FuncImpl) continue;
+        auto* function = static_cast<FuncImplNode*>(declaration.get());
+        if (function->func_id == "raise") {
+            throw_error(ErrorType::Analysis,
+                        "cannot redefine builtin `raise`",
+                        function->line, function->col);
+        }
+        for (auto& [name, type] : function->params->stmts) type = resolve_type(type);
+        function->return_type = resolve_type(function->return_type);
+        regular_function_groups[function->func_id].emplace_back(
+            declaration_order, function);
+    }
+    for (const auto& [name, declarations] : regular_function_groups) {
+        for (size_t i = 0; i < declarations.size(); ++i) {
+            const auto* lhs = declarations[i].second;
+            for (size_t j = i + 1; j < declarations.size(); ++j) {
+                const auto* rhs = declarations[j].second;
+                if (lhs->params->stmts.size() != rhs->params->stmts.size()) continue;
+                bool duplicate = true;
+                for (size_t parameter = 0; parameter < lhs->params->stmts.size();
+                     ++parameter) {
+                    if (!lhs->params->stmts[parameter].second->equals(
+                            rhs->params->stmts[parameter].second.get())) {
+                        duplicate = false;
+                        break;
+                    }
+                }
+                if (duplicate) {
+                    throw_error(ErrorType::Analysis,
+                                "duplicate function parameter signature `" + name + "`",
+                                rhs->line, rhs->col);
+                }
+            }
+        }
+    }
+    for (size_t declaration_order = 0; declaration_order < mod->decls.size();
+         ++declaration_order) {
+        const auto& declaration = mod->decls[declaration_order];
+        if (declaration->kind != ASTKind::FuncImpl) continue;
+        auto* function = static_cast<FuncImplNode*>(declaration.get());
+        const auto& group = regular_function_groups[function->func_id];
+        function->compiled_symbol = group.size() == 1
+            ? function->func_id
+            : function->func_id + "\x1f" + std::to_string(declaration_order);
+        mod->function_slots.push_back(function->compiled_symbol);
+    }
+    mod->builtin_functions.clear();
+    const auto add_raise_builtin = [&](std::string symbol,
+                                       std::shared_ptr<Type> parameter_type,
+                                       const bool is_export) {
+        SyntheticBuiltinSpec builtin{
+            SyntheticBuiltinKind::Raise,
+            "raise",
+            std::move(symbol),
+            "value",
+            std::move(parameter_type),
+            type_pool.never(),
+            is_export,
+        };
+        auto type = type_pool.function(
+            {builtin.parameter_type}, builtin.return_type);
+        new_global_var(builtin.source_name, std::move(type), false,
+                       builtin.compiled_symbol, builtin.is_export);
+        mod->function_slots.push_back(builtin.compiled_symbol);
+        mod->builtin_functions.push_back(std::move(builtin));
+    };
+    add_raise_builtin("@builtin.raise.text", type_pool.string(), false);
+    auto normalized_module_path = mod->name;
+    std::ranges::replace(normalized_module_path, '\\', '/');
+    if (normalized_module_path.ends_with(
+            "modules/std/mathematics_error/module.lm")) {
+        add_raise_builtin(
+            "@builtin.raise.mathematics_error",
+            resolve_type(type_pool.named("MathError")),
+            true);
+    }
+    for (const auto& n : mod->native_funcs) {
+        for (auto& [name, type] : n->params->stmts) type = resolve_type(type);
+        n->return_type = resolve_type(n->return_type);
+        new_global_var(n->func_id, n->make_type());
+    }
     for (auto& node : mod->decls) {
         if (node->kind == ASTKind::ImportStmt || node->kind == ASTKind::UnitDecl) continue;
         check_stmt(node);
@@ -945,9 +1107,13 @@ std::vector<Scope::Var> TypeCkContext::check_module(const std::shared_ptr<Module
 
     std::vector<Scope::Var> result;
 
+    // Module exports include imported modules so packages can expose
+    // hierarchical APIs such as std.cas and std.math.
     for (const auto& v : get_global()) {
-        if (v.type->kind == TypeKind::Function ||
-            v.type->kind == TypeKind::NativeFunction) {
+        if (v.is_export &&
+            (v.type->kind == TypeKind::Function ||
+             v.type->kind == TypeKind::NativeFunction ||
+             v.type->kind == TypeKind::Module)) {
             result.push_back(v);
         }
     }
@@ -994,20 +1160,37 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             node->type = (*re)->type;
             break;
         }
-        if (const auto re = find_global(node->id); re.has_value()) {
-            if ((*re)->type->kind == TypeKind::AdtConstructor) {
-                const auto constructor = std::static_pointer_cast<AdtConstructorType>((*re)->type);
+        Scope::Var* resolved = nullptr;
+        size_t regular_function_count = 0;
+        for (auto& global : global_scope) {
+            if (global.name != node->id) continue;
+            if (!resolved) resolved = &global;
+            if (global.type->kind == TypeKind::Function)
+                ++regular_function_count;
+        }
+        if (regular_function_count > 1) {
+            throw_error(ErrorType::Analysis, "ambiguous overloaded function",
+                        node->line, node->col);
+            break;
+        }
+        if (resolved) {
+            if (resolved->type->kind == TypeKind::AdtConstructor) {
+                const auto constructor =
+                    std::static_pointer_cast<AdtConstructorType>(resolved->type);
                 if (!constructor->fields.empty()) {
-                    node->type = (*re)->type;
+                    node->type = resolved->type;
                     break;
                 }
                 node->is_zero_adt_constructor = true;
                 node->adt_type_name = constructor->type_name;
-                std::vector<std::shared_ptr<Type>> args(constructor->type_params.size(), type_pool.unknown());
-                node->type = type_pool.named(constructor->type_name, std::move(args));
+                std::vector<std::shared_ptr<Type>> args(
+                    constructor->type_params.size(), type_pool.unknown());
+                node->type = type_pool.named(constructor->type_name,
+                                             std::move(args));
                 break;
             }
-            node->type = (*re)->type;
+            node->type = resolved->type;
+            node->compiled_symbol = resolved->symbol;
             break;
         }
         throw_error(ErrorType::Analysis, "undefined var `" + node->id + "`", node->line, node->col);
@@ -1205,28 +1388,86 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             }
         }
         if (node->op == BinaryNode::Op::In || node->op == BinaryNode::Op::NotIn) {
-            if (is_expr_type(lty) || is_expr_type(rty)) {
-                if (is_expr_constructible(lty)) {
+            if (is_named_type(rty, "set")) {
+                const auto container = std::static_pointer_cast<NamedType>(rty);
+                if (container->args.size() != 1)
+                    goto binary_type_mismatch;
+                const auto& element = container->args.front();
+                if (is_expr_type(element) && is_expr_constructible(lty))
                     mark_expr_promotion(node->lhs);
-                }
-                if (node->rhs->kind == ASTKind::LiteralPayload || is_expr_constructible(rty)) {
+                const bool assignable =
+                    type_assignable(element, node->lhs->type) ||
+                    (numeric_rank(element) >= 0 &&
+                     numeric_rank(node->lhs->type) >= 0);
+                if (!assignable) goto binary_type_mismatch;
+                node->type = type_pool.basic(runtime::ValueKind::Bool);
+                break;
+            }
+            if (is_expr_type(lty) || is_expr_type(rty)) {
+                if (is_expr_constructible(lty))
+                    mark_expr_promotion(node->lhs);
+                if (node->rhs->kind == ASTKind::LiteralPayload ||
+                    is_expr_constructible(rty))
                     mark_expr_promotion(node->rhs);
-                }
                 node->type = type_pool.basic(runtime::ValueKind::Expr);
                 break;
             }
-            if (!is_named_type(rty, "set") && !is_named_type(rty, "interval")) {
+            if (!is_named_type(rty, "interval"))
                 goto binary_type_mismatch;
-            }
             const auto container = std::static_pointer_cast<NamedType>(rty);
             if (container->args.size() != 1 ||
-                !(container->name == "interval"
-                      ? interval_member_assignable(container->args.front(), lty)
-                      : type_assignable(container->args.front(), lty))) {
+                !interval_member_assignable(container->args.front(), lty))
                 goto binary_type_mismatch;
-            }
             node->type = type_pool.basic(runtime::ValueKind::Bool);
             break;
+        }
+        {
+        const bool explicit_set_operation =
+            node->op == BinaryNode::Op::SetUnion ||
+            node->op == BinaryNode::Op::SetIntersection ||
+            node->op == BinaryNode::Op::SetSymmetricDifference ||
+            node->op == BinaryNode::Op::Subset;
+        const bool set_difference =
+            node->op == BinaryNode::Op::Sub &&
+            (is_named_type(lty, "set") || is_named_type(rty, "set"));
+        if (explicit_set_operation || set_difference) {
+            if (!is_named_type(lty, "set") ||
+                !is_named_type(rty, "set")) {
+                throw_error(ErrorType::Analysis, "SetOperandTypeMismatch",
+                            node->line, node->col);
+                break;
+            }
+            const auto left_set = std::static_pointer_cast<NamedType>(lty);
+            const auto right_set = std::static_pointer_cast<NamedType>(rty);
+            if (left_set->args.size() != 1 || right_set->args.size() != 1) {
+                throw_error(ErrorType::Analysis, "SetOperandTypeMismatch",
+                            node->line, node->col);
+                break;
+            }
+            auto element = unify_types(left_set->args.front(),
+                                       right_set->args.front());
+            if (!element)
+                element = unify_interval_bounds(left_set->args.front(),
+                                                right_set->args.front());
+            if (!element) {
+                throw_error(ErrorType::Analysis, "SetElementTypeMismatch",
+                            node->line, node->col);
+                break;
+            }
+            if (element->kind != TypeKind::Unknown &&
+                !is_equality_comparable(element)) {
+                throw_error(ErrorType::Analysis, "SetElementNotHashable",
+                            node->line, node->col);
+                break;
+            }
+            const auto set_type = type_pool.named("set", {element});
+            if (contains_unknown_type(lty)) node->lhs->type = set_type;
+            if (contains_unknown_type(rty)) node->rhs->type = set_type;
+            node->type = node->op == BinaryNode::Op::Subset
+                ? type_pool.basic(runtime::ValueKind::Bool)
+                : set_type;
+            break;
+        }
         }
         if (is_expr_type(lty) || is_expr_type(rty)) {
             switch (node->op) {
@@ -1261,20 +1502,31 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 break;
             }
         }
-        if (!lty->equals(rty.get())) {
-            throw_error(
-                ErrorType::Analysis,
-                "binary operation type mismatch, (" +
-                Type::to_string(lty.get()) + " " +
-                BinaryNode::op_to_string(node->op) + " " + Type::to_string(rty.get()) + ")", expr->line, expr->col);
-            break;
-        }
-        if (lty->kind != TypeKind::Basic) goto binary_type_mismatch;
         {
-            const auto operand = std::reinterpret_pointer_cast<BasicType>(lty)->type;
+        auto operand_type = lty;
+        if (!lty->equals(rty.get())) {
+            if (numeric_rank(lty) >= 0 && numeric_rank(rty) >= 0) {
+                operand_type = unify_interval_bounds(lty, rty);
+            } else {
+                throw_error(
+                    ErrorType::Analysis,
+                    "binary operation type mismatch, (" +
+                    Type::to_string(lty.get()) + " " +
+                    BinaryNode::op_to_string(node->op) + " " +
+                    Type::to_string(rty.get()) + ")",
+                    expr->line, expr->col);
+                break;
+            }
+        }
+        if (!operand_type || operand_type->kind != TypeKind::Basic)
+            goto binary_type_mismatch;
+        {
+            const auto operand =
+                std::reinterpret_pointer_cast<BasicType>(operand_type)->type;
             const auto result = basic_binary_result(operand, node->op);
             if (!result) goto binary_type_mismatch;
             node->type = type_pool.basic(*result);
+        }
         }
         break;
         binary_type_mismatch:
@@ -1289,10 +1541,27 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         node->type = literal_payload_type(*node);
         if (node->type->kind == TypeKind::Unknown) {
             const char* diagnostic = node->payload_kind == LiteralPayloadNode::Kind::Set
-                ? "set elements must have one type"
+                ? "SetElementTypeMismatch"
                 : "IntervalBoundTypeMismatch: interval bounds cannot be unified";
             throw_error(ErrorType::Analysis, diagnostic, node->line, node->col);
             break;
+        }
+        if (node->payload_kind == LiteralPayloadNode::Kind::Set) {
+            const auto set = std::static_pointer_cast<NamedType>(node->type);
+            if (set->args.size() == 1 &&
+                is_expr_type(set->args.front())) {
+                for (auto& element : node->elements) {
+                    if (is_expr_constructible(element->type))
+                        mark_expr_promotion(element);
+                }
+            }
+            if (set->args.size() == 1 &&
+                set->args.front()->kind != TypeKind::Unknown &&
+                !is_equality_comparable(set->args.front())) {
+                throw_error(ErrorType::Analysis, "SetElementNotHashable",
+                            node->line, node->col);
+                break;
+            }
         }
         if (node->payload_kind == LiteralPayloadNode::Kind::Interval &&
             !is_expr_type(node->type)) {
@@ -1389,15 +1658,112 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 }
             }
         }
-        if (node->expr->kind == ASTKind::Identifier) {
-            const auto id = reinterpret_cast<IdentifierNode*>(node->expr.get());
-            if (const auto re = find_global(id->id); re.has_value()) {
-                node->can_fast = true;
+        node->can_fast = false;
+        bool selected_callable = false;
+        const std::function<std::shared_ptr<Type>(ExprNode*)>
+            candidate_type = [&](ExprNode* argument) -> std::shared_ptr<Type> {
+            if (!argument) return type_pool.unknown();
+            if (argument->type && argument->type->kind != TypeKind::Unknown)
+                return argument->type;
+            if (argument->kind == ASTKind::Identifier ||
+                argument->kind == ASTKind::Literal ||
+                argument->kind == ASTKind::Unary ||
+                argument->kind == ASTKind::Binary)
+                return inference_type(argument);
+            if (argument->kind != ASTKind::ArrayLiteral)
+                return type_pool.unknown();
+            const auto* array = static_cast<ArrayLiteralNode*>(argument);
+            if (array->exprs.empty()) return type_pool.array(type_pool.unknown());
+            const auto element = candidate_type(array->exprs.front().get());
+            for (std::size_t index = 1; index < array->exprs.size(); ++index) {
+                if (!element->equals(candidate_type(array->exprs[index].get()).get()))
+                    return type_pool.unknown();
             }
-        } else {
-            node->can_fast = false;
+            return type_pool.array(element);
+        };
+        const auto parameters_match = [&](const auto& params) {
+            if (params.size() != node->suffix->exprs.size()) return false;
+            for (std::size_t index = 0; index < params.size(); ++index) {
+                const auto argument = candidate_type(node->suffix->exprs[index].get());
+                if (argument->kind != TypeKind::Unknown &&
+                    !type_assignable(params[index], argument) &&
+                    !(is_expr_type(params[index]) && is_expr_constructible(argument)))
+                    return false;
+            }
+            return true;
+        };
+        if (node->expr->kind == ASTKind::Identifier) {
+            auto* id = static_cast<IdentifierNode*>(node->expr.get());
+            if (!find_var(id->id).has_value()) {
+                std::vector<Scope::Var*> regular_candidates;
+                for (auto& global : global_scope) {
+                    if (global.name == id->id &&
+                        global.type->kind == TypeKind::Function)
+                        regular_candidates.push_back(&global);
+                }
+                if (!regular_candidates.empty()) {
+                    const auto selected = std::find_if(
+                        regular_candidates.begin(), regular_candidates.end(),
+                        [&](const auto* candidate) {
+                            return parameters_match(
+                                std::static_pointer_cast<FunctionType>(
+                                    candidate->type)->params_ty);
+                        });
+                    auto* chosen = selected == regular_candidates.end()
+                        ? regular_candidates.front() : *selected;
+                    id->type = chosen->type;
+                    id->compiled_symbol = chosen->symbol;
+                    node->can_fast = true;
+                    selected_callable = true;
+                }
+            }
+        } else if (node->expr->kind == ASTKind::DotExpr) {
+            auto* dot = static_cast<DotExprNode*>(node->expr.get());
+            const auto owner_type = inference_type(dot->expr.get());
+            if (owner_type && owner_type->kind == TypeKind::Module) {
+                dot->expr->type = owner_type;
+                const auto module = std::static_pointer_cast<ModuleType>(owner_type);
+                std::vector<Scope::Var*> regular_candidates;
+                std::vector<std::shared_ptr<NativeFunctionType>> native_candidates;
+                for (auto& exported : module->exports) {
+                    if (exported.name != dot->rhs->id) continue;
+                    if (exported.type->kind == TypeKind::Function)
+                        regular_candidates.push_back(&exported);
+                    else if (exported.type->kind == TypeKind::NativeFunction)
+                        native_candidates.push_back(
+                            std::static_pointer_cast<NativeFunctionType>(exported.type));
+                }
+                if (!regular_candidates.empty()) {
+                    const auto selected = std::find_if(
+                        regular_candidates.begin(), regular_candidates.end(),
+                        [&](const auto* candidate) {
+                            return parameters_match(
+                                std::static_pointer_cast<FunctionType>(
+                                    candidate->type)->params_ty);
+                        });
+                    auto* chosen = selected == regular_candidates.end()
+                        ? regular_candidates.front() : *selected;
+                    dot->rhs->type = chosen->type;
+                    dot->type = chosen->type;
+                    dot->compiled_symbol = chosen->symbol;
+                    selected_callable = true;
+                } else if (!native_candidates.empty()) {
+                    const auto selected = std::find_if(
+                        native_candidates.begin(), native_candidates.end(),
+                        [&](const auto& candidate) {
+                            return parameters_match(candidate->params_ty);
+                        });
+                    const auto& chosen = selected == native_candidates.end()
+                        ? native_candidates.front() : *selected;
+                    dot->rhs->type = chosen;
+                    dot->type = chosen;
+                    if (native_candidates.size() > 1)
+                        node->adt_constructor = chosen->name;
+                    selected_callable = true;
+                }
+            }
         }
-        check_expr(node->expr);
+        if (!selected_callable) check_expr(node->expr);
         const auto left = node->expr->type;
         if (Type::is_null_type(left.get())) break;
         if (left->kind == TypeKind::AdtConstructor) {
@@ -1466,8 +1832,10 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             if (symbolic_fallback) break;
             node->type = std::reinterpret_pointer_cast<FunctionType>(left)->ret_ty;
         } else if (left->kind == TypeKind::NativeFunction) {
+            const auto native_symbol = node->adt_constructor;
             new (expr.get()) NativeFuncCallExpr(node);
             const auto node = reinterpret_cast<NativeFuncCallExpr*>(expr.get());
+            node->adt_constructor = native_symbol;
             const auto func_ty = std::reinterpret_pointer_cast<NativeFunctionType>(left);
             bool has_va_list = false;
             size_t fixed_arg_cnt = func_ty->params_ty.size();
@@ -1475,7 +1843,6 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                 if (p->kind == TypeKind::Basic &&
                     reinterpret_cast<BasicType*>(p.get())->type == runtime::ValueKind::C_VaList) {
                     if (p.get() != func_ty->params_ty.back().get()) {
-                        // 如果变参不是最后一个类型，报错
                         throw_error(ErrorType::Analysis, "c_valist must be last type", node->line, node->col);
                         goto suffix_paren_break;
                     }
@@ -1504,12 +1871,18 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
                     mark_expr_promotion(node->suffix->exprs[i]);
                 }
                 if (!type_assignable(param, node->suffix->exprs[i]->type)) {
-                    throw_error(ErrorType::Analysis, "type mismatch arg in function calling", node->line, node->col);
+                    throw_error(
+                        ErrorType::Analysis,
+                        "type mismatch arg " + std::to_string(i) +
+                            " in function calling: " +
+                            Type::to_string(node->suffix->exprs[i]->type.get()) +
+                            " is not assignable to " +
+                            Type::to_string(param.get()),
+                        node->line, node->col);
                     break;
                 }
             }
             for (; i < len; i++) {
-                // const auto param = func_ty->params_ty[i];
                 check_expr(node->suffix->exprs[i]);
             }
 
@@ -1551,13 +1924,19 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         check_expr(node->then);
         if (node->els) {
             check_expr(node->els);
-            if ( node->then->have_ret_value() && node->els->have_ret_value() &&
-                !node->then->type->equals(node->els->type.get())) {
-                throw_error(ErrorType::Analysis, "if express then and else cannot type mismatch", node->line, node->col);
-                break;
+            if (node->then->have_ret_value() && node->els->have_ret_value()) {
+                auto unified = unify_types(node->then->type, node->els->type);
+                if (!unified) {
+                    throw_error(ErrorType::Analysis, "if express then and else cannot type mismatch", node->line, node->col);
+                    break;
+                }
+                node->type = std::move(unified);
+            } else {
+                node->type = node->then->type;
             }
+        } else {
+            node->type = node->then->type;
         }
-        node->type = node->then->type;
         break;
     }
     case ASTKind::AsExpr: {
@@ -1690,12 +2069,28 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             } else {
                 node->type = node->rhs->type;
             }
-        } else if (const auto result = left_ty->find_var(node->rhs->id); result.has_value()) {
-            const auto* var = *result;
-            node->rhs->type = var->type;
-            node->type = var->type;
         } else {
-            throw_error(ErrorType::Analysis, "module not have var `" + node->rhs->id + "`", node->line, node->col);
+            Scope::Var* resolved = nullptr;
+            size_t regular_function_count = 0;
+            for (auto& exported : left_ty->exports) {
+                if (exported.name != node->rhs->id) continue;
+                if (!resolved) resolved = &exported;
+                if (exported.type->kind == TypeKind::Function)
+                    ++regular_function_count;
+            }
+            if (regular_function_count > 1) {
+                throw_error(ErrorType::Analysis, "ambiguous overloaded function",
+                            node->line, node->col);
+                break;
+            }
+            if (resolved) {
+                node->rhs->type = resolved->type;
+                node->type = resolved->type;
+                node->compiled_symbol = resolved->symbol;
+                break;
+            }
+            throw_error(ErrorType::Analysis, "module not have var `" +
+                        node->rhs->id + "`", node->line, node->col);
             break;
         }
         break;
@@ -2104,17 +2499,14 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
         }
         break;
     }
-    //case ASTKind::Exprs:
-    //    break;
-    //case ASTKind::ParamsDeclNode:
-    //    break;
     case ASTKind::FuncImpl: {
         auto* node = reinterpret_cast<FuncImplNode*>(stmt.get());
         if (!is_global_scope()) throw_error(ErrorType::Analysis, "function only define in GlobalScope", stmt->line, stmt->col);
 
         for (auto& [name, type] : node->params->stmts) type = resolve_type(type);
         node->return_type = resolve_type(node->return_type);
-        new_global_var(node->func_id, node->make_type());
+        new_global_var(node->func_id, node->make_type(), false,
+                       node->compiled_symbol);
         auto& ref = global_scope.back();
         Scope scope;
         scope.name = node->func_id;
@@ -2134,15 +2526,6 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
         if (!node->return_type->equals(scope_stack.back().return_type.get())) {
             node->return_type = scope_stack.back().return_type;
         }
-        // if (Type::is_null_type(node->return_type.get())) {
-        //     node->return_type = node->block->type;
-        // }
-        // else {
-        //     if (!node->return_type->equals(node->block->type.get())) {
-        //         throw_error(ErrorType::Analysis, "return type mismatch in function `" + node->func_id + "`", node->line, node->col);
-        //         break;
-        //     }
-        // }
 
         scope_stack.pop_back();
         ref.type = node->make_type();
@@ -2191,7 +2574,6 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
                 break;
             }
         }
-        // node->expr->type = inference_type(node->expr.get());
         break;
     }
     case ASTKind::VarDecl: {
@@ -2235,7 +2617,6 @@ void TypeCkContext::check_stmt(std::shared_ptr<StmtNode>& stmt) noexcept {
         check_expr(node->lhs);
         check_expr(node->rhs);
         if (node->lhs->kind == ASTKind::SuffixBracket) {
-            // 数组元素赋值 a[i] = v，元素类型已由 check_expr 赋到 node->lhs->type
         } else if (node->lhs->kind == ASTKind::TupleGetExpr) {
             throw_error(ErrorType::Analysis,
                         "TupleAssignment: tuple element bindings are immutable",
@@ -2314,8 +2695,11 @@ void TypeCkContext::new_cur_scope_var(std::string name, std::shared_ptr<Type> ty
     scope_stack.back().vars.emplace_back(std::move(name), std::move(type), is_mut);
 }
 
-void TypeCkContext::new_global_var(std::string name, std::shared_ptr<Type> type, bool is_mut) noexcept {
-    global_scope.emplace_back(std::move(name), std::move(type), is_mut);
+void TypeCkContext::new_global_var(std::string name, std::shared_ptr<Type> type,
+                                   bool is_mut, std::string symbol,
+                                   bool is_export) noexcept {
+    global_scope.emplace_back(std::move(name), std::move(type), is_mut,
+                              std::move(symbol), is_export);
 }
 
 std::vector<Scope::Var> &TypeCkContext::get_global() noexcept {

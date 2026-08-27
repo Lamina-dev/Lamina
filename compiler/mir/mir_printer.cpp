@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/7/20.
-//
 
 #include "mir_printer.hpp"
 #include "../../runtime/opcode.hpp"
@@ -34,6 +31,12 @@ std::string MirPrinter::opcode_name(const runtime::Opcode::Opcode op) {
     case runtime::Opcode::CCall:       return "ccall";
     case runtime::Opcode::CallFast:    return "call_fast";
     case runtime::Opcode::Ret:         return "ret";
+    case runtime::Opcode::Raise:       return "raise";
+    case runtime::Opcode::SetUnion: return "set_union";
+    case runtime::Opcode::SetIntersection: return "set_intersection";
+    case runtime::Opcode::SetDifference: return "set_difference";
+    case runtime::Opcode::SetSymmetricDifference: return "set_symmetric_difference";
+    case runtime::Opcode::SetSubset: return "set_subset";
 
     case runtime::Opcode::Goto:        return "goto";
     case runtime::Opcode::ICmpEq:      return "icmp_eq";
@@ -166,6 +169,8 @@ void MirPrinter::format_operate(std::ostringstream &ss, const MirOperateExpr &op
         break;
     case runtime::Opcode::Ret:
         DISPATCH(MirRetExpr, format_unary(ss, name, d.value));
+    case runtime::Opcode::Raise:
+        DISPATCH(MirRaiseExpr, format_unary(ss, name, d.value));
 
     case runtime::Opcode::New:
         DISPATCH(MirNewExpr, format_unary(ss, name, d.expr));
@@ -181,6 +186,12 @@ void MirPrinter::format_operate(std::ostringstream &ss, const MirOperateExpr &op
         DISPATCH(MirIModExpr, format_binary(ss, name, d.lhs, d.rhs));
     case runtime::Opcode::IPow:
         DISPATCH(MirIPowExpr, format_binary(ss, name, d.lhs, d.rhs));
+    case runtime::Opcode::SetUnion:
+    case runtime::Opcode::SetIntersection:
+    case runtime::Opcode::SetDifference:
+    case runtime::Opcode::SetSymmetricDifference:
+    case runtime::Opcode::SetSubset:
+        DISPATCH(MirSetBinaryExpr, format_binary(ss, name, d.lhs, d.rhs));
     case runtime::Opcode::INeg:
         DISPATCH(MirINegExpr, format_unary(ss, name, d.e));
     case runtime::Opcode::FAdd:

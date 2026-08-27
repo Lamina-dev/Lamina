@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/4/6.
-//
 
 #include "vm.hpp"
 
@@ -20,24 +17,20 @@
 #include "object/tuple.hpp"
 
 namespace lmx::runtime {
+namespace {
+thread_local LaminaVM* active_vm = nullptr;
+}
 LaminaVM::LaminaVM(const int argc, char **argv) noexcept :
-    // cp(cp),
     stack(new Value[LMX_VM_REG_COUNT * LMX_CALLSTACK_MAX_COUNT]),
     regs(stack),
-    //local_vars_bp(new Value[LMX_LOCAL_VAR_COUNT * LMX_CALLSTACK_MAX_COUNT]),
-    //local_vars_curp(local_vars_bp),
-    // global_vars(/*new Value[65536]*/nullptr),
-    // cur_frame(new Frame(nullptr, nullptr, local_vars_curp)),
     args(argv, argc),
-    call_vm(dcNewCallVM(4096)) {}
+    call_vms{dcNewCallVM(4096)} {}
 
 LaminaVM::~LaminaVM() noexcept {
     delete[] stack;
-    // delete[] global_vars;
-    //delete[] local_vars_bp;
     for (const auto frames : free_frames) delete frames;
     delete cur_frame;
-    dcFree(call_vm);
+    for (auto* call_vm : call_vms) dcFree(call_vm);
 }
 
 Value &LaminaVM::get_reg(const uint8_t reg) const noexcept {
@@ -46,7 +39,6 @@ Value &LaminaVM::get_reg(const uint8_t reg) const noexcept {
 
 Frame::Frame(Frame* last, CodeModuleObj* mod ,const uint8_t *ret_addr) noexcept
     : last(last), mod(mod), ret_addr(ret_addr)
-//, local_vars(local_vars)
 {}
 
 Frame::~Frame() noexcept = default;
@@ -63,8 +55,18 @@ Fraction as_fraction(const Value& value) noexcept {
     return Fraction();
 }
 
+double as_real(const Value& value) noexcept {
+    if (value.kind == ValueKind::Real) return value.real_val;
+    if (value.kind == ValueKind::Fraction) return value.frac_val.to_float();
+    if (value.kind == ValueKind::Int) return static_cast<double>(value.int_val);
+    assert(false && "real opcode received a non-numeric value");
+    return 0.0;
+}
+
+bool uses_real(const Value& lhs, const Value& rhs) noexcept {
+    return lhs.kind == ValueKind::Real || rhs.kind == ValueKind::Real;
+}
 void make_elem(LmGCAllocator &allocator, ArrayObj *arr, const uint32_t idx, const ConstantPoolInfo &e) {
-    // alloc_array(len) 已预建 len 个默认元素，用 store 按索引填充
     switch (e.id) {
     case ConstantId::Int:
         arr->store(idx, Value(e.int_value));
@@ -134,7 +136,10 @@ static const void* dispatch[] = {\
     &&opGetModule, &&opGetModuleAttr, &&opGetFunc,\
     &&opTupleGet, &&opTupleSet,\
     &&opAdtNew, &&opAdtIs, &&opAdtGet,\
-    &&opLiteralNew, &&opContains, &&opNotContains\
+    &&opLiteralNew, &&opContains, &&opNotContains,\
+    &&opRaise,\
+    &&opSetUnion, &&opSetIntersection, &&opSetDifference,\
+    &&opSetSymmetricDifference, &&opSetSubset\
 };\
 goto *dispatch[*ip];
 
@@ -168,9 +173,29 @@ static AdtObj* make_adt_value(const CodeModuleObj* module, Value* regs, const ui
     return new AdtObj(type_name, constructor, std::move(fields));
 }
 
+static bool adt_matches(
+    const AdtObj& value, const std::string& expected) noexcept {
+    const auto separator = expected.find('\x1f');
+    if (separator == std::string::npos ||
+        expected.compare(separator + 1, std::string::npos,
+                         value.constructor()) != 0)
+        return false;
+    const std::string_view expected_type(expected.data(), separator);
+    if (expected_type == value.type_name()) return true;
+    if (value.type_name().find("::") != std::string::npos ||
+        expected_type.size() <= value.type_name().size() + 2)
+        return false;
+    const auto suffix = expected_type.substr(
+        expected_type.size() - value.type_name().size());
+    const auto prefix_end =
+        expected_type.size() - value.type_name().size();
+    return suffix == value.type_name() && prefix_end >= 2 &&
+           expected_type.substr(prefix_end - 2, 2) == "::";
+}
 static Value make_literal_value(Value* regs, const uint8_t count,
                                 const uint8_t flags) {
     std::vector<Value> elements;
+
     elements.reserve(count);
     for (uint8_t i = 0; i < count; ++i) {
         elements.push_back(regs[LMX_VM_REG_COUNT - 1 - i]);
@@ -182,17 +207,106 @@ static Value make_literal_value(Value* regs, const uint8_t count,
     return Value(literal, kind == LiteralObj::Kind::Interval
         ? ValueKind::Interval : ValueKind::Set);
 }
+static const LiteralObj* set_literal(const Value& value) noexcept {
+    if (value.kind != ValueKind::Set || !value.obj ||
+        value.obj->get_kind() != ObjectKind::Literal)
+        return nullptr;
+    const auto* literal = reinterpret_cast<const LiteralObj*>(value.obj);
+    return literal->literal_kind() == LiteralObj::Kind::Set ? literal : nullptr;
+}
 
-int LaminaVM::run(CodeModuleObj *prog) noexcept {
-    cur_frame = new Frame(nullptr, prog, nullptr);
-    const uint8_t* ip = prog->code;
-    // assert((reinterpret_cast<uint64_t>(ip) % 4) == 0);
+static Value make_set_value(std::vector<Value> elements) {
+    return Value(new LiteralObj(LiteralObj::Kind::Set, std::move(elements)),
+                 ValueKind::Set);
+}
+
+LaminaVM* LaminaVM::current() noexcept {
+    return active_vm;
+}
+
+int LaminaVM::run(CodeModuleObj* prog) noexcept {
+    if (!prog) return 1;
+    const auto* previous_vm = active_vm;
+    active_vm = this;
+    regs = stack;
+    new_frame(this, prog, nullptr);
     if (const char* debug = std::getenv("LMX_DEBUG_DUMP");
         debug && debug[0] != '\0' && debug[0] != '0') {
         std::cout << prog->disassemble() << std::endl;
     }
-    // return 0;
-    //const auto start = std::chrono::high_resolution_clock::now();
+    try {
+        (void)execute(prog->code, nullptr);
+        while (cur_frame) (void)pop_frame(this);
+        for (std::size_t i = 0; i < LMX_VM_REG_COUNT; ++i) regs[i] = Value{};
+        active_vm = const_cast<LaminaVM*>(previous_vm);
+        return 0;
+    } catch (const std::exception& error) {
+        std::cerr << error.what() << std::endl;
+        while (cur_frame) (void)pop_frame(this);
+        for (std::size_t i = 0; i < LMX_VM_REG_COUNT; ++i) regs[i] = Value{};
+        active_vm = const_cast<LaminaVM*>(previous_vm);
+        return 1;
+    } catch (...) {
+        std::cerr << "unknown VM failure" << std::endl;
+        while (cur_frame) (void)pop_frame(this);
+        for (std::size_t i = 0; i < LMX_VM_REG_COUNT; ++i) regs[i] = Value{};
+        active_vm = const_cast<LaminaVM*>(previous_vm);
+        return 1;
+    }
+}
+
+std::expected<Value, std::string> LaminaVM::invoke(
+    const FuncObj& function, const std::span<const Value> arguments) noexcept {
+    if (!cur_frame || active_vm != this) {
+        return std::unexpected("Lamina callback invoked outside an active VM");
+    }
+    if (arguments.size() > LMX_LOCAL_VAR_COUNT) {
+        return std::unexpected("Lamina callback has too many arguments");
+    }
+    const auto register_offset = static_cast<std::size_t>(regs - stack);
+    if (register_offset + LMX_VM_REG_COUNT >=
+        LMX_VM_REG_COUNT * LMX_CALLSTACK_MAX_COUNT) {
+        return std::unexpected("Lamina callback nesting limit exceeded");
+    }
+
+    Frame* const outer_frame = cur_frame;
+    Value* const outer_regs = regs;
+    Value* const callback_regs = regs + LMX_VM_REG_COUNT;
+    new_frame(this, function.mod, nullptr);
+    for (std::size_t i = 0; i < arguments.size(); ++i) {
+        cur_frame->local_vars[i] = arguments[i];
+    }
+    regs = callback_regs;
+    ++invoke_depth;
+    try {
+        auto result = execute(function.addr, outer_frame);
+        while (cur_frame != outer_frame) (void)pop_frame(this);
+        regs = outer_regs;
+        for (std::size_t i = 0; i < LMX_VM_REG_COUNT; ++i) {
+            callback_regs[i] = Value{};
+        }
+        --invoke_depth;
+        return result;
+    } catch (const std::exception& error) {
+        while (cur_frame != outer_frame) (void)pop_frame(this);
+        regs = outer_regs;
+        for (std::size_t i = 0; i < LMX_VM_REG_COUNT; ++i) {
+            callback_regs[i] = Value{};
+        }
+        --invoke_depth;
+        return std::unexpected(error.what());
+    } catch (...) {
+        while (cur_frame != outer_frame) (void)pop_frame(this);
+        regs = outer_regs;
+        for (std::size_t i = 0; i < LMX_VM_REG_COUNT; ++i) {
+            callback_regs[i] = Value{};
+        }
+        --invoke_depth;
+        return std::unexpected("unknown Lamina callback failure");
+    }
+}
+
+Value LaminaVM::execute(const uint8_t* ip, Frame* stop_frame) {
     VM_DISPATCH
 
 
@@ -243,9 +357,7 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
 
     VM_LABEL(Halt) {
-        //const auto end = std::chrono::high_resolution_clock::now();
-        //std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start) << std::endl;
-        return 0;
+        return Value{};
     }
 
     VM_LABEL(IAdd) {
@@ -287,9 +399,8 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
         VM_NEXT
     }
 
-    VM_LABEL(FuncCreate) { // create lambda func
+    VM_LABEL(FuncCreate) {
         uint16_t code_idx = read_u16(ip + 2);
-        // regs[ip[1]] = new CodeModule(code_idx, nullptr);
         VM_NEXT
     }
 
@@ -317,12 +428,12 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
 
     VM_LABEL(Ret) {
-        ip = pop_frame(this);
-
-        const auto r0 = regs;
-
+        const auto* return_address = pop_frame(this);
+        auto* returned_regs = regs;
         regs -= LMX_VM_REG_COUNT;
-        regs[0] = *r0;
+        if (cur_frame == stop_frame) return std::move(returned_regs[0]);
+        regs[0] = std::move(returned_regs[0]);
+        ip = return_address;
         VM_NEXT_RAW
     }
 
@@ -390,42 +501,52 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
     }
 
     VM_LABEL(GGet) {
-        // regs[ip[1]] = global_vars[read_u16(ip + 2)];
         VM_NEXT
     }
 
     VM_LABEL(GSet) {
-        // global_vars[read_u16(ip + 2)] = regs[ip[1]];
         VM_NEXT
     }
 
     VM_LABEL(FAdd) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) + as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? Value(as_real(regs[ip[2]]) + as_real(regs[ip[3]]))
+            : Value(as_fraction(regs[ip[2]]) + as_fraction(regs[ip[3]]));
         VM_NEXT
     }
 
     VM_LABEL(FSub) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) - as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? Value(as_real(regs[ip[2]]) - as_real(regs[ip[3]]))
+            : Value(as_fraction(regs[ip[2]]) - as_fraction(regs[ip[3]]));
         VM_NEXT
     }
 
     VM_LABEL(FMul) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) * as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? Value(as_real(regs[ip[2]]) * as_real(regs[ip[3]]))
+            : Value(as_fraction(regs[ip[2]]) * as_fraction(regs[ip[3]]));
         VM_NEXT
     }
 
     VM_LABEL(FDiv) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) / as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? Value(as_real(regs[ip[2]]) / as_real(regs[ip[3]]))
+            : Value(as_fraction(regs[ip[2]]) / as_fraction(regs[ip[3]]));
         VM_NEXT
     }
 
     VM_LABEL(FMod) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) % as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? Value(std::fmod(as_real(regs[ip[2]]), as_real(regs[ip[3]])))
+            : Value(as_fraction(regs[ip[2]]) % as_fraction(regs[ip[3]]));
         VM_NEXT
     }
 
     VM_LABEL(FNeg) {
-        regs[ip[1]] = -as_fraction(regs[ip[2]]);
+        regs[ip[1]] = regs[ip[2]].kind == ValueKind::Real
+            ? Value(-regs[ip[2]].real_val)
+            : Value(-as_fraction(regs[ip[2]]));
         VM_NEXT
     }
     VM_LABEL(MovRR) {
@@ -454,27 +575,39 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
         VM_NEXT
     }
     VM_LABEL(FCmpEq) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) == as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? as_real(regs[ip[2]]) == as_real(regs[ip[3]])
+            : as_fraction(regs[ip[2]]) == as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(FCmpNe) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) != as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? as_real(regs[ip[2]]) != as_real(regs[ip[3]])
+            : as_fraction(regs[ip[2]]) != as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(FCmpLt) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) < as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? as_real(regs[ip[2]]) < as_real(regs[ip[3]])
+            : as_fraction(regs[ip[2]]) < as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(FCmpLe) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) <= as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? as_real(regs[ip[2]]) <= as_real(regs[ip[3]])
+            : as_fraction(regs[ip[2]]) <= as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(FCmpGt) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) > as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? as_real(regs[ip[2]]) > as_real(regs[ip[3]])
+            : as_fraction(regs[ip[2]]) > as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(FCmpGe) {
-        regs[ip[1]] = as_fraction(regs[ip[2]]) >= as_fraction(regs[ip[3]]);
+        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
+            ? as_real(regs[ip[2]]) >= as_real(regs[ip[3]])
+            : as_fraction(regs[ip[2]]) >= as_fraction(regs[ip[3]]);
         VM_NEXT
     }
     VM_LABEL(GetModule) {
@@ -516,10 +649,7 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
             constructor_value.obj->get_kind() == ObjectKind::String) {
             const auto* adt = reinterpret_cast<const AdtObj*>(value.obj);
             const auto expected = reinterpret_cast<const StringObj*>(constructor_value.obj)->to_string();
-            result = adt->type_name().size() + adt->constructor().size() + 1 == expected.size() &&
-                     expected.compare(0, adt->type_name().size(), adt->type_name()) == 0 &&
-                     expected[adt->type_name().size()] == '\x1f' &&
-                     expected.compare(adt->type_name().size() + 1, std::string::npos, adt->constructor()) == 0;
+            result = adt_matches(*adt, expected);
         }
         regs[ip[1]] = result;
         VM_NEXT
@@ -554,6 +684,56 @@ int LaminaVM::run(CodeModuleObj *prog) noexcept {
             container.obj->get_kind() == ObjectKind::Literal &&
             reinterpret_cast<const LiteralObj*>(container.obj)->contains(regs[ip[2]]);
         regs[ip[1]] = !result;
+        VM_NEXT
+    }
+    VM_LABEL(Raise) {
+        const auto text = regs[ip[1]].to_string();
+        VM_ERROR(RuntimeErrorType::Runtime, text);
+    }
+    VM_LABEL(SetUnion) {
+        const auto* lhs = set_literal(regs[ip[2]]);
+        const auto* rhs = set_literal(regs[ip[3]]);
+        if (!lhs || !rhs)
+            VM_ERROR(RuntimeErrorType::Construct,
+                     "set union received a non-set operand");
+        regs[ip[1]] = make_set_value(lhs->union_elements(*rhs));
+        VM_NEXT
+    }
+    VM_LABEL(SetIntersection) {
+        const auto* lhs = set_literal(regs[ip[2]]);
+        const auto* rhs = set_literal(regs[ip[3]]);
+        if (!lhs || !rhs)
+            VM_ERROR(RuntimeErrorType::Construct,
+                     "set intersection received a non-set operand");
+        regs[ip[1]] = make_set_value(lhs->intersection_elements(*rhs));
+        VM_NEXT
+    }
+    VM_LABEL(SetDifference) {
+        const auto* lhs = set_literal(regs[ip[2]]);
+        const auto* rhs = set_literal(regs[ip[3]]);
+        if (!lhs || !rhs)
+            VM_ERROR(RuntimeErrorType::Construct,
+                     "set difference received a non-set operand");
+        regs[ip[1]] = make_set_value(lhs->difference_elements(*rhs));
+        VM_NEXT
+    }
+    VM_LABEL(SetSymmetricDifference) {
+        const auto* lhs = set_literal(regs[ip[2]]);
+        const auto* rhs = set_literal(regs[ip[3]]);
+        if (!lhs || !rhs)
+            VM_ERROR(RuntimeErrorType::Construct,
+                     "set symmetric difference received a non-set operand");
+        regs[ip[1]] =
+            make_set_value(lhs->symmetric_difference_elements(*rhs));
+        VM_NEXT
+    }
+    VM_LABEL(SetSubset) {
+        const auto* lhs = set_literal(regs[ip[2]]);
+        const auto* rhs = set_literal(regs[ip[3]]);
+        if (!lhs || !rhs)
+            VM_ERROR(RuntimeErrorType::Construct,
+                     "set subset received a non-set operand");
+        regs[ip[1]] = lhs->subset_of(*rhs);
         VM_NEXT
     }
 

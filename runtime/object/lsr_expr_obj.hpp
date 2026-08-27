@@ -1,12 +1,10 @@
-//
-// Created by meian on 2026/8/8.
-//
 
 #pragma once
 #include "object.hpp"
 #include "lsr_expr.hpp"
 
 #include <string>
+#include <functional>
 #include <utility>
 
 namespace lmx::runtime {
@@ -37,6 +35,15 @@ public:
     [[nodiscard]] std::string to_string() const noexcept {
         if (!ok()) return error_;
         return expr_->to_string();
+    }
+    [[nodiscard]] bool equals(const ExprObj& other) const noexcept {
+        if (ok() != other.ok()) return false;
+        if (!ok()) return error_ == other.error_;
+        return expr_->compare(other.expr_) == 0;
+    }
+
+    [[nodiscard]] std::size_t hash() const noexcept {
+        return std::hash<std::string>{}(to_string());
     }
 };
 

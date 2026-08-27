@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/7/20.
-//
 
 #pragma once
 #include <bitset>
@@ -90,10 +87,8 @@ public:
     static void write_u64(std::vector<uint8_t>& buf, uint64_t value) noexcept;
     static void write_n(std::vector<uint8_t>& buf, const uint8_t* src, size_t n) noexcept;
 
-    // Module-level assembly
     std::vector<uint8_t> asm_module(mir::MirModule* mod) noexcept;
 
-    // Per-function state
     std::unordered_map<std::string, size_t> label_positions;
     std::vector<PendingFixup> pending_fixups;
     uint8_t next_local_var;
@@ -105,7 +100,6 @@ public:
 
     std::shared_ptr<ModuleType> get_module_type(size_t idx) noexcept;
 
-    // std::vector<uint8_t> asm_native_decl(mir::MirNativeFuncDefine *def) noexcept;
 };
 
 }

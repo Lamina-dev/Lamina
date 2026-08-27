@@ -59,31 +59,6 @@ Fraction::Fraction(const std::string& num_str) noexcept {
     den = scale;
     simplify();
 }
-// static int64_t private_gcd(int64_t a, int64_t b) noexcept {
-//     a = a < 0 ? -a : a;
-//     b = b < 0 ? -b : b;
-//
-//     while (b != 0) {
-//         const int64_t temp = b;
-//         b = a % b;
-//         a = temp;
-//     }
-//     return a;
-// }
-// static int64_t private_lcm(int64_t a, int64_t b) noexcept {
-//     if (a == 0 || b == 0) return 0;
-//     a = a < 0 ? -a : a;
-//     b = b < 0 ? -b : b;
-//
-//     int64_t lcm = a;
-//     int64_t step = a;
-//
-//     while (lcm % b != 0) {
-//         if (lcm > INT64_MAX - step) return 0;
-//         lcm += step;
-//     }
-//     return lcm;
-// }
 
 void Fraction::simplify() noexcept {
     if (den == 0) return;

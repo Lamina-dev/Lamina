@@ -1,6 +1,3 @@
-//
-// Created by geguj on 2025/12/28.
-//
 
 #pragma once
 #include <string>
@@ -20,7 +17,7 @@ enum class TokenType {
 
     LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE,
 
-    EQ, NE, LT, GT, LE, GE, PIPE, BAR, ARROW, DOUBLE_ARROW,
+    EQ, NE, LT, GT, LE, GE, PIPE, BAR, AMP, ARROW, DOUBLE_ARROW,
 
     NUM_LITERAL, STRING_LITERAL, TRUE_LITERAL, FALSE_LITERAL, NULL_LITERAL, IDENTIFIER,
 
@@ -37,6 +34,8 @@ enum class TokenType {
     KW_WHILE,
     KW_FOR,
     KW_IN,
+    KW_SUBSET,
+    KW_XOR,
     KW_CONST,
     KW_UNIT,
     KW_IMPORT,
@@ -81,6 +80,10 @@ inline std::string to_string(const TokenType& type) {
         case TokenType::RBRACK: return "RBRACK";
         case TokenType::LBRACE: return "LBRACE";
         case TokenType::RBRACE: return "RBRACE";
+        case TokenType::BAR: return "BAR";
+        case TokenType::AMP: return "AMP";
+        case TokenType::KW_SUBSET: return "KEYWORD_SUBSET";
+        case TokenType::KW_XOR: return "KEYWORD_XOR";
         case TokenType::UNKNOWN: return "UNKNOWN";
         case TokenType::KW_FUNC: return "KEYWORD_FUNC";
         case TokenType::KW_RETURN: return "KEYWORD_RETURN";
@@ -106,7 +109,6 @@ class LM_API Lexer {
 
 public:
     explicit Lexer(std::string& code, std::string filename = "<unknown>"): content(code), filename(std::move(filename)) {}
-    // explicit Lexer(const char* code, std::string filename = "<unknown>"): content(code), filename(std::move(filename)) {}
     std::string error(const std::vector<Token>& tokens, size_t origin_lineno);
     std::vector<Token> tokenize(const std::string &code);
 

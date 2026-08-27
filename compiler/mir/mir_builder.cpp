@@ -21,9 +21,13 @@ bool is_int_type(const Type *type) noexcept {
 }
 
 bool is_float_type(const Type *type) noexcept {
-    return type && (type->kind == TypeKind::Dimensioned ||
-           (type->kind == TypeKind::Basic &&
-            reinterpret_cast<const BasicType *>(type)->type == runtime::ValueKind::Fraction));
+    if (!type) return false;
+    if (type->kind == TypeKind::Dimensioned) return true;
+    if (type->kind != TypeKind::Basic) return false;
+    const auto kind =
+        reinterpret_cast<const BasicType *>(type)->type;
+    return kind == runtime::ValueKind::Fraction ||
+           kind == runtime::ValueKind::Real;
 }
 
 bool is_comparison_op(const BinaryNode::Op op) noexcept {
@@ -74,6 +78,7 @@ runtime::ValueKind native_value_kind(const std::shared_ptr<Type>& type) noexcept
     }
     if (type->kind == TypeKind::Dimensioned) return runtime::ValueKind::Fraction;
     if (type->kind == TypeKind::Tuple) return runtime::ValueKind::Tuple;
+    if (type->kind == TypeKind::Function) return runtime::ValueKind::C_Ptr;
     if (type->kind == TypeKind::Named) {
         const auto& name = std::static_pointer_cast<NamedType>(type)->name;
         if (name == "set") return runtime::ValueKind::Set;
@@ -89,7 +94,7 @@ class Builder {
     std::vector<std::shared_ptr<MirNode>> *emit_target_ = &module_.nodes;
     size_t temp_counter_ = 0;
     size_t label_counter_ = 0;
-    bool cas_runtime_declared_ = false;
+    bool expression_runtime_declared_ = false;
 
     std::string new_temp() noexcept {
         return "_" + std::to_string(temp_counter_++);
@@ -120,7 +125,6 @@ class Builder {
     }
 
     std::shared_ptr<MirRefExpr> temp_assign(std::shared_ptr<MirExpr> expr) {
-        //if (!expr) return nullptr;
         auto name = new_temp();
         emit(std::make_shared<MirTempAssign>(name, std::move(expr)));
         return std::make_shared<MirRefExpr>(name, true);
@@ -131,11 +135,11 @@ class Builder {
         return std::make_shared<MirRefExpr>(name, true);
     }
 
-    void ensure_cas_runtime() noexcept {
-        if (cas_runtime_declared_) return;
-        cas_runtime_declared_ = true;
+    void ensure_expression_runtime() noexcept {
+        if (expression_runtime_declared_) return;
+        expression_runtime_declared_ = true;
         if (module_.lib_name.empty()) {
-            module_.lib_name = "laminaCore";
+            module_.lib_name = "liblamina";
         }
         const auto expr = runtime::ValueKind::Expr;
         const auto text = runtime::ValueKind::Obj;
@@ -146,26 +150,26 @@ class Builder {
         const auto declare = [this](std::shared_ptr<MirNativeFuncDefine> definition) {
             module_.nodes.push_back(std::move(definition));
         };
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_sym", "cas_sym", std::vector{text}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_imaginary", "cas_expr_imaginary", std::vector<runtime::ValueKind>{}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_integer", "cas_expr_integer", std::vector{integer}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_rational", "cas_expr_rational", std::vector{integer, integer}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_value", "cas_expr_value", std::vector{value_ref}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_unary", "cas_expr_unary", std::vector{integer, expr}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_binary", "cas_expr_binary", std::vector{integer, expr, expr}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_function", "cas_expr_function", std::vector{text, integer, va_list}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_set", "cas_expr_set", std::vector{integer, va_list}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_interval", "cas_expr_interval", std::vector{expr, expr, boolean, boolean}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_with_unit", "cas_expr_with_unit",
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_symbol", "lmx_computer_algebra_expression_symbol", std::vector{text}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_imaginary_unit", "lmx_computer_algebra_expression_imaginary_unit", std::vector<runtime::ValueKind>{}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_integer", "lmx_computer_algebra_expression_integer", std::vector{integer}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_rational", "lmx_computer_algebra_expression_rational", std::vector{integer, integer}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_promote_value", "lmx_computer_algebra_expression_promote_value", std::vector{value_ref}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_unary", "lmx_computer_algebra_expression_unary", std::vector{integer, expr}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_binary", "lmx_computer_algebra_expression_binary", std::vector{integer, expr, expr}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_function", "lmx_computer_algebra_expression_function", std::vector{text, integer, va_list}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_set", "lmx_computer_algebra_expression_set", std::vector{integer, va_list}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_interval", "lmx_computer_algebra_expression_interval", std::vector{expr, expr, boolean, boolean}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_attach_unit", "lmx_computer_algebra_expression_attach_unit",
             std::vector{expr, text, text, integer, integer}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_convert_unit", "cas_expr_convert_unit",
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_convert_unit", "lmx_computer_algebra_expression_convert_unit",
             std::vector{expr, text, text, integer, integer}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_strip_base", "cas_expr_strip_base", std::vector{expr}, expr));
-        declare(std::make_shared<MirNativeFuncDefine>("__cas_expr_strip_display", "cas_expr_strip_display", std::vector{expr}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_strip_base_value", "lmx_computer_algebra_expression_strip_base_value", std::vector{expr}, expr));
+        declare(std::make_shared<MirNativeFuncDefine>("__lmx_computer_algebra_expression_strip_display_value", "lmx_computer_algebra_expression_strip_display_value", std::vector{expr}, expr));
     }
 
-    std::shared_ptr<MirCCallExpr> cas_call(std::string name, std::vector<std::shared_ptr<MirRefExpr>> args) noexcept {
-        ensure_cas_runtime();
+    std::shared_ptr<MirCCallExpr> expression_call(std::string name, std::vector<std::shared_ptr<MirRefExpr>> args) noexcept {
+        ensure_expression_runtime();
         return std::make_shared<MirCCallExpr>(std::move(name), std::move(args));
     }
 
@@ -190,24 +194,30 @@ class Builder {
         case BinaryNode::Op::Pow:
             if (is_float) return std::make_shared<MirFMulExpr>(std::move(lhs), std::move(rhs));
             return std::make_shared<MirIPowExpr>(std::move(lhs), std::move(rhs));
-        case BinaryNode::Op::Lt: {
-            return std::make_shared<MirICmpLtExpr>(std::move(lhs), std::move(rhs));
-        }
-        case BinaryNode::Op::Gt: {
-            return std::make_shared<MirICmpGtExpr>(std::move(lhs), std::move(rhs));
-        }
-        case BinaryNode::Op::Ge:{
-            return std::make_shared<MirICmpGeExpr>(std::move(lhs), std::move(rhs));
-        }
-        case BinaryNode::Op::Le:{
-            return std::make_shared<MirICmpLeExpr>(std::move(lhs), std::move(rhs));
-        }
-        case BinaryNode::Op::Eq:{
-            return std::make_shared<MirICmpEqExpr>(std::move(lhs), std::move(rhs));
-        }
-        case BinaryNode::Op::Ne: {
-            return std::make_shared<MirICmpNeExpr>(std::move(lhs), std::move(rhs));
-        }
+        case BinaryNode::Op::Lt:
+            return is_float
+                ? std::shared_ptr<MirExpr>(std::make_shared<MirFCmpLtExpr>(std::move(lhs), std::move(rhs)))
+                : std::make_shared<MirICmpLtExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Gt:
+            return is_float
+                ? std::shared_ptr<MirExpr>(std::make_shared<MirFCmpGtExpr>(std::move(lhs), std::move(rhs)))
+                : std::make_shared<MirICmpGtExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Ge:
+            return is_float
+                ? std::shared_ptr<MirExpr>(std::make_shared<MirFCmpGeExpr>(std::move(lhs), std::move(rhs)))
+                : std::make_shared<MirICmpGeExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Le:
+            return is_float
+                ? std::shared_ptr<MirExpr>(std::make_shared<MirFCmpLeExpr>(std::move(lhs), std::move(rhs)))
+                : std::make_shared<MirICmpLeExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Eq:
+            return is_float
+                ? std::shared_ptr<MirExpr>(std::make_shared<MirFCmpEqExpr>(std::move(lhs), std::move(rhs)))
+                : std::make_shared<MirICmpEqExpr>(std::move(lhs), std::move(rhs));
+        case BinaryNode::Op::Ne:
+            return is_float
+                ? std::shared_ptr<MirExpr>(std::make_shared<MirFCmpNeExpr>(std::move(lhs), std::move(rhs)))
+                : std::make_shared<MirICmpNeExpr>(std::move(lhs), std::move(rhs));
         case BinaryNode::Op::And:{
             return std::make_shared<MirCmpAndExpr>(std::move(lhs), std::move(rhs));
         }
@@ -285,11 +295,11 @@ class Builder {
 
     std::shared_ptr<MirExpr> promote_runtime_value(
         std::shared_ptr<MirExpr> value, const std::shared_ptr<Type>& type) {
-        auto promoted = cas_call("__cas_expr_value", {
+        auto promoted = expression_call("__lmx_computer_algebra_expression_promote_value", {
             ensure_temp(std::move(value))});
         if (!type || type->kind != TypeKind::Dimensioned) return promoted;
         const auto dimensioned = std::static_pointer_cast<DimensionedType>(type);
-        return cas_call("__cas_expr_with_unit",
+        return expression_call("__lmx_computer_algebra_expression_attach_unit",
                         unit_arguments(std::move(promoted), dimensioned->unit));
     }
 
@@ -304,23 +314,28 @@ class Builder {
 
     static LmExprBinaryOp expr_binary_op(const BinaryNode::Op op) {
         switch (op) {
-        case BinaryNode::Op::Add: return LMX_EXPR_ADD;
-        case BinaryNode::Op::Sub: return LMX_EXPR_SUB;
-        case BinaryNode::Op::Mul: return LMX_EXPR_MUL;
-        case BinaryNode::Op::Div: return LMX_EXPR_DIV;
-        case BinaryNode::Op::Pow: return LMX_EXPR_POW;
-        case BinaryNode::Op::Eq: return LMX_EXPR_EQ;
-        case BinaryNode::Op::Ne: return LMX_EXPR_NE;
-        case BinaryNode::Op::Gt: return LMX_EXPR_GT;
-        case BinaryNode::Op::Ge: return LMX_EXPR_GE;
-        case BinaryNode::Op::Lt: return LMX_EXPR_LT;
-        case BinaryNode::Op::Le: return LMX_EXPR_LE;
-        case BinaryNode::Op::And: return LMX_EXPR_AND;
-        case BinaryNode::Op::Or: return LMX_EXPR_OR;
-        case BinaryNode::Op::In: return LMX_EXPR_IN;
-        case BinaryNode::Op::NotIn: return LMX_EXPR_NOT_IN;
+        case BinaryNode::Op::Add: return LMX_EXPRESSION_OPERATION_ADD;
+        case BinaryNode::Op::Sub: return LMX_EXPRESSION_OPERATION_SUB;
+        case BinaryNode::Op::Mul: return LMX_EXPRESSION_OPERATION_MUL;
+        case BinaryNode::Op::Div: return LMX_EXPRESSION_OPERATION_DIV;
+        case BinaryNode::Op::Pow: return LMX_EXPRESSION_OPERATION_POW;
+        case BinaryNode::Op::Eq: return LMX_EXPRESSION_OPERATION_EQ;
+        case BinaryNode::Op::Ne: return LMX_EXPRESSION_OPERATION_NE;
+        case BinaryNode::Op::Gt: return LMX_EXPRESSION_OPERATION_GT;
+        case BinaryNode::Op::Ge: return LMX_EXPRESSION_OPERATION_GE;
+        case BinaryNode::Op::Lt: return LMX_EXPRESSION_OPERATION_LT;
+        case BinaryNode::Op::Le: return LMX_EXPRESSION_OPERATION_LE;
+        case BinaryNode::Op::And: return LMX_EXPRESSION_OPERATION_AND;
+        case BinaryNode::Op::Or: return LMX_EXPRESSION_OPERATION_OR;
+        case BinaryNode::Op::In: return LMX_EXPRESSION_OPERATION_IN;
+        case BinaryNode::Op::NotIn: return LMX_EXPRESSION_OPERATION_NOT_IN;
         case BinaryNode::Op::Mod:
-        case BinaryNode::Op::Bind: std::unreachable();
+        case BinaryNode::Op::Bind:
+        case BinaryNode::Op::SetUnion:
+        case BinaryNode::Op::SetIntersection:
+        case BinaryNode::Op::SetSymmetricDifference:
+        case BinaryNode::Op::Subset:
+            std::unreachable();
         }
         std::unreachable();
     }
@@ -330,8 +345,9 @@ class Builder {
         case ASTKind::Identifier: {
             const auto* id = reinterpret_cast<const IdentifierNode*>(expr);
             if (id->id == "I")
-                return cas_call("__cas_expr_imaginary", {});
-            auto value = std::make_shared<MirRefExpr>(id->id, false);
+                return expression_call("__lmx_computer_algebra_expression_imaginary_unit", {});
+            auto value = std::make_shared<MirRefExpr>(
+                id->compiled_symbol.empty() ? id->id : id->compiled_symbol, false);
             if (is_expr_type(expr->type) && !expr->promoted_from_type) return value;
             return promote_runtime_value(
                 std::move(value), expr->promoted_from_type
@@ -340,24 +356,24 @@ class Builder {
         case ASTKind::Literal: {
             const auto* literal = reinterpret_cast<const LiteralNode*>(expr);
             if (literal->kind == LiteralNode::Kind::Integer) {
-                return cas_call("__cas_expr_integer", {integer_arg(std::stoll(literal->val))});
+                return expression_call("__lmx_computer_algebra_expression_integer", {integer_arg(std::stoll(literal->val))});
             }
             if (literal->kind == LiteralNode::Kind::Float) {
                 const runtime::Fraction value(literal->val);
-                return cas_call("__cas_expr_rational",
+                return expression_call("__lmx_computer_algebra_expression_rational",
                                 {integer_arg(value.num), integer_arg(value.den)});
             }
             std::unreachable();
         }
         case ASTKind::Unary: {
             const auto* unary = reinterpret_cast<const UnaryNode*>(expr);
-            return cas_call("__cas_expr_unary", {
-                integer_arg(unary->op == UnaryNode::Op::Neg ? LMX_EXPR_NEG : LMX_EXPR_NOT),
+            return expression_call("__lmx_computer_algebra_expression_unary", {
+                integer_arg(unary->op == UnaryNode::Op::Neg ? LMX_EXPRESSION_OPERATION_NEG : LMX_EXPRESSION_OPERATION_NOT),
                 ensure_temp(eval_as_expr(unary->expr.get()))});
         }
         case ASTKind::Binary: {
             const auto* binary = reinterpret_cast<const BinaryNode*>(expr);
-            return cas_call("__cas_expr_binary", {
+            return expression_call("__lmx_computer_algebra_expression_binary", {
                 integer_arg(expr_binary_op(binary->op)),
                 ensure_temp(eval_as_expr(binary->lhs.get())),
                 ensure_temp(eval_as_expr(binary->rhs.get()))});
@@ -372,8 +388,11 @@ class Builder {
                 }
                 std::shared_ptr<MirExpr> value;
                 if (call->can_fast) {
+                    const auto* identifier =
+                        static_cast<IdentifierNode*>(call->expr.get());
                     value = std::make_shared<MirCallFastExpr>(
-                        reinterpret_cast<IdentifierNode*>(call->expr.get())->id,
+                        identifier->compiled_symbol.empty()
+                            ? identifier->id : identifier->compiled_symbol,
                         std::move(arguments));
                 } else {
                     value = std::make_shared<MirCallExpr>(
@@ -395,12 +414,12 @@ class Builder {
                 for (const auto& argument : call->suffix->exprs)
                     args.push_back(ensure_temp(eval_as_expr(argument.get())));
             }
-            return cas_call("__cas_expr_function", std::move(args));
+            return expression_call("__lmx_computer_algebra_expression_function", std::move(args));
         }
         case ASTKind::LiteralPayload: {
             const auto* payload = reinterpret_cast<const LiteralPayloadNode*>(expr);
             if (payload->payload_kind == LiteralPayloadNode::Kind::Interval) {
-                return cas_call("__cas_expr_interval", {
+                return expression_call("__lmx_computer_algebra_expression_interval", {
                     ensure_temp(eval_as_expr(payload->elements[0].get())),
                     ensure_temp(eval_as_expr(payload->elements[1].get())),
                     ensure_temp(std::make_shared<MirLiteralExpr>(
@@ -412,7 +431,7 @@ class Builder {
             args.push_back(integer_arg(static_cast<long long>(payload->elements.size())));
             for (const auto& element : payload->elements)
                 args.push_back(ensure_temp(eval_as_expr(element.get())));
-            return cas_call("__cas_expr_set", std::move(args));
+            return expression_call("__lmx_computer_algebra_expression_set", std::move(args));
         }
         case ASTKind::NativeFuncCall: {
             const auto* call = reinterpret_cast<const NativeFuncCallExpr*>(expr);
@@ -421,8 +440,13 @@ class Builder {
                 for (const auto& argument : call->suffix->exprs)
                     arguments.push_back(ensure_temp(eval(argument.get())));
             }
+            auto name = dotted_name(call->expr.get());
+            if (!call->adt_constructor.empty()) {
+                name += "\x1f";
+                name += call->adt_constructor;
+            }
             auto value = std::make_shared<MirCCallExpr>(
-                dotted_name(call->expr.get()), std::move(arguments));
+                std::move(name), std::move(arguments));
             if (expr->promoted_from_type)
                 return promote_runtime_value(std::move(value), expr->promoted_from_type);
             if (is_expr_type(expr->type)) return value;
@@ -430,7 +454,7 @@ class Builder {
         }
         case ASTKind::UnitAnnotated: {
             const auto* unit = reinterpret_cast<const UnitAnnotatedExprNode*>(expr);
-            return cas_call("__cas_expr_with_unit",
+            return expression_call("__lmx_computer_algebra_expression_attach_unit",
                             unit_arguments(eval_as_expr(unit->value.get()), unit->resolved_unit));
         }
         case ASTKind::AsExpr: {
@@ -438,12 +462,12 @@ class Builder {
             auto value = eval_as_expr(as->expr.get());
             switch (as->cast_kind) {
             case AsExprNode::Kind::Unit:
-                return cas_call("__cas_expr_convert_unit",
+                return expression_call("__lmx_computer_algebra_expression_convert_unit",
                                 unit_arguments(std::move(value), as->resolved_unit));
             case AsExprNode::Kind::Num:
-                return cas_call("__cas_expr_strip_base", {ensure_temp(std::move(value))});
+                return expression_call("__lmx_computer_algebra_expression_strip_base_value", {ensure_temp(std::move(value))});
             case AsExprNode::Kind::Scalar:
-                return cas_call("__cas_expr_strip_display", {ensure_temp(std::move(value))});
+                return expression_call("__lmx_computer_algebra_expression_strip_display_value", {ensure_temp(std::move(value))});
             case AsExprNode::Kind::Type:
                 return value;
             }
@@ -585,7 +609,7 @@ public:
             for (const auto& id : node->ids) {
                 std::vector<std::shared_ptr<MirRefExpr>> args;
                 args.push_back(ensure_temp(std::make_shared<MirLiteralExpr>(MirLiteralKind::String, id)));
-                emit(std::make_shared<MirAssign>(id, cas_call("__cas_sym", std::move(args))));
+                emit(std::make_shared<MirAssign>(id, expression_call("__lmx_computer_algebra_expression_symbol", std::move(args))));
             }
             break;
         }
@@ -618,7 +642,10 @@ public:
                     params.push_back(key);
                 }
             }
-            emit(std::make_shared<MirFuncDefine>(func->func_id, std::move(params), std::move(body)));
+            emit(std::make_shared<MirFuncDefine>(
+                func->compiled_symbol.empty() ? func->func_id
+                                              : func->compiled_symbol,
+                std::move(params), std::move(body)));
             break;
         }
         case ASTKind::LoopStmt: {
@@ -636,7 +663,6 @@ public:
                 auto zero = new_temp();
                 auto zero_lit = std::make_shared<MirLiteralExpr>(MirLiteralKind::Integer, "0");
                 emit(std::make_shared<MirTempAssign>(zero, zero_lit));
-                // %zero = 0
 
                 auto result_tmp = new_temp();
                 emit(std::make_shared<MirTempAssign>(
@@ -645,24 +671,20 @@ public:
                             left_result, std::make_shared<MirRefExpr>(zero, true)
                         )
                 ));
-                // %result_tmp = ICmpEq %left_result, %zero
 
                 auto if_expr = std::make_shared<MirIfTrueExpr>(std::make_shared<MirRefExpr>(result_tmp, true), bl);
                 emit(std::make_shared<MirExprNode>(if_expr));
-                // IfTrue %result_tmp, break
             }
 
             for (auto& s : node->body) {
                 process(s.get());
             }
-            // loop body
 
 
             if (node->expr) {
                 auto one = new_temp();
                 auto one_lit = std::make_shared<MirLiteralExpr>(MirLiteralKind::Integer, "1");
                 emit(std::make_shared<MirTempAssign>(one, one_lit));
-                // %one = 1
 
                 emit(std::make_shared<MirTempAssign>(
                     reinterpret_cast<MirRefExpr*>(left_result.get())->name,
@@ -672,10 +694,8 @@ public:
 
 
             emit(std::make_shared<MirExprNode>(std::make_shared<MirGotoExpr>(cl)));
-            // continue
 
             emit(std::make_shared<MirLabel>(bl));
-            // break_label
 
             continue_labels.pop_back();
             break_labels.pop_back();
@@ -697,8 +717,17 @@ public:
 
     void build_imported_native_decls(const Module *ast_mod) const noexcept {
         bool has_imported_native = false;
-        for (const auto& [path, mod_ty] : ast_mod->imports) {
-            for (const auto& exported : mod_ty->exports) {
+        const auto declare_exports = [this, &has_imported_native](
+            const auto& self,
+            const std::string& prefix,
+            const std::shared_ptr<ModuleType>& module_type) -> void {
+            for (const auto& exported : module_type->exports) {
+                const auto qualified_name = prefix + "." + exported.name;
+                if (exported.type->kind == TypeKind::Module) {
+                    self(self, qualified_name,
+                         std::static_pointer_cast<ModuleType>(exported.type));
+                    continue;
+                }
                 if (exported.type->kind != TypeKind::NativeFunction) continue;
                 const auto native_type =
                     std::static_pointer_cast<NativeFunctionType>(exported.type);
@@ -707,15 +736,25 @@ public:
                     params.push_back(native_value_kind(param));
                 }
                 const auto ret_ty = native_value_kind(native_type->ret_ty);
+                const auto overload_name =
+                    qualified_name + "\x1f" + native_type->name;
                 emit(std::make_shared<MirNativeFuncDefine>(
-                    mod_ty->binding_name + "." + exported.name,
+                    qualified_name,
+                    native_type->name,
+                    params,
+                    ret_ty));
+                emit(std::make_shared<MirNativeFuncDefine>(
+                    overload_name,
                     native_type->name,
                     std::move(params),
                     ret_ty));
                 has_imported_native = true;
             }
+        };
+        for (const auto& [path, mod_ty] : ast_mod->imports) {
+            declare_exports(declare_exports, mod_ty->binding_name, mod_ty);
         }
-        if (has_imported_native && module_.lib_name.empty()) module_.lib_name = "laminaCore";
+        if (has_imported_native && module_.lib_name.empty()) module_.lib_name = "liblamina";
     }
 
 
@@ -729,9 +768,21 @@ public:
         for (auto &decl : ast_mod->decls) {
             process(decl.get());
         }
-        // for (auto &func : ast_mod->top_func_def) {
-        //     process(&func);
-        // }
+        for (const auto& builtin : ast_mod->builtin_functions) {
+            std::vector<std::shared_ptr<MirNode>> body;
+            switch (builtin.kind) {
+            case SyntheticBuiltinKind::Raise:
+                body.push_back(std::make_shared<MirExprNode>(
+                    std::make_shared<MirRaiseExpr>(
+                        std::make_shared<MirRefExpr>(
+                            builtin.parameter_name, false))));
+                break;
+            }
+            emit(std::make_shared<MirFuncDefine>(
+                builtin.compiled_symbol,
+                std::vector<std::string>{builtin.parameter_name},
+                std::move(body)));
+        }
     }
 };
 
@@ -777,8 +828,8 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
             return std::make_shared<MirAdtNewExpr>(id->adt_type_name, id->id,
                                                    std::vector<std::shared_ptr<MirRefExpr>>{});
         }
-        auto ref = std::make_shared<MirRefExpr>(id->id, false);
-        return ref;
+        return std::make_shared<MirRefExpr>(
+            id->compiled_symbol.empty() ? id->id : id->compiled_symbol, false);
     }
     case ASTKind::Unary: {
         auto *un = reinterpret_cast<UnaryNode *>(expr);
@@ -817,6 +868,37 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
             return temp_assign(std::make_shared<MirContainsExpr>(
                 std::move(element), eval(bin->rhs.get()),
                 bin->op == BinaryNode::Op::NotIn));
+        }
+        const bool set_difference =
+            bin->op == BinaryNode::Op::Sub &&
+            is_named_type(bin->lhs->type, "set");
+        if (bin->op == BinaryNode::Op::SetUnion ||
+            bin->op == BinaryNode::Op::SetIntersection ||
+            bin->op == BinaryNode::Op::SetSymmetricDifference ||
+            bin->op == BinaryNode::Op::Subset ||
+            set_difference) {
+            runtime::Opcode::Opcode opcode;
+            switch (bin->op) {
+            case BinaryNode::Op::SetUnion:
+                opcode = runtime::Opcode::SetUnion;
+                break;
+            case BinaryNode::Op::SetIntersection:
+                opcode = runtime::Opcode::SetIntersection;
+                break;
+            case BinaryNode::Op::SetSymmetricDifference:
+                opcode = runtime::Opcode::SetSymmetricDifference;
+                break;
+            case BinaryNode::Op::Subset:
+                opcode = runtime::Opcode::SetSubset;
+                break;
+            case BinaryNode::Op::Sub:
+                opcode = runtime::Opcode::SetDifference;
+                break;
+            default:
+                std::unreachable();
+            }
+            return temp_assign(std::make_shared<MirSetBinaryExpr>(
+                opcode, eval(bin->lhs.get()), eval(bin->rhs.get())));
         }
         switch (bin->op) {
         case BinaryNode::Op::And: {
@@ -925,14 +1007,6 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         auto *block = reinterpret_cast<BlockExprNode *>(expr);
         return process_block(block);
     }
-    // case ASTKind::Exprs: {
-    //     auto *exprs = static_cast<ExprsNode *>(expr);
-    //     std::shared_ptr<MirExpr> last;
-    //     for (auto &e : exprs->exprs) {
-    //         last = eval(e.get());
-    //     }
-    //     return last;
-    // }
     case ASTKind::SuffixParen: {
         auto *call = reinterpret_cast<SuffixParenNode *>(expr);
 
@@ -950,8 +1024,12 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         }
         std::shared_ptr<MirExpr> call_result;
         if (call->can_fast) {
-            std::string func_name = reinterpret_cast<IdentifierNode *>(call->expr.get())->id;
-            call_result = std::make_shared<MirCallFastExpr>(std::move(func_name), std::move(arg_refs));
+            const auto* identifier =
+                static_cast<IdentifierNode*>(call->expr.get());
+            const auto& func_name = identifier->compiled_symbol.empty()
+                ? identifier->id : identifier->compiled_symbol;
+            call_result = std::make_shared<MirCallFastExpr>(
+                func_name, std::move(arg_refs));
         } else {
             const auto reg_func = temp_assign(std::move(eval(call->expr.get())));
             call_result = std::make_shared<MirCallExpr>(reg_func, std::move(arg_refs));
@@ -959,7 +1037,7 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         if (is_expr_type(expr->type) && call->expr->type->kind == TypeKind::Function) {
             const auto function = std::static_pointer_cast<FunctionType>(call->expr->type);
             if (!is_expr_type(function->ret_ty)) {
-                return cas_call("__cas_expr_value", {ensure_temp(std::move(call_result))});
+                return expression_call("__lmx_computer_algebra_expression_promote_value", {ensure_temp(std::move(call_result))});
             }
         }
         return call_result;
@@ -1016,7 +1094,6 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
     }
     case ASTKind::NativeFuncCall: {
         auto *call = reinterpret_cast<NativeFuncCallExpr*>(expr);
-        auto func_name = dotted_name(call->expr.get());
         std::vector<std::shared_ptr<MirRefExpr>> arg_refs;
         if (call->suffix) {
             for (auto &arg : call->suffix->exprs) {
@@ -1024,7 +1101,13 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
                 arg_refs.push_back(ensure_temp(std::move(arg_val)));
             }
         }
-        auto call_expr = std::make_shared<MirCCallExpr>(std::move(func_name), std::move(arg_refs));
+        auto func_name = dotted_name(call->expr.get());
+        if (!call->adt_constructor.empty()) {
+            func_name += "\x1f";
+            func_name += call->adt_constructor;
+        }
+        auto call_expr = std::make_shared<MirCCallExpr>(
+            std::move(func_name), std::move(arg_refs));
         return std::move(call_expr);
     }
     case ASTKind::DotExpr: {
@@ -1035,14 +1118,17 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         }
         std::shared_ptr<MirRefExpr> mod_ref;
         std::string mod_name;
-         if (dot->expr->type->kind == TypeKind::Module) {
-             const auto *id = reinterpret_cast<IdentifierNode *>(dot->expr.get());
-             mod_ref = temp_assign(std::make_shared<MirGetModuleExpr>(id->id));  //
-             mod_name = id->id;
-         } else {
-             mod_ref = temp_assign(eval(dot->expr.get()));
-         }
-         auto attr = std::make_shared<MirGetModuleAttrExpr>(mod_ref, std::move(mod_name), dot->rhs->id);  // %_1 = GetModuleAttr %_0, "foo"
+        if (dot->expr->type->kind == TypeKind::Module) {
+            mod_name = dotted_name(dot->expr.get());
+            mod_ref = temp_assign(
+                std::make_shared<MirGetModuleExpr>(mod_name));
+        } else {
+            mod_ref = temp_assign(eval(dot->expr.get()));
+        }
+        const auto& symbol = dot->compiled_symbol.empty()
+            ? dot->rhs->id : dot->compiled_symbol;
+        auto attr = std::make_shared<MirGetModuleAttrExpr>(
+            mod_ref, std::move(mod_name), symbol);
          return temp_assign(attr);
          break;
     }
@@ -1071,7 +1157,6 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
     }
     default:
         std::unreachable();
-        //return std::make_shared<MirLiteralExpr>(MirLiteralKind::Integer, "0");
     }
     std::unreachable();
     return nullptr;
@@ -1081,7 +1166,17 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
 MirModule MirBuilder::from_ast_module(const std::shared_ptr<Module> &ast) {
     MirModule mod;
     mod.lib_name = ast->lib_name;
-    mod.imports = ast->imports;
+    const auto add_module = [&](const auto& self, const std::string& name,
+                                const std::shared_ptr<ModuleType>& type) -> void {
+        if (!mod.imports.emplace(name, type).second) return;
+        for (const auto& exported : type->exports) {
+            if (exported.type->kind != TypeKind::Module) continue;
+            self(self, name + "." + exported.name,
+                 std::static_pointer_cast<ModuleType>(exported.type));
+        }
+    };
+    for (const auto& imported : ast->imports | std::views::values)
+        add_module(add_module, imported->binding_name, imported);
     Builder builder(mod);
     builder.build(ast.get());
     return mod;

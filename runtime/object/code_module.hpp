@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/4/6.
-//
 
 #pragma once
 #include <cstdint>
@@ -22,7 +19,6 @@ struct FuncObj {
     explicit FuncObj(CodeModuleObj* mod, const uint8_t* addr, uint32_t bytecode_len = 0) noexcept;
 };
 struct NativeFuncObj {
-    // CodeModule* mod;
     const void* addr;
 
     uint8_t args_ty_len;
@@ -50,7 +46,6 @@ constexpr auto lib_suffix = ".dylib";
 #else
 #error "Unsupported platform from dynamic loading. What's your System?"
 #endif
-// constexpr auto runtime_lib_name = std::string(lib_prefix) + "Lamina" + lib_suffix;
 
 class CodeModuleObj : public Object {
 public:
@@ -63,7 +58,7 @@ public:
     const uint8_t* code{};
     size_t code_len{};
     std::vector<uint8_t> raw_data{};
-    explicit CodeModuleObj(std::vector<uint8_t>&& data) noexcept;
+    explicit CodeModuleObj(std::vector<uint8_t>&& data);
     ~CodeModuleObj() noexcept;
 
 

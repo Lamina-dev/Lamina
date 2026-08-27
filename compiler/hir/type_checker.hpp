@@ -5,12 +5,6 @@
 #include "../ast/ast.hpp"
 
 namespace lmx::hir {
-/*
- * Lamina Compiler HIR
- * 这个阶段其实并不产生新东西，一开始想产生，后来发现必要性不大，
- * 现在它用来初步验证语法树正确性，填补空缺的数据类型
- * 完成后，产生一份符号表  
- */
 
 using HirNode = ASTNode;
 
@@ -43,7 +37,6 @@ class TypeCkContext {
     std::unordered_map<std::string, std::pair<TypeDeclNode*, AdtConstructorDecl*>> adt_constructors;
     UnitSystem unit_system;
 
-    // Scope *parse_scope(ExprNode *node) noexcept;
 
     std::optional<Scope::Var *> find_var(const std::string &name) noexcept;
 
@@ -56,7 +49,8 @@ class TypeCkContext {
 
     static void new_var(std::string name, std::shared_ptr<Type> type, Scope *scope, bool is_mut = false) noexcept;
     void new_cur_scope_var(std::string name, std::shared_ptr<Type> type, bool is_mut = false) noexcept;
-    void new_global_var(std::string name, std::shared_ptr<Type> type, bool is_mut = false) noexcept;
+    void new_global_var(std::string name, std::shared_ptr<Type> type, bool is_mut = false,
+                        std::string symbol = {}, bool is_export = true) noexcept;
 
     std::vector<Scope::Var> &get_global() noexcept;
 
@@ -70,7 +64,6 @@ public:
 
     void check_stmt(std::shared_ptr<StmtNode> &stmt) noexcept;
 
-    // void reset() noexcept;
     std::shared_ptr<Type> inference_type(ExprNode *type) noexcept;
 };
 

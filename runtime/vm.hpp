@@ -1,11 +1,10 @@
-//
-// Created by meian on 2026/4/6.
-//
 
 #pragma once
 #include <cstdint>
 #include <vector>
 #include <span>
+#include <expected>
+#include <string>
 
 #include "error.hpp"
 #include "dyncall/dyncall.h"
@@ -35,17 +34,17 @@ class LaminaVM {
     Value* stack_storage;
     Value* stack;
     Value* regs;
-    // Value* local_vars_bp;
-    // Value* local_vars_curp;
-    // Value* global_vars;
     Frame* cur_frame{};
     LmGCAllocator allocator{};
 
     std::span<char*> args;
-    DCCallVM* call_vm;
+    std::vector<DCCallVM*> call_vms;
+    std::size_t native_depth = 0;
+    std::size_t invoke_depth = 0;
+
+    Value execute(const uint8_t* start, Frame* stop_frame);
 
 
-    // ConstantPoolInfo* cp;
 
     LMX_INLINE static void native_arg(DCCallVM* call_vm, const ValueKind k, const Value* v) noexcept {
         switch (k) {
@@ -94,7 +93,10 @@ class LaminaVM {
         case ValueKind::Matrix:
         case ValueKind::Table:
         case ValueKind::Random:
-        case ValueKind::Quantity: {
+        case ValueKind::Quantity:
+        case ValueKind::Sparse:
+        case ValueKind::Tensor:
+        case ValueKind::Assumptions: {
             dcArgPointer(call_vm, (DCpointer)v->obj);
             break;
         }
@@ -126,13 +128,14 @@ public:
     ~LaminaVM() noexcept;
 
     int run(CodeModuleObj* prog) noexcept;
+    std::expected<Value, std::string> invoke(
+        const FuncObj& function, std::span<const Value> arguments) noexcept;
+    [[nodiscard]] static LaminaVM* current() noexcept;
     Value& get_reg(uint8_t reg) const noexcept;
 
     friend LMX_INLINE void new_frame(LaminaVM* vm, CodeModuleObj* mod, const uint8_t *ret_addr) noexcept {
         if (vm->free_frames.empty()) {
             vm->cur_frame = new Frame(vm->cur_frame, mod, ret_addr);
-            //cur_frame = frame;
-            //return;
         } else {
             const auto frame = vm->free_frames[vm->free_frames.size() - 1];
             vm->free_frames.pop_back();
@@ -141,7 +144,6 @@ public:
             frame->ret_addr = ret_addr;
             vm->cur_frame = frame;
         }
-        // vm->local_vars_curp += LMX_LOCAL_VAR_COUNT;
     }
     friend LMX_INLINE const uint8_t *pop_frame(LaminaVM* vm) noexcept {
         auto* cur_frame = vm->cur_frame;
@@ -152,7 +154,15 @@ public:
         return cur_frame->ret_addr;
     }
 
-    LMX_INLINE void native_call(const uint16_t idx, const uint8_t argc) noexcept {
+    LMX_INLINE void native_call(const uint16_t idx, const uint8_t argc) {
+        if (native_depth == call_vms.size()) {
+            call_vms.push_back(dcNewCallVM(4096));
+        }
+        auto* call_vm = call_vms[native_depth];
+        if (!call_vm) {
+            VM_ERROR(RuntimeErrorType::CanNotCalling,
+                     "cannot allocate native call state");
+        }
         const auto mod = cur_frame->mod;
         if (!mod->native_lib_handle) {
             VM_ERROR(RuntimeErrorType::CanNotCalling, "module not loaded dynamic library, cannot calling");
@@ -178,6 +188,13 @@ public:
             }
         }
 
+        struct NativeDepthGuard {
+            std::size_t& depth;
+            ~NativeDepthGuard() noexcept { --depth; }
+        };
+        ++native_depth;
+        const NativeDepthGuard native_depth_guard{native_depth};
+
         if (meta->addr) {
             switch (meta->ret_ty) {
             case ValueKind::Null:   regs[0] = dcCallPointer(call_vm, (DCpointer)meta->addr); break;
@@ -196,6 +213,9 @@ public:
             case ValueKind::Table:
             case ValueKind::Random:
             case ValueKind::Quantity:
+            case ValueKind::Sparse:
+            case ValueKind::Tensor:
+            case ValueKind::Assumptions:
                 regs[0].~Value();
                 regs[0].kind = meta->ret_ty;
                 regs[0].obj = static_cast<Object *>(dcCallPointer(call_vm, (DCpointer) meta->addr));

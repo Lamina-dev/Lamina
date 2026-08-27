@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/4/3.
-//
 
 #pragma once
 
@@ -25,6 +22,8 @@ struct Scope {
         std::string name;
         std::shared_ptr<Type> type;
         bool is_mut;
+        std::string symbol;
+        bool is_export{true};
     };
     enum class ScopeType {
         Function, Block, Loop
@@ -76,17 +75,13 @@ enum class ASTKind {
 };
 
 enum class TypeKind {
-    Basic, Array, Named, Unknown, String, Function, None, NativeFunction,
+    Basic, Array, Named, Unknown, Never, String, Function, None, NativeFunction,
     Module, AdtConstructor, Nullable, Tuple, Dimensioned
 };
 struct Type {
     TypeKind kind;
 
 protected:
-    /*
-     * 类型实例唯一性保证：构造函数仅供 TypePool 访问（friend），
-     * 禁止任何其它代码裸建 Type，确保相同类型全局只有一个实例。
-     */
     explicit Type(const TypeKind kind) noexcept : kind(kind) {
     }
 
@@ -109,16 +104,19 @@ struct ModuleType : Type {
     std::string load_path;
     std::string binding_name;
     std::vector<hir::Scope::Var> exports;
+    std::vector<std::string> function_slots;
     std::vector<std::shared_ptr<TypeDeclNode>> adt_exports;
     std::vector<std::pair<std::string, UnitDefinition>> unit_exports;
     explicit ModuleType(std::string target_path,
                         std::string load_path,
                         std::string binding_name,
                         std::vector<hir::Scope::Var> exports,
+                        std::vector<std::string> function_slots = {},
                         std::vector<std::shared_ptr<TypeDeclNode>> adt_exports = {},
                         std::vector<std::pair<std::string, UnitDefinition>> unit_exports = {}) noexcept
     : Type(TypeKind::Module), target_path(std::move(target_path)), load_path(std::move(load_path)),
       binding_name(std::move(binding_name)), exports(std::move(exports)),
+      function_slots(std::move(function_slots)),
       adt_exports(std::move(adt_exports)), unit_exports(std::move(unit_exports)) {}
 
 public:
@@ -130,12 +128,9 @@ public:
         }
         return std::nullopt;
     }
-    [[nodiscard]] std::optional<size_t> find_func_idx(const std::string& n) const noexcept {
-        size_t func_idx = 0;
-        for (const auto& exported : exports) {
-            if (exported.type->kind != TypeKind::Function) continue;
-            if (exported.name == n) return func_idx;
-            ++func_idx;
+    [[nodiscard]] std::optional<size_t> find_func_idx(const std::string& symbol) const noexcept {
+        for (size_t i = 0; i < function_slots.size(); ++i) {
+            if (function_slots[i] == symbol) return i;
         }
         return std::nullopt;
     }
@@ -165,6 +160,14 @@ struct UnknownType : Type {
     friend class TypePool;
 private:
     explicit UnknownType() : Type(TypeKind::Unknown) {}
+
+public:
+    bool equals(Type *other) const noexcept override;
+};
+struct NeverType : Type {
+    friend class TypePool;
+private:
+    explicit NeverType() : Type(TypeKind::Never) {}
 
 public:
     bool equals(Type *other) const noexcept override;
@@ -338,9 +341,6 @@ struct LiteralNode : ExprNode {
 
     explicit LiteralNode(size_t line, size_t col, std::string val, Kind kind) noexcept;
 
-    /*
-     * 常量池没有 Bool Tag，布尔字面量无法直接入池。
-     */
     [[nodiscard]] bool is_constant() const noexcept override {
         return kind != Kind::Boolean;
     }
@@ -350,6 +350,7 @@ struct IdentifierNode : ExprNode {
     std::string id;
     bool is_zero_adt_constructor{false};
     std::string adt_type_name;
+    std::string compiled_symbol;
 
     explicit IdentifierNode(size_t line, size_t col, std::string id) noexcept;
 };
@@ -403,7 +404,8 @@ struct UnaryNode : ExprNode {
 struct BinaryNode : ExprNode {
     enum class Op {
         Add, Sub, Mul, Div, Mod, Pow,
-        Gt, Ge, Lt, Le, Eq, Ne, And, Or, In, NotIn, Bind
+        Gt, Ge, Lt, Le, Eq, Ne, And, Or, In, NotIn, Bind,
+        SetUnion, SetIntersection, SetSymmetricDifference, Subset
     };
     Op op;
     std::shared_ptr<ExprNode> lhs;
@@ -446,15 +448,12 @@ struct ParamsDeclNode : StmtNode {
     explicit ParamsDeclNode(size_t line, size_t col, decltype(stmts) stmts) noexcept;
 };
 
-/*
- * 部分情况
- * 这个结构体会给block = nullptr
- * 代表仅声明函数
- */
+// A null block marks a function declaration.
 struct FuncImplNode : StmtNode {
     std::string func_id;
     std::shared_ptr<ParamsDeclNode> params;
     std::shared_ptr<Type> return_type;
+    std::string compiled_symbol;
 
     std::shared_ptr<ExprNode> block;
 
@@ -616,6 +615,7 @@ struct DotExprNode : ExprNode {
     std::shared_ptr<IdentifierNode> rhs;
     bool is_zero_adt_constructor{false};
     std::string adt_type_name;
+    std::string compiled_symbol;
     explicit DotExprNode(size_t line, size_t col, std::shared_ptr<ExprNode> expr, std::shared_ptr<IdentifierNode> rhs) noexcept;
 
 };
@@ -656,9 +656,6 @@ struct ArrayLiteralNode : ExprNode {
 
     explicit ArrayLiteralNode(size_t line, size_t col, decltype(exprs) exprs) noexcept;
 
-    /*
-     * 数组本身是否可入常量池，取决于全部元素是否可入池。
-     */
     [[nodiscard]] bool is_constant() const noexcept override {
         for (const auto& e : exprs) if (!e->is_constant()) return false;
         return !exprs.empty();
@@ -684,6 +681,20 @@ struct TupleGetExprNode : ExprNode {
     explicit TupleGetExprNode(const size_t line, const size_t col, decltype(tup) tup, const uint8_t i) noexcept
         : ExprNode(ASTKind::TupleGetExpr, line, col), tup(std::move(tup)), i(i) {}
 };
+enum class SyntheticBuiltinKind {
+    Raise,
+};
+
+struct SyntheticBuiltinSpec {
+    SyntheticBuiltinKind kind;
+    std::string source_name;
+    std::string compiled_symbol;
+    std::string parameter_name;
+    std::shared_ptr<Type> parameter_type;
+    std::shared_ptr<Type> return_type;
+    bool is_export;
+};
+
 
 struct Module {
     std::string name;
@@ -692,6 +703,8 @@ struct Module {
     std::vector<std::shared_ptr<NativeFuncDeclNode>> native_funcs;
     std::vector<std::shared_ptr<TypeDeclNode>> adt_exports;
     std::vector<std::pair<std::string, UnitDefinition>> unit_exports;
+    std::vector<std::string> function_slots;
+    std::vector<SyntheticBuiltinSpec> builtin_functions;
 
     // key 是展开后的源码绝对路径，value是输出的module编码文件路径
     std::unordered_map<std::string, std::shared_ptr<ModuleType>> imports;
@@ -710,7 +723,7 @@ struct Module {
 
 /*
  * 类型池：保证每个类型只有一个实例（interned）。
- * parse / hir / tyck 阶段统一从这里获取类型，不做裸 make_shared。
+ * parse / hir / tyck 阶段统一从这里获取类型实例。
  */
 class TypePool {
     std::vector<std::shared_ptr<Type>> types;
@@ -736,16 +749,17 @@ public:
                                                std::string load_path,
                                                std::string binding_name,
                                                std::vector<hir::Scope::Var> exports,
+                                               std::vector<std::string> function_slots = {},
                                                std::vector<std::shared_ptr<TypeDeclNode>> adt_exports = {},
                                                std::vector<std::pair<std::string, UnitDefinition>> unit_exports = {}) noexcept;
 
     [[nodiscard]] std::shared_ptr<Type> unknown() noexcept;
+    [[nodiscard]] std::shared_ptr<Type> never() noexcept;
     [[nodiscard]] std::shared_ptr<Type> none() noexcept;
 
     std::shared_ptr<Type> tuple(std::vector<std::shared_ptr<Type>> t) noexcept;
 };
 
-// 编译器前端共享的类型池，parse / hir / tyck 统一使用
 extern TypePool type_pool;
 
 }

@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/8/3.
-//
 
 #pragma once
 #include <memory>
@@ -20,10 +17,6 @@ using Type = std::shared_ptr<HirType>;
 struct HirType {
     Kind kind;
 protected:
-    /*
-     * 与 ast::TypePool 相同的保证：类型实例仅由 hir::ty::Pool 创建，
-     * 确保相同 HIR 类型全局唯一。
-     */
     explicit HirType(const Kind kind) noexcept : kind(kind) {}
 
 public:

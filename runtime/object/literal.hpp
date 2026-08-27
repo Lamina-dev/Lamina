@@ -28,6 +28,11 @@ public:
     [[nodiscard]] bool equals(const LiteralObj& other) const noexcept;
     [[nodiscard]] std::size_t hash() const noexcept;
     [[nodiscard]] std::string to_string() const noexcept;
+    [[nodiscard]] std::vector<Value> union_elements(const LiteralObj& other) const;
+    [[nodiscard]] std::vector<Value> intersection_elements(const LiteralObj& other) const;
+    [[nodiscard]] std::vector<Value> difference_elements(const LiteralObj& other) const;
+    [[nodiscard]] std::vector<Value> symmetric_difference_elements(const LiteralObj& other) const;
+    [[nodiscard]] bool subset_of(const LiteralObj& other) const noexcept;
 
 private:
     Kind kind_;

@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/3/29.
-//
 
 #pragma once
 #include "fraction.hpp"
@@ -15,7 +12,7 @@ namespace lmx::runtime {
 enum class ValueKind : uint8_t {
     Null, C_Ptr, Obj, Int, Bool, Fraction, Real, Expr, C_VaList,
     C_ValueRef, Tuple, Set, Interval, Complex, Vector, Matrix, Table, Random,
-    Quantity
+    Quantity, Sparse, Tensor, Assumptions
 };
 
 LMX_INLINE constexpr bool is_object_value_kind(const ValueKind kind) noexcept {
@@ -24,11 +21,11 @@ LMX_INLINE constexpr bool is_object_value_kind(const ValueKind kind) noexcept {
            kind == ValueKind::Interval || kind == ValueKind::Complex ||
            kind == ValueKind::Vector || kind == ValueKind::Matrix ||
            kind == ValueKind::Table || kind == ValueKind::Random ||
-           kind == ValueKind::Quantity;
+           kind == ValueKind::Quantity || kind == ValueKind::Sparse ||
+           kind == ValueKind::Tensor || kind == ValueKind::Assumptions;
 }
 
 struct Value;
-// #pragma pack(push, 1)
 struct Value {
     ValueKind kind{ValueKind::Null};
     union {
@@ -93,7 +90,6 @@ struct Value {
 
     LMX_INLINE ~Value() noexcept;
 };
-// #pragma pack(pop)
 
 #define VALUE_DESTRUCT_UNSAFE(v) (v)->~Value()
 LMX_INLINE Value::Value() noexcept = default;
@@ -117,20 +113,17 @@ LMX_INLINE Value::Value(double val) noexcept : kind(ValueKind::Real), real_val(v
 
 LMX_INLINE Value &Value::operator=(std::nullptr_t) noexcept {
     VALUE_DESTRUCT_UNSAFE(this);
-    // assert(this->kind == ValueKind::Null);
     this->kind = ValueKind::Null;
     this->null_val = nullptr;
     return *this;
 }
 
 LMX_INLINE Object *Value::operator->() const noexcept {
-    // assert(this->kind == ValueKind::Obj);
     return obj;
 }
 
 LMX_INLINE Value &Value::operator=(double val) noexcept {
     VALUE_DESTRUCT_UNSAFE(this);
-    // assert(this->kind == ValueKind::C_Ptr);
     this->kind = ValueKind::Real;
     this->real_val = val;
     return *this;
@@ -138,7 +131,6 @@ LMX_INLINE Value &Value::operator=(double val) noexcept {
 
 LMX_INLINE Value &Value::operator=(void *ptr) noexcept {
     VALUE_DESTRUCT_UNSAFE(this);
-    // assert(this->kind == ValueKind::C_Ptr);
     this->kind = ValueKind::C_Ptr;
     this->c_ptr = ptr;
     return *this;
@@ -146,7 +138,6 @@ LMX_INLINE Value &Value::operator=(void *ptr) noexcept {
 
 LMX_INLINE Value &Value::operator=(const bool val) noexcept {
     VALUE_DESTRUCT_UNSAFE(this);
-    // assert(this->kind == ValueKind::Bool);
     this->kind = ValueKind::Bool;
     this->bool_val = val;
     return *this;
@@ -154,7 +145,6 @@ LMX_INLINE Value &Value::operator=(const bool val) noexcept {
 
 LMX_INLINE Value &Value::operator=(const LmInt val) noexcept {
     VALUE_DESTRUCT_UNSAFE(this);
-    // assert(this->kind == ValueKind::Int);
     this->kind = ValueKind::Int;
     this->int_val = val;
     return *this;
@@ -169,7 +159,6 @@ LMX_INLINE Value &Value::operator=(const Fraction &fraction) {
 
 LMX_INLINE Value &Value::operator=(Object *obj) noexcept {
     VALUE_DESTRUCT_UNSAFE(this);
-    // assert(this->kind == ValueKind::Obj);
     this->kind = ValueKind::Obj;
     this->obj = obj;
     return *this;
@@ -178,61 +167,50 @@ LMX_INLINE Value &Value::operator=(Object *obj) noexcept {
 
 
 LMX_INLINE Value Value::operator%(const Value &other) const noexcept {
-    // assert(this->kind == ValueKind::Int);
     return Value(this->int_val % other.int_val);
 }
 
 LMX_INLINE Value &Value::operator%=(const Value &other) noexcept {
-    // assert(this->kind == ValueKind::Int);
     this->int_val %= other.int_val;
     return *this;
 }
 
 LMX_INLINE Value Value::operator*(const Value &other) const noexcept {
-    // assert(this->kind == ValueKind::Int);
     return Value(this->int_val * other.int_val);
 }
 
 LMX_INLINE Value &Value::operator*=(const Value &other) noexcept {
-    // assert(this->kind == ValueKind::Int);
     this->int_val *= other.int_val;
     return *this;
 }
 
 LMX_INLINE Value Value::operator/(const Value &other) const noexcept {
-    // assert(this->kind == ValueKind::Int);
     return Value(this->int_val / other.int_val);
 }
 
 LMX_INLINE Value &Value::operator/=(const Value &other) noexcept {
-    // assert(this->kind == ValueKind::Int);
     this->int_val /= other.int_val;
     return *this;
 }
 
 LMX_INLINE Value Value::operator+(const Value &other) const noexcept {
-    // assert(this->kind == ValueKind::Int);
     return Value(int_val + other.int_val);
 }
 
 LMX_INLINE Value Value::operator-() const noexcept {
-    // assert(this->kind == ValueKind::Int);
     return Value(-int_val);
 }
 
 LMX_INLINE Value &Value::operator+=(const Value &other) noexcept {
-    // assert(this->kind == ValueKind::Int);
     this->int_val += other.int_val;
     return *this;
 }
 
 LMX_INLINE Value Value::operator-(const Value &other) const noexcept {
-    // assert(this->kind == ValueKind::Int);
     return Value(int_val - other.int_val);
 }
 
 LMX_INLINE Value &Value::operator-=(const Value &other) noexcept {
-    // assert(this->kind == ValueKind::Int);
     this->int_val -= other.int_val;
     return *this;
 }
@@ -258,12 +236,10 @@ LMX_INLINE bool Value::operator!=(const Value &other) const noexcept {
 }
 
 LMX_INLINE bool Value::operator!() const noexcept {
-    // assert(this->kind == ValueKind::Bool);
     return !bool_val;
 }
 
 LMX_INLINE Value::operator bool() const noexcept {
-    // assert(this->kind == ValueKind::Bool);
     return bool_val;
 }
 
@@ -282,7 +258,6 @@ LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
         this->obj = other.obj->get();
         this->kind = other.kind;
     } else {
-        //memcpy(this, &other, sizeof(Value));
         this->kind = other.kind;
         switch (other.kind) {
         case ValueKind::Null: null_val = nullptr; break;
@@ -304,6 +279,9 @@ LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
         case ValueKind::Table:
         case ValueKind::Random:
         case ValueKind::Quantity:
+        case ValueKind::Sparse:
+        case ValueKind::Tensor:
+        case ValueKind::Assumptions:
             obj = nullptr;
             break;
         }
@@ -329,6 +307,9 @@ LMX_INLINE Value &Value::operator=(Value &&other) noexcept {
     case ValueKind::Table:
     case ValueKind::Random:
     case ValueKind::Quantity:
+    case ValueKind::Sparse:
+    case ValueKind::Tensor:
+    case ValueKind::Assumptions:
         obj = other.obj;
         break;
     case ValueKind::Int: int_val = other.int_val; break;
@@ -358,7 +339,10 @@ LMX_INLINE Value::~Value() noexcept {
     case ValueKind::Matrix:
     case ValueKind::Table:
     case ValueKind::Random:
-    case ValueKind::Quantity: {
+    case ValueKind::Quantity:
+    case ValueKind::Sparse:
+    case ValueKind::Tensor:
+    case ValueKind::Assumptions: {
         if (this->obj) this->obj->release();
         break;
     }

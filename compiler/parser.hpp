@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/4/3.
-//
 
 #pragma once
 #include "ast/ast.hpp"
@@ -23,7 +20,6 @@ class Parser {
     std::shared_ptr<ExprNode> parse_match()         noexcept;
     Pattern parse_pattern()                         noexcept;
     std::shared_ptr<Type> parse_type() noexcept;
-    // std::shared_ptr<ExprStmtNode> parse_multi_naming()    noexcept;
     std::shared_ptr<ExprStmtNode> parse_param_name()      noexcept;
 
 
@@ -41,7 +37,6 @@ class Parser {
     UnitSpec parse_unit_spec() noexcept;
 
 
-    // void advance() noexcept;
     bool consume(TokenType token_type, const std::string &tk) noexcept;
     [[nodiscard]] bool match(TokenType t) const noexcept;
 

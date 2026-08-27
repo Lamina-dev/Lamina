@@ -188,6 +188,10 @@ Token Lexer::next() {
             }
             return {TokenType::BAR, "|", line, col - 1};
         }
+        case '&': {
+            advance();
+            return {TokenType::AMP, "&", line, col - 1};
+        }
         case '.': {
             advance();
             if (content[pos] == '.' && content[pos + 1] == '.') {
@@ -239,6 +243,8 @@ Token Lexer::next() {
                     {"while", TokenType::KW_WHILE},
                     {"for", TokenType::KW_FOR},
                     {"in", TokenType::KW_IN},
+                    {"subset", TokenType::KW_SUBSET},
+                    {"xor", TokenType::KW_XOR},
                     {"not", TokenType::NOT},    // 让! 和 not等价
                     {"import", TokenType::KW_IMPORT},
                     {"sym", TokenType::KW_SYM},
@@ -267,22 +273,13 @@ std::vector<Token> Lexer::tokenize(const std::string& code) {
     has_err = false;
     pos = 0;
     const auto orig_line = line;
-    // line += [&]() -> size_t {
-    //     if (content.empty()) return 0;
-    //     return std::ranges::count(content, '\n') + 1;
-    // }();
     col = 1;
     std::vector<Token> tokens;
     while (pos < content.size()) {
         tokens.push_back(next());
     }
     if (tokens.empty() || tokens.back().type != TokenType::END_OF_FILE) tokens.push_back({TokenType::END_OF_FILE, "", line, col});
-    // const std::string res = error(tokens, orig_line);
-    //if (res.empty())
-        return tokens;
-    //has_err = true;
-    //std::cerr << res << std::endl;
-    //return {};
+    return tokens;
 }
 
 std::string Lexer::error(const std::vector<Token>& tokens, const size_t origin_lineno) {

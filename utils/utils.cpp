@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/7/30.
-//
 #include "utils.hpp"
 
 #if defined(__unix__)

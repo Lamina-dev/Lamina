@@ -238,6 +238,7 @@ std::optional<hir::ResolvedModule> Compiler::resolve_module(
     auto type = std::static_pointer_cast<ModuleType>(type_pool.module(
         output_path.string(), load_path.string(), binding_name,
         std::move(compilation.exports),
+        std::move(compilation.module->function_slots),
         std::move(compilation.module->adt_exports),
         std::move(compilation.module->unit_exports)));
     hir::ResolvedModule result{

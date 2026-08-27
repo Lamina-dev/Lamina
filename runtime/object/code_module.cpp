@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/4/6.
-//
 
 #include "code_module.hpp"
 
@@ -36,20 +33,18 @@ class ModuleLoader {
 public:
     static bool check_magic(const uint8_t*& p) noexcept {
         using Magic = decltype(LMX_MAGIC_NUM);
-        // if (p == nullptr) return false;
         if (*reinterpret_cast<const Magic*>(p) != LMX_MAGIC_NUM) return false;
         p += sizeof(Magic);
         return true;
     }
     static bool check_version(const uint8_t*& p) noexcept {
         using Version = decltype(LMX_VERSION);
-        // if (p == nullptr) return false;
         if (*reinterpret_cast<const Version*>(p) != LMX_VERSION) return false;
         p += sizeof(Version);
         return true;
     }
 
-    static bool load_native_decl(std::vector<NativeFuncObj>& result, DLLib*& handle, const uint8_t*& p) noexcept {
+    static bool load_native_decl(std::vector<NativeFuncObj>& result, DLLib*& handle, const uint8_t*& p) {
         const auto size = *reinterpret_cast<const uint64_t*>(p);
         p += sizeof(uint64_t);
         const auto over = p + size;
@@ -59,7 +54,11 @@ public:
             p = over;
             return false;
         }
-        const auto real_name = std::string(lib_prefix) + lib_name + lib_suffix;
+        std::string real_name(lib_name);
+        if (!real_name.starts_with(lib_prefix)) {
+            real_name.insert(0, lib_prefix);
+        }
+        real_name += lib_suffix;
 
         handle = dlLoadLibrary(real_name.c_str());
 
@@ -80,8 +79,8 @@ public:
             const auto ret_ty = static_cast<ValueKind>(*p++);
             const void* addr = dlFindSymbol(handle, name);
             if (addr == nullptr) {
-                std::cerr << "native symbol `" << name << "` not found" << std::endl;
-                std::exit(1);
+                VM_ERROR(RuntimeErrorType::ModuleLoad,
+                         "native symbol `" + std::string(name) + "` not found");
             }
 
             result.emplace_back(addr, count, args_ty, ret_ty, name);
@@ -175,7 +174,7 @@ public:
         return true;
     }
 
-    static bool load_imports(decltype(CodeModuleObj::imports)& mod, const uint8_t*& p) noexcept {
+    static bool load_imports(decltype(CodeModuleObj::imports)& mod, const uint8_t*& p) {
         const auto over = p + *reinterpret_cast<const uint64_t*>(p) + sizeof(uint64_t);
         p += sizeof(uint64_t);
         while (p != over) {
@@ -208,7 +207,7 @@ CodeModuleObj::~CodeModuleObj() noexcept {
 }
 
 
-CodeModuleObj::CodeModuleObj(std::vector<uint8_t>&& data) noexcept : Object(ObjectKind::Code), raw_data(std::move(data)) {
+CodeModuleObj::CodeModuleObj(std::vector<uint8_t>&& data) : Object(ObjectKind::Code), raw_data(std::move(data)) {
 
     const uint8_t* binary = raw_data.data();
     ModuleLoader::check_magic(binary);
@@ -240,7 +239,6 @@ bool CodeModuleObj::operator!=(const Object &other) const noexcept {
     return false;
 }
 
-// --- Disassembler ---
 
 namespace {
 
@@ -314,6 +312,12 @@ constexpr InstInfo INST_TABLE[] = {
     /* LiteralNew  */ {.name = "literal_new", .fmt = InstInfo::RegRegImm8},
     /* Contains    */ {.name = "contains", .fmt = InstInfo::RegRegReg},
     /* NotContains */ {.name = "not_contains", .fmt = InstInfo::RegRegReg},
+    /* Raise       */ {.name = "raise", .fmt = InstInfo::Reg},
+    /* SetUnion     */ {.name = "set_union", .fmt = InstInfo::RegRegReg},
+    /* SetIntersection */ {.name = "set_intersection", .fmt = InstInfo::RegRegReg},
+    /* SetDifference */ {.name = "set_difference", .fmt = InstInfo::RegRegReg},
+    /* SetSymmetricDifference */ {.name = "set_symmetric_difference", .fmt = InstInfo::RegRegReg},
+    /* SetSubset    */ {.name = "set_subset", .fmt = InstInfo::RegRegReg},
 };
 
 constexpr size_t INST_COUNT = std::size(INST_TABLE);
@@ -404,6 +408,9 @@ static const char* value_kind_name(ValueKind kind) noexcept {
     case ValueKind::Table:    return "Table";
     case ValueKind::Random:   return "Random";
     case ValueKind::Quantity: return "Quantity";
+    case ValueKind::Sparse: return "Sparse";
+    case ValueKind::Tensor: return "Tensor";
+    case ValueKind::Assumptions: return "Assumptions";
     default:                  return "?";
     }
 }
@@ -414,7 +421,6 @@ std::string CodeModuleObj::disassemble() const noexcept {
         << cp.size() << " constant(s), "
         << native_funcs.size() << " native(s)\n";
 
-    // Native functions
     if (!native_funcs.empty()) {
         out << "\n--- Native Functions ---\n";
         for (size_t i = 0; i < native_funcs.size(); ++i) {
@@ -429,7 +435,6 @@ std::string CodeModuleObj::disassemble() const noexcept {
         }
     }
 
-    // Disassemble functions
     for (size_t i = 0; i < funcs.size(); ++i) {
         const auto& f = funcs[i];
         out << "\n--- Func #" << i << " (" << f.bytecode_len << " bytes) ---\n";
@@ -438,7 +443,6 @@ std::string CodeModuleObj::disassemble() const noexcept {
         }
     }
 
-    // Disassemble entry-point code (top-level)
     out << "\n--- Entry Point ---\n";
     if (code && code_len > 0) {
         for (size_t off = 0; off + 4 <= code_len; off += 4) {
@@ -458,7 +462,6 @@ std::string CodeModuleObj::disassemble() const noexcept {
         out << "  (none)\n";
     }
 
-    // Constant pool
     if (!cp.empty()) {
         out << "\n--- Constant Pool ---\n";
         for (size_t i = 0; i < cp.size(); ++i) {

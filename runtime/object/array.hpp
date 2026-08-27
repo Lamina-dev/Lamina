@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/8/10.
-//
 
 #pragma once
 #include "value.hpp"
@@ -18,7 +15,7 @@ class ArrayObj : public Object {
         if (i < 0) return static_cast<LmInt>(arr.size()) + i;
         return i;
     }
-    LMX_INLINE void check_index(const size_t i) const noexcept {
+    LMX_INLINE void check_index(const size_t i) const {
         if (i >= arr.size()) {
             VM_ERROR(RuntimeErrorType::IndexOutOfRange,
                 "array len is " + std::to_string(arr.size()) + " but you index " + std::to_string(i)
@@ -39,18 +36,18 @@ public:
         arr.push_back(std::move(v));
     }
 
-    [[nodiscard]] LMX_INLINE Value& at(const LmInt i) noexcept {
+    [[nodiscard]] LMX_INLINE Value& at(const LmInt i) {
         const size_t i2 = get_index(i);
         check_index(i2);
         return arr[i2];
     }
 
-    LMX_INLINE void store(const LmInt i, const Value& v) noexcept {
+    LMX_INLINE void store(const LmInt i, const Value& v) {
         const size_t i2 = get_index(i);
         check_index(i2);
         arr[i2] = v;
     }
-    LMX_INLINE void store(const LmInt i, Value&& v) noexcept {
+    LMX_INLINE void store(const LmInt i, Value&& v) {
         const size_t i2 = get_index(i);
         check_index(i2);
         VALUE_DESTRUCT_UNSAFE(&arr[i2]);                  // 释放旧元素(含占有的对象)

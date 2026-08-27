@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/3/28.
-//
 #include "object.hpp"
 
 #include "array.hpp"
@@ -16,6 +13,9 @@
 #include "table.hpp"
 #include "random.hpp"
 #include "quantity.hpp"
+#include "sparse.hpp"
+#include "tensor.hpp"
+#include "assumptions.hpp"
 
 using namespace lmx::runtime;
 
@@ -66,9 +66,14 @@ std::string Object::to_string(Object *obj) noexcept {
     case ObjectKind::Quantity: {
         return reinterpret_cast<QuantityObj*>(obj)->to_string();
     }
-    default: {
+    case ObjectKind::Sparse:
+        return reinterpret_cast<SparseMatrixObj*>(obj)->to_string();
+    case ObjectKind::Tensor:
+        return reinterpret_cast<TensorObj*>(obj)->to_string();
+    case ObjectKind::Assumptions:
+        return reinterpret_cast<AssumptionsObj*>(obj)->to_string();
+    default:
         return "";
-    }
     }
     return {};
 }
@@ -143,9 +148,17 @@ void Object::release() noexcept {
             delete reinterpret_cast<QuantityObj*>(this);
             return;
         }
-        default: {
+        case ObjectKind::Sparse:
+            delete reinterpret_cast<SparseMatrixObj*>(this);
             return;
-        }
+        case ObjectKind::Tensor:
+            delete reinterpret_cast<TensorObj*>(this);
+            return;
+        case ObjectKind::Assumptions:
+            delete reinterpret_cast<AssumptionsObj*>(this);
+            return;
+        default:
+            return;
         }
     }
 }

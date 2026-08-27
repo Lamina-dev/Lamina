@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/4/6.
-// 这一页是关于常量池编码的
 
 #pragma once
 #include <cstdint>

@@ -1,14 +1,4 @@
-/*
- *  Created by meian on 2026/4/8.
- *
- *  Lamina Runtime Interface
- *
- *  不建议更改此文件，可以在每个发行包的include目录下找到此文件
- */
 #pragma once
-/*
- * 使用MSVC编译是不受支持的
- */
 #if defined(_MSC_VER)
 #error "MSVC is not supported, use clang-cl or other compilers in Windows"
 #endif
@@ -39,9 +29,6 @@ extern "C" {
 
 #define LM_CALL
 
-/*
- * Lamina 接口状态管理
- */
 struct LmLinkedNode;
 typedef struct LmLinkedNode LmLinkedNode;
 struct LmLinkedNode {
@@ -61,7 +48,6 @@ extern LmState global_state;
 
 LM_API LmState* lmx_newState();
 LM_API void lmx_deleteState(const LmState* state);
-/******************************/
 
 
 struct LmValue;
@@ -97,7 +83,7 @@ LM_API LmModule* LM_CALL lmx_doString(LmState* state, const char* code, const ch
  * Args:
  *     state (LmState*): 接口状态
  *     name  (const char*): 代码文件名字(同模块名)
- *     is_main_module (bool):  是不是主模块，主模块就是被直接运行的模块，不会被import
+ *     is_main_module (bool): 是否作为直接执行入口
  * Return:
  *     LmModule*:  成功时返回加载完成的模块，失败nullptr
  *

@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/7/16.
-//
 
 #pragma once
 #include <memory>
@@ -147,6 +144,12 @@ struct MirIPowExpr : MirOperateExpr {
     std::shared_ptr<MirExpr> lhs, rhs;
     explicit MirIPowExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept;
 };
+struct MirSetBinaryExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> lhs, rhs;
+    MirSetBinaryExpr(runtime::Opcode::Opcode opcode,
+                     std::shared_ptr<MirExpr> lhs,
+                     std::shared_ptr<MirExpr> rhs) noexcept;
+};
 struct MirINegExpr : MirOperateExpr {
     std::shared_ptr<MirExpr> e;
     explicit MirINegExpr(std::shared_ptr<MirExpr> e) noexcept;
@@ -163,9 +166,6 @@ struct MirCallFastExpr : MirOperateExpr {
     explicit MirCallFastExpr(std::string name, std::vector<std::shared_ptr<MirRefExpr>> args) noexcept;
 };
 
-/*
- * calling c function
- */
 struct MirCCallExpr : MirOperateExpr {
     std::string name;
     std::vector<std::shared_ptr<MirRefExpr>> args;
@@ -177,6 +177,10 @@ struct MirRetExpr : MirOperateExpr {
 };
 struct MirRetVoidExpr : MirOperateExpr {
     explicit MirRetVoidExpr() noexcept;
+};
+struct MirRaiseExpr : MirOperateExpr {
+    std::shared_ptr<MirExpr> value;
+    explicit MirRaiseExpr(std::shared_ptr<MirExpr> value) noexcept;
 };
 struct MirGotoExpr : MirOperateExpr {
     std::string label;

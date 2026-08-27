@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/4/10.
-// 这个作为后期实现，暂时这样吧
 
 #pragma once
 #include <cstdint>
@@ -14,7 +11,6 @@
 namespace lmx::runtime {
 class GC;
 
-// using GCObject = std::shared_ptr<Object>;
 class LmGCAllocator {
 public:
     LMX_INLINE Object* alloc_string(const char *str, uint32_t len) noexcept {

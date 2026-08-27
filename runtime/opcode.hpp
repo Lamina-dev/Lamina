@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/4/6.
-//
 
 #pragma once
 #include <cstdint>
@@ -45,7 +42,10 @@ enum Opcode : uint8_t {
     TupleGet, // reg(1), obj_reg(1), idx(1)
     TupleSet, // obj_reg(1), idx(1), reg(1)
     AdtNew, AdtIs, AdtGet,
-    LiteralNew, Contains, NotContains
+    LiteralNew, Contains, NotContains,
+    Raise, // source reg(1)
+    SetUnion, SetIntersection, SetDifference, SetSymmetricDifference, SetSubset
+    // destination reg(1), lhs reg(1), rhs reg(1)
 };
 
 }

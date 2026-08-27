@@ -1,6 +1,3 @@
-//
-// Created by meian on 2026/7/16.
-//
 
 #include "mir.hpp"
 #include <utility>
@@ -67,6 +64,10 @@ MirIModExpr::MirIModExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> 
 
 MirIPowExpr::MirIPowExpr(std::shared_ptr<MirExpr> lhs, std::shared_ptr<MirExpr> rhs) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::IPow), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+MirSetBinaryExpr::MirSetBinaryExpr(const runtime::Opcode::Opcode opcode,
+                                   std::shared_ptr<MirExpr> lhs,
+                                   std::shared_ptr<MirExpr> rhs) noexcept
+    : MirOperateExpr(opcode), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
 MirINegExpr::MirINegExpr(std::shared_ptr<MirExpr> e) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::INeg), e(std::move(e)) {}
@@ -85,6 +86,8 @@ MirRetExpr::MirRetExpr(std::shared_ptr<MirExpr> value) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::Ret), value(std::move(value)) {}
 MirRetVoidExpr::MirRetVoidExpr() noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::Nop, MirOperateKind::RetVoid) {}
+MirRaiseExpr::MirRaiseExpr(std::shared_ptr<MirExpr> value) noexcept
+    : MirOperateExpr(runtime::Opcode::Opcode::Raise), value(std::move(value)) {}
 
 MirGotoExpr::MirGotoExpr(std::string label) noexcept
     : MirOperateExpr(runtime::Opcode::Opcode::Goto), label(std::move(label)) {}
