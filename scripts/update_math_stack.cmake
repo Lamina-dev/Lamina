@@ -52,4 +52,4 @@ endif()
 
 update_branch("${lmcas}" main)
 update_branch("${lmmc}" main)
-update_branch("${lammp}" main)
+run_git("${lmmc}" submodule update --init --recursive -- LAMMP)
