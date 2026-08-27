@@ -1,0 +1,62 @@
+import std
+import std.linalg
+import std.stats
+
+match linalg.matrix([[2.0, 0.0], [0.0, 3.0]]) {
+    Result.Ok(a) => {
+        match linalg.shape(a) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+        match linalg.adjoint(a) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+        match linalg.determinant(a) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+        match linalg.inverse(a) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+        match linalg.solve_left(a, a) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+        match linalg.solve_right(a, a) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+        match linalg.one_norm(a) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+        match linalg.infinity_norm(a) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+        match linalg.vector([2.0, 3.0]) {
+            Result.Ok(rhs) => match linalg.solve_triangular(a, rhs, true, false) {
+                Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,")
+            },
+            Result.Err(_) => std.printf("0,")
+        }
+    },
+    Result.Err(_) => std.printf("0,0,0,0,0,0,0,0,0,")
+}
+match linalg.matrix([[1.0, 0.0], [0.0, 1.0]]) {
+    Result.Ok(a) => match linalg.vector([1.0, 2.0]) {
+        Result.Ok(rhs) => match linalg.least_squares(a, rhs) {
+            Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,")
+        },
+        Result.Err(_) => std.printf("0,")
+    },
+    Result.Err(_) => std.printf("0,")
+}
+match linalg.vector([1.0, 2.0, 3.0, 4.0]) {
+    Result.Ok(values) => {
+        match stats.standard_deviation(values) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+        match stats.covariance(values, values) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+        match stats.correlation(values, values) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+    },
+    Result.Err(_) => std.printf("0,0,0,0,")
+}
+match stats.normal_probability_density(0.0, 0.0, 1.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.normal_cumulative_distribution(0.0, 0.0, 1.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.normal_quantile(0.5, 0.0, 1.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.student_t_probability_density(0.0, 3.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.student_t_cumulative_distribution(0.0, 3.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.t_quantile(0.5, 3.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.chi_squared_probability_density(1.0, 3.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.chi_squared_cumulative_distribution(1.0, 3.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.chi2_quantile(0.5, 3.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.fisher_f_probability_density(1.0, 3.0, 4.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.fisher_f_cumulative_distribution(1.0, 3.0, 4.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.f_quantile(0.5, 3.0, 4.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.gamma_pdf(1.0, 2.0, 1.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.gamma_cdf(1.0, 2.0, 1.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.gamma_quantile(0.5, 2.0, 1.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.beta_pdf(0.5, 2.0, 2.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.beta_cdf(0.5, 2.0, 2.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.beta_quantile(0.5, 2.0, 2.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.binomial_probability_mass(1, 3, 0.5) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.binomial_cumulative_distribution(1, 3, 0.5) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.poisson_probability_mass(1, 2.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+match stats.poisson_cumulative_distribution(1, 2.0) { Result.Ok(_) => std.printf("1"), Result.Err(_) => std.printf("0") }

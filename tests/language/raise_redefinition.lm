@@ -1,0 +1,3 @@
+func raise(message text) -> int {
+    0
+}

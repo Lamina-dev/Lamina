@@ -1,0 +1,13 @@
+import std
+import std.mathematics_error
+
+func invoke(f func(mathematics_error.MathError) -> int,
+            error mathematics_error.MathError) -> int {
+    f(error)
+}
+
+sym x
+match std.cas.raw.solve(x < 1, "x") {
+    Result.Ok(_) => 0,
+    Result.Err(error) => invoke(mathematics_error.raise, error)
+}

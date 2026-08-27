@@ -1,0 +1,133 @@
+import std
+import std.mathematics_error
+import std.math
+import std.linalg
+import std.sparse
+import std.integrate
+import std.cas
+
+sym x
+
+func code_name(code mathematics_error.MathErrorCode) -> text {
+    match code {
+        mathematics_error.DomainError => "DomainError",
+        mathematics_error.CallbackFailure => "CallbackFailure",
+        mathematics_error.IndexOutOfBounds => "IndexOutOfBounds",
+        mathematics_error.ParseError => "ParseError",
+        _ => "unexpected"
+    }
+}
+
+# 1) Scalar fully named operation.
+match std.math.square_root(2.0) {
+    Result.Ok(value) => std.printf("square_root(2) = %.6f\n", value),
+    Result.Err(error) => std.printf("square_root failed: %s\n",
+        mathematics_error.message(error))
+}
+
+# 2) Dense determinant through the renamed linear-algebra surface.
+match std.linalg.matrix([[3.0, 8.0], [4.0, 6.0]]) {
+    Result.Ok(matrix) => match std.linalg.determinant(matrix) {
+        Result.Ok(det) => std.printf("determinant = %.1f\n", det),
+        Result.Err(error) => std.printf("determinant failed: %s\n",
+            mathematics_error.message(error))
+    },
+    Result.Err(error) => std.printf("matrix failed: %s\n",
+        mathematics_error.message(error))
+}
+
+# 3) Sparse conjugate-gradient solve.
+match std.linalg.matrix([[4.0, 1.0], [1.0, 3.0]]) {
+    Result.Ok(dense) => match std.sparse.from_dense(dense, 0.0) {
+        Result.Ok(sparse) => match std.linalg.vector([1.0, 2.0]) {
+            Result.Ok(rhs) => match std.sparse.default_options(2) {
+                Result.Ok(options) =>
+                    match std.sparse.conjugate_gradient(sparse, rhs, options) {
+                        Result.Ok(result) =>
+                            match std.sparse.solution(result) {
+                                Result.Ok(solution) =>
+                                    match std.linalg.element_at(solution, 0) {
+                                        Result.Ok(first) => std.printf(
+                                            "sparse cg converged=%d x[0] ~= %.6f\n",
+                                            std.sparse.converged(result), first),
+                                        Result.Err(error) => std.printf("element failed: %s\n",
+                                            mathematics_error.message(error))
+                                    },
+                                Result.Err(error) => std.printf("solution failed: %s\n",
+                                    mathematics_error.message(error))
+                            },
+                        Result.Err(error) => std.printf("cg failed: %s\n",
+                            mathematics_error.message(error))
+                    },
+                Result.Err(error) => std.printf("options failed: %s\n",
+                    mathematics_error.message(error))
+            },
+            Result.Err(error) => std.printf("rhs failed: %s\n",
+                mathematics_error.message(error))
+        },
+        Result.Err(error) => std.printf("sparse convert failed: %s\n",
+            mathematics_error.message(error))
+    },
+    Result.Err(error) => std.printf("dense convert failed: %s\n",
+        mathematics_error.message(error))
+}
+
+# 4) Callback integral.
+func integrand(value real) -> real {
+    value * value
+}
+
+match std.integrate.adaptive(integrand, 0.0, 1.0, 0.000001, 0.000001, 20) {
+    Result.Ok(result) => std.printf("integral x^2 = %.6f (%s)\n",
+        std.integrate.value(result), std.integrate.status(result)),
+    Result.Err(error) => std.printf("integral failed: %s\n",
+        mathematics_error.message(error))
+}
+
+# 5) CAS differentiation.
+let polynomial = x^3 + 2*x
+{
+    let derivative = std.cas.differentiate(polynomial, "x")
+    std.printf("d/dx = %s\n",
+        std.cas.to_text(derivative))
+}
+
+# 6) Structured MathError fields observed independently.
+match std.math.square_root(-1.0) {
+    Result.Ok(_) => std.printf("domain error missing\n"),
+    Result.Err(error) => std.printf(
+        "MathError{code=%s, operation=%s, message=%s}\n",
+        code_name(mathematics_error.code(error)),
+        mathematics_error.operation(error),
+        mathematics_error.message(error))
+}
+
+func render_first(values array<expr>) -> text {
+    std.cas.to_text(values[0])
+}
+
+func render_second(values array<expr>) -> text {
+    std.cas.to_text(values[1])
+}
+
+# 7) solve and roots produce the identical exact set for x^2 + 2*x - 6 == 0.
+let equation = x^2 + 2*x - 6 == 0
+let solve_a = {
+    let values = std.cas.solve(equation, "x")
+    render_first(std.cas.set_to_array(values))
+}
+let solve_b = {
+    let values = std.cas.solve(equation, "x")
+    render_second(std.cas.set_to_array(values))
+}
+let roots_a = {
+    let values = std.cas.roots(x^2 + 2*x - 6, "x")
+    render_first(std.cas.set_to_array(values))
+}
+let roots_b = {
+    let values = std.cas.roots(x^2 + 2*x - 6, "x")
+    render_second(std.cas.set_to_array(values))
+}
+std.printf("solve set {%s, %s}\n", solve_a, solve_b)
+std.printf("roots set {%s, %s}\n", roots_a, roots_b)
+std.printf("sets equal = %d\n", solve_a == roots_a and solve_b == roots_b)

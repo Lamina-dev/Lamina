@@ -1,0 +1,55 @@
+import std
+import std.mathematics_error
+import std.cas.assumptions
+import std.cas.equation_solving
+
+func p(source text) -> expr {
+    std.cas.parse(source)
+}
+
+let x = std.cas.symbol("x")
+let base = assumptions.empty()
+{
+    let value = assumptions.query(base, x, "positive")
+    match value {
+        assumptions.Undetermined => std.printf("U|"),
+        _ => std.printf("bad|")
+    }
+}
+{
+    let derived = assumptions.with_sign(base, "x", "positive")
+{
+    let value = assumptions.query(derived, x, "positive")
+    match value {
+                assumptions.Proven => std.printf("P|"),
+                _ => std.printf("bad|")
+            }
+}
+        {
+    let value = assumptions.query(base, x, "positive")
+    match value {
+                assumptions.Undetermined => std.printf("U|"),
+                _ => std.printf("bad|")
+            }
+}
+}
+
+{
+    let context = assumptions.with_domain(base, "x", "positive_int")
+let values = equation_solving.with_assumptions(context, p("x^2-1"), "x")
+    std.printf("%s|", std.cas.to_text(values[0]))
+}
+
+{
+    let solutions = equation_solving.system(
+    [p("x+y-3"), p("x-y-1")], ["x", "y"]
+)
+let x_value = std.cas.table_expr(solutions[0], "x")
+let y_value = std.cas.table_expr(solutions[0], "y")
+    std.printf("%s,%s|", std.cas.to_text(x_value), std.cas.to_text(y_value))
+}
+
+{
+    let value = equation_solving.inequality(p("x^2-1"), "<", "x")
+    std.printf("%s", std.cas.to_text(value))
+}

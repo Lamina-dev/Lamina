@@ -1,0 +1,79 @@
+import std.mathematics_error
+import std
+import std.linalg
+import std.stats
+import std.random
+
+func valid_real(result Result<real, mathematics_error.MathError>) -> bool {
+    match result {
+        Result.Ok(value) => value == value,
+        Result.Err(_) => false
+    }
+}
+
+func valid_matrix(result Result<matrix, mathematics_error.MathError>) -> bool {
+    match result {
+        Result.Ok(value) => linalg.row_count(value) > 0,
+        Result.Err(_) => false
+    }
+}
+
+match stats.factorial(5) {
+    Result.Ok(value) => std.printf("%.0f|", value),
+    Result.Err(_) => std.printf("err|")
+}
+match stats.combinations(10, 3) {
+    Result.Ok(value) => std.printf("%.0f|", value),
+    Result.Err(_) => std.printf("err|")
+}
+match stats.permutations(5, 2) {
+    Result.Ok(value) => std.printf("%.0f|", value),
+    Result.Err(_) => std.printf("err|")
+}
+
+match linalg.matrix([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]) {
+    Result.Ok(value) => {
+        let mean_ok = match stats.column_mean(value) {
+            Result.Ok(means) => linalg.vector_size(means) == 2,
+            Result.Err(_) => false
+        }
+        std.printf("%d,%d,%d,%d,%d|", mean_ok,
+            valid_matrix(stats.covariance_matrix_sample(value)),
+            valid_matrix(stats.covariance_matrix_population(value)),
+            valid_matrix(stats.correlation_matrix_sample(value)),
+            valid_matrix(stats.correlation_matrix_population(value)))
+    },
+    Result.Err(_) => std.printf("0,0,0,0,0|")
+}
+
+match random.create(42) {
+    Result.Ok(rng) => {
+        let distribution_ok =
+            valid_real(random.gamma(rng, 2.0, 1.0)) and
+            valid_real(random.beta(rng, 2.0, 3.0)) and
+            valid_real(random.chi_squared(rng, 2.0)) and
+            valid_real(random.fisher_f(rng, 2.0, 3.0)) and
+            valid_real(random.student_t(rng, 4.0))
+        let count_ok = match random.poisson(rng, 2.0) {
+            Result.Ok(value) => value >= 0,
+            Result.Err(_) => false
+        }
+        let binomial_ok = match random.binomial(rng, 10, 0.5) {
+            Result.Ok(value) => value >= 0 and value <= 10,
+            Result.Err(_) => false
+        }
+        let jump_ok = match random.long_jump(rng) {
+            Result.Ok(_) => true,
+            Result.Err(_) => false
+        }
+        let shuffle_ok = match linalg.vector([1.0, 2.0, 3.0]) {
+            Result.Ok(values) => match random.shuffle(rng, values) {
+                Result.Ok(shuffled) => linalg.vector_size(shuffled) == 3,
+                Result.Err(_) => false
+            },
+            Result.Err(_) => false
+        }
+        std.printf("%d,%d,%d,%d,%d", distribution_ok, count_ok, binomial_ok, jump_ok, shuffle_ok)
+    },
+    Result.Err(_) => std.printf("0,0,0,0,0")
+}

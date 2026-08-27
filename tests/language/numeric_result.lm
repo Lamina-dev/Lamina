@@ -1,25 +1,32 @@
+import std.mathematics_error
 import std
 
 let eight expr = 8
 let negative expr = -1
-let invalid = std.cas_diff(eight, "")
+let invalid = std.cas.raw.differentiate(eight, "")
 
-match std.num_log2(eight) {
+match std.math.binary_logarithm(eight) {
     Result.Ok(value) => std.printf("%.1f|", value),
-    Result.Err(error) => std.printf("%s|", error)
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
 }
 
-match std.num_log2(negative) {
+match std.math.binary_logarithm(negative) {
     Result.Ok(_) => std.printf("ok|"),
     Result.Err(_) => std.printf("err|")
 }
 
-match std.num_log2(invalid) {
-    Result.Ok(_) => std.printf("unexpected|"),
+match invalid {
+    Result.Ok(value) => match std.math.binary_logarithm(value) {
+        Result.Ok(_) => std.printf("unexpected|"),
+        Result.Err(_) => std.printf("err|")
+    },
     Result.Err(_) => std.printf("err|")
 }
 
-match std.cas_evalf(invalid) {
-    Result.Ok(_) => std.printf("unexpected"),
+match invalid {
+    Result.Ok(value) => match std.cas.raw.evaluate_real(value) {
+        Result.Ok(_) => std.printf("unexpected"),
+        Result.Err(_) => std.printf("err")
+    },
     Result.Err(_) => std.printf("err")
 }

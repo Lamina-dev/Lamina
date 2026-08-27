@@ -1,0 +1,36 @@
+import std.mathematics_error
+import std
+import std.stats
+
+match std.math.pi() {
+    Result.Ok(value) => std.printf("%.3f|", value),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+match std.math.sine(0.0) {
+    Result.Ok(value) => std.printf("%.1f|", value),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+match std.math.square_root(9.0) {
+    Result.Ok(value) => std.printf("%.1f|", value),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+match std.math.logarithm(8.0, 2.0) {
+    Result.Ok(value) => std.printf("%.1f|", value),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+match std.stats.normal_cumulative_distribution(0.0, 0.0, 1.0) {
+    Result.Ok(value) => std.printf("%.3f|", value),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+match std.stats.binomial_probability_mass(2, 4, 0.5) {
+    Result.Ok(value) => std.printf("%.3f|", value),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+match std.stats.poisson_probability_mass(0, 1.0) {
+    Result.Ok(value) => std.printf("%.3f|", value),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+match std.math.square_root(-1.0) {
+    Result.Ok(value) => std.printf("%.1f", value),
+    Result.Err(error) => std.printf("err")
+}

@@ -1,0 +1,90 @@
+import std
+import std.linalg
+
+match linalg.matrix([[4.0, 1.0], [2.0, 3.0]]) {
+    Result.Ok(a) => match linalg.vector([1.0, 2.0]) {
+        Result.Ok(b) => {
+            match linalg.lower_upper_factorization(a) {
+                Result.Ok(factor) => match linalg.solve_with_lower_upper_factorization(factor, b) {
+                    Result.Ok(x) => match linalg.element_at(x, 0) {
+                        Result.Ok(x0) => match linalg.element_at(x, 1) {
+                            Result.Ok(x1) => std.printf("%.3f,%.3f|", x0, x1),
+                            Result.Err(_) => std.printf("err|")
+                        },
+                        Result.Err(_) => std.printf("err|")
+                    },
+                    Result.Err(_) => std.printf("err|")
+                },
+                Result.Err(_) => std.printf("err|")
+            }
+            match linalg.orthogonal_triangular_factorization(a) {
+                Result.Ok(factor) => match linalg.solve_with_orthogonal_triangular_factorization(factor, b) {
+                    Result.Ok(x) => match linalg.element_at(x, 0) {
+                        Result.Ok(x0) => match linalg.element_at(x, 1) {
+                            Result.Ok(x1) => std.printf("%.3f,%.3f|", x0, x1),
+                            Result.Err(_) => std.printf("err|")
+                        },
+                        Result.Err(_) => std.printf("err|")
+                    },
+                    Result.Err(_) => std.printf("err|")
+                },
+                Result.Err(_) => std.printf("err|")
+            }
+        },
+        Result.Err(_) => std.printf("err|err|")
+    },
+    Result.Err(_) => std.printf("err|err|")
+}
+
+match linalg.matrix([[4.0, 1.0], [1.0, 3.0]]) {
+    Result.Ok(spd) => match linalg.cholesky_factor(spd) {
+        Result.Ok(lower) => match linalg.transpose(lower) {
+            Result.Ok(upper) => match linalg.multiply(lower, upper) {
+                Result.Ok(rebuilt) => match linalg.element_at(rebuilt, 0, 0) {
+                    Result.Ok(first) => match linalg.element_at(rebuilt, 1, 1) {
+                        Result.Ok(last) => std.printf("%.3f,%.3f|", first, last),
+                        Result.Err(_) => std.printf("err|")
+                    },
+                    Result.Err(_) => std.printf("err|")
+                },
+                Result.Err(_) => std.printf("err|")
+            },
+            Result.Err(_) => std.printf("err|")
+        },
+        Result.Err(_) => std.printf("err|")
+    },
+    Result.Err(_) => std.printf("err|")
+}
+
+match linalg.matrix([[2.0, 0.0], [0.0, 3.0]]) {
+    Result.Ok(diagonal) => {
+        match linalg.eigendecomposition(diagonal) {
+            Result.Ok(result) => match linalg.eigen_real_values(result) {
+                Result.Ok(values) => match linalg.element_at(values, 0, 0) {
+                    Result.Ok(first) => match linalg.element_at(values, 0, 1) {
+                        Result.Ok(second) => std.printf("%.3f,%.3f|", first, second),
+                        Result.Err(_) => std.printf("err|")
+                    },
+                    Result.Err(_) => std.printf("err|")
+                },
+                Result.Err(_) => std.printf("err|")
+            },
+            Result.Err(_) => std.printf("err|")
+        }
+        match linalg.singular_value_decomposition(diagonal) {
+            Result.Ok(result) => match linalg.svd_s(result) {
+                Result.Ok(s) => std.printf("%dx%d,", linalg.row_count(s), linalg.column_count(s)),
+                Result.Err(_) => std.printf("err,")
+            },
+            Result.Err(_) => std.printf("err,")
+        }
+        match linalg.pseudoinverse(diagonal, 0.001) {
+            Result.Ok(inverse) => match linalg.element_at(inverse, 0, 0) {
+                Result.Ok(entry) => std.printf("%.3f", entry),
+                Result.Err(_) => std.printf("err")
+            },
+            Result.Err(_) => std.printf("err")
+        }
+    },
+    Result.Err(_) => std.printf("err|err,err")
+}

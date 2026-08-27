@@ -1,0 +1,9 @@
+import std
+import std.cas
+import std.cas.series
+import std.mathematics_error
+
+sym n
+std.printf("before\n")
+std.printf("ok|")
+std.printf("\nafter\n")

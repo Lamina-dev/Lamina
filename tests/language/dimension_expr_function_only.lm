@@ -10,5 +10,5 @@ func keep_expr(value expr) -> expr {
 }
 
 std.printf("%s|%s\n",
-    std.cas_to_text(make_length()),
-    std.cas_to_text(keep_expr(3<m>)))
+    std.cas.to_text(make_length()),
+    std.cas.to_text(keep_expr(3<m>)))

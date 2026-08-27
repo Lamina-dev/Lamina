@@ -1,78 +1,77 @@
+import std.mathematics_error
 import std
 
-func real_error(result Result<real, text>) -> int {
+func real_error(result Result<real, mathematics_error.MathError>) -> int {
     match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
 }
 
-func table_error(result Result<table, text>) -> int {
+func table_error(result Result<table, mathematics_error.MathError>) -> int {
     match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
 }
 
-match std.vector([1, 2, 3, 4]) {
+match std.linalg.vector([1.0, 2.0, 3.0, 4.0]) {
     Result.Ok(values) => {
-        match std.mean(values) {
+        match std.stats.mean(values) {
             Result.Ok(value) => std.printf("%.3f|", value),
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.variance(values) {
+        match std.stats.variance(values) {
             Result.Ok(value) => std.printf("%.3f|", value),
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.variance_population(values) {
+        match std.stats.variance_population(values) {
             Result.Ok(value) => std.printf("%.3f|", value),
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.stddev(values) {
+        match std.stats.standard_deviation(values) {
             Result.Ok(value) => std.printf("%.3f|", value),
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.stddev_population(values) {
+        match std.stats.stddev_population(values) {
             Result.Ok(value) => std.printf("%.3f|", value),
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.median(values) {
+        match std.stats.median(values) {
             Result.Ok(value) => std.printf("%.3f|", value),
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.quantile(values, 0.25) {
+        match std.stats.quantile(values, 0.25) {
             Result.Ok(value) => std.printf("%.3f|", value),
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.vector([2, 4, 6, 8]) {
+        match std.linalg.vector([2.0, 4.0, 6.0, 8.0]) {
             Result.Ok(doubled) => {
-                match std.covariance(values, doubled) {
+                match std.stats.covariance(values, doubled) {
                     Result.Ok(value) => std.printf("%.3f|", value),
-                    Result.Err(error) => std.printf("%s", error)
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 }
-                match std.correlation(values, doubled) {
+                match std.stats.correlation(values, doubled) {
                     Result.Ok(value) => std.printf("%.3f|", value),
-                    Result.Err(error) => std.printf("%s", error)
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 }
             },
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.histogram(values, 3) {
-            Result.Ok(histogram) => match std.table_vector(histogram, "edges") {
-                Result.Ok(edges) => match std.table_vector(histogram, "counts") {
-                    Result.Ok(counts) => std.printf("%lld,%lld|",
-                        std.vector_size(edges), std.vector_size(counts)),
-                    Result.Err(error) => std.printf("%s", error)
-                },
-                Result.Err(error) => std.printf("%s", error)
-            },
-            Result.Err(error) => std.printf("%s", error)
+        match std.stats.histogram(values, 3) {
+            Result.Ok(histogram) => {
+    let edges = std.cas.table_vector(histogram, "edges")
+let counts = std.cas.table_vector(histogram, "counts")
+    std.printf("%lld,%lld|",
+                        std.linalg.vector_size(edges), std.linalg.vector_size(counts))
+},
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.vector([5]) {
+        match std.linalg.vector([5.0]) {
             Result.Ok(single) => std.printf("%d,%d,",
-                real_error(std.variance(single)), real_error(std.stddev(single))),
-            Result.Err(error) => std.printf("%s", error)
+                real_error(std.stats.variance(single)), real_error(std.stats.standard_deviation(single))),
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.vector([1, 2,]) {
-            Result.Ok(short) => std.printf("%d,", real_error(std.covariance(values, short))),
-            Result.Err(error) => std.printf("%s", error)
+        match std.linalg.vector([1.0, 2.0]) {
+            Result.Ok(short) => std.printf("%d,", real_error(std.stats.covariance(values, short))),
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        std.printf("%d,%d,%d", real_error(std.quantile(values, -0.1)),
-            real_error(std.quantile(values, 1.1)), table_error(std.histogram(values, 0)))
+        std.printf("%d,%d,%d", real_error(std.stats.quantile(values, -0.1)),
+            real_error(std.stats.quantile(values, 1.1)), table_error(std.stats.histogram(values, 0)))
     },
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }

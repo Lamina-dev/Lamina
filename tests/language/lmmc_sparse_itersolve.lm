@@ -1,0 +1,65 @@
+import std
+import std.linalg
+import std.sparse
+
+func apply_system(x vector) -> vector {
+    match linalg.matrix([[4.0, 1.0], [1.0, 3.0]]) {
+        Result.Ok(matrix) => match linalg.matrix_vector_product(matrix, x) {
+            Result.Ok(value) => value,
+            Result.Err(_) => x
+        },
+        Result.Err(_) => x
+    }
+}
+
+match linalg.matrix([[4.0, 1.0], [1.0, 3.0]]) {
+    Result.Ok(dense) => match sparse.from_dense(dense, 0.0) {
+        Result.Ok(matrix) => match linalg.vector([1.0, 2.0]) {
+            Result.Ok(rhs) => {
+                let options = sparse.IterativeOptions(0.001, 0.001, 100, 2, "jacobi", 0.001, 10)
+                match sparse.conjugate_gradient(matrix, rhs, options) {
+                    Result.Ok(result) => match sparse.solution(result) {
+                        Result.Ok(solution) => match linalg.element_at(solution, 0) {
+                            Result.Ok(first) => match linalg.element_at(solution, 1) {
+                                Result.Ok(second) => std.printf("%.3f,%.3f|", first, second),
+                                Result.Err(_) => std.printf("err|")
+                            },
+                            Result.Err(_) => std.printf("err|")
+                        },
+                        Result.Err(_) => std.printf("err|")
+                    },
+                    Result.Err(_) => std.printf("err|")
+                }
+                match sparse.solve_with_lower_upper_factorization(matrix, rhs) {
+                    Result.Ok(solution) => match linalg.element_at(solution, 0) {
+                        Result.Ok(first) => match linalg.element_at(solution, 1) {
+                            Result.Ok(second) => std.printf("%.3f,%.3f|", first, second),
+                            Result.Err(_) => std.printf("err|")
+                        },
+                        Result.Err(_) => std.printf("err|")
+                    },
+                    Result.Err(_) => std.printf("err|")
+                }
+                match sparse.default_options(2) {
+                    Result.Ok(defaults) => match sparse.minres_operator(apply_system, rhs, defaults) {
+                        Result.Ok(result) => match sparse.solution(result) {
+                            Result.Ok(solution) => match linalg.element_at(solution, 0) {
+                                Result.Ok(first) => match linalg.element_at(solution, 1) {
+                                    Result.Ok(second) => std.printf("%.3f,%.3f", first, second),
+                                    Result.Err(_) => std.printf("err")
+                                },
+                                Result.Err(_) => std.printf("err")
+                            },
+                            Result.Err(_) => std.printf("err")
+                        },
+                        Result.Err(_) => std.printf("err")
+                    },
+                    Result.Err(_) => std.printf("err")
+                }
+            },
+            Result.Err(_) => std.printf("err|err|err")
+        },
+        Result.Err(_) => std.printf("err|err|err")
+    },
+    Result.Err(_) => std.printf("err|err|err")
+}

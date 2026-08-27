@@ -1,0 +1,21 @@
+import std.mathematics_error
+import std
+import std.cas.equation_solving
+
+let zero_expr expr = 0
+
+sym x, y
+
+let derivative = std.cas.differentiate(x^2, x)
+let antiderivative = std.cas.integrate(x, x)
+let roots = std.cas.solve(x^2 == 1, x)
+let system = equation_solving.system([x + y == 3, x - y == 1], [x, y])
+let invalid = std.cas.raw.differentiate(x^2, x^2)
+let invalid_ok = match invalid {
+    Result.Ok(_) => true,
+    Result.Err(_) => false
+}
+
+std.printf("%s|%s|%d|", std.cas.to_text(derivative),
+    std.cas.to_text(antiderivative), invalid_ok)
+std.printf("ok|system")

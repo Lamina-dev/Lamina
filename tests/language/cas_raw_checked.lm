@@ -1,0 +1,8 @@
+import std
+import std.mathematics_error
+
+sym x
+match std.cas.raw.solve(x < 1, "x") {
+    Result.Ok(_) => std.printf("unexpected"),
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+}

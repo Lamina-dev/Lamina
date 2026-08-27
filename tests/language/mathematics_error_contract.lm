@@ -1,0 +1,60 @@
+import std
+import std.mathematics_error
+import std.math
+import std.linalg
+import std.integrate
+import std.cas.raw
+
+func code_name(code mathematics_error.MathErrorCode) -> text {
+    match code {
+        mathematics_error.DomainError => "DomainError",
+        mathematics_error.DimensionMismatch => "DimensionMismatch",
+        mathematics_error.ParseError => "ParseError",
+        mathematics_error.CallbackFailure => "CallbackFailure",
+        _ => "unexpected"
+    }
+}
+
+func observe(label text, error mathematics_error.MathError) {
+    std.printf("%s:%s:%s:%s|", label,
+        code_name(mathematics_error.code(error)),
+        mathematics_error.operation(error),
+        mathematics_error.message(error))
+}
+
+func failing_integrand(value real) -> real {
+    let values = [1]
+    let ignored = values[4]
+    value
+}
+
+match raw.parse("0^0") {
+    Result.Ok(expression) => match raw.evaluate_real(expression) {
+        Result.Ok(_) => std.printf("domain:unexpected\n"),
+        Result.Err(error) => observe("domain", error)
+    },
+    Result.Err(error) => observe("domain-parse", error)
+}
+
+match linalg.matrix([[1.0, 2.0]]) {
+    Result.Ok(lhs) => match linalg.matrix([[3.0, 4.0]]) {
+        Result.Ok(rhs) => match linalg.multiply(lhs, rhs) {
+            Result.Ok(_) => std.printf("matrix:unexpected\n"),
+            Result.Err(error) => observe("matrix", error)
+        },
+        Result.Err(error) => observe("matrix-rhs", error)
+    },
+    Result.Err(error) => observe("matrix-lhs", error)
+}
+
+match raw.parse("(") {
+    Result.Ok(_) => std.printf("parse:unexpected\n"),
+    Result.Err(error) => observe("parse", error)
+}
+
+match integrate.adaptive(
+    failing_integrand, 0.0, 1.0, 0.001, 0.001, 20
+) {
+    Result.Ok(_) => std.printf("callback:unexpected\n"),
+    Result.Err(error) => observe("callback", error)
+}

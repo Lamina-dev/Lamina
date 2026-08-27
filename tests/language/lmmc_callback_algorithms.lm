@@ -1,0 +1,81 @@
+import std.mathematics_error
+import std
+import std.linalg
+import std.nonlinear
+import std.ode
+import std.optimize
+
+func root_function(x real) -> real {
+    x * x - 2.0
+}
+
+func root_derivative(x real) -> real {
+    2.0 * x
+}
+
+func exponential_rhs(time real, state vector) -> vector {
+    match linalg.element_at(state, 0) {
+        Result.Ok(value) => match linalg.vector_real([value]) {
+            Result.Ok(result) => result,
+            Result.Err(_) => state
+        },
+        Result.Err(_) => state
+    }
+}
+
+func objective(x vector) -> real {
+    match linalg.element_at(x, 0) {
+        Result.Ok(value) => {
+            let delta = value - 3.0
+            delta * delta
+        },
+        Result.Err(_) => objective(x)
+    }
+}
+
+func gradient(x vector) -> vector {
+    match linalg.element_at(x, 0) {
+        Result.Ok(value) => match linalg.vector_real([2.0 * (value - 3.0)]) {
+            Result.Ok(result) => result,
+            Result.Err(_) => x
+        },
+        Result.Err(_) => x
+    }
+}
+
+match nonlinear.bisection(root_function, 1.0, 2.0, 0.001, 0.001, 100) {
+    Result.Ok(result) => std.printf("%.4f|", nonlinear.root(result)),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+match nonlinear.newton_with_derivative(root_function, root_derivative, 1.0, 0.001, 0.001, 100) {
+    Result.Ok(result) => std.printf("%.4f|", nonlinear.root(result)),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+
+match linalg.vector([1.0]) {
+    Result.Ok(initial) => match ode.runge_kutta_fourth_fifth_order(exponential_rhs, initial, 0.0, 1.0, 0.1, 0.001, 0.001, 1000) {
+        Result.Ok(result) => match ode.final_state(result) {
+            Result.Ok(state) => match linalg.element_at(state, 0) {
+                Result.Ok(value) => std.printf("%.5f|", value),
+                Result.Err(_) => std.printf("err|")
+            },
+            Result.Err(_) => std.printf("err|")
+        },
+        Result.Err(_) => std.printf("err|")
+    },
+    Result.Err(_) => std.printf("err|")
+}
+
+match linalg.vector([0.0]) {
+    Result.Ok(initial) => match optimize.limited_memory_broyden_fletcher_goldfarb_shanno(objective, gradient, initial, 0.001, 0.001, 100) {
+        Result.Ok(result) => match optimize.solution(result) {
+            Result.Ok(solution) => match linalg.element_at(solution, 0) {
+                Result.Ok(value) => std.printf("%.4f", value),
+                Result.Err(_) => std.printf("err")
+            },
+            Result.Err(_) => std.printf("err")
+        },
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+    },
+    Result.Err(_) => std.printf("err")
+}

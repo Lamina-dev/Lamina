@@ -1,37 +1,39 @@
+import std.mathematics_error
 import std
 
-let lhs = std.complex(3.0, 4.0)
-let rhs = std.complex(1.0, -2.0)
-let zero = std.complex(0.0, 0.0)
-let same = lhs == std.complex(3.0, 4.0)
+let lhs = std.complex.from_cartesian(3.0, 4.0)
+let rhs = std.complex.from_cartesian(1.0, -2.0)
+let zero = std.complex.from_cartesian(0.0, 0.0)
+let same = lhs == std.complex.from_cartesian(3.0, 4.0)
 let symbolic expr = lhs
 
-match std.complex_add(lhs, rhs) {
+match std.complex.add(lhs, rhs) {
     Result.Ok(value) => std.printf("%.1f,%.1f|",
-        std.complex_real(value), std.complex_imag(value)),
-    Result.Err(error) => std.printf("%s|", error)
+        std.complex.real_part(value), std.complex.imaginary_part(value)),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
 }
-match std.complex_mul(lhs, rhs) {
+match std.complex.multiply(lhs, rhs) {
     Result.Ok(value) => std.printf("%.1f,%.1f|",
-        std.complex_real(value), std.complex_imag(value)),
-    Result.Err(error) => std.printf("%s|", error)
+        std.complex.real_part(value), std.complex.imaginary_part(value)),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
 }
-match std.complex_sub(lhs, rhs) {
+match std.complex.subtract(lhs, rhs) {
     Result.Ok(value) => std.printf("%.1f,%.1f|",
-        std.complex_real(value), std.complex_imag(value)),
-    Result.Err(error) => std.printf("%s|", error)
+        std.complex.real_part(value), std.complex.imaginary_part(value)),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
 }
-match std.complex_conj(lhs) {
+match std.complex.conjugate(lhs) {
     Result.Ok(value) => std.printf("%.1f,%.1f|",
-        std.complex_real(value), std.complex_imag(value)),
-    Result.Err(error) => std.printf("%s|", error)
+        std.complex.real_part(value), std.complex.imaginary_part(value)),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
 }
-match std.complex_abs(lhs) {
+match std.complex.absolute_value(lhs) {
     Result.Ok(value) => std.printf("%.1f|", value),
-    Result.Err(error) => std.printf("%s|", error)
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
 }
-match std.complex_div(lhs, zero) {
+match std.complex.divide(lhs, zero) {
     Result.Ok(_) => std.printf("ok|"),
     Result.Err(_) => std.printf("err|")
 }
-std.printf("%d|%d\n", same, std.cas_is_ok(symbolic))
+let symbolic_ok = true
+std.printf("%d|%d\n", same, symbolic_ok)

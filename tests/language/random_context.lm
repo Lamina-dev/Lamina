@@ -1,33 +1,35 @@
+import std.mathematics_error
 import std
+import std.random
 
-match std.rng(42) {
-    Result.Ok(first_rng) => match std.rng(42) {
-        Result.Ok(second_rng) => match std.random_uniform(first_rng, 0.0, 1.0) {
-            Result.Ok(first_value) => match std.random_uniform(second_rng, 0.0, 1.0) {
+match random.create(42) {
+    Result.Ok(first_rng) => match random.create(42) {
+        Result.Ok(second_rng) => match random.uniform(first_rng, 0.0, 1.0) {
+            Result.Ok(first_value) => match random.uniform(second_rng, 0.0, 1.0) {
                 Result.Ok(second_value) => {
                     std.printf("%d|", first_value == second_value)
-                    match std.rng_clone(first_rng) {
-                        Result.Ok(clone) => match std.random_int(first_rng, 0, 1000000) {
-                            Result.Ok(original_next) => match std.random_int(clone, 0, 1000000) {
+                    match random.clone(first_rng) {
+                        Result.Ok(clone) => match random.integer(first_rng, 0, 1000000) {
+                            Result.Ok(original_next) => match random.integer(clone, 0, 1000000) {
                                 Result.Ok(clone_next) => {
                                     std.printf("%d|", original_next == clone_next)
-                                    match std.random_normal(clone, 0.0, 0.0) {
+                                    match random.normal(clone, 0.0, 0.0) {
                                         Result.Ok(_) => std.printf("ok"),
                                         Result.Err(_) => std.printf("err")
                                     }
                                 },
-                                Result.Err(error) => std.printf("%s", error)
+                                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                             },
-                            Result.Err(error) => std.printf("%s", error)
+                            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                         },
-                        Result.Err(error) => std.printf("%s", error)
+                        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                     }
                 },
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             },
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         },
-        Result.Err(error) => std.printf("%s", error)
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
     },
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }

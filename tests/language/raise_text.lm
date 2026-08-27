@@ -1,0 +1,5 @@
+func invoke(f func(text) -> int, message text) -> int {
+    f(message)
+}
+
+invoke(raise, "boom")

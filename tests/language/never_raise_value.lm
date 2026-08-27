@@ -1,0 +1,12 @@
+import std
+
+func choose(ok bool) -> int {
+    if ok {
+        42
+    } else {
+        raise("unused")
+    }
+}
+
+let fail = raise
+std.printf("%lld", choose(true))

@@ -1,0 +1,89 @@
+import std.mathematics_error
+import std
+
+match std.linalg.vector([1.0, 2.0, 3.0]) {
+    Result.Ok(a) => match std.linalg.vector([4.0, 5.0, 6.0]) {
+        Result.Ok(b) => {
+            match std.linalg.cross(a, b) {
+                Result.Ok(cross) => match std.linalg.element_at(cross, 1) {
+                    Result.Ok(value) => std.printf("%.1f|", value),
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+                },
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+            }
+            match std.linalg.add(a, b) {
+                Result.Ok(sum) => match std.linalg.element_at(sum, 2) {
+                    Result.Ok(value) => std.printf("%.1f|", value),
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+                },
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+            }
+            match std.linalg.vector([2.0, 2.0, 2.0]) {
+                Result.Ok(exponent) => match std.linalg.power(a, exponent) {
+                    Result.Ok(square) => match std.linalg.element_at(square, 2) {
+                        Result.Ok(value) => std.printf("%.1f|", value),
+                        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+                    },
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+                }
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+            }
+        },
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+    },
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+}
+
+match std.linalg.matrix([[4.0, 7.0], [2.0, 6.0]]) {
+    Result.Ok(a) => {
+        match std.linalg.determinant(a) {
+            Result.Ok(value) => std.printf("%.1f|", value),
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+        }
+        match std.linalg.trace(a) {
+            Result.Ok(value) => std.printf("%.1f|", value),
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+        }
+        match std.linalg.rank(a) {
+            Result.Ok(value) => std.printf("%lld|", value),
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+        }
+        match std.linalg.inverse(a) {
+            Result.Ok(inverse) => match std.linalg.element_at(inverse, 0, 0) {
+                Result.Ok(first) => match std.linalg.element_at(inverse, 1, 1) {
+                    Result.Ok(last) => std.printf("%.1f,%.1f|", first, last),
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+                },
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+            },
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+        }
+        match std.linalg.integer_power(a, 2) {
+            Result.Ok(square) => match std.linalg.element_at(square, 0, 0) {
+                Result.Ok(value) => std.printf("%.1f|", value),
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+            },
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+        }
+    },
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+}
+
+match std.linalg.identity_matrix(3) {
+    Result.Ok(identity) => match std.linalg.element_at(identity, 2, 2) {
+        Result.Ok(value) => std.printf("%.1f|", value),
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+    },
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+}
+
+match std.linalg.vector([2.0, 3.0]) {
+    Result.Ok(diagonal) => match std.linalg.diagonal_matrix(diagonal) {
+        Result.Ok(matrix) => match std.linalg.element_at(matrix, 1, 1) {
+            Result.Ok(value) => std.printf("%.1f", value),
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+        },
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+    },
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+}

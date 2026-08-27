@@ -1,0 +1,44 @@
+import std.mathematics_error
+import std
+import std.complex
+import std.linalg
+
+match std.math.constant("EARTH_GRAVITY") {
+    Result.Ok(value) => std.printf("%.5f|", value),
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+}
+match std.math.constant_unit("EARTH_GRAVITY") {
+    Result.Ok(unit_text) => std.printf("%s|", unit_text),
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+}
+std.printf("%s,%s|", std.math.constants()[0], std.math.constants()[19])
+
+let imaginary = complex.from_cartesian(0.0, 1.0)
+std.printf("%.1f,%.1f|", complex.real_part(imaginary),
+    complex.imaginary_part(imaginary))
+
+match linalg.matrix([[2.0, 0.0], [0.0, 3.0]]) {
+    Result.Ok(matrix) => {
+        match linalg.eigendecomposition(matrix) {
+            Result.Ok(eig) => match linalg.eigen_real_values(eig) {
+                Result.Ok(values) => match linalg.element_at(values, 0, 0) {
+                    Result.Ok(first) => std.printf("%lld,%.1f|", linalg.column_count(values), first),
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+                },
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+            },
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+        }
+        match linalg.singular_value_decomposition(matrix) {
+            Result.Ok(svd) => match linalg.svd_s(svd) {
+                Result.Ok(values) => match linalg.element_at(values, 0, 0) {
+                    Result.Ok(first) => std.printf("%lld,%.1f", linalg.column_count(values), first),
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+                },
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+            },
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+        }
+    },
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+}

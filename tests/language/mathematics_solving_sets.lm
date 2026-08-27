@@ -1,0 +1,33 @@
+import std
+import std.cas
+import std.mathematics_error
+
+sym x
+
+func show(label text, count int, values set<expr>) {
+    let items = std.cas.set_to_array(values)
+    var index = 0
+    std.printf("%s", label)
+    loop count {
+        std.printf("%s|", std.cas.to_text(items[index]))
+        index = index + 1
+    }
+    std.printf("\n")
+}
+
+func show_error(label text, result Result<set<expr>, mathematics_error.MathError>) {
+    match result {
+        Result.Ok(_) => std.printf("%sunexpected\n", label),
+        Result.Err(error) => std.printf("%s!%s\n", label,
+            mathematics_error.message(error))
+    }
+}
+
+show("solve-x2m1:", 2, std.cas.solve(x^2 == 1, "x"))
+show("roots-x2m1:", 2, std.cas.roots(x^2 - 1, "x"))
+show("solve-q:", 2, std.cas.solve(x^2 + 2*x - 6 == 0, "x"))
+show("roots-q:", 2, std.cas.roots(x^2 + 2*x - 6, "x"))
+show_error("solve-neq:", std.cas.raw.solve(x^2 + 1 < 3, "x"))
+show("solve-deg5:", 5, std.cas.solve(x^5 - x - 1 == 0, "x"))
+show("solve-complex:", 2, std.cas.solve(x^2 + 1 == 0, "x"))
+show("roots-repeated:", 1, std.cas.roots((x - 1)^2, "x"))

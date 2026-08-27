@@ -1,83 +1,84 @@
+import std.mathematics_error
 import std
 
-func real_error(result Result<real, text>) -> int {
+func real_error(result Result<real, mathematics_error.MathError>) -> int {
     match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
 }
 
-func vector_error(result Result<vector, text>) -> int {
+func vector_error(result Result<vector, mathematics_error.MathError>) -> int {
     match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
 }
 
-func matrix_error(result Result<matrix, text>) -> int {
+func matrix_error(result Result<matrix, mathematics_error.MathError>) -> int {
     match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
 }
 
-match std.vector([1, 2, 3]) {
+match std.linalg.vector([1.0, 2.0, 3.0]) {
     Result.Ok(v) => {
-        match std.vector_at(v, 0) {
-            Result.Ok(first) => match std.vector_at(v, 2) {
+        match std.linalg.element_at(v, 0) {
+            Result.Ok(first) => match std.linalg.element_at(v, 2) {
                 Result.Ok(last) => std.printf("%.1f,%.1f,%d|", first, last,
-                    real_error(std.vector_at(v, 3))),
-                Result.Err(error) => std.printf("%s", error)
+                    real_error(std.linalg.element_at(v, 3))),
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             },
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.vector_dot(v, v) {
+        match std.linalg.dot_product(v, v) {
             Result.Ok(dot) => std.printf("%.1f|", dot),
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.vector([1, 2,]) {
-            Result.Ok(short) => std.printf("%d|", real_error(std.vector_dot(v, short))),
-            Result.Err(error) => std.printf("%s", error)
+        match std.linalg.vector([1.0, 2.0,]) {
+            Result.Ok(short) => std.printf("%d|", real_error(std.linalg.dot_product(v, short))),
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        match std.matrix([[1, 2, 3], [4, 5, 6],]) {
+        match std.linalg.matrix([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0],]) {
             Result.Ok(a) => {
-                match std.matrix_at(a, 1, 2) {
+                match std.linalg.element_at(a, 1, 2) {
                     Result.Ok(value) => std.printf("%lldx%lld,%.1f,%d|",
-                        std.matrix_rows(a), std.matrix_cols(a), value,
-                        real_error(std.matrix_at(a, 2, 0))),
-                    Result.Err(error) => std.printf("%s", error)
+                        std.linalg.row_count(a), std.linalg.column_count(a), value,
+                        real_error(std.linalg.element_at(a, 2, 0))),
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 }
-                match std.matrix([[7, 8,], [9, 10,], [11, 12,]]) {
-                    Result.Ok(b) => match std.matrix_mul(a, b) {
+                match std.linalg.matrix([[7.0, 8.0,], [9.0, 10.0,], [11.0, 12.0,]]) {
+                    Result.Ok(b) => match std.linalg.multiply(a, b) {
                         Result.Ok(product) => {
-                            match std.matrix_at(product, 0, 0) {
-                                Result.Ok(first) => match std.matrix_at(product, 1, 1) {
+                            match std.linalg.element_at(product, 0, 0) {
+                                Result.Ok(first) => match std.linalg.element_at(product, 1, 1) {
                                     Result.Ok(last) => std.printf("%lldx%lld,%.1f,%.1f|",
-                                        std.matrix_rows(product), std.matrix_cols(product),
+                                        std.linalg.row_count(product), std.linalg.column_count(product),
                                         first, last),
-                                    Result.Err(error) => std.printf("%s", error)
+                                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                                 },
-                                Result.Err(error) => std.printf("%s", error)
+                                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                             }
-                            match std.matrix_mul(a, b) {
+                            match std.linalg.multiply(a, b) {
                                 Result.Ok(same) => std.printf("%d|", product == same),
-                                Result.Err(error) => std.printf("%s", error)
+                                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                             }
                         },
-                        Result.Err(error) => std.printf("%s", error)
+                        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                     },
-                    Result.Err(error) => std.printf("%s", error)
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 }
-                match std.vector([1, 2,]) {
+                match std.linalg.vector([1.0, 2.0,]) {
                     Result.Ok(short_vector) => std.printf("%d|",
-                        vector_error(std.matrix_vector_mul(a, short_vector))),
-                    Result.Err(error) => std.printf("%s", error)
+                        vector_error(std.linalg.matrix_vector_product(a, short_vector))),
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 }
             },
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
-        std.printf("%d|", matrix_error(std.matrix([[1, 2, 3], [4, 5, 6, 7],])))
-        match std.histogram(v, 2) {
-            Result.Ok(table) => match std.table_vector(table, "edges") {
-                Result.Ok(edges) => std.printf("%lld,%d,%d,%lld,%d",
-                    std.table_size(table), std.table_has(table, "counts"),
-                    std.table_has(table, "missing"), std.vector_size(edges),
-                    vector_error(std.table_vector(table, "missing"))),
-                Result.Err(error) => std.printf("%s", error)
-            },
-            Result.Err(error) => std.printf("%s", error)
+        std.printf("%d|", matrix_error(std.linalg.matrix([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0, 7.0],])))
+        match std.stats.histogram(v, 2) {
+            Result.Ok(table) => {
+    let edges = std.cas.table_vector(table, "edges")
+    std.printf("%lld,%d,%d,%lld,%d",
+                    std.cas.table_size(table), std.cas.table_has(table, "counts"),
+                    std.cas.table_has(table, "missing"), std.linalg.vector_size(edges),
+                    vector_error(std.cas.raw.table_vector(table, "missing")))
+},
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         }
     },
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }

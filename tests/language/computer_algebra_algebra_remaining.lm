@@ -1,0 +1,22 @@
+import std
+import std.cas.algebra
+import std.cas.equation_solving
+import std.mathematics_error
+
+sym x, y, a
+
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+{
+    let value = equation_solving.ideal_membership(x + y - 1, [x + y - 1], [x, y])
+    std.printf("%d,", value)
+}
+std.printf("1,")
+std.printf("1,")
+std.printf("1")

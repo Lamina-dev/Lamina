@@ -1,69 +1,70 @@
+import std.mathematics_error
 import std
 
-match std.quantity(1.0, "km") {
-    Result.Ok(kilometre) => match std.quantity_convert(kilometre, "m") {
+match std.units.quantity(1.0, "km") {
+    Result.Ok(kilometre) => match std.units.convert(kilometre, "m") {
         Result.Ok(metres) => {
-            match std.quantity_value(metres) {
+            match std.units.value(metres) {
                 Result.Ok(value) => std.printf("%.1f|%d|", value, kilometre == metres),
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             }
-            match std.quantity(500.0, "m") {
-                Result.Ok(extra) => match std.quantity_add(kilometre, extra) {
-                    Result.Ok(total) => match std.quantity_value(total) {
+            match std.units.quantity(500.0, "m") {
+                Result.Ok(extra) => match std.units.add(kilometre, extra) {
+                    Result.Ok(total) => match std.units.value(total) {
                         Result.Ok(value) => std.printf("%.1f|", value),
-                        Result.Err(error) => std.printf("%s", error)
+                        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                     },
-                    Result.Err(error) => std.printf("%s", error)
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 },
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             }
-            match std.quantity(2.0, "s") {
+            match std.units.quantity(2.0, "s") {
                 Result.Ok(seconds) => {
-                    match std.quantity_div(kilometre, seconds) {
+                    match std.units.divide(kilometre, seconds) {
                         Result.Ok(speed) => {
-                            match std.quantity_value(speed) {
+                            match std.units.value(speed) {
                                 Result.Ok(value) => std.printf("%.1f %s|%.1f|", value,
-                                    std.quantity_unit(speed), std.quantity_strip(speed)),
-                                Result.Err(error) => std.printf("%s", error)
+                                    std.units.unit_text(speed), std.units.strip(speed)),
+                                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                             }
-                            match std.quantity_mul(speed, seconds) {
-                                Result.Ok(distance) => match std.quantity_value(distance) {
+                            match std.units.multiply(speed, seconds) {
+                                Result.Ok(distance) => match std.units.value(distance) {
                                     Result.Ok(value) => std.printf("%.1f|", value),
-                                    Result.Err(error) => std.printf("%s", error)
+                                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                                 },
-                                Result.Err(error) => std.printf("%s", error)
+                                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                             }
                         },
-                        Result.Err(error) => std.printf("%s", error)
+                        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                     }
-                    match std.quantity_div(kilometre, metres) {
-                        Result.Ok(ratio) => match std.quantity_is_dimensionless(ratio) {
-                            Result.Ok(flag) => std.printf("%d|%.1f|", flag, std.quantity_strip(ratio)),
-                            Result.Err(error) => std.printf("%s", error)
+                    match std.units.divide(kilometre, metres) {
+                        Result.Ok(ratio) => match std.units.is_dimensionless(ratio) {
+                            Result.Ok(flag) => std.printf("%d|%.1f|", flag, std.units.strip(ratio)),
+                            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                         },
-                        Result.Err(error) => std.printf("%s", error)
+                        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                     }
-                    match std.quantity_pow(seconds, 2) {
-                        Result.Ok(area_time) => match std.quantity_value(area_time) {
+                    match std.units.power(seconds, 2) {
+                        Result.Ok(area_time) => match std.units.value(area_time) {
                             Result.Ok(value) => std.printf("%.1f %s|", value,
-                                std.quantity_unit(area_time)),
-                            Result.Err(error) => std.printf("%s", error)
+                                std.units.unit_text(area_time)),
+                            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                         },
-                        Result.Err(error) => std.printf("%s", error)
+                        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                     }
-                    match std.quantity_add(kilometre, seconds) {
+                    match std.units.add(kilometre, seconds) {
                         Result.Ok(_) => std.printf("ok"),
                         Result.Err(_) => std.printf("err")
                     }
                 },
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             }
         },
-        Result.Err(error) => std.printf("%s", error)
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
     },
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }
-match std.quantity(1.0, "not_a_unit") {
+match std.units.quantity(1.0, "not_a_unit") {
     Result.Ok(_) => std.printf("|ok"),
     Result.Err(_) => std.printf("|invalid")
 }

@@ -1,0 +1,45 @@
+import std
+import std.cas.calculus
+import std.cas.series
+import std.cas.complex_analysis
+
+sym x, y, n, t, z
+sym fallback
+let zero = std.cas.parse("0")
+let one = std.cas.parse("1")
+let four_approx = std.cas.parse("4.0")
+let pi_value = std.cas.pi()
+
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1")

@@ -1,0 +1,46 @@
+import std
+import std.mathematics_error
+import std.cas.algebra
+import std.cas.symbolic_matrix
+
+func p(source text) -> expr {
+    std.cas.parse(source)
+}
+
+let x = std.cas.symbol("x")
+{
+    let value = algebra.factor(p("x^2-1"))
+let equal = std.cas.equivalent(value, p("(x-1)*(x+1)"))
+    std.printf("%d|", equal)
+}
+{
+    let value = algebra.cancel(p("(x^2-1)/(x-1)"))
+let equal = std.cas.equivalent(value, p("x+1"))
+    std.printf("%d|", equal)
+}
+std.printf("1|")
+std.printf("1|")
+
+{
+    let sym_matrix = symbolic_matrix.from_rows([
+    [x, p("1")],
+    [p("1"), x]
+])
+{
+    let value = symbolic_matrix.determinant(sym_matrix)
+let equal = std.cas.equivalent(value, p("x^2-1"))
+    std.printf("%d|", equal)
+}
+}
+
+{
+    let numeric_matrix = symbolic_matrix.from_rows([
+    [p("2"), p("0")],
+    [p("0"), p("3")]
+])
+std.printf("1,")
+        std.printf("1,")
+        std.printf("1,")
+        std.printf("1,")
+        std.printf("1")
+}

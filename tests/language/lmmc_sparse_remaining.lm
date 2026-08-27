@@ -1,0 +1,16 @@
+import std
+import std.linalg
+import std.sparse
+
+match linalg.matrix([[2.0, 0.0], [0.0, 3.0]]) {
+    Result.Ok(dense) => match sparse.from_dense(dense, 0.0) {
+        Result.Ok(value) => {
+            match sparse.subtract(value, value) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+            match sparse.scale(value, 2.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+            match sparse.diagonal(value) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
+            match sparse.matmul_dense(value, dense) { Result.Ok(_) => std.printf("1"), Result.Err(_) => std.printf("0") }
+        },
+        Result.Err(_) => std.printf("0,0,0,0")
+    },
+    Result.Err(_) => std.printf("0,0,0,0")
+}

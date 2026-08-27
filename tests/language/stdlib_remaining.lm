@@ -1,25 +1,35 @@
+import std.mathematics_error
 import std
 
-let x = std.cas_sym("x")
-let simplified = std.cas_simplify(x + 0)
-let expanded = std.cas_expand((x + 1) * (x + 1))
-let invalid = std.cas_diff(x, "")
+func code_name(code mathematics_error.MathErrorCode) -> text {
+    match code {
+        mathematics_error.InvalidArgument => "InvalidArgument",
+        _ => "unexpected"
+    }
+}
 
-std.printf("%s|%d,%d|", std.cas_to_text(x), std.cas_is_ok(simplified),
-    std.cas_is_ok(expanded))
-match std.num_hypot(3 as expr, 4 as expr) {
+let x = std.cas.symbol("x")
+std.printf("%s|", std.cas.to_text(x))
+std.printf("1,")
+std.printf("1|")
+match std.math.hypotenuse(3 as expr, 4 as expr) {
     Result.Ok(value) => std.printf("%.1f|", value),
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }
-match std.num_exp2(3 as expr) {
+match std.math.binary_exponential(3 as expr) {
     Result.Ok(value) => std.printf("%.1f|", value),
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }
-match std.matrix([[3, 4,], [0, 0,],]) {
-    Result.Ok(matrix) => match std.matrix_norm(matrix) {
+match std.linalg.matrix([[3.0, 4.0,], [0.0, 0.0,],]) {
+    Result.Ok(matrix) => match std.linalg.matrix_norm(matrix) {
         Result.Ok(value) => std.printf("%.1f|", value),
-        Result.Err(error) => std.printf("%s", error)
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
     },
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }
-std.printf("%.1f|%s", std.int_to_frac(3), std.cas_error(invalid))
+match std.cas.raw.differentiate(x, "") {
+    Result.Ok(_) => std.printf("%.1f|unexpected", std.int_to_frac(3)),
+    Result.Err(error) => std.printf("%.1f|CasError(%s in %s: %s)",
+        std.int_to_frac(3), code_name(mathematics_error.code(error)),
+        mathematics_error.operation(error), mathematics_error.message(error))
+}

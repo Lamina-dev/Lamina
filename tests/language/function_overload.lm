@@ -1,0 +1,11 @@
+import std
+
+func select(value int) -> int {
+    1
+}
+
+func select(value text) -> int {
+    2
+}
+
+std.printf("%lld,%lld", select(7), select("value"))

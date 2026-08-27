@@ -1,0 +1,10 @@
+import std
+
+sym x
+let solutions set<expr> = std.cas.solve(x^2 == 1, x)
+let no_solutions set<expr> = std.cas.solve(x - x == 1, x)
+
+std.printf("%d,%d,%d|%d",
+    -1 in solutions, 1 in solutions,
+    solutions subset {-1 as expr, 1 as expr, 2 as expr},
+    no_solutions subset {})

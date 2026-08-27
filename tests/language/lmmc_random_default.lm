@@ -1,0 +1,42 @@
+import std
+import std.linalg
+import std.random
+
+func replay(values vector) -> bool {
+    match random.seed(12345) {
+        Result.Ok(_) => match random.random_real() {
+            Result.Ok(a) => match random.random_integer(1, 10) {
+                Result.Ok(b) => match random.normal(0.0, 1.0) {
+                    Result.Ok(c) => match random.choice(values) {
+                        Result.Ok(d) => match random.seed(12345) {
+                            Result.Ok(_) => match random.random_real() {
+                                Result.Ok(aa) => match random.random_integer(1, 10) {
+                                    Result.Ok(bb) => match random.normal(0.0, 1.0) {
+                                        Result.Ok(cc) => match random.choice(values) {
+                                            Result.Ok(dd) => a == aa and b == bb and c == cc and d == dd,
+                                            Result.Err(_) => false
+                                        },
+                                        Result.Err(_) => false
+                                    },
+                                    Result.Err(_) => false
+                                },
+                                Result.Err(_) => false
+                            },
+                            Result.Err(_) => false
+                        },
+                        Result.Err(_) => false
+                    },
+                    Result.Err(_) => false
+                },
+                Result.Err(_) => false
+            },
+            Result.Err(_) => false
+        },
+        Result.Err(_) => false
+    }
+}
+
+match linalg.vector([2.0, 4.0, 6.0]) {
+    Result.Ok(values) => std.printf("%d", replay(values)),
+    Result.Err(_) => std.printf("0")
+}

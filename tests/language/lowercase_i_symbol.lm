@@ -2,4 +2,4 @@ import std
 
 sym i
 let expression = i + 1
-std.printf("%s\n", std.cas_to_text(expression))
+std.printf("%s\n", std.cas.to_text(expression))

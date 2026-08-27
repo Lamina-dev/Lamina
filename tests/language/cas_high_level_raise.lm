@@ -1,0 +1,4 @@
+import std
+
+sym x
+std.cas.solve(x < 1, "x")

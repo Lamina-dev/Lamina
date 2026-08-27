@@ -1,0 +1,10 @@
+import std
+import std.cas
+
+sym n
+let term expr = n^2/((n + 1)^2)
+std.printf("A:%s\n", std.cas.to_text(term))
+{
+    let value = std.cas.parse("1/(n^2)")
+    std.printf("B:%s\n", std.cas.to_text(value))
+}

@@ -1,72 +1,74 @@
+import std.mathematics_error
 import std
+import std.random
 
-func real_error(result Result<real, text>) -> int {
+func real_error(result Result<real, mathematics_error.MathError>) -> int {
     match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
 }
 
-func int_error(result Result<int, text>) -> int {
+func int_error(result Result<int, mathematics_error.MathError>) -> int {
     match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
 }
 
-func vector_error(result Result<vector, text>) -> int {
+func vector_error(result Result<vector, mathematics_error.MathError>) -> int {
     match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
 }
 
-match std.rng(12345) {
-    Result.Ok(first) => match std.rng(12345) {
+match random.create(12345) {
+    Result.Ok(first) => match random.create(12345) {
         Result.Ok(second) => {
-            match std.random_normal(first, 10.0, 2.0) {
-                Result.Ok(lhs) => match std.random_normal(second, 10.0, 2.0) {
+            match random.normal(first, 10.0, 2.0) {
+                Result.Ok(lhs) => match random.normal(second, 10.0, 2.0) {
                     Result.Ok(rhs) => std.printf("%d,", lhs == rhs),
-                    Result.Err(error) => std.printf("%s", error)
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 },
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             }
-            match std.random_exponential(first, 2.0) {
-                Result.Ok(lhs) => match std.random_exponential(second, 2.0) {
+            match random.exponential(first, 2.0) {
+                Result.Ok(lhs) => match random.exponential(second, 2.0) {
                     Result.Ok(rhs) => std.printf("%d,", lhs == rhs),
-                    Result.Err(error) => std.printf("%s", error)
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 },
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             }
-            match std.random_vector(first, 4, -1.0, 1.0) {
-                Result.Ok(lhs) => match std.random_vector(second, 4, -1.0, 1.0) {
-                    Result.Ok(rhs) => std.printf("%d:%lld,", lhs == rhs, std.vector_size(lhs)),
-                    Result.Err(error) => std.printf("%s", error)
+            match random.vector(first, 4, -1.0, 1.0) {
+                Result.Ok(lhs) => match random.vector(second, 4, -1.0, 1.0) {
+                    Result.Ok(rhs) => std.printf("%d:%lld,", lhs == rhs, std.linalg.vector_size(lhs)),
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 },
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             }
-            match std.random_int(first, -100, 100) {
-                Result.Ok(lhs) => match std.random_int(second, -100, 100) {
+            match random.integer(first, -100, 100) {
+                Result.Ok(lhs) => match random.integer(second, -100, 100) {
                     Result.Ok(rhs) => std.printf("%d|", lhs == rhs),
-                    Result.Err(error) => std.printf("%s", error)
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 },
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             }
-            match std.rng(12345) {
-                Result.Ok(jumped_source) => match std.rng(12345) {
-                    Result.Ok(plain_source) => match std.rng_jump(jumped_source) {
-                        Result.Ok(jumped) => match std.random_uniform(jumped, 0.0, 1.0) {
-                            Result.Ok(jumped_value) => match std.random_uniform(plain_source, 0.0, 1.0) {
+            match random.create(12345) {
+                Result.Ok(jumped_source) => match random.create(12345) {
+                    Result.Ok(plain_source) => match random.jump(jumped_source) {
+                        Result.Ok(jumped) => match random.uniform(jumped, 0.0, 1.0) {
+                            Result.Ok(jumped_value) => match random.uniform(plain_source, 0.0, 1.0) {
                                 Result.Ok(plain_value) => std.printf("%d|", jumped_value != plain_value),
-                                Result.Err(error) => std.printf("%s", error)
+                                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                             },
-                            Result.Err(error) => std.printf("%s", error)
+                            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                         },
-                        Result.Err(error) => std.printf("%s", error)
+                        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                     },
-                    Result.Err(error) => std.printf("%s", error)
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 },
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             }
             std.printf("%d,%d,%d,%d,%d",
-                real_error(std.random_uniform(first, 1.0, 1.0)),
-                real_error(std.random_normal(first, 0.0, 0.0)),
-                real_error(std.random_exponential(first, 0.0)),
-                int_error(std.random_int(first, 2, 1)),
-                vector_error(std.random_vector(first, 0, 0.0, 1.0)))
+                real_error(random.uniform(first, 1.0, 1.0)),
+                real_error(random.normal(first, 0.0, 0.0)),
+                real_error(random.exponential(first, 0.0)),
+                int_error(random.integer(first, 2, 1)),
+                vector_error(random.vector(first, 0, 0.0, 1.0)))
         },
-        Result.Err(error) => std.printf("%s", error)
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
     },
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }

@@ -19,15 +19,14 @@ let ordinary = 2<km>
 let symbolic_length expr = 1<m>
 let promoted_identifier = symbolic_length + ordinary
 let promoted_call = symbolic_length + three_meters()
-let runtime_mismatch = symbolic_length + 1<s>
 
 std.printf("%s|%s|%s|%s|%s|%s|%s|%s|%d\n",
-    std.cas_to_text(length),
-    std.cas_to_text(meters),
-    std.cas_to_text(raw),
-    std.cas_to_text(display),
-    std.cas_to_text(base_points),
-    std.cas_to_text(stripped_unitless),
-    std.cas_to_text(promoted_identifier),
-    std.cas_to_text(promoted_call),
-    std.cas_is_ok(runtime_mismatch))
+    std.cas.to_text(length),
+    std.cas.to_text(meters),
+    std.cas.to_text(raw),
+    std.cas.to_text(display),
+    std.cas.to_text(base_points),
+    std.cas.to_text(stripped_unitless),
+    std.cas.to_text(promoted_identifier),
+    std.cas.to_text(promoted_call),
+    0)

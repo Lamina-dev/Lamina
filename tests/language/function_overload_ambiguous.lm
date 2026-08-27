@@ -1,0 +1,9 @@
+func select(value int) -> int {
+    1
+}
+
+func select(value text) -> int {
+    2
+}
+
+let selected = select

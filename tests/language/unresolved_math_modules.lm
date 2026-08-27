@@ -1,0 +1,8 @@
+import std.maths
+import std.linalgs
+import std.cas2
+
+sym x
+let a = std.math.sqrt(2.0)
+let b = std.linalg.det(std.linalg.matrix([[1.0, 0.0], [0.0, 1.0]]))
+std.printf("%s\n", std.cas.to_text(x))

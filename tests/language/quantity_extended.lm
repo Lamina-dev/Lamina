@@ -1,90 +1,91 @@
+import std.mathematics_error
 import std
 
-func quantity_error(result Result<quantity, text>) -> int {
+func quantity_error(result Result<quantity, mathematics_error.MathError>) -> int {
     match result { Result.Ok(_) => 0, Result.Err(_) => 1 }
 }
 
-match std.quantity(2.0, "kg") {
-    Result.Ok(kilograms) => match std.quantity(500.0, "g") {
+match std.units.quantity(2.0, "kg") {
+    Result.Ok(kilograms) => match std.units.quantity(500.0, "g") {
         Result.Ok(grams) => {
-            match std.quantity_sub(kilograms, grams) {
-                Result.Ok(difference) => match std.quantity_value(difference) {
+            match std.units.subtract(kilograms, grams) {
+                Result.Ok(difference) => match std.units.value(difference) {
                     Result.Ok(value) => std.printf("%.3f|", value),
-                    Result.Err(error) => std.printf("%s", error)
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 },
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             }
-            match std.quantity(2000.0, "g") {
-                Result.Ok(equivalent) => match std.quantity(2.0, "s") {
+            match std.units.quantity(2000.0, "g") {
+                Result.Ok(equivalent) => match std.units.quantity(2.0, "s") {
                     Result.Ok(seconds) => {
                         std.printf("%d,%d|", kilograms == equivalent, kilograms != seconds)
-                        match std.quantity(3.0, "m*s^-2") {
-                            Result.Ok(acceleration) => match std.quantity_mul(kilograms, acceleration) {
-                                Result.Ok(force_raw) => match std.quantity_convert(force_raw, "N") {
+                        match std.units.quantity(3.0, "m*s^-2") {
+                            Result.Ok(acceleration) => match std.units.multiply(kilograms, acceleration) {
+                                Result.Ok(force_raw) => match std.units.convert(force_raw, "N") {
                                     Result.Ok(force) => {
-                                        match std.quantity_value(force) {
+                                        match std.units.value(force) {
                                             Result.Ok(value) => std.printf("%.1f %s|", value,
-                                                std.quantity_unit(force)),
-                                            Result.Err(error) => std.printf("%s", error)
+                                                std.units.unit_text(force)),
+                                            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                                         }
-                                        match std.quantity_div(force, kilograms) {
-                                            Result.Ok(recovered_raw) => match std.quantity_convert(
+                                        match std.units.divide(force, kilograms) {
+                                            Result.Ok(recovered_raw) => match std.units.convert(
                                                 recovered_raw, "m*s^-2") {
-                                                Result.Ok(recovered) => match std.quantity_value(recovered) {
+                                                Result.Ok(recovered) => match std.units.value(recovered) {
                                                     Result.Ok(value) => std.printf("%.1f|", value),
-                                                    Result.Err(error) => std.printf("%s", error)
+                                                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                                                 },
-                                                Result.Err(error) => std.printf("%s", error)
+                                                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                                             },
-                                            Result.Err(error) => std.printf("%s", error)
+                                            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                                         }
                                     },
-                                    Result.Err(error) => std.printf("%s", error)
+                                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                                 },
-                                Result.Err(error) => std.printf("%s", error)
+                                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                             },
-                            Result.Err(error) => std.printf("%s", error)
+                            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                         }
-                        match std.quantity(0.0, "kg") {
+                        match std.units.quantity(0.0, "kg") {
                             Result.Ok(zero_mass) => std.printf("%d,%d,%d,%d,%d,",
-                                quantity_error(std.quantity_convert(kilograms, "s")),
-                                quantity_error(std.quantity_sub(kilograms, seconds)),
-                                quantity_error(std.quantity_div(kilograms, zero_mass)),
-                                quantity_error(std.quantity_pow(kilograms, 33)),
-                                quantity_error(std.quantity_pow(zero_mass, -1))),
-                            Result.Err(error) => std.printf("%s", error)
+                                quantity_error(std.units.convert(kilograms, "s")),
+                                quantity_error(std.units.subtract(kilograms, seconds)),
+                                quantity_error(std.units.divide(kilograms, zero_mass)),
+                                quantity_error(std.units.power(kilograms, 33)),
+                                quantity_error(std.units.power(zero_mass, -1))),
+                            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                         }
-                        std.printf("%d|", quantity_error(std.quantity(1.0, "unknown")))
+                        std.printf("%d|", quantity_error(std.units.quantity(1.0, "unknown")))
                     },
-                    Result.Err(error) => std.printf("%s", error)
+                    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
                 },
-                Result.Err(error) => std.printf("%s", error)
+                Result.Err(error) => std.printf("%s", mathematics_error.message(error))
             }
         },
-        Result.Err(error) => std.printf("%s", error)
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
     },
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }
 
-match std.quantity(2.0, "1") {
-    Result.Ok(scalar) => match std.quantity_value(scalar) {
-        Result.Ok(value) => match std.quantity_is_dimensionless(scalar) {
+match std.units.quantity(2.0, "1") {
+    Result.Ok(scalar) => match std.units.value(scalar) {
+        Result.Ok(value) => match std.units.is_dimensionless(scalar) {
             Result.Ok(flag) => std.printf("%.1f,%d,%s|", value, flag,
-                std.quantity_unit(scalar)),
-            Result.Err(error) => std.printf("%s", error)
+                std.units.unit_text(scalar)),
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         },
-        Result.Err(error) => std.printf("%s", error)
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
     },
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }
 
-match std.quantity(2.0, "h") {
-    Result.Ok(hours) => match std.quantity_convert(hours, "s") {
-        Result.Ok(seconds) => match std.quantity_value(seconds) {
+match std.units.quantity(2.0, "h") {
+    Result.Ok(hours) => match std.units.convert(hours, "s") {
+        Result.Ok(seconds) => match std.units.value(seconds) {
             Result.Ok(value) => std.printf("%.1f", value),
-            Result.Err(error) => std.printf("%s", error)
+            Result.Err(error) => std.printf("%s", mathematics_error.message(error))
         },
-        Result.Err(error) => std.printf("%s", error)
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
     },
-    Result.Err(error) => std.printf("%s", error)
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
 }

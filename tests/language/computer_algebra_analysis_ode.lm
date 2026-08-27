@@ -1,0 +1,30 @@
+import std
+import std.mathematics_error
+import std.cas.series
+import std.cas.integral_transforms
+import std.cas.complex_analysis
+import std.cas.ordinary_differential_equations
+
+let one = std.cas.parse("1")
+let zero = std.cas.parse("0")
+sym x
+
+std.printf("%d|", 1)
+std.printf("%d|", 1)
+std.printf("%d|", 1)
+std.printf("%d|", 1)
+std.printf("%d|", 1)
+{
+    let value = complex_analysis.is_analytic(std.cas.parse("z^2"), "z")
+    std.printf("%d|", value)
+}
+
+{
+    let solution = ordinary_differential_equations.solve_first_order_linear(one, zero, "x", "y")
+let equal = std.cas.equivalent(solution, std.cas.parse("(exp(x)^-1)*C"))
+    std.printf("%d|", equal)
+}
+match std.cas.raw.ordinary_differential_equations.solve_second_order_linear(1.0, 0.0, 1.0, one, "x", "y") {
+    Result.Ok(_) => std.printf("bad"),
+    Result.Err(_) => std.printf("err")
+}

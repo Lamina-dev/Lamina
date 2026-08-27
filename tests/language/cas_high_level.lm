@@ -1,0 +1,26 @@
+import std
+import std.cas.assumptions
+import std.cas.symbolic_matrix
+
+sym x
+let zero expr = 0
+let one expr = 1
+
+let by_name = std.cas.differentiate(x^2, "x")
+let by_symbol = std.cas.differentiate(x^2, x)
+let solutions = std.cas.set_to_array(std.cas.solve(x^2 == 1, "x"))
+let truth = assumptions.query(assumptions.empty(), x, "positive")
+let matrix = symbolic_matrix.from_rows([[one, zero], [zero, one]])
+let decomposition = symbolic_matrix.lower_upper_decomposition(matrix)
+
+std.printf("%s|%s,%s|%d|", std.cas.to_text(by_name),
+    std.cas.to_text(solutions[0]), std.cas.to_text(solutions[1]),
+    std.cas.structurally_equal(by_name, by_symbol))
+match truth {
+    assumptions.Undetermined => std.printf("U|"),
+    _ => std.printf("bad|")
+}
+match decomposition {
+    symbolic_matrix.SymbolicLU(_, _) => std.printf("LU"),
+    _ => std.printf("bad")
+}

@@ -1,0 +1,57 @@
+import std.mathematics_error
+import std
+
+sym x, y
+sym fallback
+
+let one = 1 as expr
+let two = 2 as expr
+let three = 3 as expr
+
+std.printf("%s|", std.cas.to_text(std.cas.substitute_named(
+    std.cas.parse("x + 1"), "x", two)))
+std.printf("%s|", std.cas.to_text(std.cas.substitute_many(
+    std.cas.parse("x + y"), ["x", "y"], [two, three])))
+
+{
+    let value = std.cas.evaluate_real_with(std.cas.parse("x^2 + y"), ["x", "y"], [3, 4])
+    std.printf("%.1f|", value)
+}
+
+{
+    let value = std.cas.set_contains([x, y], x)
+    std.printf("%d|", value)
+}
+{
+    let value = std.cas.set_subset([x], [x, y])
+    std.printf("%d|", value)
+}
+{
+    let values = std.cas.set_union([x, y], [y, one])
+    std.printf("%s,%s,%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]), std.cas.to_text(values[2]))
+}
+
+{
+    let value = std.cas.domain_contains("integers", two)
+    std.printf("%d|", value)
+}
+{
+    let value = std.cas.domain_subset("integers", "reals")
+    std.printf("%d|", value)
+}
+{
+    let value = std.cas.set_subset_domain([one, two], "rationals")
+    std.printf("%d|", value)
+}
+
+{
+    let bindings = std.cas.match_bindings(std.cas.parse("A^2"),
+                             std.cas.parse("x^2"), ["A"])
+let value = std.cas.table_expr(bindings, "A")
+    std.printf("%lld,%d,%s|", std.cas.table_size(bindings),
+            std.cas.table_has(bindings, "A"), std.cas.to_text(value))
+}
+
+std.printf("%s|%s", std.cas.to_text(std.cas.finite_set([one, two])),
+    std.cas.to_text(std.cas.interval(one, two, true, false)))

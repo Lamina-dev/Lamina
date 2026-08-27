@@ -1,0 +1,12 @@
+import std
+
+let union = {1, 2} | {2, 3}
+let intersection = {1, 2} & {2, 3}
+let difference = {1, 2, 3} - {2}
+let symmetric = {1, 2} xor {2, 3}
+
+std.printf("%d,%d,%d,%d|%d,%d,%d|%d,%d|%d",
+    1 in union, 2 in union, 3 in union, union == {3, 2, 1},
+    2 in intersection, 1 not in intersection, intersection subset union,
+    2 not in difference, 3 in difference,
+    symmetric == {1, 3})

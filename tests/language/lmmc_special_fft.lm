@@ -1,0 +1,39 @@
+import std.mathematics_error
+import std
+import std.special
+import std.complex
+import std.fft
+
+match special.gamma(5.0) {
+    Result.Ok(value) => std.printf("%.3f|", value),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+match special.error_function(0.0) {
+    Result.Ok(value) => std.printf("%.3f|", value),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+
+let polar_value = complex.from_polar(1.0, 0.0)
+match complex.natural_logarithm(polar_value) {
+    Result.Ok(logged) => match complex.exponential(logged) {
+        Result.Ok(round_trip) => std.printf("%.3f,%.3f|", complex.real_part(round_trip), complex.imaginary_part(round_trip)),
+        Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+    },
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+
+let samples = [
+    complex.from_cartesian(1.0, 0.0), complex.from_cartesian(2.0, 0.0),
+    complex.from_cartesian(3.0, 0.0), complex.from_cartesian(4.0, 0.0)
+]
+match fft.forward(samples) {
+    Result.Ok(spectrum) => match fft.inverse(spectrum) {
+        Result.Ok(restored) => std.printf(
+            "%.3f,%.3f,%.3f,%.3f",
+            complex.real_part(restored[0]), complex.real_part(restored[1]),
+            complex.real_part(restored[2]), complex.real_part(restored[3])
+        ),
+        Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+    },
+    Result.Err(error) => std.printf("%s", mathematics_error.message(error))
+}

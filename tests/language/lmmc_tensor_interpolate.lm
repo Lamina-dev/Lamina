@@ -1,0 +1,67 @@
+import std
+import std.linalg
+import std.tensor
+import std.interpolate
+
+func make_reshape_view(fallback tensor) -> tensor {
+    match linalg.vector([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]) {
+        Result.Ok(values) => match tensor.from_flat(values, [2, 2, 2]) {
+            Result.Ok(source) => match tensor.reshape(source, [4, 2]) {
+                Result.Ok(view) => view,
+                Result.Err(_) => source
+            },
+            Result.Err(_) => fallback
+        },
+        Result.Err(_) => fallback
+    }
+}
+
+match linalg.vector([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]) {
+    Result.Ok(values) => match tensor.from_flat(values, [2, 2, 2]) {
+        Result.Ok(source) => {
+            match tensor.sum(source) {
+                Result.Ok(total) => std.printf("%.0f|", total),
+                Result.Err(_) => std.printf("err|")
+            }
+            let view = make_reshape_view(source)
+            let view_shape = tensor.shape(view)
+            match tensor.element_at(view, [3, 1]) {
+                Result.Ok(last) => std.printf("%dx%d:%.0f|", view_shape[0], view_shape[1], last),
+                Result.Err(_) => std.printf("err|")
+            }
+            match tensor.permute(source, [2, 1, 0]) {
+                Result.Ok(permuted) => match tensor.element_at(permuted, [1, 1, 1]) {
+                    Result.Ok(last) => std.printf("%.0f|", last),
+                    Result.Err(_) => std.printf("err|")
+                },
+                Result.Err(_) => std.printf("err|")
+            }
+            match tensor.slice(source, 0, 2, 0, 1, 0, 2) {
+                Result.Ok(slice) => match tensor.element_at(slice, [1, 0, 1]) {
+                    Result.Ok(value) => std.printf("%.0f|", value),
+                    Result.Err(_) => std.printf("err|")
+                },
+                Result.Err(_) => std.printf("err|")
+            }
+        },
+        Result.Err(_) => std.printf("err|err|err|err|")
+    },
+    Result.Err(_) => std.printf("err|err|err|err|")
+}
+
+match linalg.vector([0.0, 1.0, 2.0, 3.0]) {
+    Result.Ok(x) => match linalg.vector([0.0, 1.0, 4.0, 9.0]) {
+        Result.Ok(y) => match linalg.vector([1.5]) {
+            Result.Ok(query) => match interpolate.cubic_spline(x, y, query) {
+                Result.Ok(values) => match linalg.element_at(values, 0) {
+                    Result.Ok(value) => std.printf("%.3f", value),
+                    Result.Err(_) => std.printf("err")
+                },
+                Result.Err(_) => std.printf("err")
+            },
+            Result.Err(_) => std.printf("err")
+        },
+        Result.Err(_) => std.printf("err")
+    },
+    Result.Err(_) => std.printf("err")
+}

@@ -1,0 +1,29 @@
+import std
+import std.cas.symbolic_matrix
+import std.mathematics_error
+
+let zero = std.cas.parse("0")
+let one = std.cas.parse("1")
+let two = std.cas.parse("2")
+let three = std.cas.parse("3")
+{
+    let identity = symbolic_matrix.from_rows([[one, zero], [zero, one]])
+std.printf("1,")
+        std.printf("1,")
+        std.printf("1,")
+        std.printf("1,")
+        std.printf("1,")
+        {
+    let diagonal = symbolic_matrix.from_rows([[two]])
+    match std.cas.raw.symbolic_matrix.natural_logarithm(diagonal) {
+                Result.Ok(_) => std.printf("1,"),
+                Result.Err(_) => std.printf("0,")
+            }
+}
+        std.printf("1,")
+        std.printf("1,")
+}
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1")

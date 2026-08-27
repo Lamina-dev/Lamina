@@ -1,0 +1,36 @@
+import std.mathematics_error
+import std
+
+sym fallback
+
+let zero = 0 as expr
+let one = std.cas.parse("1")
+
+{
+    let value = std.cas.integrate_simpson(std.cas.parse("x^2"), "x", zero, one, 100)
+    std.printf("%.4f|", value)
+}
+
+{
+    let value = std.cas.integrate_gaussian(std.cas.parse("x^2"), "x", zero, one, 3)
+    std.printf("%.4f|", value)
+}
+
+{
+    let values = std.cas.gradient(std.cas.parse("x^2 + y^2"), ["x", "y"])
+    std.printf("%s,%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]))
+}
+
+std.printf("%s|", std.cas.to_text(std.cas.laplacian(
+    std.cas.parse("x^2 + y^2"), ["x", "y"])))
+std.printf("%s|", std.cas.to_text(std.cas.divergence(
+    [std.cas.parse("x^2"), std.cas.parse("y^2")], ["x", "y"])))
+std.printf("%s|", std.cas.to_text(std.cas.laplace(one, "t", "s")))
+std.printf("%s|", std.cas.to_text(std.cas.residue(
+    std.cas.parse("1/z"), "z", zero, 1)))
+sym k
+std.printf("%s|", std.cas.to_text(std.cas.symbolic_sum(
+    k, "k", one, std.cas.parse("3"))))
+std.printf("%s", std.cas.to_text(std.cas.implicit_differentiate(
+    std.cas.parse("x^2 + y^2 - 1"), "x", "y")))

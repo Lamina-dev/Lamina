@@ -1,0 +1,11 @@
+import std
+
+sym x
+let symbolic set<expr> = {x, 2}
+let numeric = {1, 1/1, 2}
+let empty set<int> = {}
+
+std.printf("%d,%d,%d|%d,%d|%d",
+    x in symbolic, 2 in symbolic, symbolic == {2, x},
+    1 in numeric, numeric == {1, 2},
+    empty subset numeric)

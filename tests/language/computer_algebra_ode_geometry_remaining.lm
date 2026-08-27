@@ -1,0 +1,47 @@
+import std
+import std.cas.ordinary_differential_equations
+import std.cas.geometry
+import std.cas.symbolic_matrix
+
+sym x, y, z, t, p, q
+sym fallback
+let zero = std.cas.parse("0")
+let one = std.cas.parse("1")
+let two = std.cas.parse("2")
+
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+std.printf("1,")
+
+{
+    let metric = symbolic_matrix.from_rows([[one, zero], [zero, one]])
+let inverse = geometry.metric_inverse(metric)
+std.printf("1,")
+            std.printf("1,")
+            std.printf("1")
+}

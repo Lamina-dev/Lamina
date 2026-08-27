@@ -1,0 +1,26 @@
+import std.mathematics_error
+import std
+import std.integrate
+
+func square(x real) -> real {
+    let nested_native_call = std.printf("")
+    x * x
+}
+
+func failing_integrand(x real) -> real {
+    let values = [1]
+    let ignored = values[4]
+    x
+}
+
+match integrate.adaptive(square, 0.0, 1.0, 0.001, 0.001, 20) {
+    Result.Ok(result) => std.printf(
+        "%.6f|%s|", integrate.value(result), integrate.status(result)
+    ),
+    Result.Err(error) => std.printf("%s|", mathematics_error.message(error))
+}
+
+match integrate.adaptive(failing_integrand, 0.0, 1.0, 0.001, 0.001, 20) {
+    Result.Ok(_) => std.printf("unexpected"),
+    Result.Err(_) => std.printf("err|alive")
+}
