@@ -32,7 +32,7 @@ bool Lexer::valid_pos() const {
 
 Token Lexer::next() {
     while (isspace(content[pos])) {
-        advance();
+        advance_and_newline();
     }
     if (pos >= content.size()) {
         return {TokenType::END_OF_FILE,"", line, col};
