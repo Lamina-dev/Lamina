@@ -16,6 +16,10 @@ std::ostream& operator<<(std::ostream& os, const Token& t) {
 
 void Lexer::advance() {
     pos++;
+    
+}
+void Lexer::advance_and_newline() {
+    advance();
     if (content[pos] == '\n') {
         line++;
         col = 1;
