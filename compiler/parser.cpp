@@ -285,12 +285,12 @@ std::shared_ptr<ExprNode> Parser::parse_set_literal() noexcept {
     const size_t line = cur().line, col = cur().col;
     consume(TokenType::LBRACE, "{");
     std::vector<std::shared_ptr<ExprNode>> elements;
-    if (!match(TokenType::RBRACE)) {
-        while (true) {
-            elements.push_back(parse_expr());
-            if (match(TokenType::RBRACE)) break;
-            consume(TokenType::COMMA, ",");
-        }
+    while (!match(TokenType::RBRACE) &&
+           !match(TokenType::END_OF_FILE)) {
+        elements.push_back(parse_expr());
+        if (match(TokenType::RBRACE) ||
+            match(TokenType::END_OF_FILE)) break;
+        if (!consume(TokenType::COMMA, ",")) break;
     }
     consume(TokenType::RBRACE, "}");
     return std::make_shared<LiteralPayloadNode>(

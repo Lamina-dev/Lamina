@@ -16,14 +16,16 @@ std::ostream& operator<<(std::ostream& os, const Token& t) {
 
 void Lexer::advance() {
     pos++;
-    
+    col++;
 }
 void Lexer::advance_and_newline() {
-    advance();
     if (content[pos] == '\n') {
+        pos++;
         line++;
         col = 1;
-    } else col++;
+    } else {
+        advance();
+    }
 }
 
 bool Lexer::valid_pos() const {
@@ -110,7 +112,7 @@ Token Lexer::next() {
         case '#': {
             while (pos < content.size() && content[pos] != '\n')
                 advance();
-            if (pos < content.size()) advance();
+            if (pos < content.size()) advance_and_newline();
             return next();
         }
         case '"': {

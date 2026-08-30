@@ -1,5 +1,8 @@
 function(add_lamina_test name source)
     add_test(NAME ${name} COMMAND lamina "${CMAKE_CURRENT_SOURCE_DIR}/language/${source}")
+    set_tests_properties(${name} PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
 endfunction()
 
 function(add_lamina_error_test name source diagnostic)
@@ -10,6 +13,9 @@ function(add_lamina_error_test name source diagnostic)
             "-DDIAGNOSTIC=${diagnostic}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/expect_error.cmake"
     )
+    set_tests_properties(${name} PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
 endfunction()
 
 function(add_lamina_output_test name source expected)
@@ -19,6 +25,9 @@ function(add_lamina_output_test name source expected)
             "-DSOURCE=${CMAKE_CURRENT_SOURCE_DIR}/language/${source}"
             "-DEXPECTED=${expected}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/expect_output.cmake"
+    )
+    set_tests_properties(${name} PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     )
 endfunction()
 
@@ -160,3 +169,4 @@ add_lamina_output_test(set_cas_results set_cas_results.lm "1,1,1|1")
 add_lamina_error_test(set_operand_type_mismatch set_operand_type_mismatch.lm "SetOperandTypeMismatch")
 add_lamina_error_test(set_element_not_hashable set_element_not_hashable.lm "SetElementNotHashable")
 add_lamina_error_test(set_empty_uninferred set_empty_uninferred.lm "cannot infer ADT type arguments")
+add_lamina_error_test(set_missing_closing_brace set_missing_closing_brace.lm "expected `}`")
