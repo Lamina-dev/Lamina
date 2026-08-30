@@ -105,13 +105,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_push(AssumptionsObj* 
 extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_pop(AssumptionsObj* value) {
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.pop: null context");
     auto* result = value->copy();
-    try {
-        result->context().pop();
-        return assumptions_result(result);
-    } catch (const std::exception& error) {
+    auto popped = result->context().pop();
+    if (!popped) {
         result->release();
-        return result_error(MathErrorCode::InvalidArgument, __func__, std::string("assumptions.pop: ") + error.what());
+        return result_error(popped.error());
     }
+    return assumptions_result(result);
 }
 extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_domain(
     AssumptionsObj* value, const char* symbol, const char* domain) {

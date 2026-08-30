@@ -9,6 +9,10 @@ on:
     branches: [ "master" ]
   workflow_dispatch:
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 
 
 jobs:
@@ -30,7 +34,7 @@ jobs:
             use_asm: 'OFF'
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -45,13 +49,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y nasm
 
       - name: Configure CMake
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DUSE_ASM=${{ matrix.use_asm }}
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }} -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }} -DUSE_ASM=${{ matrix.use_asm }}
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }} --parallel 4
+        run: cmake --build build --config ${{ matrix.build_type }} --target lamina laminac_s lamina_runtime_s test_compilation_pipeline test_runtime_values --parallel 4
 
       - name: Test
-        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --parallel 4 --output-on-failure
 
       - name: Package
         shell: bash
@@ -72,7 +76,7 @@ jobs:
   build-windows:
     name: Build and test (windows-latest, MinGW)
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -95,15 +99,15 @@ jobs:
 
       - name: Configure CMake
         shell: msys2 {0}
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DUSE_ASM=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }} -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }} -DUSE_ASM=ON
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build build --parallel 4
+        run: cmake --build build --target lamina laminac_s lamina_runtime_s test_compilation_pipeline test_runtime_values --parallel 4
 
       - name: Test
         shell: msys2 {0}
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --parallel 4 --output-on-failure
 
       - name: Package
         shell: msys2 {0}

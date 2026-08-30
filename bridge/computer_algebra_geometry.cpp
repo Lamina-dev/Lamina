@@ -49,6 +49,20 @@ AdtObj* plane_result(const lamina::PlaneSymbolicResult& plane) {
     fields.emplace_back(new ExprObj(plane.value().d), ValueKind::Expr);
     return result_ok(new AdtObj("Plane", "Plane", std::move(fields)), ValueKind::Obj);
 }
+
+const char* classification_name(
+    lamina::CriticalPointClassification classification) {
+    using Classification = lamina::CriticalPointClassification;
+    switch (classification) {
+        case Classification::LocalMinimum: return "minimum";
+        case Classification::LocalMaximum: return "maximum";
+        case Classification::Saddle: return "saddle";
+        case Classification::Degenerate: return "degenerate";
+        case Classification::Inconclusive: return "inconclusive";
+    }
+    return "inconclusive";
+}
+
 } // namespace
 
 /** @brief Computes vector angle. @param lhs Borrowed vector. @param rhs Borrowed vector. @return Owning Result real or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
@@ -205,7 +219,8 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_geometry_find_extrema(ExprObj* va
         for (const auto& [name, expression] : critical.point)
             entries.emplace_back(name, Value(new ExprObj(expression), ValueKind::Expr));
         entries.emplace_back("classification", Value(
-            new StringObj(critical.classification), ValueKind::Obj));
+            new StringObj(classification_name(critical.classification)),
+            ValueKind::Obj));
         output->append(Value(new TableObj(std::move(entries)), ValueKind::Table));
     }
     return result_ok(output, ValueKind::Obj);

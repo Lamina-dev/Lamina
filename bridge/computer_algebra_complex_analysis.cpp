@@ -61,19 +61,24 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_nth_roots(
     std::string error; const auto* expression = checked_expr(value, error);
     if (!expression) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     try {
-        auto roots = lamina::solve_complex_nth_root(
+        auto roots_result = lamina::solve_complex_nth_root_checked(
             *expression, static_cast<int>(degree));
-        if (roots.size() != static_cast<std::size_t>(degree)) {
+        if (!roots_result ||
+            roots_result.value().size() != static_cast<std::size_t>(degree)) {
             const auto approximate = lamina::lsr::evalf(**expression);
             if (approximate && approximate.value().is_finite()) {
-                roots = lamina::solve_complex_nth_root(
+                roots_result = lamina::solve_complex_nth_root_checked(
                     SymbolicExpr::number(approximate.value().value),
                     static_cast<int>(degree));
             }
         }
-        if (roots.size() != static_cast<std::size_t>(degree))
-            return result_error(MathErrorCode::Inconclusive, __func__, 
+        if (!roots_result) return result_error(roots_result.error());
+        auto roots = std::move(roots_result.value());
+        if (roots.size() != static_cast<std::size_t>(degree)) {
+            return result_error(
+                MathErrorCode::Inconclusive, __func__,
                 "CasError(Inconclusive in complex.nth_roots)");
+        }
         std::vector<lamina::lsr::ExprPtr> values;
         for (const auto& root : roots) {
             const auto converted = complex_expression(root);

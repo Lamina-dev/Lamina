@@ -1,6 +1,6 @@
 import std.mathematics_error
 
-type SymbolicLU = SymbolicLU(expr, expr)
+type SymbolicLU = SymbolicLU(expr, expr, expr)
 type SymbolicQR = SymbolicQR(expr, expr)
 type SymbolicCholesky = SymbolicCholesky(expr)
 type SymbolicSvd = SymbolicSvd(expr, expr, expr)

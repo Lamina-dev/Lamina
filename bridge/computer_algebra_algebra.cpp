@@ -5,6 +5,7 @@
 #include <cstdarg>
 #include "bridge/math_internal.hpp"
 #include "symbolic.hpp"
+#include "poly_utils.hpp"
 
 using namespace lmx::bridge;
 
@@ -47,9 +48,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_polynomial_greatest_commo
     const auto* left = checked_expr(lhs, error);
     const auto* right = checked_expr(rhs, error);
     if (!left || !right) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expression_operation("algebra.polynomial_greatest_common_divisor", lhs, [&](const auto&) {
-        return SymbolicExpr::poly_gcd(*left, *right);
-    });
+    lamina::ComputationContext context;
+    auto result = lamina::symbolic_polynomial_gcd(
+        **left, **right, context);
+    if (!result) return result_error(result.error());
+    return result_ok(new ExprObj(result.value()), ValueKind::Expr);
 }
 extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_polynomial_resultant(
     ExprObj* lhs, ExprObj* rhs, const char* variable) {

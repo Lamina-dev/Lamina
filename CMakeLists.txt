@@ -3,6 +3,8 @@ project(Lamina LANGUAGES CXX)
 
 set(FETCHCONTENT_FULLY_DISCONNECTED ON)
 option(LMX_BUILD_TESTS "Build Lamina tests" OFF)
+option(LMX_ENABLE_LTO "Enable link-time optimization" ON)
+option(LMX_FAST_BUILD "Prefer faster compilation over maximum runtime optimization" OFF)
 if(LMX_BUILD_TESTS)
     enable_testing()
 endif()
@@ -246,8 +248,8 @@ set(LMX_PERF_FLAGS "")
 set(LMX_LINK_FLAGS "")
 if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang-cl
     message(STATUS "Use Clang-Cl toolchain compiling")
-    set(LMX_PERF_FLAGS /GL /arch:AVX2 /Oi /fp:fast /guard:cf-)
-    set(LMX_LINK_FLAGS /LTCG /OPT:REF /OPT:ICF)
+    set(LMX_PERF_FLAGS /arch:AVX2 /Oi /fp:fast /guard:cf-)
+    set(LMX_LINK_FLAGS /OPT:REF /OPT:ICF)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(STATUS "Use GNU toolchain compiling")
     set(LMX_PERF_FLAGS
@@ -255,7 +257,6 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             -fno-plt -fvisibility=hidden
             -funroll-loops -fomit-frame-pointer
             -ffast-math -fno-math-errno
-            -flto
             -fno-semantic-interposition
             -fmerge-all-constants
             -fpeel-loops -fsplit-loops -fpredictive-commoning
@@ -268,7 +269,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             -fcf-protection=none #-fzero-init-padding-bits=unions
             -U_FORTIFY_SOURCE
     )
-    set(LMX_LINK_FLAGS -flto -s -Wl,--gc-sections -Wl,-O3 -Wl,--as-needed)
+    set(LMX_LINK_FLAGS -s -Wl,--gc-sections -Wl,-O3 -Wl,--as-needed)
 elseif (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(STATUS "Use Apple Clang toolchain compiling")
     set(LMX_PERF_FLAGS
@@ -285,7 +286,6 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             -fno-plt -fvisibility=hidden
             -funroll-loops -fomit-frame-pointer
             -ffast-math -fno-math-errno
-            -flto=thin
             -fno-semantic-interposition
             -fmerge-all-constants
             -fdata-sections -ffunction-sections
@@ -293,7 +293,33 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             -fcf-protection=none
             -U_FORTIFY_SOURCE
     )
-    set(LMX_LINK_FLAGS -flto=thin -s -Wl,--gc-sections -Wl,-O3 -Wl,--as-needed)
+    set(LMX_LINK_FLAGS -s -Wl,--gc-sections -Wl,-O3 -Wl,--as-needed)
+endif()
+
+if(LMX_ENABLE_LTO)
+    if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        list(APPEND LMX_PERF_FLAGS /GL)
+        list(PREPEND LMX_LINK_FLAGS /LTCG)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        list(APPEND LMX_PERF_FLAGS -flto)
+        list(PREPEND LMX_LINK_FLAGS -flto)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT APPLE)
+        list(APPEND LMX_PERF_FLAGS -flto=thin)
+        list(PREPEND LMX_LINK_FLAGS -flto=thin)
+    endif()
+endif()
+
+if(NOT LMX_ENABLE_LTO AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    list(FILTER LMX_PERF_FLAGS EXCLUDE REGEX
+        "^-f(ipa|peel|split|predictive|rename|prefetch)")
+endif()
+
+if(LMX_FAST_BUILD AND CMAKE_BUILD_TYPE STREQUAL "Release")
+    if(MSVC)
+        list(APPEND LMX_PERF_FLAGS /O1)
+    else()
+        list(APPEND LMX_PERF_FLAGS -O1)
+    endif()
 endif()
 
 set(LMX_ALL_TARGETS laminac lamina_runtime lamina_shared lamina)

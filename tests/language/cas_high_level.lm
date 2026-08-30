@@ -21,6 +21,6 @@ match truth {
     _ => std.printf("bad|")
 }
 match decomposition {
-    symbolic_matrix.SymbolicLU(_, _) => std.printf("LU"),
+    symbolic_matrix.SymbolicLU(_, _, _) => std.printf("LU"),
     _ => std.printf("bad")
 }
