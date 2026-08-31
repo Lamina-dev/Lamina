@@ -1,6 +1,7 @@
 #include "fraction.hpp"
-#include <cmath>
+#include <cstdint>
 #include <functional>
+#include <limits>
 #include <numeric>
 
 using namespace lmx::runtime;
@@ -88,7 +89,9 @@ Fraction Fraction::operator/(const Fraction& other) const noexcept {
 }
 
 Fraction Fraction::operator%(const Fraction &other) const noexcept {
-    const auto rem = num * other.den % (den * other.num);
+    const int32_t divisor = den * other.num;
+    if (divisor == 0) return Fraction(0, 1);
+    const auto rem = num * other.den % divisor;
     return Fraction(rem, other.den * den);
 }
 
@@ -174,7 +177,7 @@ bool Fraction::operator!=(const int64_t other) const noexcept {
     return other * den != num;
 }
 bool Fraction::operator==(const int64_t other) const noexcept {
-    return other * den != num;
+    return other * den == num;
 }
 bool Fraction::operator>(const Fraction &other) const noexcept {
     return num * other.den > other.num * den;
@@ -229,6 +232,56 @@ Fraction Fraction::operator-(const int other) const noexcept {
     return Fraction(num - other * den, den);
 }
 
+namespace {
+int64_t mod_inverse(int64_t a, const int64_t m) noexcept {
+    if (m <= 1) return 0;
+    a %= m;
+    if (a < 0) a += m;
+    int64_t t = 0, newt = 1;
+    int64_t r = m, newr = a;
+    while (newr != 0) {
+        const int64_t q = r / newr;
+        const int64_t next_t = t - q * newt;
+        t = newt;
+        newt = next_t;
+        const int64_t next_r = r - q * newr;
+        r = newr;
+        newr = next_r;
+    }
+    if (r != 1) return 0;
+    if (t < 0) t += m;
+    return t;
+}
+
+uint64_t add_mod_u(const uint64_t a, const uint64_t b, const uint64_t m) noexcept {
+    if (a >= m - b) return a - (m - b);
+    return a + b;
+}
+
+uint64_t mul_mod_u(uint64_t a, uint64_t b, const uint64_t m) noexcept {
+    uint64_t result = 0;
+    a %= m;
+    b %= m;
+    while (b != 0) {
+        if ((b & 1U) != 0) result = add_mod_u(result, a, m);
+        a = add_mod_u(a, a, m);
+        b >>= 1U;
+    }
+    return result;
+}
+}
+
 int64_t Fraction::operator%(const int64_t other) const noexcept {
-    return num * static_cast<int64_t>(std::pow(den, -1)) % other;
+    if (other == 0 || other == std::numeric_limits<int64_t>::min()) return 0;
+    const int64_t m = other < 0 ? -other : other;
+    const int64_t inv = mod_inverse(den, m);
+    if (inv == 0) return 0;
+    int64_t n = num;
+    const bool negative = n < 0;
+    if (negative) n = -n;
+    auto result = static_cast<int64_t>(
+        mul_mod_u(static_cast<uint64_t>(n), static_cast<uint64_t>(inv),
+                  static_cast<uint64_t>(m)));
+    if (negative && result != 0) result = m - result;
+    return result;
 }

@@ -10,8 +10,10 @@
 #include "../runtime/object/assumptions.hpp"
 #include "lmmc/init.h"
 #include "../runtime/object/value.hpp"
+#include "../runtime/error.hpp"
 
 #include <iostream>
+#include <string>
 #include <vector>
 #include <memory>
 
@@ -20,6 +22,8 @@ using lmx::runtime::ComplexObj;
 using lmx::runtime::TupleObj;
 using lmx::runtime::Value;
 using lmx::runtime::ValueKind;
+using lmx::runtime::Fraction;
+using lmx::runtime::VmFault;
 using lmx::runtime::VectorObj;
 using lmx::runtime::MatrixObj;
 using lmx::runtime::TableObj;
@@ -62,6 +66,47 @@ int main() {
                  "fraction equality must use normalized numeric components") ||
         !require(left_fraction.hash() == right_fraction.hash(),
                  "equal fractions must have equal structural hashes")) return 1;
+
+    const Fraction five(5, 1);
+    if (!require(five == static_cast<int64_t>(5),
+                 "fraction == integer must not invert equality") ||
+        !require(!(five != static_cast<int64_t>(5)),
+                 "fraction != integer must be the inverse of ==") ||
+        !require(!(Fraction(2, 1) == static_cast<int64_t>(5)),
+                 "unequal fraction == integer must be false")) return 1;
+
+    // 2/3 ≡ 2 * inv(3) ≡ 2*2 ≡ 4 (mod 5); float pow(den,-1) truncated to 0.
+    if (!require(Fraction(2, 3) % static_cast<int64_t>(5) == 4,
+                 "fraction % integer must use a modular inverse") ||
+        !require(Fraction(7, 1) % static_cast<int64_t>(5) == 2,
+                 "integer-valued fraction % integer must match remainder")) return 1;
+
+    const Value int_256(static_cast<LmInt>(256));
+    const Value int_zero(static_cast<LmInt>(0));
+    if (!require(static_cast<bool>(int_256),
+                 "nonzero int must be truthy even when the low byte is zero") ||
+        !require(!int_zero,
+                 "zero int must be falsy") ||
+        !require(static_cast<bool>(Value(true)),
+                 "bool true must be truthy") ||
+        !require(!Value(false),
+                 "bool false must be falsy")) return 1;
+
+    if (!require((Value(1, 2) + Value(1, 4)) == Value(3, 4),
+                 "fraction addition must use frac_val, not int_val") ||
+        !require((Value(static_cast<LmInt>(2)) + Value(static_cast<LmInt>(3))) ==
+                     Value(static_cast<LmInt>(5)),
+                 "int addition must keep using int_val")) return 1;
+
+    try {
+        (void)(Value(static_cast<LmInt>(5)) % Value(static_cast<LmInt>(0)));
+        std::cerr << "int modulo zero must throw\n";
+        return 1;
+    } catch (const VmFault& fault) {
+        if (!require(std::string(fault.what()).find("modulo by zero") !=
+                         std::string::npos,
+                     "modulo by zero must report a runtime error")) return 1;
+    }
 
     auto* left_tuple_object = new TupleObj(2);
     left_tuple_object->set(0, Value(static_cast<LmInt>(1)));

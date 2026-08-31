@@ -537,9 +537,15 @@ Value LaminaVM::execute(const uint8_t* ip, Frame* stop_frame) {
     }
 
     VM_LABEL(FMod) {
-        regs[ip[1]] = uses_real(regs[ip[2]], regs[ip[3]])
-            ? Value(std::fmod(as_real(regs[ip[2]]), as_real(regs[ip[3]])))
-            : Value(as_fraction(regs[ip[2]]) % as_fraction(regs[ip[3]]));
+        if (uses_real(regs[ip[2]], regs[ip[3]])) {
+            regs[ip[1]] = Value(std::fmod(as_real(regs[ip[2]]), as_real(regs[ip[3]])));
+        } else {
+            const auto rhs = as_fraction(regs[ip[3]]);
+            if (rhs.num == 0) {
+                VM_ERROR(RuntimeErrorType::Runtime, "modulo by zero");
+            }
+            regs[ip[1]] = Value(as_fraction(regs[ip[2]]) % rhs);
+        }
         VM_NEXT
     }
 

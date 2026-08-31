@@ -3,9 +3,12 @@
 #include "fraction.hpp"
 #include "lmx.h"
 #include "object.hpp"
+#include "../error.hpp"
 
 #include <new>
+#include <cmath>
 #include <cstddef>
+#include <limits>
 #include <utility>
 
 namespace lmx::runtime {
@@ -64,15 +67,15 @@ struct Value {
     LMX_INLINE Value operator+(const Value& other) const noexcept;
     LMX_INLINE Value operator-(const Value& other) const noexcept;
     LMX_INLINE Value operator*(const Value& other) const noexcept;
-    LMX_INLINE Value operator/(const Value& other) const noexcept;
-    LMX_INLINE Value operator%(const Value& other) const noexcept;
+    LMX_INLINE Value operator/(const Value& other) const;
+    LMX_INLINE Value operator%(const Value& other) const;
     LMX_INLINE Value operator-() const noexcept;
 
     LMX_INLINE Value& operator+=(const Value& other) noexcept;
     LMX_INLINE Value& operator-=(const Value& other) noexcept;
     LMX_INLINE Value& operator*=(const Value& other) noexcept;
-    LMX_INLINE Value& operator/=(const Value& other) noexcept;
-    LMX_INLINE Value& operator%=(const Value& other) noexcept;
+    LMX_INLINE Value& operator/=(const Value& other);
+    LMX_INLINE Value& operator%=(const Value& other);
 
     bool operator==(const Value& other) const noexcept;
     [[nodiscard]] std::size_t hash() const noexcept;
@@ -166,69 +169,183 @@ LMX_INLINE Value &Value::operator=(Object *obj) noexcept {
 
 
 
-LMX_INLINE Value Value::operator%(const Value &other) const noexcept {
-    return Value(this->int_val % other.int_val);
+LMX_INLINE bool value_is_numeric(const ValueKind kind) noexcept {
+    return kind == ValueKind::Int || kind == ValueKind::Fraction ||
+           kind == ValueKind::Real;
 }
 
-LMX_INLINE Value &Value::operator%=(const Value &other) noexcept {
-    this->int_val %= other.int_val;
+LMX_INLINE Fraction value_as_fraction(const Value& value) noexcept {
+    if (value.kind == ValueKind::Fraction) return value.frac_val;
+    if (value.kind == ValueKind::Int) {
+        return Fraction(static_cast<int32_t>(value.int_val), 1);
+    }
+    return Fraction();
+}
+
+LMX_INLINE double value_as_real(const Value& value) noexcept {
+    if (value.kind == ValueKind::Real) return value.real_val;
+    if (value.kind == ValueKind::Fraction) return value.frac_val.to_float();
+    if (value.kind == ValueKind::Int) return static_cast<double>(value.int_val);
+    return 0.0;
+}
+
+LMX_INLINE bool value_uses_real(const Value& lhs, const Value& rhs) noexcept {
+    return lhs.kind == ValueKind::Real || rhs.kind == ValueKind::Real;
+}
+
+LMX_INLINE Value value_numeric_add(const Value& lhs, const Value& rhs) noexcept {
+    if (lhs.kind == ValueKind::Int && rhs.kind == ValueKind::Int) {
+        return Value(lhs.int_val + rhs.int_val);
+    }
+    if (!value_is_numeric(lhs.kind) || !value_is_numeric(rhs.kind)) return Value();
+    if (value_uses_real(lhs, rhs)) {
+        return Value(value_as_real(lhs) + value_as_real(rhs));
+    }
+    return Value(value_as_fraction(lhs) + value_as_fraction(rhs));
+}
+
+LMX_INLINE Value value_numeric_sub(const Value& lhs, const Value& rhs) noexcept {
+    if (lhs.kind == ValueKind::Int && rhs.kind == ValueKind::Int) {
+        return Value(lhs.int_val - rhs.int_val);
+    }
+    if (!value_is_numeric(lhs.kind) || !value_is_numeric(rhs.kind)) return Value();
+    if (value_uses_real(lhs, rhs)) {
+        return Value(value_as_real(lhs) - value_as_real(rhs));
+    }
+    return Value(value_as_fraction(lhs) - value_as_fraction(rhs));
+}
+
+LMX_INLINE Value value_numeric_mul(const Value& lhs, const Value& rhs) noexcept {
+    if (lhs.kind == ValueKind::Int && rhs.kind == ValueKind::Int) {
+        return Value(lhs.int_val * rhs.int_val);
+    }
+    if (!value_is_numeric(lhs.kind) || !value_is_numeric(rhs.kind)) return Value();
+    if (value_uses_real(lhs, rhs)) {
+        return Value(value_as_real(lhs) * value_as_real(rhs));
+    }
+    return Value(value_as_fraction(lhs) * value_as_fraction(rhs));
+}
+
+LMX_INLINE Value Value::operator%(const Value &other) const {
+    if (kind == ValueKind::Int && other.kind == ValueKind::Int) {
+        if (other.int_val == 0) {
+            VM_ERROR(RuntimeErrorType::Runtime, "modulo by zero");
+        }
+        if (other.int_val == -1 && int_val == std::numeric_limits<LmInt>::min()) {
+            return Value(static_cast<LmInt>(0));
+        }
+        return Value(int_val % other.int_val);
+    }
+    if (!value_is_numeric(kind) || !value_is_numeric(other.kind)) {
+        VM_ERROR(RuntimeErrorType::Runtime, "modulo of non-numeric value");
+    }
+    if (value_uses_real(*this, other)) {
+        return Value(std::fmod(value_as_real(*this), value_as_real(other)));
+    }
+    const auto rhs = value_as_fraction(other);
+    if (rhs.num == 0) {
+        VM_ERROR(RuntimeErrorType::Runtime, "modulo by zero");
+    }
+    return Value(value_as_fraction(*this) % rhs);
+}
+
+LMX_INLINE Value &Value::operator%=(const Value &other) {
+    *this = *this % other;
     return *this;
 }
 
 LMX_INLINE Value Value::operator*(const Value &other) const noexcept {
-    return Value(this->int_val * other.int_val);
+    return value_numeric_mul(*this, other);
 }
 
 LMX_INLINE Value &Value::operator*=(const Value &other) noexcept {
-    this->int_val *= other.int_val;
+    *this = *this * other;
     return *this;
 }
 
-LMX_INLINE Value Value::operator/(const Value &other) const noexcept {
-    return Value(this->int_val / other.int_val);
+LMX_INLINE Value Value::operator/(const Value &other) const {
+    if (kind == ValueKind::Int && other.kind == ValueKind::Int) {
+        if (other.int_val == 0) {
+            VM_ERROR(RuntimeErrorType::Runtime, "division by zero");
+        }
+        if (other.int_val == -1 && int_val == std::numeric_limits<LmInt>::min()) {
+            VM_ERROR(RuntimeErrorType::Runtime, "integer overflow");
+        }
+        return Value(int_val / other.int_val);
+    }
+    if (!value_is_numeric(kind) || !value_is_numeric(other.kind)) {
+        VM_ERROR(RuntimeErrorType::Runtime, "division of non-numeric value");
+    }
+    if (value_uses_real(*this, other)) {
+        return Value(value_as_real(*this) / value_as_real(other));
+    }
+    const auto rhs = value_as_fraction(other);
+    if (rhs.num == 0) {
+        VM_ERROR(RuntimeErrorType::Runtime, "division by zero");
+    }
+    return Value(value_as_fraction(*this) / rhs);
 }
 
-LMX_INLINE Value &Value::operator/=(const Value &other) noexcept {
-    this->int_val /= other.int_val;
+LMX_INLINE Value &Value::operator/=(const Value &other) {
+    *this = *this / other;
     return *this;
 }
 
 LMX_INLINE Value Value::operator+(const Value &other) const noexcept {
-    return Value(int_val + other.int_val);
+    return value_numeric_add(*this, other);
 }
 
 LMX_INLINE Value Value::operator-() const noexcept {
-    return Value(-int_val);
+    switch (kind) {
+    case ValueKind::Int: return Value(-int_val);
+    case ValueKind::Fraction: return Value(-frac_val);
+    case ValueKind::Real: return Value(-real_val);
+    default: return Value();
+    }
 }
 
 LMX_INLINE Value &Value::operator+=(const Value &other) noexcept {
-    this->int_val += other.int_val;
+    *this = *this + other;
     return *this;
 }
 
 LMX_INLINE Value Value::operator-(const Value &other) const noexcept {
-    return Value(int_val - other.int_val);
+    return value_numeric_sub(*this, other);
 }
 
 LMX_INLINE Value &Value::operator-=(const Value &other) noexcept {
-    this->int_val -= other.int_val;
+    *this = *this - other;
     return *this;
 }
 
 LMX_INLINE bool Value::operator<(const Value &other) const noexcept {
-    return int_val < other.int_val;
+    if (kind == ValueKind::Int && other.kind == ValueKind::Int) {
+        return int_val < other.int_val;
+    }
+    if (!value_is_numeric(kind) || !value_is_numeric(other.kind)) return false;
+    if (value_uses_real(*this, other)) {
+        return value_as_real(*this) < value_as_real(other);
+    }
+    return value_as_fraction(*this) < value_as_fraction(other);
 }
 
 LMX_INLINE bool Value::operator<=(const Value &other) const noexcept {
-    return int_val <= other.int_val;
+    if (kind == ValueKind::Int && other.kind == ValueKind::Int) {
+        return int_val <= other.int_val;
+    }
+    if (!value_is_numeric(kind) || !value_is_numeric(other.kind)) return false;
+    if (value_uses_real(*this, other)) {
+        return value_as_real(*this) <= value_as_real(other);
+    }
+    return value_as_fraction(*this) <= value_as_fraction(other);
 }
 
 LMX_INLINE bool Value::operator>(const Value &other) const noexcept {
-    return int_val > other.int_val;
+    return other < *this;
 }
 
 LMX_INLINE bool Value::operator>=(const Value &other) const noexcept {
-    return int_val >= other.int_val;
+    return other <= *this;
 }
 
 LMX_INLINE bool Value::operator!=(const Value &other) const noexcept {
@@ -236,11 +353,23 @@ LMX_INLINE bool Value::operator!=(const Value &other) const noexcept {
 }
 
 LMX_INLINE bool Value::operator!() const noexcept {
-    return !bool_val;
+    return !static_cast<bool>(*this);
 }
 
 LMX_INLINE Value::operator bool() const noexcept {
-    return bool_val;
+    switch (kind) {
+    case ValueKind::Bool: return bool_val;
+    case ValueKind::Int: return int_val != 0;
+    case ValueKind::Fraction: return frac_val.num != 0;
+    case ValueKind::Real: return real_val != 0.0;
+    case ValueKind::Null: return false;
+    case ValueKind::C_Ptr: return c_ptr != nullptr;
+    case ValueKind::C_VaList:
+    case ValueKind::C_ValueRef:
+        return c_ptr != nullptr;
+    default:
+        return obj != nullptr;
+    }
 }
 
 LMX_INLINE Value::Value(const Value &other) noexcept : kind(ValueKind::Null), c_ptr(nullptr) {
