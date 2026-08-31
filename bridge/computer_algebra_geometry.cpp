@@ -1,7 +1,5 @@
 #include "bridge/result.hpp"
 #include "bridge/conversions.hpp"
-#include "bridge/runtime_views.hpp"
-#include "bridge/unit_bridge.hpp"
 #include <cstdarg>
 #include "bridge/math_internal.hpp"
 #include "symbolic_vector_geometry.hpp"
@@ -48,19 +46,6 @@ AdtObj* plane_result(const lamina::PlaneSymbolicResult& plane) {
     fields.emplace_back(normal, ValueKind::Obj);
     fields.emplace_back(new ExprObj(plane.value().d), ValueKind::Expr);
     return result_ok(new AdtObj("Plane", "Plane", std::move(fields)), ValueKind::Obj);
-}
-
-const char* classification_name(
-    lamina::CriticalPointClassification classification) {
-    using Classification = lamina::CriticalPointClassification;
-    switch (classification) {
-        case Classification::LocalMinimum: return "minimum";
-        case Classification::LocalMaximum: return "maximum";
-        case Classification::Saddle: return "saddle";
-        case Classification::Degenerate: return "degenerate";
-        case Classification::Inconclusive: return "inconclusive";
-    }
-    return "inconclusive";
 }
 
 } // namespace
@@ -219,7 +204,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_geometry_find_extrema(ExprObj* va
         for (const auto& [name, expression] : critical.point)
             entries.emplace_back(name, Value(new ExprObj(expression), ValueKind::Expr));
         entries.emplace_back("classification", Value(
-            new StringObj(classification_name(critical.classification)),
+            new StringObj(critical.classification.c_str()),
             ValueKind::Obj));
         output->append(Value(new TableObj(std::move(entries)), ValueKind::Table));
     }

@@ -79,15 +79,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_trace(ExprObj* va
 extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_rank(ExprObj* value) {
     std::string error; const auto* matrix = checked_expr(value, error);
     if (!matrix) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto rank = lamina::matrix_rank_checked(*matrix);
-    if (!rank) return result_error(rank.error());
-    if (rank.value() >
-        static_cast<std::size_t>(std::numeric_limits<LmInt>::max())) {
-        return result_error(
-            MathErrorCode::ResourceLimit, __func__,
-            "matrix.rank: result exceeds language integer range");
-    }
-    return result_ok(static_cast<LmInt>(rank.value()));
+    const int rank = lamina::matrix_rank(*matrix);
+    if (rank < 0)
+        return result_error(MathErrorCode::InvalidArgument, __func__,
+                            "matrix.rank: input is not a matrix");
+    return result_ok(static_cast<LmInt>(rank));
 }
 /** @brief Computes symbolic matrix exponential. @param value Borrowed matrix. @return Owning Result Expr or error. @ownership Input borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_exponential(ExprObj* value) {

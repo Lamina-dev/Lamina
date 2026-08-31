@@ -46,12 +46,12 @@ AdtObj* expression_set_literal_result(const lamina::lsr::ExprSetResult& result) 
 
 AdtObj* transform_engine_result_value(const lamina::TransformEngineResult& result) {
     if (!result) return result_error(result.error());
-    if (!result.value().value.expression) {
+    if (!result.value().expression.value) {
         return result_error(MathErrorCode::UnsupportedExpression, "transform",
                             "transform produced no expression");
     }
     return result_ok(
-        new ExprObj(result.value().value.expression), ValueKind::Expr);
+        new ExprObj(result.value().expression.value), ValueKind::Expr);
 }
 
 } // namespace lmx::bridge

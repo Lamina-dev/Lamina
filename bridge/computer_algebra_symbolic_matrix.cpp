@@ -102,7 +102,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_lower_upper_decom
     if (!checked) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return decomposition_result(
         "SymbolicLU", lamina::lu_decomposition_checked(*checked),
-        [](const auto& result) { return std::array{result.P, result.L, result.U}; });
+        [](const auto& result) { return std::array{result.L, result.U}; });
 }
 extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_orthogonal_triangular_decomposition(ExprObj* value) {
     std::string error;

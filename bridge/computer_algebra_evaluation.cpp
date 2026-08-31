@@ -2,7 +2,6 @@
 #include "bridge/conversions.hpp"
 #include "bridge/runtime_views.hpp"
 #include "bridge/unit_bridge.hpp"
-#include "limit_result.hpp"
 #include <cstdarg>
 
 using namespace lmx::bridge;
@@ -210,39 +209,26 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_limit_by_name(
     if (!value || !point_value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_limit_by_name",
                             std::move(error));
-    const std::string_view token = direction ? direction : "";
-    LimitDirection parsed_direction = LimitDirection::Both;
-    if (token == "-" || token == "below" || token == "left" ||
-        token == "from_below") {
-        parsed_direction = LimitDirection::FromBelow;
-    } else if (token == "+" || token == "above" || token == "right" ||
-               token == "from_above") {
-        parsed_direction = LimitDirection::FromAbove;
-    } else if (!token.empty() && token != "both") {
-        return result_error(
-            MathErrorCode::InvalidArgument,
-            "lmx_computer_algebra_limit_by_name",
-            "invalid limit direction");
+
+    std::string dir;
+    if (direction) {
+        const std::string_view token = direction;
+        if (token == "-" || token == "below" || token == "left" || token == "from_below")
+            dir = "-";
+        else if (token == "+" || token == "above" || token == "right" || token == "from_above")
+            dir = "+";
+        else if (!token.empty() && token != "both")
+            return result_error(
+                MathErrorCode::InvalidArgument,
+                "lmx_computer_algebra_limit_by_name",
+                "invalid limit direction");
     }
-    auto result = lamina::limit_checked(
-        *value, variable ? variable : "", *point_value, parsed_direction);
-    if (!result) return result_error(result.error());
-    const auto& outcome = result.value().value;
-    std::shared_ptr<SymbolicExpr> expression;
-    if (const auto* finite = std::get_if<lamina::FiniteLimit>(&outcome)) {
-        expression = finite->value;
-    } else if (std::holds_alternative<lamina::PositiveInfinityLimit>(
-                   outcome)) {
-        expression = SymbolicExpr::infinity(1);
-    } else if (std::holds_alternative<lamina::NegativeInfinityLimit>(
-                   outcome)) {
-        expression = SymbolicExpr::infinity(-1);
-    } else {
-        return result_error(lamina::CasError{
-            lamina::CasErrc::Inconclusive,
-            "limit does not exist",
-            "lmx_computer_algebra_limit_by_name"});
-    }
+
+    auto expression = (*value)->limit(variable ? variable : "", *point_value, dir);
+    if (!expression)
+        return result_error(MathErrorCode::UnsupportedExpression,
+                            "lmx_computer_algebra_limit_by_name",
+                            "limit does not exist");
     return result_ok(new ExprObj(std::move(expression)), ValueKind::Expr);
 }
 
