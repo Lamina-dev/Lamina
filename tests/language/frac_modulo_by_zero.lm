@@ -1,0 +1,3 @@
+var z = 0
+var half = 1 / 2
+half % z
