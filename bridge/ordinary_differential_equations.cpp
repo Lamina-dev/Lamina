@@ -78,13 +78,16 @@ AdtObj* run_ode_solver(
                                   std::numeric_limits<LmInt>::max()))
         return result_error(MathErrorCode::NumericalFailure, __func__, std::string(name) + ": count overflow");
     std::vector<Value> fields;
-    fields.emplace_back(new VectorObj(std::move(state)), ValueKind::Vector);
+    fields.emplace_back(take_object_value(
+        make_owned_object<VectorObj>(std::move(state)), ValueKind::Vector));
     fields.emplace_back(result.converged != 0);
     fields.emplace_back(static_cast<LmInt>(result.num_steps));
     fields.emplace_back(static_cast<LmInt>(result.num_rhs_evals));
     fields.emplace_back(result.final_t);
-    fields.emplace_back(static_cast<lmx::runtime::Object*>(
-        new StringObj(lmmc_ode_failure_string(result.failure_reason))));
+    fields.emplace_back(take_object_value(
+        make_owned_object<StringObj>(
+            lmmc_ode_failure_string(result.failure_reason)),
+        ValueKind::Obj));
     return result_ok(
         new AdtObj("OdeResult", "OdeResult", std::move(fields)),
         ValueKind::Obj);
@@ -94,47 +97,62 @@ AdtObj* run_ode_solver(
 extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_euler(
     const lmx::runtime::FuncObj* rhs, VectorObj* initial,
     const double start, const double end, const double step,
-    const double abs_tol, const double rel_tol, const LmInt max_steps) {
+    const double abs_tol, const double rel_tol, const LmInt max_steps) noexcept try {
+    ensure_lmmc_runtime();
     return run_ode_solver(
         "ode.euler", lmmc_ode_euler_solve, rhs, nullptr, initial,
         start, end, step, abs_tol, rel_tol, max_steps);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_runge_kutta_fourth_order(
     const lmx::runtime::FuncObj* rhs, VectorObj* initial,
     const double start, const double end, const double step,
-    const double abs_tol, const double rel_tol, const LmInt max_steps) {
+    const double abs_tol, const double rel_tol, const LmInt max_steps) noexcept try {
+    ensure_lmmc_runtime();
     return run_ode_solver(
         "ode.rk4", lmmc_ode_rk4_solve, rhs, nullptr, initial,
         start, end, step, abs_tol, rel_tol, max_steps);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_runge_kutta_fourth_fifth_order(
     const lmx::runtime::FuncObj* rhs, VectorObj* initial,
     const double start, const double end, const double step,
-    const double abs_tol, const double rel_tol, const LmInt max_steps) {
+    const double abs_tol, const double rel_tol, const LmInt max_steps) noexcept try {
+    ensure_lmmc_runtime();
     return run_ode_solver(
         "ode.rk45", lmmc_ode_rk45_solve, rhs, nullptr, initial,
         start, end, step, abs_tol, rel_tol, max_steps);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 #define LMX_ODE_IMPLICIT_EXPORT(export_name, solver_name) \
 extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_##export_name( \
     const lmx::runtime::FuncObj* rhs, VectorObj* initial, \
     const double start, const double end, const double step, \
-    const double abs_tol, const double rel_tol, const LmInt max_steps) { \
+    const double abs_tol, const double rel_tol, const LmInt max_steps) noexcept try { \
+    ensure_lmmc_runtime(); \
     return run_ode_solver( \
         "ode." #export_name, solver_name, rhs, nullptr, initial, \
         start, end, step, abs_tol, rel_tol, max_steps); \
+} catch (...) { \
+    return c_abi_current_exception(__func__); \
 } \
 extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_##export_name##_with_jacobian( \
     const lmx::runtime::FuncObj* rhs, \
     const lmx::runtime::FuncObj* jacobian, VectorObj* initial, \
     const double start, const double end, const double step, \
-    const double abs_tol, const double rel_tol, const LmInt max_steps) { \
+    const double abs_tol, const double rel_tol, const LmInt max_steps) noexcept try { \
+    ensure_lmmc_runtime(); \
     if (!jacobian) \
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode." #export_name ": null Jacobian"); \
     return run_ode_solver( \
         "ode." #export_name "_with_jacobian", solver_name, rhs, jacobian, \
         initial, start, end, step, abs_tol, rel_tol, max_steps); \
+} catch (...) { \
+    return c_abi_current_exception(__func__); \
 }
 
 LMX_ODE_IMPLICIT_EXPORT(implicit_euler, lmmc_ode_implicit_euler_solve)
@@ -143,9 +161,12 @@ LMX_ODE_IMPLICIT_EXPORT(singly_diagonally_implicit_runge_kutta_fourth_order, lmm
 LMX_ODE_IMPLICIT_EXPORT(rosenbrock_generalized_runge_kutta_fourth_order, lmmc_ode_rosenbrock_grk4t_solve)
 #undef LMX_ODE_IMPLICIT_EXPORT
 
-extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_final_state(AdtObj* result) {
+extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_final_state(AdtObj* result) noexcept try {
+    ensure_lmmc_runtime();
     const auto* field = result ? result->field(0) : nullptr;
     if (!field || field->kind != ValueKind::Vector || !field->obj)
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode: invalid OdeResult");
     return result_ok(field->obj->get(), ValueKind::Vector);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

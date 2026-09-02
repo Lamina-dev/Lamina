@@ -24,15 +24,15 @@ class ArrayObj : public Object {
     }
 public:
     explicit ArrayObj() noexcept : Object(ObjectKind::Array) {}
-    explicit ArrayObj(const size_t len) noexcept : Object(ObjectKind::Array), arr(len) {}
-    explicit ArrayObj(const ArrayObj&) noexcept = default;
+    explicit ArrayObj(const size_t len) : Object(ObjectKind::Array), arr(len) {}
+    explicit ArrayObj(const ArrayObj&) = default;
     explicit ArrayObj(ArrayObj&&) noexcept = default;
     ~ArrayObj() noexcept = default;
 
-    LMX_INLINE void append(const Value& v) noexcept {
+    LMX_INLINE void append(const Value& v) {
         arr.push_back(v);
     }
-    LMX_INLINE void append(Value&& v) noexcept {
+    LMX_INLINE void append(Value&& v) {
         arr.push_back(std::move(v));
     }
 

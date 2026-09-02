@@ -1,6 +1,7 @@
 #include "bridge/runtime_views.hpp"
 
 #include <utility>
+#include <memory>
 
 namespace lmx::bridge {
 
@@ -17,19 +18,22 @@ lmmc_mat_t matrix_view(MatrixObj* value) noexcept {
 
 AdtObj* lmmc_vector_output(const char* name, const lmmc_status_t status,
                            lmmc_vec_t& output) {
+    const auto cleanup =
+        std::unique_ptr<lmmc_vec_t, decltype(&lmmc_vec_destroy)>(
+            &output, &lmmc_vec_destroy);
     if (status != LMMC_STATUS_OK) {
-        lmmc_vec_destroy(&output);
         return result_error(status, name ? name : "LMMC");
     }
     std::vector<double> data(output.data, output.data + output.size);
-    lmmc_vec_destroy(&output);
     return result_ok(new VectorObj(std::move(data)), ValueKind::Vector);
 }
 
 AdtObj* lmmc_matrix_output(const char* name, const lmmc_status_t status,
                            lmmc_mat_t& output) {
+    const auto cleanup =
+        std::unique_ptr<lmmc_mat_t, decltype(&lmmc_mat_destroy)>(
+            &output, &lmmc_mat_destroy);
     if (status != LMMC_STATUS_OK) {
-        lmmc_mat_destroy(&output);
         return result_error(status, name ? name : "LMMC");
     }
     std::vector<double> data;
@@ -40,7 +44,6 @@ AdtObj* lmmc_matrix_output(const char* name, const lmmc_status_t status,
     }
     const auto rows = output.rows;
     const auto cols = output.cols;
-    lmmc_mat_destroy(&output);
     return result_ok(new MatrixObj(rows, cols, std::move(data)),
                      ValueKind::Matrix);
 }

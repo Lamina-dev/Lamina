@@ -1,29 +1,30 @@
 import std
 import std.cas.symbolic_matrix
-import std.mathematics_error
 
 let zero = std.cas.parse("0")
 let one = std.cas.parse("1")
 let two = std.cas.parse("2")
 let three = std.cas.parse("3")
-{
-    let identity = symbolic_matrix.from_rows([[one, zero], [zero, one]])
-std.printf("1,")
-        std.printf("1,")
-        std.printf("1,")
-        std.printf("1,")
-        std.printf("1,")
-        {
-    let diagonal = symbolic_matrix.from_rows([[two]])
-    match std.cas.raw.symbolic_matrix.natural_logarithm(diagonal) {
-                Result.Ok(_) => std.printf("1,"),
-                Result.Err(_) => std.printf("0,")
-            }
-}
-        std.printf("1,")
-        std.printf("1,")
-}
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1")
+let identity = symbolic_matrix.from_rows([[one, zero], [zero, one]])
+let diagonal = symbolic_matrix.from_rows([[two, zero], [zero, three]])
+let zero_matrix = symbolic_matrix.from_rows([[zero, zero], [zero, zero]])
+let scalar_two = symbolic_matrix.from_rows([[two]])
+
+std.printf("%s|", std.cas.to_text(identity))
+std.printf("%s|", std.cas.to_text(
+    symbolic_matrix.multiply(identity, diagonal)))
+std.printf("%s|", std.cas.to_text(symbolic_matrix.determinant(diagonal)))
+std.printf("%s|", std.cas.to_text(symbolic_matrix.inverse(diagonal)))
+std.printf("%s|", std.cas.to_text(symbolic_matrix.trace(identity)))
+std.printf("%lld|", symbolic_matrix.rank(identity))
+std.printf("%s|", std.cas.to_text(
+    symbolic_matrix.exponential(zero_matrix)))
+std.printf("%s|", std.cas.to_text(
+    symbolic_matrix.natural_logarithm(scalar_two)))
+std.printf("%s|", std.cas.to_text(
+    symbolic_matrix.kronecker(scalar_two, diagonal)))
+std.printf("%s|", std.cas.to_text(
+    symbolic_matrix.rotation(std.int_to_frac(0), 2)))
+std.printf("%s|", std.cas.to_text(
+    symbolic_matrix.scaling(std.int_to_frac(2), std.int_to_frac(3), 2)))
+std.printf("%s", symbolic_matrix.classify_quadratic_form(diagonal))

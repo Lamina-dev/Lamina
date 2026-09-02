@@ -122,12 +122,15 @@ AdtObj* run_optimizer(
                               std::numeric_limits<LmInt>::max()))
         return result_error(MathErrorCode::NumericalFailure, __func__, "optimize: iteration count overflow");
     std::vector<Value> fields;
-    fields.emplace_back(new VectorObj(std::move(solution)), ValueKind::Vector);
+    fields.emplace_back(take_object_value(
+        make_owned_object<VectorObj>(std::move(solution)), ValueKind::Vector));
     fields.emplace_back(result.converged != 0);
     fields.emplace_back(static_cast<LmInt>(result.num_iter));
     fields.emplace_back(result.final_residual);
-    fields.emplace_back(static_cast<lmx::runtime::Object*>(
-        new StringObj(optimize_failure_text(result.failure_reason))));
+    fields.emplace_back(take_object_value(
+        make_owned_object<StringObj>(
+            optimize_failure_text(result.failure_reason)),
+        ValueKind::Obj));
     return result_ok(
         new AdtObj("OptimizeResult", "OptimizeResult", std::move(fields)),
         ValueKind::Obj);
@@ -136,60 +139,84 @@ AdtObj* run_optimizer(
 
 extern "C" LM_API AdtObj* lmx_optimization_newton_system(
     const lmx::runtime::FuncObj* function, VectorObj* initial,
-    const double abs_tol, const double rel_tol, const LmInt max_iterations) {
+    const double abs_tol, const double rel_tol, const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     return run_optimizer(
         0, function, nullptr, nullptr, nullptr, initial,
         abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_optimization_newton_system_with_jacobian(
     const lmx::runtime::FuncObj* function,
     const lmx::runtime::FuncObj* jacobian, VectorObj* initial,
-    const double abs_tol, const double rel_tol, const LmInt max_iterations) {
+    const double abs_tol, const double rel_tol, const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     return run_optimizer(
         0, function, jacobian, nullptr, nullptr, initial,
         abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_optimization_broyden(
     const lmx::runtime::FuncObj* function, VectorObj* initial,
-    const double abs_tol, const double rel_tol, const LmInt max_iterations) {
+    const double abs_tol, const double rel_tol, const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     return run_optimizer(
         1, function, nullptr, nullptr, nullptr, initial,
         abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_optimization_limited_memory_broyden_fletcher_goldfarb_shanno(
     const lmx::runtime::FuncObj* objective,
     const lmx::runtime::FuncObj* gradient, VectorObj* initial,
-    const double abs_tol, const double rel_tol, const LmInt max_iterations) {
+    const double abs_tol, const double rel_tol, const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     return run_optimizer(
         2, nullptr, nullptr, objective, gradient, initial,
         abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_optimization_levenberg_marquardt(
     const lmx::runtime::FuncObj* residual, VectorObj* initial,
-    const double abs_tol, const double rel_tol, const LmInt max_iterations) {
+    const double abs_tol, const double rel_tol, const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     return run_optimizer(
         3, residual, nullptr, nullptr, nullptr, initial,
         abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_optimization_levenberg_marquardt_with_jacobian(
     const lmx::runtime::FuncObj* residual,
     const lmx::runtime::FuncObj* jacobian, VectorObj* initial,
-    const double abs_tol, const double rel_tol, const LmInt max_iterations) {
+    const double abs_tol, const double rel_tol, const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     return run_optimizer(
         3, residual, jacobian, nullptr, nullptr, initial,
         abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_optimization_gradient_descent(
     const lmx::runtime::FuncObj* objective,
     const lmx::runtime::FuncObj* gradient, VectorObj* initial,
-    const double abs_tol, const double rel_tol, const LmInt max_iterations) {
+    const double abs_tol, const double rel_tol, const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     return run_optimizer(
         4, nullptr, nullptr, objective, gradient, initial,
         abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_optimization_solution(AdtObj* result) {
+extern "C" LM_API AdtObj* lmx_optimization_solution(AdtObj* result) noexcept try {
+    ensure_lmmc_runtime();
     const auto* field = result ? result->field(0) : nullptr;
     if (!field || field->kind != ValueKind::Vector || !field->obj)
         return result_error(MathErrorCode::InvalidArgument, __func__, "optimize: invalid OptimizeResult");
     return result_ok(field->obj->get(), ValueKind::Vector);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

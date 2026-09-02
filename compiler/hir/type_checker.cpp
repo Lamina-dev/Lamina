@@ -1802,7 +1802,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             }
             const auto len = func_ty->params_ty.size();
             bool symbolic_fallback = false;
-            for (auto i = 0; i < len; i++) {
+            for (std::size_t i = 0; i < len; i++) {
                 const auto param = func_ty->params_ty[i];
                 check_expr(node->suffix->exprs[i]);
                 if (is_expr_type(param) &&

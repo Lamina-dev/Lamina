@@ -106,7 +106,7 @@ static LmModule* lmx_newCodeModule(LmState* state, std::vector<uint8_t>&& binary
     return static_cast<LmModule*>(storage);
 }
 
-void lmx_printASTFromString(LmState *state, FILE *file, const char *code, const char* name) {
+void lmx_printASTFromString(LmState*, FILE *file, const char *code, const char* name) {
     lmx::Compiler compiler;
     lmx::CompileResult result;
     if (!compiler.compile_source(code, name, result, lmx::CompileStage::Semantic)) return;
@@ -117,7 +117,7 @@ void lmx_printASTFromString(LmState *state, FILE *file, const char *code, const 
     }
 }
 
-void lmx_printASTFromFile(LmState *state, FILE *file, const char *name) {
+void lmx_printASTFromFile(LmState*, FILE *file, const char *name) {
     lmx::Compiler compiler;
     lmx::CompileResult result;
     if (!compiler.compile_file(name, result, lmx::CompileStage::Semantic)) return;
@@ -127,7 +127,7 @@ void lmx_printASTFromFile(LmState *state, FILE *file, const char *name) {
     }
 }
 
-void lmx_printMIRFromString(LmState *state, FILE *file, const char *code, const char *name) {
+void lmx_printMIRFromString(LmState*, FILE *file, const char *code, const char *name) {
     lmx::Compiler compiler;
     lmx::CompileResult result;
     if (!compiler.compile_source(code, name, result, lmx::CompileStage::Mir)) return;
@@ -137,7 +137,7 @@ void lmx_printMIRFromString(LmState *state, FILE *file, const char *code, const 
         fprintf(stderr, "Error writing MIR to file\n");
     }
 }
-void lmx_printMIRFromFile(LmState *state, FILE *file, const char *name) {
+void lmx_printMIRFromFile(LmState*, FILE *file, const char *name) {
     lmx::Compiler compiler;
     lmx::CompileResult result;
     if (!compiler.compile_file(name, result, lmx::CompileStage::Mir)) return;
@@ -155,7 +155,7 @@ LaminaVM* lmx_newLaminaVM(LmState* state, int argc, char** argv) {
     return state->vm;
 }
 
-bool lmx_moduleToFile(LmState *state, LmModule *module, const char *name) {
+bool lmx_moduleToFile(LmState*, LmModule *module, const char *name) {
     const std::filesystem::path path = name;
     std::filesystem::create_directories(path.parent_path());
     std::ofstream ofs(path.string() + lmx::file_suffix_binary, std::ios::binary | std::ios::trunc);
@@ -203,7 +203,7 @@ LmModule *lmx_doFile(LmState *state, const char* name, bool is_main_module) {
     }
 }
 
-int lmx_vmRunModule(LmState* state, LaminaVM* vm, LmModule* module) {
+int lmx_vmRunModule(LmState*, LaminaVM* vm, LmModule* module) {
     if (module == nullptr) return 1;
     return
     reinterpret_cast<lmx::runtime::LaminaVM*>(vm)
@@ -211,7 +211,7 @@ int lmx_vmRunModule(LmState* state, LaminaVM* vm, LmModule* module) {
     run(reinterpret_cast<lmx::runtime::CodeModuleObj*>(module));
 }
 
-void lmx_vmEval(LmState *state, LaminaVM *vm, LmValue *result, const char *code) {
+void lmx_vmEval(LmState*, LaminaVM*, LmValue*, const char *code) {
     std::string c = code;
     auto tks = lmx::Lexer(c).tokenize(c);
     auto node = lmx::Parser(tks).parse_stmt();

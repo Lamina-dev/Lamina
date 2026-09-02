@@ -7,25 +7,32 @@
 
 using namespace lmx::bridge;
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_simplify(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_simplify(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     if (!value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_simplify",
                             std::move(error));
     return expr_result_ok(lamina::lsr::simplify(*value));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_expand(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_expand(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     if (!value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_expand",
                             std::move(error));
     return expr_result_ok(lamina::lsr::expand(*value));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_differentiate_by_name(ExprObj* expr, const char* variable) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_differentiate_by_name(ExprObj* expr, const char* variable) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     if (!value)
@@ -33,6 +40,8 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_differentiate_by_name(ExprObj* ex
                             std::move(error));
     return expr_result_ok(
         lamina::lsr::differentiate(*value, variable ? variable : ""));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 /**
@@ -43,119 +52,174 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_differentiate_by_name(ExprObj* ex
  * @ownership Caller owns the returned ExprObj; inputs are borrowed.
  * @threadsafe Current VM thread only.
  */
-extern "C" LM_API AdtObj* lmx_computer_algebra_differentiate_by_symbol(ExprObj* expr, ExprObj* variable) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_differentiate_by_symbol(ExprObj* expr, ExprObj* variable) noexcept try {
+    ensure_lmmc_runtime();
     std::string name;
     std::string error;
     if (!checked_symbol_name(variable, name, error))
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_differentiate_by_name",
                             std::move(error));
     return lmx_computer_algebra_differentiate_by_name(expr, name.c_str());
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_square_root(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_square_root(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_square_root", [](const auto& value) {
         return lamina::lsr::sqrt(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_sine(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_sine(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_sine", [](const auto& value) {
         return lamina::lsr::sin(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_cosine(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_cosine(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_cosine", [](const auto& value) {
         return lamina::lsr::cos(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_tangent(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_tangent(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_tangent", [](const auto& value) {
         return lamina::lsr::tan(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_inverse_sine(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_inverse_sine(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_inverse_sine", [](const auto& value) {
         return lamina::lsr::asin(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_inverse_cosine(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_inverse_cosine(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_inverse_cosine", [](const auto& value) {
         return lamina::lsr::acos(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_inverse_tangent(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_inverse_tangent(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_inverse_tangent", [](const auto& value) {
         return lamina::lsr::atan(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_exponential(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_exponential(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_exponential", [](const auto& value) {
         return lamina::lsr::exp(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_natural_logarithm(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_natural_logarithm(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_natural_logarithm", [](const auto& value) {
         return lamina::lsr::log(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_common_logarithm(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_common_logarithm(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_common_logarithm", [](const auto& value) {
         return lamina::lsr::log10(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_floor(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_floor(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_floor", [](const auto& value) {
         return lamina::lsr::floor(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_ceil(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_ceil(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_ceil", [](const auto& value) {
         return lamina::lsr::ceil(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_round(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_round(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_round", [](const auto& value) {
         return lamina::lsr::round(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_real_part(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_real_part(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_real_part", [](const auto& value) {
         return lamina::lsr::real(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_imaginary_part(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_imaginary_part(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_imaginary_part", [](const auto& value) {
         return lamina::lsr::imag(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_conjugate(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_conjugate(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_conjugate", [](const auto& value) {
         return lamina::lsr::conj(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_absolute_value(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_absolute_value(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     return unary_expression_result(expr, "lmx_computer_algebra_absolute_value", [](const auto& value) {
         return lamina::lsr::abs(value);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_clamp(ExprObj* expr, ExprObj* lower,
-                                    ExprObj* upper) {
+                                    ExprObj* upper) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     const auto* lower_value = checked_expr(lower, error);
@@ -165,22 +229,22 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_clamp(ExprObj* expr, ExprObj* low
                             std::move(error));
     return expr_result_ok(
         lamina::lsr::clamp(*value, *lower_value, *upper_value));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_by_name(ExprObj* expr,
-                                        const char* variable) {
+                                        const char* variable) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     if (!value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integrate_by_name",
                             std::move(error));
-    try {
-        return expr_pointer_result(
-            (*value)->integrate(variable ? variable : ""), "lmx_computer_algebra_integrate_by_name");
-    } catch (const std::exception& exception) {
-        return result_error(MathErrorCode::InternalError, "lmx_computer_algebra_integrate_by_name",
-                            exception.what());
-    }
+    return expr_pointer_result(
+        (*value)->integrate(variable ? variable : ""), "lmx_computer_algebra_integrate_by_name");
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 /**
@@ -192,18 +256,22 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_by_name(ExprObj* expr,
  * @threadsafe Current VM thread only.
  */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_by_symbol(
-    ExprObj* expr, ExprObj* variable) {
+    ExprObj* expr, ExprObj* variable) noexcept try {
+    ensure_lmmc_runtime();
     std::string name;
     std::string error;
     if (!checked_symbol_name(variable, name, error))
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integrate_by_name",
                             std::move(error));
     return lmx_computer_algebra_integrate_by_name(expr, name.c_str());
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_limit_by_name(
     ExprObj* expr, const char* variable, ExprObj* point,
-    const char* direction) {
+    const char* direction) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     const auto* point_value = checked_expr(point, error);
@@ -244,6 +312,8 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_limit_by_name(
             "lmx_computer_algebra_limit_by_name"});
     }
     return result_ok(new ExprObj(std::move(expression)), ValueKind::Expr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 /**
@@ -257,17 +327,21 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_limit_by_name(
  * @threadsafe Current VM thread only.
  */
 extern "C" LM_API AdtObj* lmx_computer_algebra_limit_by_symbol(
-    ExprObj* expr, ExprObj* variable, ExprObj* point, const char* direction) {
+    ExprObj* expr, ExprObj* variable, ExprObj* point, const char* direction) noexcept try {
+    ensure_lmmc_runtime();
     std::string name;
     std::string error;
     if (!checked_symbol_name(variable, name, error))
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_limit_by_name",
                             std::move(error));
     return lmx_computer_algebra_limit_by_name(expr, name.c_str(), point, direction);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_by_name(
-    ExprObj* expr, const char* variable, ExprObj* point, const LmInt order) {
+    ExprObj* expr, const char* variable, ExprObj* point, const LmInt order) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     const auto* point_value = checked_expr(point, error);
@@ -277,15 +351,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_by_name(
     if (order < 0 || order > std::numeric_limits<int>::max())
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_series_by_name",
                             "invalid order");
-    try {
-        return expr_pointer_result(
-            (*value)->series(variable ? variable : "", *point_value,
-                             static_cast<int>(order)),
-            "lmx_computer_algebra_series_by_name");
-    } catch (const std::exception& exception) {
-        return result_error(MathErrorCode::InternalError, "lmx_computer_algebra_series_by_name",
-                            exception.what());
-    }
+    return expr_pointer_result(
+        (*value)->series(variable ? variable : "", *point_value,
+                         static_cast<int>(order)),
+        "lmx_computer_algebra_series_by_name");
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 /**
@@ -299,16 +370,20 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_by_name(
  * @threadsafe Current VM thread only.
  */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_symbol(
-    ExprObj* expr, ExprObj* variable, ExprObj* point, const LmInt order) {
+    ExprObj* expr, ExprObj* variable, ExprObj* point, const LmInt order) noexcept try {
+    ensure_lmmc_runtime();
     std::string name;
     std::string error;
     if (!checked_symbol_name(variable, name, error))
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_series_by_name",
                             std::move(error));
     return lmx_computer_algebra_series_by_name(expr, name.c_str(), point, order);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_substitute(ExprObj* expr, AdtObj* binding) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_substitute(ExprObj* expr, AdtObj* binding) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     if (!value || !binding || binding->type_name() != "Binding" ||
@@ -335,10 +410,13 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_substitute(ExprObj* expr, AdtObj*
     if (!checked_binding) return result_error(checked_binding.error());
     return expr_result_ok(
         lamina::lsr::substitute(*value, checked_binding.value()));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_substitute_named_by_name(
-    ExprObj* expr, const char* variable, ExprObj* replacement) {
+    ExprObj* expr, const char* variable, ExprObj* replacement) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     const auto* replacement_value = checked_expr(replacement, error);
@@ -348,6 +426,8 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_substitute_named_by_name(
     }
     return expr_result_ok(
         lamina::lsr::substitute(*value, variable, *replacement_value));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 /**
@@ -360,17 +440,21 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_substitute_named_by_name(
  * @threadsafe Current VM thread only.
  */
 extern "C" LM_API AdtObj* lmx_computer_algebra_substitute_named_by_symbol(
-    ExprObj* expr, ExprObj* variable, ExprObj* replacement) {
+    ExprObj* expr, ExprObj* variable, ExprObj* replacement) noexcept try {
+    ensure_lmmc_runtime();
     std::string name;
     std::string error;
     if (!checked_symbol_name(variable, name, error))
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_substitute",
                             std::move(error));
     return lmx_computer_algebra_substitute_named_by_name(expr, name.c_str(), replacement);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_substitute_many(
-    ExprObj* expr, ArrayObj* variables, ArrayObj* replacements) {
+    ExprObj* expr, ArrayObj* variables, ArrayObj* replacements) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     std::vector<std::string> names;
@@ -392,20 +476,26 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_substitute_many(
         bindings.push_back(checked.value());
     }
     return expr_result_ok(lamina::lsr::substitute(*value, bindings));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_finite_set(ArrayObj* elements) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_finite_set(ArrayObj* elements) noexcept try {
+    ensure_lmmc_runtime();
     std::vector<lamina::lsr::ExprPtr> values;
     std::string error;
     if (!array_expressions(elements, values, error))
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_finite_set",
                             std::move(error));
     return expr_result_ok(lamina::lsr::finite_set(std::move(values)));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_interval(
     ExprObj* lower, ExprObj* upper, const bool lower_closed,
-    const bool upper_closed) {
+    const bool upper_closed) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* lower_value = checked_expr(lower, error);
     const auto* upper_value = checked_expr(upper, error);
@@ -414,10 +504,13 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_interval(
                             std::move(error));
     return expr_result_ok(lamina::lsr::interval(
         *lower_value, *upper_value, lower_closed, upper_closed));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_match(ExprObj* pattern, ExprObj* target,
-                                     ArrayObj* wildcards) {
+                                     ArrayObj* wildcards) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* pattern_value = checked_expr(pattern, error);
     if (!pattern_value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -432,32 +525,41 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_match(ExprObj* pattern, ExprObj* 
     std::vector<TableObj::Entry> entries;
     entries.reserve(result.value().bindings.size());
     for (const auto& binding : result.value().bindings) {
-        entries.emplace_back(binding.name,
-                             Value(new ExprObj(binding.value), ValueKind::Expr));
+        entries.emplace_back(binding.name, take_object_value(
+            make_owned_object<ExprObj>(binding.value), ValueKind::Expr));
     }
     return result_ok(new TableObj(std::move(entries)), ValueKind::Table);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_table_expr(TableObj* value, const char* key) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_table_expr(TableObj* value, const char* key) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !key) return result_error(MathErrorCode::InvalidArgument, __func__, "CAS table lookup: invalid argument");
     const auto* field = value->find(key);
     if (!field || field->kind != ValueKind::Expr || !field->obj) {
         return result_error(MathErrorCode::InvalidArgument, __func__, "CAS table lookup: key is missing or is not an expression");
     }
     return result_ok(field->obj->get(), ValueKind::Expr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_evaluate_real(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_evaluate_real(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     const auto result = lamina::lsr::evalf(**value);
     if (!result) return result_error(result.error());
     return result_ok(result.value().value);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_evaluate_real_with(ExprObj* expr, ArrayObj* variables,
-                                          ArrayObj* values) {
+                                          ArrayObj* values) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* expression = checked_expr(expr, error);
     if (!expression) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -475,9 +577,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_evaluate_real_with(ExprObj* expr,
     const auto result = lamina::lsr::evalf(**expression, bindings);
     if (!result) return result_error(result.error());
     return result_ok(result.value().value);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_evaluate_complex(ExprObj* expr) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_evaluate_complex(ExprObj* expr) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expr, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -485,11 +590,14 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_evaluate_complex(ExprObj* expr) {
     if (!result) return result_error(result.error());
     return complex_result_ok({result.value().real.value,
                               result.value().imag.value});
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_evaluate_complex_with(ExprObj* expr,
                                                   ArrayObj* variables,
-                                                  ArrayObj* values) {
+                                                  ArrayObj* values) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* expression = checked_expr(expr, error);
     if (!expression) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -508,16 +616,22 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_evaluate_complex_with(ExprObj* ex
     if (!result) return result_error(result.error());
     return complex_result_ok({result.value().real.value,
                               result.value().imag.value});
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API bool lmx_computer_algebra_structurally_equal(ExprObj* lhs, ExprObj* rhs) {
+extern "C" LM_API bool lmx_computer_algebra_structurally_equal(ExprObj* lhs, ExprObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* left = checked_expr(lhs, error);
     const auto* right = checked_expr(rhs, error);
     return left && right && lamina::lsr::structurally_equal(**left, **right);
+} catch (...) {
+    return false;
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_equivalent(ExprObj* lhs, ExprObj* rhs) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_equivalent(ExprObj* lhs, ExprObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* left = checked_expr(lhs, error);
     if (!left) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -527,4 +641,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equivalent(ExprObj* lhs, ExprObj*
     const auto result = lamina::lsr::equivalent(**left, **right, context);
     if (!result) return result_error(result.error());
     return result_ok(result.value());
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

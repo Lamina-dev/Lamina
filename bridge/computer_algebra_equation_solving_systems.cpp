@@ -15,35 +15,36 @@ namespace {
 ArrayObj* solution_tables(
     const std::vector<std::map<std::string,
         std::shared_ptr<SymbolicExpr>>>& solutions) {
-    auto* result = new ArrayObj();
+    auto result = make_owned_object<ArrayObj>();
     for (const auto& solution : solutions) {
         std::vector<TableObj::Entry> entries;
-        for (const auto& [name, expression] : solution)
-            entries.emplace_back(
-                name, Value(new ExprObj(expression), ValueKind::Expr));
-        result->append(
-            Value(new TableObj(std::move(entries)), ValueKind::Table));
+        for (const auto& [name, expression] : solution) {
+            auto value = take_object_value(
+                make_owned_object<ExprObj>(expression), ValueKind::Expr);
+            entries.emplace_back(name, std::move(value));
+        }
+        result->append(take_object_value(
+            make_owned_object<TableObj>(std::move(entries)), ValueKind::Table));
     }
-    return result;
+    return result.release();
 }
 } // namespace
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_system_by_names(
-    ArrayObj* equations, ArrayObj* variables) {
+    ArrayObj* equations, ArrayObj* variables) noexcept try {
+    ensure_lmmc_runtime();
     std::vector<lamina::lsr::ExprPtr> checked_equations;
     std::vector<std::string> checked_variables;
     std::string error;
     if (!array_expressions(equations, checked_equations, error) ||
         !array_strings(variables, checked_variables, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.system: " + error);
-    try {
-        return result_ok(
-            solution_tables(SymbolicExpr::solve_system(
-                checked_equations, checked_variables)),
-            ValueKind::Obj);
-    } catch (const std::exception& error) {
-        return result_error(MathErrorCode::InvalidArgument, __func__, std::string("solve.system: ") + error.what());
-    }
+    return result_ok(
+        solution_tables(SymbolicExpr::solve_system(
+            checked_equations, checked_variables)),
+        ValueKind::Obj);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 /**
@@ -56,7 +57,8 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_system_by_names(
  * @threadsafe Current VM thread only.
  */
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_system_by_symbols(
-    ArrayObj* equations, ArrayObj* variables) {
+    ArrayObj* equations, ArrayObj* variables) noexcept try {
+    ensure_lmmc_runtime();
     if (!variables) return result_error(MathErrorCode::InvalidArgument, __func__, "solve.system: null array");
     std::vector<std::string> names;
     names.reserve(static_cast<std::size_t>(variables->len()));
@@ -76,19 +78,17 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_system_by_symbol
     std::vector<lamina::lsr::ExprPtr> checked_equations;
     if (!array_expressions(equations, checked_equations, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.system: " + error);
-    try {
-        return result_ok(
-            solution_tables(SymbolicExpr::solve_system(checked_equations, names)),
-            ValueKind::Obj);
-    } catch (const std::exception& exception) {
-        return result_error(MathErrorCode::InvalidArgument, __func__, 
-            std::string("solve.system: ") + exception.what());
-    }
+    return result_ok(
+        solution_tables(SymbolicExpr::solve_system(checked_equations, names)),
+        ValueKind::Obj);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_inequality(
-    ExprObj* expression, const char* relation, const char* variable) {
+    ExprObj* expression, const char* relation, const char* variable) noexcept try {
+    ensure_lmmc_runtime();
     if (!relation || !variable)
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.inequality: invalid argument");
     std::string error;
@@ -118,4 +118,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_inequality(
     }
     return result_ok(
         new ExprObj(result.value().to_expr(variable)), ValueKind::Expr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

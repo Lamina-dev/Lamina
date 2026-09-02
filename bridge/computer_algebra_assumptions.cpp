@@ -77,32 +77,25 @@ bool assumption_expr(
     return true;
 }
 
-ArrayObj* solution_tables(
-    const std::vector<std::map<std::string,
-        std::shared_ptr<SymbolicExpr>>>& solutions) {
-    auto* result = new ArrayObj();
-    for (const auto& solution : solutions) {
-        std::vector<TableObj::Entry> entries;
-        for (const auto& [name, expression] : solution)
-            entries.emplace_back(
-                name, Value(new ExprObj(expression), ValueKind::Expr));
-        result->append(
-            Value(new TableObj(std::move(entries)), ValueKind::Table));
-    }
-    return result;
-}
 } // namespace
 
-extern "C" LM_API AssumptionsObj* lmx_computer_algebra_assumptions_empty() {
+extern "C" LM_API AssumptionsObj* lmx_computer_algebra_assumptions_empty() noexcept try {
+    ensure_lmmc_runtime();
     return new AssumptionsObj();
+} catch (...) {
+    return nullptr;
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_push(AssumptionsObj* value) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_push(AssumptionsObj* value) noexcept try {
+    ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.push: null context");
     auto* result = value->copy();
     result->context().push();
     return assumptions_result(result);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_pop(AssumptionsObj* value) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_pop(AssumptionsObj* value) noexcept try {
+    ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.pop: null context");
     auto* result = value->copy();
     auto popped = result->context().pop();
@@ -111,9 +104,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_pop(AssumptionsObj* v
         return result_error(popped.error());
     }
     return assumptions_result(result);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_domain(
-    AssumptionsObj* value, const char* symbol, const char* domain) {
+    AssumptionsObj* value, const char* symbol, const char* domain) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !symbol)
         return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.with_domain: invalid argument");
     const auto checked_domain = assumption_domain(domain);
@@ -127,9 +123,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_domain(
         return result_error(status.error());
     }
     return assumptions_result(result);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_sign(
-    AssumptionsObj* value, const char* symbol, const char* sign) {
+    AssumptionsObj* value, const char* symbol, const char* sign) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !symbol)
         return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.with_sign: invalid argument");
     const auto checked_sign = assumption_sign(sign);
@@ -143,9 +142,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_sign(
         return result_error(status.error());
     }
     return assumptions_result(result);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_relation(
-    AssumptionsObj* value, ExprObj* relation) {
+    AssumptionsObj* value, ExprObj* relation) noexcept try {
+    ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.with_relation: null context");
     std::string error;
     lamina::lsr::ExprPtr expression;
@@ -158,9 +160,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_relation(
         return result_error(status.error());
     }
     return assumptions_result(result);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_conditional(
-    AssumptionsObj* value, ExprObj* condition, ExprObj* conclusion) {
+    AssumptionsObj* value, ExprObj* condition, ExprObj* conclusion) noexcept try {
+    ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.with_conditional: null context");
     std::string error;
     lamina::lsr::ExprPtr checked_condition;
@@ -176,10 +181,13 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_conditional(
         return result_error(status.error());
     }
     return assumptions_result(result);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_query(
-    AssumptionsObj* value, ExprObj* expression, const char* property) {
+    AssumptionsObj* value, ExprObj* expression, const char* property) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !property)
         return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.query: invalid argument");
     std::string error;
@@ -202,10 +210,13 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_query(
     if (name == "positive_definite") return checked_truth(query.query_positive_definite_checked(*checked));
     if (name == "positive_semidefinite") return checked_truth(query.query_positive_semidefinite_checked(*checked));
     return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.query: unknown property");
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_period(
-    AssumptionsObj* value, ExprObj* expression) {
+    AssumptionsObj* value, ExprObj* expression) noexcept try {
+    ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.period: null context");
     std::string error;
     lamina::lsr::ExprPtr checked;
@@ -219,34 +230,36 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_period(
     return result_ok(
         new ExprObj(std::make_shared<SymbolicExpr>(*result.value())),
         ValueKind::Expr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API StringObj* lmx_computer_algebra_assumptions_serialize(
-    AssumptionsObj* value) {
+    AssumptionsObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return new StringObj(value ? value->context().serialize() : "");
+} catch (...) {
+    return nullptr;
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_parse(const char* source) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_parse(const char* source) noexcept try {
+    ensure_lmmc_runtime();
     const auto result =
         lamina::AssumptionContext::deserialize_checked(source ? source : "");
     if (!result) return result_error(result.error());
     return assumptions_result(new AssumptionsObj(result.value()));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_with_assumptions(
-    AssumptionsObj* assumptions, ExprObj* equation, const char* variable) {
+    AssumptionsObj* assumptions, ExprObj* equation, const char* variable) noexcept try {
+    ensure_lmmc_runtime();
     if (!assumptions || !variable)
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.with_assumptions: invalid argument");
     std::string error;
     const auto* checked = checked_expr(equation, error);
     if (!checked) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    try {
-        const auto solutions = lamina::solve_with_assumptions(
-            *checked, variable, &assumptions->context());
-        auto* result = new ArrayObj();
-        for (const auto& solution : solutions)
-            result->append(Value(new ExprObj(solution), ValueKind::Expr));
-        return result_ok(result, ValueKind::Obj);
-    } catch (const std::exception& error) {
-        return result_error(MathErrorCode::InvalidArgument, __func__, 
-            std::string("solve.with_assumptions: ") + error.what());
-    }
+    return expr_array_result(lamina::solve_with_assumptions_checked(
+        *checked, variable, &assumptions->context()));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

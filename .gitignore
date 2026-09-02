@@ -3,3 +3,4 @@
 cmake-build-*/
 build*/
 _lm_cache/
+.tmp-audit-*

@@ -3,56 +3,61 @@
 
 namespace lmx::runtime {
 
- struct Fraction {
+class Fraction {
+public:
+    using component_type = std::int32_t;
 
-     int32_t num {0};
-     int32_t den {1};
+    Fraction() noexcept;
+    ~Fraction() noexcept;
+    explicit Fraction(component_type numerator, component_type denominator);
+    explicit Fraction(const std::string& text);
 
-     Fraction() noexcept;
+    [[nodiscard]] component_type numerator() const noexcept;
+    [[nodiscard]] component_type denominator() const noexcept;
+    [[nodiscard]] Fraction clone() const noexcept;
+    [[nodiscard]] std::size_t hash() const noexcept;
+    [[nodiscard]] std::string to_string() const;
+    [[nodiscard]] bool equals(const Fraction* other) const noexcept;
+    [[nodiscard]] Fraction operator-() const;
+    [[nodiscard]] Fraction operator+(const Fraction& other) const;
+    [[nodiscard]] Fraction operator-(const Fraction& other) const;
+    [[nodiscard]] Fraction operator*(const Fraction& other) const;
+    [[nodiscard]] Fraction operator/(const Fraction& other) const;
+    [[nodiscard]] Fraction operator%(const Fraction& other) const;
 
-     ~Fraction() noexcept;
+    Fraction& operator+=(const Fraction& other);
+    Fraction& operator-=(const Fraction& other);
+    Fraction& operator*=(const Fraction& other);
+    Fraction& operator/=(const Fraction& other);
 
-     void simplify() noexcept;
-     explicit Fraction(int32_t num, int32_t den) noexcept;
-     explicit Fraction(const std::string& num_str) noexcept;
+    [[nodiscard]] bool operator==(const Fraction& other) const noexcept;
+    [[nodiscard]] bool operator!=(const Fraction& other) const noexcept;
+    [[nodiscard]] bool operator>=(const Fraction& other) const noexcept;
+    [[nodiscard]] bool operator<=(const Fraction& other) const noexcept;
+    [[nodiscard]] bool operator>(const Fraction& other) const noexcept;
+    [[nodiscard]] bool operator<(const Fraction& other) const noexcept;
 
-     [[nodiscard]] Fraction clone() const noexcept;
-     [[nodiscard]] std::size_t hash() const noexcept;
-     [[nodiscard]] std::string to_string() const noexcept;
-     [[nodiscard]] bool equals(const Fraction* other) const noexcept;
-     [[nodiscard]] Fraction operator-() const noexcept;
-     [[nodiscard]] Fraction operator+(const Fraction& other) const noexcept;
-     [[nodiscard]] Fraction operator-(const Fraction& other) const noexcept;
-     [[nodiscard]] Fraction operator*(const Fraction& other) const noexcept;
-     [[nodiscard]] Fraction operator/(const Fraction& other) const noexcept;
-     [[nodiscard]] Fraction operator%(const Fraction& other) const noexcept;
+    [[nodiscard]] double to_float() const noexcept;
 
-     Fraction& operator+=(const Fraction& other) noexcept;
-     Fraction& operator-=(const Fraction& other) noexcept;
-     Fraction& operator*=(const Fraction& other) noexcept;
-     Fraction& operator/=(const Fraction& other) noexcept;
+    [[nodiscard]] Fraction operator+(int other) const;
+    [[nodiscard]] Fraction operator-(int other) const;
+    [[nodiscard]] Fraction operator*(int other) const;
+    [[nodiscard]] Fraction operator/(int other) const;
+    [[nodiscard]] std::int64_t operator%(std::int64_t modulus) const;
 
-     [[nodiscard]] bool operator==(const Fraction& other) const noexcept;
-     [[nodiscard]] bool operator!=(const Fraction& other) const noexcept;
-     [[nodiscard]] bool operator>=(const Fraction& other) const noexcept;
-     [[nodiscard]] bool operator<=(const Fraction& other) const noexcept;
-     [[nodiscard]] bool operator>(const Fraction& other) const noexcept;
-     [[nodiscard]] bool operator<(const Fraction& other) const noexcept;
+    Fraction& operator+=(int other);
+    Fraction& operator-=(int other);
+    Fraction& operator*=(int other);
+    Fraction& operator/=(int other);
 
-     [[nodiscard]] double to_float() const noexcept;
+    [[nodiscard]] bool operator==(std::int64_t other) const noexcept;
+    [[nodiscard]] bool operator!=(std::int64_t other) const noexcept;
 
-     [[nodiscard]] Fraction operator+(int other) const noexcept;
-     [[nodiscard]] Fraction operator-(int other) const noexcept;
-     [[nodiscard]] Fraction operator*(int other) const noexcept;
-     [[nodiscard]] Fraction operator/(int other) const noexcept;
-     [[nodiscard]] int64_t operator%(int64_t other) const noexcept;
+private:
+    component_type numerator_{0};
+    component_type denominator_{1};
 
-     Fraction& operator+=(int other) noexcept;
-     Fraction& operator-=(int other) noexcept;
-     Fraction& operator*=(int other) noexcept;
-     Fraction& operator/=(int other) noexcept;
-
-     [[nodiscard]] bool operator==(int64_t other) const noexcept;
-     [[nodiscard]] bool operator!=(int64_t other) const noexcept;
+    static Fraction from_wide(std::int64_t numerator, std::int64_t denominator);
+    void assign_normalized(std::int64_t numerator, std::int64_t denominator);
 };
 }

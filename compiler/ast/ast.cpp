@@ -225,7 +225,7 @@ bool ArrayType::equals(Type *other) const noexcept {
     return true;
 }
 
-bool UnknownType::equals(Type *other) const noexcept {
+bool UnknownType::equals(Type*) const noexcept {
     return false;
 }
 bool NeverType::equals(Type *other) const noexcept {
@@ -387,7 +387,7 @@ StmtNode::StmtNode(const ASTKind kind, const size_t line, const size_t col) noex
 Module::Module(std::string name, decltype(decls) decls) noexcept
         : name(std::move(name)), decls(std::move(decls)) {
     const auto decls_len = this->decls.size();
-    for (auto i = 0; i < decls_len; i++) {
+    for (std::size_t i = 0; i < decls_len; i++) {
         const auto decl = this->decls[i];
         if (decl->kind == ASTKind::FuncImpl) {
             this->decls.erase(this->decls.begin() + i);

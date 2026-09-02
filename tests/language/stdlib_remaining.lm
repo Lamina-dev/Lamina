@@ -9,9 +9,10 @@ func code_name(code mathematics_error.MathErrorCode) -> text {
 }
 
 let x = std.cas.symbol("x")
-std.printf("%s|", std.cas.to_text(x))
-std.printf("1,")
-std.printf("1|")
+let parsed_x = std.cas.parse("x")
+std.printf("%s|%d,%d|", std.cas.to_text(x),
+    std.cas.structurally_equal(x, parsed_x),
+    std.cas.structurally_equal(std.cas.symbol("x"), parsed_x))
 match std.math.hypotenuse(3 as expr, 4 as expr) {
     Result.Ok(value) => std.printf("%.1f|", value),
     Result.Err(error) => std.printf("%s", mathematics_error.message(error))

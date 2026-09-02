@@ -132,14 +132,6 @@ void AstPrinter::print_type(std::ostringstream &ss, const Type &type) {
 void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
                              const std::string &line_prefix, const std::string &child_prefix) {
 
-    auto print_kids = [&](const auto &children) {
-        for (size_t i = 0; i < children.size(); i++) {
-            const bool last = i + 1 == children.size();
-            auto kid_pref = child_prefix + (last ? "└── " : "├── ");
-            auto kid_cont = child_prefix + (last ? "    " : "│   ");
-            print_expr(ss, *children[i], kid_pref, kid_cont);
-        }
-    };
 
     switch (node.kind) {
         case ASTKind::Literal: {
@@ -162,6 +154,7 @@ void AstPrinter::print_expr(std::ostringstream &ss, const ExprNode &node,
             ss << line_prefix << "Unary ";
             switch (un.op) {
                 case UnaryNode::Op::Neg: ss << "-"; break;
+                case UnaryNode::Op::Not: ss << "not"; break;
             }
             if (node.type) { ss << " : "; print_type(ss, *node.type); }
             ss << "\n";

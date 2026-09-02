@@ -9,41 +9,38 @@
 
 using namespace lmx::bridge;
 
-namespace {
-template <typename Operation>
-AdtObj* checked_expression_operation(
-    const char* name, ExprObj* value, Operation operation) {
+using lmx::bridge::math_internal::checked_expression_operation;
+
+extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_factor(ExprObj* value) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* expression = checked_expr(value, error);
-    if (!expression) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    try {
-        auto output = operation(*expression);
-        if (!output)
-            return result_error(MathErrorCode::UnsupportedExpression, __func__, 
-                std::string("CasError(UnsupportedExpression in ") + name + ")");
-        return result_ok(new ExprObj(std::move(output)), ValueKind::Expr);
-    } catch (const std::exception& error) {
-        return result_error(MathErrorCode::InternalError, __func__, 
-            std::string("CasError(InternalInvariant in ") + name +
-            ": " + error.what() + ")");
-    }
+    if (!expression)
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    lamina::ComputationContext context;
+    auto result = (*expression)->factor_checked(context);
+    if (!result) return result_error(result.error());
+    return result_ok(new ExprObj(result.value()), ValueKind::Expr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-} // namespace
-
-extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_factor(ExprObj* value) {
-    return checked_expression_operation("algebra.factor", value,
-        [](const auto& expression) { return expression->factor(); });
-}
-extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_cancel(ExprObj* value) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_cancel(ExprObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return checked_expression_operation("algebra.cancel", value,
         [](const auto& expression) { return expression->cancel(); });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_simplify_trigonometric(ExprObj* value) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_simplify_trigonometric(ExprObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return checked_expression_operation("algebra.simplify_trig", value,
         [](const auto& expression) { return expression->simplify_trig(); });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_polynomial_greatest_common_divisor(
-    ExprObj* lhs, ExprObj* rhs) {
+    ExprObj* lhs, ExprObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* left = checked_expr(lhs, error);
     const auto* right = checked_expr(rhs, error);
@@ -53,9 +50,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_polynomial_greatest_commo
         **left, **right, context);
     if (!result) return result_error(result.error());
     return result_ok(new ExprObj(result.value()), ValueKind::Expr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_polynomial_resultant(
-    ExprObj* lhs, ExprObj* rhs, const char* variable) {
+    ExprObj* lhs, ExprObj* rhs, const char* variable) noexcept try {
+    ensure_lmmc_runtime();
     if (!variable)
         return result_error(MathErrorCode::InvalidArgument, __func__, "algebra.polynomial_resultant: null variable");
     std::string error;
@@ -65,4 +65,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_polynomial_resultant(
     return checked_expression_operation("algebra.polynomial_resultant", lhs, [&](const auto&) {
         return SymbolicExpr::poly_resultant(*left, *right, variable);
     });
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

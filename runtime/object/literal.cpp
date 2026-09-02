@@ -21,7 +21,8 @@ bool numeric_value(const Value& value, long double& result) noexcept {
         result = value.real_val;
         return true;
     case ValueKind::Fraction:
-        result = static_cast<long double>(value.frac_val.num) / value.frac_val.den;
+        result = static_cast<long double>(value.frac_val.numerator()) /
+                 value.frac_val.denominator();
         return true;
     default:
         return false;

@@ -149,9 +149,6 @@ void MirPrinter::format_operate(std::ostringstream &ss, const MirOperateExpr &op
     }
     auto name = opcode_name(op.opcode);
 
-    auto print_with = [&](const auto &derived, auto &&fn) {
-        fn(ss, name, derived);
-    };
 
 #define DISPATCH(Type, field_dispatch) \
     { \

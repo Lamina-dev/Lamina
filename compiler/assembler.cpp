@@ -66,6 +66,8 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::Call:
     case runtime::Opcode::TupleSet:
         return false;
+    case runtime::Opcode::Raise:
+        return false;
     case runtime::Opcode::FuncCreate:
     case runtime::Opcode::New:
     case runtime::Opcode::GetTrue:
@@ -118,6 +120,11 @@ bool InstEmitter::inst_is_ret_reg(const runtime::Opcode::Opcode op) noexcept {
     case runtime::Opcode::LiteralNew:
     case runtime::Opcode::Contains:
     case runtime::Opcode::NotContains:
+    case runtime::Opcode::SetUnion:
+    case runtime::Opcode::SetIntersection:
+    case runtime::Opcode::SetDifference:
+    case runtime::Opcode::SetSymmetricDifference:
+    case runtime::Opcode::SetSubset:
         return true;
 
     }
@@ -292,8 +299,8 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
             const auto r1 = *reg.alloc();
             const auto r2 = *reg.alloc();
             const auto r3 = *reg.alloc();
-            InstEmitter::emit(insts, runtime::Opcode::IConst, r1, static_cast<uint16_t>(f.den));
-            InstEmitter::emit(insts, runtime::Opcode::IConst, r2, static_cast<uint16_t>(f.num));
+            InstEmitter::emit(insts, runtime::Opcode::IConst, r1, static_cast<uint16_t>(f.denominator()));
+            InstEmitter::emit(insts, runtime::Opcode::IConst, r2, static_cast<uint16_t>(f.numerator()));
             InstEmitter::emit(insts, runtime::Opcode::IDiv, r3, r2, r1);
             reg.free(r1);
             reg.free(r2);
@@ -360,8 +367,10 @@ uint8_t Assembler::asm_mir_expr(InstEmitter::InstSeq& insts, mir::MirExpr* node)
                 case mir::MirLiteralKind::Float: {
                     tag = static_cast<uint8_t>(runtime::ConstantId::Frac);
                     const runtime::Fraction f(lit.data);
-                    write_n(d, reinterpret_cast<const uint8_t*>(&f.num), sizeof(f.num));
-                    write_n(d, reinterpret_cast<const uint8_t*>(&f.den), sizeof(f.den));
+                    const auto numerator = f.numerator();
+                    const auto denominator = f.denominator();
+                    write_n(d, reinterpret_cast<const uint8_t*>(&numerator), sizeof(numerator));
+                    write_n(d, reinterpret_cast<const uint8_t*>(&denominator), sizeof(denominator));
                     break;
                 }
                 case mir::MirLiteralKind::String: {
@@ -796,9 +805,8 @@ void Assembler::asm_mir_node(InstEmitter::InstSeq& result, mir::MirNode* node) n
         auto func_code = asm_func(n);
         break;
     }
-    case mir::MirNodeKind::NativeFunc: {
-        const auto n = reinterpret_cast<mir::MirNativeFuncDefine*>(node);
-    }
+    case mir::MirNodeKind::NativeFunc:
+        break;
     }
 }
 

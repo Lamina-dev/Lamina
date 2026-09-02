@@ -40,6 +40,7 @@ using runtime::Value;
 using runtime::ValueKind;
 using runtime::VectorObj;
 
+void ensure_lmmc_runtime() noexcept;
 const lamina::lsr::ExprPtr* checked_expr(ExprObj* expr, std::string& error);
 bool checked_symbol_name(ExprObj* expr, std::string& name,
                          std::string& error);

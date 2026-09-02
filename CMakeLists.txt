@@ -5,6 +5,57 @@ set(FETCHCONTENT_FULLY_DISCONNECTED ON)
 option(LMX_BUILD_TESTS "Build Lamina tests" OFF)
 option(LMX_ENABLE_LTO "Enable link-time optimization" ON)
 option(LMX_FAST_BUILD "Prefer faster compilation over maximum runtime optimization" OFF)
+option(LMX_WARNINGS_AS_ERRORS "Treat warnings in Lamina-owned targets as errors" OFF)
+option(LMX_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer for Lamina-owned targets" OFF)
+option(LMX_ENABLE_TSAN "Enable ThreadSanitizer for Lamina-owned targets" OFF)
+option(LMX_ENABLE_CLANG_TIDY "Run clang-tidy on Lamina-owned C++ targets" OFF)
+if(LMX_ENABLE_SANITIZERS AND LMX_ENABLE_TSAN)
+    message(FATAL_ERROR
+        "LMX_ENABLE_SANITIZERS and LMX_ENABLE_TSAN are mutually exclusive")
+endif()
+if((LMX_ENABLE_SANITIZERS OR LMX_ENABLE_TSAN) AND
+   NOT (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC AND NOT WIN32))
+    message(FATAL_ERROR
+        "Lamina sanitizers require GCC or Clang on a non-Windows platform")
+endif()
+if(LMX_ENABLE_CLANG_TIDY)
+    find_program(LMX_CLANG_TIDY_EXECUTABLE NAMES clang-tidy REQUIRED)
+endif()
+
+function(lmx_apply_quality_gates target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+        if(LMX_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE /WX)
+        endif()
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra)
+        if(LMX_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE -Werror)
+        endif()
+    endif()
+
+    if(LMX_ENABLE_SANITIZERS OR LMX_ENABLE_TSAN)
+        if(LMX_ENABLE_SANITIZERS)
+            set(_lmx_sanitizer_flags
+                -fsanitize=address,undefined -fno-omit-frame-pointer)
+        else()
+            set(_lmx_sanitizer_flags
+                -fsanitize=thread -fno-omit-frame-pointer)
+        endif()
+        target_compile_options(${target} PRIVATE ${_lmx_sanitizer_flags})
+        get_target_property(target_type ${target} TYPE)
+        if(NOT target_type STREQUAL "OBJECT_LIBRARY" AND
+           NOT target_type STREQUAL "STATIC_LIBRARY")
+            target_link_options(${target} PRIVATE ${_lmx_sanitizer_flags})
+        endif()
+    endif()
+    if(LMX_ENABLE_CLANG_TIDY)
+        set_property(TARGET ${target} PROPERTY CXX_CLANG_TIDY
+            "${LMX_CLANG_TIDY_EXECUTABLE};--config-file=${CMAKE_SOURCE_DIR}/.clang-tidy")
+    endif()
+endfunction()
+
 if(LMX_BUILD_TESTS)
     enable_testing()
 endif()
@@ -56,13 +107,33 @@ set(LMX_LMCAS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/LMCAS" CACHE PATH "Path t
 lmx_ensure_submodule(dyncall "${LMX_DYNCALL_SOURCE_DIR}" "CMakeLists.txt")
 lmx_ensure_submodule(LMCAS "${LMX_LMCAS_SOURCE_DIR}" "CMakeLists.txt")
 lmx_ensure_submodule(LMCAS "${LMX_LMCAS_SOURCE_DIR}/LMMC" "CMakeLists.txt")
-lmx_ensure_submodule(LAMMP "${LMX_LMCAS_SOURCE_DIR}/LMMC/LAMMP" "CMakeLists.txt")
+lmx_ensure_submodule(LMMP "${LMX_LMCAS_SOURCE_DIR}/LMMC/LMMP" "CMakeLists.txt")
 
+
+execute_process(
+    COMMAND "${CMAKE_COMMAND}"
+        "-DDYNCALL_SRC=${LMX_DYNCALL_SOURCE_DIR}"
+        -P "${CMAKE_SOURCE_DIR}/scripts/patch_dyncall.cmake"
+    RESULT_VARIABLE lmx_dyncall_patch_result
+)
+if(NOT lmx_dyncall_patch_result EQUAL 0)
+    message(FATAL_ERROR "Failed to apply the dyncall build patch")
+endif()
+execute_process(
+    COMMAND "${CMAKE_COMMAND}"
+        "-DLMMP_SRC=${LMX_LMCAS_SOURCE_DIR}/LMMC/LMMP"
+        -P "${CMAKE_SOURCE_DIR}/scripts/patch_lmmp.cmake"
+    RESULT_VARIABLE lmx_lmmp_patch_result
+)
+if(NOT lmx_lmmp_patch_result EQUAL 0)
+    message(FATAL_ERROR "Failed to apply the LMMP warning patch")
+endif()
 include_directories(include)
 include_directories(${LMX_DYNCALL_SOURCE_DIR})
 include_directories(${LMX_LMCAS_SOURCE_DIR}/include)
 include_directories(${LMX_LMCAS_SOURCE_DIR}/LMMC/include)
-include_directories(${LMX_LMCAS_SOURCE_DIR}/LMMC/LAMMP/include)
+include_directories(${LMX_LMCAS_SOURCE_DIR}/LMMC/LMMP/include)
+include_directories(${LMX_LMCAS_SOURCE_DIR}/LMMC/LMMP/include/lmmp)
 add_subdirectory(runtime)
 add_subdirectory(compiler)
 
@@ -161,11 +232,20 @@ endif()
 if(NOT DEFINED LMCAS_BUILD_GTEST_TESTS)
     set(LMCAS_BUILD_GTEST_TESTS OFF)
 endif()
-if(NOT DEFINED LAMMP_BUILD_TESTS)
-    set(LAMMP_BUILD_TESTS OFF)
+set(LMCAS_WARNINGS_AS_ERRORS "${LMX_WARNINGS_AS_ERRORS}")
+set(LMMC_WARNINGS_AS_ERRORS "${LMX_WARNINGS_AS_ERRORS}")
+set(LMCAS_ENABLE_SANITIZERS "${LMX_ENABLE_SANITIZERS}")
+set(LMCAS_ENABLE_TSAN "${LMX_ENABLE_TSAN}")
+set(LMMC_ENABLE_SANITIZERS "${LMX_ENABLE_SANITIZERS}")
+set(LMMC_ENABLE_TSAN "${LMX_ENABLE_TSAN}")
+if(NOT DEFINED LMMP_BUILD_TESTS)
+    set(LMMP_BUILD_TESTS OFF)
 endif()
-if(NOT DEFINED LAMMP_BUILD_BENCHMARKS)
-    set(LAMMP_BUILD_BENCHMARKS OFF)
+if(NOT DEFINED LMMP_BUILD_BENCHMARKS)
+    set(LMMP_BUILD_BENCHMARKS OFF)
+endif()
+if(NOT DEFINED LMMP_BUILD_EXAMPLES)
+    set(LMMP_BUILD_EXAMPLES OFF)
 endif()
 add_subdirectory("${LMX_LMCAS_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external/LMCAS" EXCLUDE_FROM_ALL)
 set(BUILD_TESTING "${_lmx_saved_build_testing}")
@@ -173,12 +253,12 @@ target_link_libraries(lamina_shared PRIVATE
     lmcas
 )
 
-if(TARGET LammpCore AND UNIX AND NOT APPLE)
-    target_link_options(LammpCore PRIVATE -Wl,-Bsymbolic-functions)
-endif()
 
 target_compile_definitions(lamina_shared PRIVATE LMX_DLL)
 target_compile_definitions(lamina_shared PRIVATE LMX_BUILD)
+if(LMX_BUILD_TESTS)
+    target_compile_definitions(lamina_shared PRIVATE LMX_BUILD_TESTS)
+endif()
 if(LMX_BUILD_STATIC)
     add_library(laminac_s STATIC $<TARGET_OBJECTS:laminac>)
     add_library(lamina_runtime_s STATIC $<TARGET_OBJECTS:lamina_runtime>)
@@ -203,7 +283,7 @@ if(WIN32)
             $<TARGET_FILE:lmmc>
             $<TARGET_FILE_DIR:lamina>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:LammpCore>
+            $<TARGET_FILE:liblmmp>
             $<TARGET_FILE_DIR:lamina>
     )
 endif()
@@ -260,26 +340,21 @@ set(LMX_PERF_FLAGS "")
 set(LMX_LINK_FLAGS "")
 if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang-cl
     message(STATUS "Use Clang-Cl toolchain compiling")
-    set(LMX_PERF_FLAGS /arch:AVX2 /Oi /fp:fast /guard:cf-)
+    set(LMX_PERF_FLAGS /Oi)
     set(LMX_LINK_FLAGS /OPT:REF /OPT:ICF)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(STATUS "Use GNU toolchain compiling")
     set(LMX_PERF_FLAGS
-            -march=native -mtune=native
             -fno-plt -fvisibility=hidden
             -funroll-loops -fomit-frame-pointer
-            -ffast-math -fno-math-errno
+            -fno-math-errno
             -fno-semantic-interposition
-            -fmerge-all-constants
             -fpeel-loops -fsplit-loops -fpredictive-commoning
             -fipa-cp-clone -ftree-vectorize
             -fdata-sections -ffunction-sections
             -falign-loops=32 -falign-jumps=32 -falign-functions=32
             -frename-registers -fprefetch-loop-arrays
             -fipa-pta
-            -fno-stack-protector -fno-stack-clash-protection
-            -fcf-protection=none #-fzero-init-padding-bits=unions
-            -U_FORTIFY_SOURCE
     )
     set(LMX_LINK_FLAGS -s -Wl,--gc-sections -Wl,-O3 -Wl,--as-needed)
 elseif (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -287,23 +362,18 @@ elseif (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(LMX_PERF_FLAGS
             -fvisibility=hidden
             -funroll-loops -fomit-frame-pointer
-            -ffast-math -fno-math-errno
+            -fno-math-errno
             -fdata-sections -ffunction-sections
     )
     set(LMX_LINK_FLAGS -Wl,-dead_strip)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(STATUS "Use Clang toolchain compiling")
     set(LMX_PERF_FLAGS
-            -march=native -mtune=native
             -fno-plt -fvisibility=hidden
             -funroll-loops -fomit-frame-pointer
-            -ffast-math -fno-math-errno
+            -fno-math-errno
             -fno-semantic-interposition
-            -fmerge-all-constants
             -fdata-sections -ffunction-sections
-            -fno-stack-protector -fno-stack-clash-protection
-            -fcf-protection=none
-            -U_FORTIFY_SOURCE
     )
     set(LMX_LINK_FLAGS -s -Wl,--gc-sections -Wl,-O3 -Wl,--as-needed)
 endif()
@@ -353,12 +423,10 @@ endif()
 # (不启用 -ffast-math / -flto, 避免影响浮点调用约定与汇编例程)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(LMX_DYNCALL_FLAGS
-            -O3 -march=native -mtune=native
+            -O3
             -funroll-loops -fomit-frame-pointer
             -fno-semantic-interposition
             -fvisibility=hidden
-            -fno-stack-protector -fno-stack-clash-protection
-            -fcf-protection=none -U_FORTIFY_SOURCE
     )
     foreach(dc_tgt IN ITEMS dyncall_s dynload_s)
         if(TARGET ${dc_tgt})
@@ -372,3 +440,17 @@ endif ()
 if(LMX_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
+
+set(LMX_QUALITY_TARGETS laminac lamina_runtime lamina_shared lamina)
+if(LMX_BUILD_STATIC)
+    list(APPEND LMX_QUALITY_TARGETS laminac_s lamina_runtime_s)
+endif()
+if(LMX_BUILD_TESTS)
+    list(APPEND LMX_QUALITY_TARGETS
+        test_bridge_error_boundary
+        test_compilation_pipeline
+        test_runtime_values)
+endif()
+foreach(target IN LISTS LMX_QUALITY_TARGETS)
+    lmx_apply_quality_gates(${target})
+endforeach()

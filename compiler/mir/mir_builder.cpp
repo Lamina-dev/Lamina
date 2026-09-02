@@ -224,6 +224,14 @@ class Builder {
         case BinaryNode::Op::Or:{
             return std::make_shared<MirCmpOrExpr>(std::move(lhs), std::move(rhs));
         }
+        case BinaryNode::Op::In:
+        case BinaryNode::Op::NotIn:
+        case BinaryNode::Op::Bind:
+        case BinaryNode::Op::SetUnion:
+        case BinaryNode::Op::SetIntersection:
+        case BinaryNode::Op::SetSymmetricDifference:
+        case BinaryNode::Op::Subset:
+            break;
         }
         std::unreachable();
     }
@@ -361,7 +369,7 @@ class Builder {
             if (literal->kind == LiteralNode::Kind::Float) {
                 const runtime::Fraction value(literal->val);
                 return expression_call("__lmx_computer_algebra_expression_rational",
-                                {integer_arg(value.num), integer_arg(value.den)});
+                                {integer_arg(value.numerator()), integer_arg(value.denominator())});
             }
             std::unreachable();
         }
@@ -1031,7 +1039,7 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
             call_result = std::make_shared<MirCallFastExpr>(
                 func_name, std::move(arg_refs));
         } else {
-            const auto reg_func = temp_assign(std::move(eval(call->expr.get())));
+            const auto reg_func = temp_assign(eval(call->expr.get()));
             call_result = std::make_shared<MirCallExpr>(reg_func, std::move(arg_refs));
         }
         if (is_expr_type(expr->type) && call->expr->type->kind == TypeKind::Function) {
@@ -1108,7 +1116,7 @@ std::shared_ptr<MirExpr> Builder::eval(ExprNode *expr) {
         }
         auto call_expr = std::make_shared<MirCCallExpr>(
             std::move(func_name), std::move(arg_refs));
-        return std::move(call_expr);
+        return call_expr;
     }
     case ASTKind::DotExpr: {
         const auto *dot = reinterpret_cast<DotExprNode *>(expr);

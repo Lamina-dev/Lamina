@@ -4,17 +4,18 @@ namespace lmx::bridge::math_internal {
 
 ArrayObj* solution_tables(
     const std::vector<std::map<std::string, lamina::lsr::ExprPtr>>& solutions) {
-    auto* result = new ArrayObj();
+    auto result = make_owned_object<ArrayObj>();
     for (const auto& solution : solutions) {
         std::vector<TableObj::Entry> entries;
         for (const auto& [name, expression] : solution) {
-            entries.emplace_back(
-                name, Value(new ExprObj(expression), ValueKind::Expr));
+            auto value = take_object_value(
+                make_owned_object<ExprObj>(expression), ValueKind::Expr);
+            entries.emplace_back(name, std::move(value));
         }
-        result->append(
-            Value(new TableObj(std::move(entries)), ValueKind::Table));
+        result->append(take_object_value(
+            make_owned_object<TableObj>(std::move(entries)), ValueKind::Table));
     }
-    return result;
+    return result.release();
 }
 
 bool checked_symbol_names(
@@ -77,11 +78,12 @@ AdtObj* unordered_expr_result(std::vector<lamina::lsr::ExprPtr> values) {
 ArrayObj* symbol_text_array(ArrayObj* symbols, std::string& error) {
     std::vector<std::string> names;
     if (!checked_symbol_names(symbols, names, error)) return nullptr;
-    auto* result = new ArrayObj();
+    auto result = make_owned_object<ArrayObj>();
     for (auto& name : names) {
-        result->append(Value(new StringObj(std::move(name)), ValueKind::Obj));
+        result->append(take_object_value(
+            make_owned_object<StringObj>(std::move(name)), ValueKind::Obj));
     }
-    return result;
+    return result.release();
 }
 
 AdtObj* checked_expr_result(const lamina::ExpressionResult& result) {

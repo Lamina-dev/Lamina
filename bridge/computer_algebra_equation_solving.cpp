@@ -22,22 +22,28 @@ AdtObj* equality_required() {
 
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_solve_by_name(ExprObj* equation,
-                                      const char* variable) {
+                                      const char* variable) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(equation, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     if (!is_equality_relation(**value)) return equality_required();
     return expression_set_literal_result(
         lamina::lsr::solve(*value, variable ? variable : ""));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_roots_by_name(ExprObj* expression,
-                                      const char* variable) {
+                                      const char* variable) noexcept try {
+    ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(expression, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return expression_set_literal_result(
         lamina::lsr::roots(*value, variable ? variable : ""));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 /**
@@ -49,7 +55,8 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_roots_by_name(Ex
  * @ownership Caller owns the returned ADT and its set; inputs are borrowed.
  * @threadsafe Current VM thread only.
  */
-extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_symbol(ExprObj* equation, ExprObj* variable) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_symbol(ExprObj* equation, ExprObj* variable) noexcept try {
+    ensure_lmmc_runtime();
     std::string name;
     std::string error;
     if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -57,6 +64,8 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_symbol(ExprObj* 
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     if (!is_equality_relation(**value)) return equality_required();
     return expression_set_literal_result(lamina::lsr::solve(*value, name));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 /**
@@ -68,11 +77,14 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_symbol(ExprObj* 
  * @ownership Caller owns the returned ADT and its set; inputs are borrowed.
  * @threadsafe Current VM thread only.
  */
-extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_roots_by_symbol(ExprObj* expression, ExprObj* variable) {
+extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_roots_by_symbol(ExprObj* expression, ExprObj* variable) noexcept try {
+    ensure_lmmc_runtime();
     std::string name;
     std::string error;
     if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     const auto* value = checked_expr(expression, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return expression_set_literal_result(lamina::lsr::roots(*value, name));
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

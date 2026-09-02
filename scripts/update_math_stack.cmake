@@ -24,32 +24,40 @@ function(run_git directory)
     message(FATAL_ERROR "git command failed in ${directory}")
 endfunction()
 
-function(update_branch directory branch)
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" rev-parse --is-shallow-repository
-        WORKING_DIRECTORY "${directory}"
-        OUTPUT_VARIABLE shallow
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE shallow_status
-    )
-    if(shallow_status EQUAL 0 AND shallow STREQUAL "true")
-        run_git("${directory}" fetch --unshallow --no-recurse-submodules
-                origin "${branch}")
-    else()
-        run_git("${directory}" fetch --no-recurse-submodules origin "${branch}")
-    endif()
-    run_git("${directory}" merge --ff-only FETCH_HEAD)
-endfunction()
-
-set(lmcas "${ROOT}/external/LMCAS")
-set(lmmc "${lmcas}/LMMC")
-set(lammp "${lmmc}/LAMMP")
-
 run_git("${ROOT}" submodule sync --recursive)
-if(NOT EXISTS "${lammp}/CMakeLists.txt")
-    run_git("${ROOT}" submodule update --init --recursive -- external/LMCAS)
+run_git("${ROOT}" submodule update --init --recursive --checkout)
+
+execute_process(
+    COMMAND "${GIT_EXECUTABLE}" submodule status --recursive
+    WORKING_DIRECTORY "${ROOT}"
+    RESULT_VARIABLE status_result
+    OUTPUT_VARIABLE status_output
+    ERROR_VARIABLE status_error
+)
+if(NOT status_result EQUAL 0)
+    message(FATAL_ERROR "failed to inspect pinned submodules: ${status_error}")
+endif()
+if(status_output MATCHES "(^|\n)[+U-]")
+    message(FATAL_ERROR
+        "submodule checkout differs from a recorded gitlink:\n${status_output}")
 endif()
 
-update_branch("${lmcas}" main)
-update_branch("${lmmc}" main)
-run_git("${lmmc}" submodule update --init --recursive -- LAMMP)
+execute_process(
+    COMMAND "${CMAKE_COMMAND}"
+        "-DDYNCALL_SRC=${ROOT}/external/dyncall"
+        -P "${ROOT}/scripts/patch_dyncall.cmake"
+    RESULT_VARIABLE dyncall_patch_result
+)
+if(NOT dyncall_patch_result EQUAL 0)
+    message(FATAL_ERROR "failed to apply the pinned dyncall build patch")
+endif()
+
+execute_process(
+    COMMAND "${CMAKE_COMMAND}"
+        "-DLMMP_SRC=${ROOT}/external/LMCAS/LMMC/LMMP"
+        -P "${ROOT}/scripts/patch_lmmp.cmake"
+    RESULT_VARIABLE lmmp_patch_result
+)
+if(NOT lmmp_patch_result EQUAL 0)
+    message(FATAL_ERROR "failed to apply the pinned LMMP warning patch")
+endif()

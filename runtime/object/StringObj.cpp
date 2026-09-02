@@ -6,17 +6,17 @@
 
 using namespace lmx::runtime;
 
-StringObj::StringObj() noexcept: Object(ObjectKind::String) { }
+StringObj::StringObj(): Object(ObjectKind::String) { }
 
-StringObj::StringObj(const StringObjImpl& data) noexcept: Object(ObjectKind::String), data(data) { }
+StringObj::StringObj(const StringObjImpl& data): Object(ObjectKind::String), data(data) { }
 
-StringObj::StringObj(const char *data, const size_t size) noexcept: Object(ObjectKind::String), data(data, size) { }
+StringObj::StringObj(const char *data, const size_t size): Object(ObjectKind::String), data(data, size) { }
 
 StringObj::StringObj(StringObjImpl &&data) noexcept: Object(ObjectKind::String), data(std::move(data)) { }
 
-StringObj::StringObj(const StringObjImpl &data, const size_t index) noexcept: Object(ObjectKind::String), data (data, index) { }
+StringObj::StringObj(const StringObjImpl &data, const size_t index): Object(ObjectKind::String), data (data, index) { }
 
-StringObj::StringObj(const char *data) noexcept: Object(ObjectKind::String), data (data) { }
+StringObj::StringObj(const char *data): Object(ObjectKind::String), data (data) { }
 
 StringObj::~StringObj() noexcept = default;
 
@@ -25,7 +25,7 @@ const char *StringObj::c_str() const noexcept {
     return data.c_str();
 }
 
-std::string StringObj::to_string() const noexcept {
+std::string StringObj::to_string() const {
     return data;
 }
 
@@ -50,11 +50,11 @@ std::size_t StringObj::hash() const noexcept {
     return std::hash<std::string>{}(data);
 }
 
-StringObj &StringObj::operator+=(const StringObj &other) noexcept {
+StringObj &StringObj::operator+=(const StringObj &other) {
     this->data += other.data;
     return *this;
 }
 
-StringObj StringObj::operator+(const StringObj &other) const noexcept {
+StringObj StringObj::operator+(const StringObj &other) const {
     return StringObj(std::move(this->data + other.data));
 }

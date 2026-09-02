@@ -278,7 +278,6 @@ std::vector<Token> Lexer::tokenize(const std::string& code) {
     content = code;
     has_err = false;
     pos = 0;
-    const auto orig_line = line;
     col = 1;
     std::vector<Token> tokens;
     while (pos < content.size()) {

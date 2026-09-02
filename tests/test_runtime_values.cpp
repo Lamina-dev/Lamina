@@ -11,6 +11,10 @@
 #include "lmmc/init.h"
 #include "../runtime/object/value.hpp"
 
+#include <exception>
+#include <cmath>
+#include <limits>
+#include <stdexcept>
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -27,10 +31,23 @@ using lmx::runtime::QuantityObj;
 using lmx::runtime::SparseMatrixObj;
 using lmx::runtime::TensorObj;
 using lmx::runtime::AssumptionsObj;
+using lmx::runtime::Fraction;
 
 namespace {
 bool require(const bool condition, const char* message) {
     if (condition) return true;
+    std::cerr << message << '\n';
+    return false;
+}
+
+template <typename Error, typename Operation>
+bool require_throws(Operation&& operation, const char* message) {
+    try {
+        operation();
+    } catch (const Error&) {
+        return true;
+    } catch (...) {
+    }
     std::cerr << message << '\n';
     return false;
 }
@@ -50,8 +67,12 @@ lmmc_sparse_mat_t make_sparse() {
 }
 
 struct LmmcGuard {
-    LmmcGuard() { lmmc_init(); }
-    ~LmmcGuard() { lmmc_deinit(); }
+    LmmcGuard() {
+        if (lmmc_init() != LMMC_STATUS_OK) std::terminate();
+    }
+    ~LmmcGuard() {
+        if (lmmc_deinit() != LMMC_STATUS_OK) std::terminate();
+    }
 };
 
 int main() {
@@ -62,6 +83,56 @@ int main() {
                  "fraction equality must use normalized numeric components") ||
         !require(left_fraction.hash() == right_fraction.hash(),
                  "equal fractions must have equal structural hashes")) return 1;
+
+    const Fraction normalized_sign(-2, -4);
+    const Fraction normalized_zero(0, -7);
+    const Fraction half(1, 2);
+    const Fraction whole(8, 4);
+    const Fraction rational_remainder = Fraction(5, 2) % Fraction(3, 2);
+    if (!require(normalized_sign.numerator() == 1 &&
+                     normalized_sign.denominator() == 2,
+                 "fraction normalization must canonicalize denominator signs") ||
+        !require(normalized_zero.numerator() == 0 &&
+                     normalized_zero.denominator() == 1,
+                 "fraction zero must use the canonical 0/1 representation") ||
+        !require(half != 0 && half != 1,
+                 "fraction-to-integer equality must not accept non-integers") ||
+        !require(whole == 2,
+                 "fraction-to-integer equality must accept normalized integers") ||
+        !require(Fraction(std::numeric_limits<std::int32_t>::max(),
+                          std::numeric_limits<std::int32_t>::max() - 1) >
+                     Fraction(std::numeric_limits<std::int32_t>::max() - 1,
+                              std::numeric_limits<std::int32_t>::max()),
+                 "fraction comparison must use non-overflowing cross products") ||
+        !require(rational_remainder == Fraction(1, 1),
+                 "fraction remainder must preserve rational arithmetic") ||
+        !require((half % 7) == 4,
+                 "fraction modular reduction must use a modular inverse") ||
+        !require_throws<std::domain_error>(
+            [] { (void)Fraction(1, 0); },
+            "zero denominators must be rejected") ||
+        !require_throws<std::invalid_argument>(
+            [] { (void)Fraction(std::string("1/2junk")); },
+            "fraction parsing must consume the complete input") ||
+        !require_throws<std::overflow_error>(
+            [] {
+                (void)(Fraction(std::numeric_limits<std::int32_t>::max(), 1) +
+                       Fraction(1, 1));
+            },
+            "fraction arithmetic overflow must be reported") ||
+        !require_throws<std::overflow_error>(
+            [] {
+                (void)-Fraction(std::numeric_limits<std::int32_t>::min(), 1);
+            },
+            "fraction negation overflow must be reported") ||
+        !require_throws<std::domain_error>(
+            [] { (void)(Fraction(1, 2) / Fraction(0, 1)); },
+            "fraction division by zero must be rejected") ||
+        !require_throws<std::domain_error>(
+            [] { (void)(Fraction(1, 2) % 6); },
+            "non-invertible modular denominators must be rejected") ||
+        !require(!std::isfinite(std::numeric_limits<double>::quiet_NaN()),
+                 "runtime compilation must preserve IEEE non-finite checks")) return 1;
 
     auto* left_tuple_object = new TupleObj(2);
     left_tuple_object->set(0, Value(static_cast<LmInt>(1)));

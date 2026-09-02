@@ -3,23 +3,31 @@
 #include "internal/symbolic_ast/arithmetic.hpp"
 
 #include <cstdarg>
+#include <exception>
 #include <iostream>
 #include <utility>
 
 namespace lmx::bridge {
 
 namespace {
-class LmmcRuntimeLifetime {
+class LmmcRuntimeLifetime final {
 public:
-    LmmcRuntimeLifetime() noexcept { lmmc_init(); }
-    ~LmmcRuntimeLifetime() noexcept { lmmc_deinit(); }
+    LmmcRuntimeLifetime() noexcept {
+        if (lmmc_init() != LMMC_STATUS_OK) std::terminate();
+    }
+    ~LmmcRuntimeLifetime() noexcept {
+        if (lmmc_deinit() != LMMC_STATUS_OK) std::terminate();
+    }
 
     LmmcRuntimeLifetime(const LmmcRuntimeLifetime&) = delete;
     LmmcRuntimeLifetime& operator=(const LmmcRuntimeLifetime&) = delete;
 };
-
-const LmmcRuntimeLifetime lmmc_runtime_lifetime;
 } // namespace
+
+void ensure_lmmc_runtime() noexcept {
+    static thread_local LmmcRuntimeLifetime lifetime;
+    (void)lifetime;
+}
 
 bool debug_dump_enabled() noexcept {
     const char* value = std::getenv("LMX_DEBUG_DUMP");

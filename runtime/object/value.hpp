@@ -45,7 +45,7 @@ struct Value {
     explicit Value(LmInt val) noexcept;
     explicit Value(double val) noexcept;
     explicit Value(bool val)    noexcept;
-    explicit Value(int num, int den) noexcept;
+    explicit Value(int num, int den);
     explicit Value(const Fraction& frac) noexcept;
     Value(const Value& other) noexcept;
     Value(Value&& other) noexcept;
@@ -105,7 +105,7 @@ LMX_INLINE Value::Value(Object *obj) noexcept : kind(ValueKind::Obj), obj(obj) {
 LMX_INLINE Value::Value(Object *obj, const ValueKind kind) noexcept
     : kind(is_object_value_kind(kind) ? kind : ValueKind::Obj), obj(obj) {}
 
-LMX_INLINE Value::Value(const int num, const int den) noexcept : kind(ValueKind::Fraction), frac_val(num, den) {}
+LMX_INLINE Value::Value(const int num, const int den) : kind(ValueKind::Fraction), frac_val(num, den) {}
 
 LMX_INLINE Value::Value(const Fraction& frac) noexcept : kind(ValueKind::Fraction), frac_val(frac) {}
 

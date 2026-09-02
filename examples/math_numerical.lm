@@ -71,7 +71,7 @@ match std.linalg.vector([1.0, 2.0, 3.0, 4.0]) {
             Result.Ok(value) => std.printf("mean = %.2f\n", value),
             Result.Err(error) => std.printf("mean failed: %s\n", mathematics_error.message(error))
         }
-        match std.stats.std(values) {
+        match std.stats.standard_deviation(values) {
             Result.Ok(value) => std.printf("sample std = %.3f\n", value),
             Result.Err(error) => std.printf("std failed: %s\n", mathematics_error.message(error))
         }

@@ -1,22 +1,46 @@
 import std
 import std.cas.algebra
 import std.cas.equation_solving
-import std.mathematics_error
 
-sym x, y, a
+sym x, y
 
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
+let x2_minus_one = std.cas.parse("x^2 - 1")
+let x_minus_one = std.cas.parse("x - 1")
+let x_plus_one = std.cas.parse("x + 1")
+
+std.printf("%s|", std.cas.to_text(algebra.factor(x2_minus_one)))
+std.printf("%s|", std.cas.to_text(algebra.cancel(
+    std.cas.parse("(x^2 - 1)/(x - 1)"))))
+std.printf("%s|", std.cas.to_text(algebra.simplify_trigonometric(
+    std.cas.parse("sin(x)^2 + cos(x)^2"))))
+std.printf("%s|", std.cas.to_text(algebra.factor_multivariate(
+    std.cas.parse("x*y + x"))))
+std.printf("%s|", std.cas.to_text(
+    algebra.multivariate_greatest_common_divisor(
+        std.cas.parse("x*y + x"), std.cas.parse("x*y + x"))))
+
 {
-    let value = equation_solving.ideal_membership(x + y - 1, [x + y - 1], [x, y])
-    std.printf("%d,", value)
+    let factors = std.cas.set_to_array(
+        algebra.factor_transcendental(std.cas.parse("exp(2*x) - 1"), x))
+    std.printf("%s|", std.cas.to_text(factors[0]))
 }
-std.printf("1,")
-std.printf("1,")
-std.printf("1")
+
+std.printf("%s|", std.cas.to_text(
+    algebra.polynomial_greatest_common_divisor(
+        x2_minus_one, std.cas.parse("x^2 - 2*x + 1"))))
+std.printf("%s|", std.cas.to_text(
+    algebra.polynomial_resultant(x2_minus_one, x_minus_one, "x")))
+std.printf("%d|", equation_solving.ideal_membership(
+    std.cas.parse("x + y - 1"), [std.cas.parse("x + y - 1")], ["x", "y"]))
+
+{
+    let basis = std.cas.set_to_array(equation_solving.groebner_basis(
+        [std.cas.parse("x + y - 1"), std.cas.parse("x - y")], ["x", "y"]))
+    std.printf("%s|", std.cas.to_text(basis[0]))
+}
+
+std.printf("%s|", std.cas.to_text(
+    equation_solving.inequality(x2_minus_one, "<", "x")))
+std.printf("%s", std.cas.to_text(
+    equation_solving.rational_inequality(
+        x_minus_one, x_plus_one, ">", x)))

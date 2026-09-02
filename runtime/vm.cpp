@@ -4,6 +4,8 @@
 #include <cassert>
 #include <chrono>
 #include <cstdlib>
+#include <limits>
+#include <stdexcept>
 
 #include "object/fraction.hpp"
 #include "object/adt.hpp"
@@ -46,13 +48,20 @@ Frame::~Frame() noexcept = default;
 namespace {
 void build_constant(LmGCAllocator &allocator, const ConstantPoolInfo &c, Value &dest);
 
-Fraction as_fraction(const Value& value) noexcept {
+Fraction::component_type fraction_component(const LmInt value) {
+    if (value < std::numeric_limits<Fraction::component_type>::min() ||
+        value > std::numeric_limits<Fraction::component_type>::max()) {
+        throw std::overflow_error("integer is outside the Fraction representation");
+    }
+    return static_cast<Fraction::component_type>(value);
+}
+
+Fraction as_fraction(const Value& value) {
     if (value.kind == ValueKind::Fraction) return value.frac_val;
     if (value.kind == ValueKind::Int) {
-        return Fraction(static_cast<std::int32_t>(value.int_val), 1);
+        return Fraction(fraction_component(value.int_val), 1);
     }
-    assert(false && "fraction opcode received a non-numeric value");
-    return Fraction();
+    throw std::invalid_argument("fraction opcode received a non-numeric value");
 }
 
 double as_real(const Value& value) noexcept {
@@ -75,7 +84,7 @@ void make_elem(LmGCAllocator &allocator, ArrayObj *arr, const uint32_t idx, cons
         arr->store(idx, Value(e.frac_info->num, e.frac_info->den));
         break;
     case ConstantId::Str: {
-        Value v(allocator.alloc_string(e.str->str, e.str->length));
+        Value v(allocator.alloc_string(e.str->data(), e.str->length));
         arr->store(idx, std::move(v)); // store 内部已把 v 置空
         break;
     }
@@ -99,13 +108,13 @@ void build_constant(LmGCAllocator &allocator, const ConstantPoolInfo &c, Value &
         dest = Value(c.frac_info->num, c.frac_info->den);
         break;
     case ConstantId::Str:
-        dest = allocator.alloc_string(c.str->str, c.str->length);
+        dest = allocator.alloc_string(c.str->data(), c.str->length);
         break;
     case ConstantId::Arr: {
         const auto *ai = c.arr;
         auto *arr = reinterpret_cast<ArrayObj *>(allocator.alloc_array(ai->len));
         for (uint32_t i = 0; i < ai->len; i++) {
-            make_elem(allocator, arr, i, ai->infos[i]);
+            make_elem(allocator, arr, i, ai->data()[i]);
         }
         dest = arr;
         break;
@@ -163,8 +172,8 @@ LMX_INLINE static constexpr uint16_t read_u16(const uint8_t* p) {
 
 static AdtObj* make_adt_value(const CodeModuleObj* module, Value* regs, const uint16_t constant_index) {
     const auto* info = module->cp[constant_index].adt_constructor;
-    const std::string type_name(info->data, info->type_name_length);
-    const std::string constructor(info->data + info->type_name_length, info->constructor_length);
+    const std::string type_name(info->data(), info->type_name_length);
+    const std::string constructor(info->data() + info->type_name_length, info->constructor_length);
     std::vector<Value> fields;
     fields.reserve(info->field_count);
     for (uint8_t i = 0; i < info->field_count; ++i) {
@@ -376,9 +385,9 @@ Value LaminaVM::execute(const uint8_t* ip, Frame* stop_frame) {
     }
 
     VM_LABEL(IDiv) {
-        new (&regs[ip[1]]) Value (
-            static_cast<decltype(Fraction::num)>(regs[ip[2]].int_val),
-            static_cast<decltype(Fraction::den)>(regs[ip[3]].int_val));
+        new (&regs[ip[1]]) Value(
+            fraction_component(regs[ip[2]].int_val),
+            fraction_component(regs[ip[3]].int_val));
         VM_NEXT
     }
 
@@ -400,7 +409,6 @@ Value LaminaVM::execute(const uint8_t* ip, Frame* stop_frame) {
     }
 
     VM_LABEL(FuncCreate) {
-        uint16_t code_idx = read_u16(ip + 2);
         VM_NEXT
     }
 

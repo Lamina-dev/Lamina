@@ -11,7 +11,8 @@ using namespace lmx::bridge;
 extern "C" LM_API AdtObj* lmx_integration_adaptive(
     const lmx::runtime::FuncObj* function, const double lower,
     const double upper, const double absolute_tolerance,
-    const double relative_tolerance, const LmInt max_depth) {
+    const double relative_tolerance, const LmInt max_depth) noexcept try {
+    ensure_lmmc_runtime();
     if (!function) {
         return result_error(MathErrorCode::InvalidArgument, __func__, "integrate.adaptive: null callback");
     }
@@ -54,14 +55,19 @@ extern "C" LM_API AdtObj* lmx_integration_adaptive(
     fields.emplace_back(output.value);
     fields.emplace_back(output.error);
     fields.emplace_back(static_cast<LmInt>(output.num_evals));
-    fields.emplace_back(static_cast<lmx::runtime::Object*>(
-        new StringObj(status == LMMC_STATUS_OK ? "ok" : "warning_max_depth")));
+    fields.emplace_back(take_object_value(
+        make_owned_object<StringObj>(
+            status == LMMC_STATUS_OK ? "ok" : "warning_max_depth"),
+        ValueKind::Obj));
     return result_ok(
         new AdtObj("IntegralResult", "IntegralResult", std::move(fields)),
         ValueKind::Obj);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API double lmx_integration_value(AdtObj* result) {
+extern "C" LM_API double lmx_integration_value(AdtObj* result) noexcept try {
+    ensure_lmmc_runtime();
     if (!result || result->type_name() != "IntegralResult" ||
         result->constructor() != "IntegralResult") {
         return std::numeric_limits<double>::quiet_NaN();
@@ -69,9 +75,12 @@ extern "C" LM_API double lmx_integration_value(AdtObj* result) {
     const auto* value = result->field(0);
     return value && value->kind == ValueKind::Real
         ? value->real_val : std::numeric_limits<double>::quiet_NaN();
+} catch (...) {
+    return std::numeric_limits<double>::quiet_NaN();
 }
 
-extern "C" LM_API StringObj* lmx_integration_status(AdtObj* result) {
+extern "C" LM_API StringObj* lmx_integration_status(AdtObj* result) noexcept try {
+    ensure_lmmc_runtime();
     if (!result || result->type_name() != "IntegralResult" ||
         result->constructor() != "IntegralResult") {
         return new StringObj("invalid");
@@ -82,6 +91,8 @@ extern "C" LM_API StringObj* lmx_integration_status(AdtObj* result) {
         return new StringObj("invalid");
     }
     return new StringObj(static_cast<StringObj*>(value->obj)->c_str());
+} catch (...) {
+    return nullptr;
 }
 
 namespace {
@@ -99,8 +110,10 @@ AdtObj* integral_estimate(
     fields.emplace_back(output.value);
     fields.emplace_back(output.error);
     fields.emplace_back(static_cast<LmInt>(output.num_evals));
-    fields.emplace_back(static_cast<lmx::runtime::Object*>(
-        new StringObj(status == LMMC_STATUS_OK ? "ok" : "warning_max_depth")));
+    fields.emplace_back(take_object_value(
+        make_owned_object<StringObj>(
+            status == LMMC_STATUS_OK ? "ok" : "warning_max_depth"),
+        ValueKind::Obj));
     return result_ok(
         new AdtObj("IntegralResult", "IntegralResult", std::move(fields)),
         ValueKind::Obj);
@@ -145,36 +158,52 @@ AdtObj* fixed_integral(
 
 extern "C" LM_API AdtObj* lmx_integration_trapezoid(
     const lmx::runtime::FuncObj* function, const double lower,
-    const double upper, const LmInt intervals) {
+    const double upper, const LmInt intervals) noexcept try {
+    ensure_lmmc_runtime();
     return fixed_integral(
         "integrate.trapezoid", function, lower, upper, intervals, 0);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_integration_simpson(
     const lmx::runtime::FuncObj* function, const double lower,
-    const double upper, const LmInt intervals) {
+    const double upper, const LmInt intervals) noexcept try {
+    ensure_lmmc_runtime();
     return fixed_integral(
         "integrate.simpson", function, lower, upper, intervals, 1);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_integration_gauss_legendre(
     const lmx::runtime::FuncObj* function, const double lower,
-    const double upper, const LmInt order) {
+    const double upper, const LmInt order) noexcept try {
+    ensure_lmmc_runtime();
     return fixed_integral(
         "integrate.gauss_legendre", function, lower, upper, order, 2);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_integration_gauss_hermite(
-    const lmx::runtime::FuncObj* function, const LmInt order) {
+    const lmx::runtime::FuncObj* function, const LmInt order) noexcept try {
+    ensure_lmmc_runtime();
     return fixed_integral(
         "integrate.gauss_hermite", function, 0.0, 0.0, order, 3);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_integration_gauss_laguerre(
-    const lmx::runtime::FuncObj* function, const LmInt order) {
+    const lmx::runtime::FuncObj* function, const LmInt order) noexcept try {
+    ensure_lmmc_runtime();
     return fixed_integral(
         "integrate.gauss_laguerre", function, 0.0, 0.0, order, 4);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_integration_romberg(
     const lmx::runtime::FuncObj* function, const double lower,
-    const double upper, const double tolerance, const LmInt max_iterations) {
+    const double upper, const double tolerance, const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     if (!function || max_iterations <= 0 || !std::isfinite(tolerance))
         return result_error(MathErrorCode::InvalidArgument, __func__, "integrate.romberg: invalid argument");
     ScalarCallbackContext context(function);
@@ -186,10 +215,13 @@ extern "C" LM_API AdtObj* lmx_integration_romberg(
         return result_error(MathErrorCode::CallbackFailure,
                             "integrate.romberg", std::move(context.error));
     return integral_estimate("integrate.romberg", status, output);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_integration_tanh_sinh(
     const lmx::runtime::FuncObj* function, const double lower,
-    const double upper, const double tolerance, const LmInt max_nodes) {
+    const double upper, const double tolerance, const LmInt max_nodes) noexcept try {
+    ensure_lmmc_runtime();
     if (!function || max_nodes <= 0 || !std::isfinite(tolerance))
         return result_error(MathErrorCode::InvalidArgument, __func__, "integrate.tanh_sinh: invalid argument");
     ScalarCallbackContext context(function);
@@ -201,4 +233,6 @@ extern "C" LM_API AdtObj* lmx_integration_tanh_sinh(
         return result_error(MathErrorCode::CallbackFailure,
                             "integrate.tanh_sinh", std::move(context.error));
     return integral_estimate("integrate.tanh_sinh", status, output);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

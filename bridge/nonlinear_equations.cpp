@@ -37,8 +37,10 @@ AdtObj* root_result(
     fields.emplace_back(result.root);
     fields.emplace_back(result.function_value);
     fields.emplace_back(result.residual_norm);
-    fields.emplace_back(static_cast<lmx::runtime::Object*>(
-        new StringObj(lmmc_nonlinear_failure_string(result.failure_reason))));
+    fields.emplace_back(take_object_value(
+        make_owned_object<StringObj>(
+            lmmc_nonlinear_failure_string(result.failure_reason)),
+        ValueKind::Obj));
     return result_ok(
         new AdtObj("RootResult", "RootResult", std::move(fields)),
         ValueKind::Obj);
@@ -87,39 +89,54 @@ AdtObj* run_root_solver(
 extern "C" LM_API AdtObj* lmx_nonlinear_equations_bisection(
     const lmx::runtime::FuncObj* function, const double left,
     const double right, const double abs_tol, const double rel_tol,
-    const LmInt max_iterations) {
+    const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     return run_root_solver(
         0, function, nullptr, left, right, abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_nonlinear_equations_newton(
     const lmx::runtime::FuncObj* function, const double initial,
     const double abs_tol, const double rel_tol,
-    const LmInt max_iterations) {
+    const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     return run_root_solver(
         1, function, nullptr, initial, 0.0,
         abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_nonlinear_equations_newton_with_derivative(
     const lmx::runtime::FuncObj* function,
     const lmx::runtime::FuncObj* derivative, const double initial,
     const double abs_tol, const double rel_tol,
-    const LmInt max_iterations) {
+    const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     if (!derivative)
         return result_error(MathErrorCode::InvalidArgument, __func__, "nonlinear.newton_with_derivative: null derivative");
     return run_root_solver(
         1, function, derivative, initial, 0.0,
         abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_nonlinear_equations_secant(
     const lmx::runtime::FuncObj* function, const double first,
     const double second, const double abs_tol, const double rel_tol,
-    const LmInt max_iterations) {
+    const LmInt max_iterations) noexcept try {
+    ensure_lmmc_runtime();
     return run_root_solver(
         2, function, nullptr, first, second,
         abs_tol, rel_tol, max_iterations);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API double lmx_nonlinear_equations_root(AdtObj* result) {
+extern "C" LM_API double lmx_nonlinear_equations_root(AdtObj* result) noexcept try {
+    ensure_lmmc_runtime();
     const auto* field = result ? result->field(2) : nullptr;
     return field && field->kind == ValueKind::Real
         ? field->real_val : std::numeric_limits<double>::quiet_NaN();
+} catch (...) {
+    return std::numeric_limits<double>::quiet_NaN();
 }

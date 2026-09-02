@@ -1,47 +1,86 @@
 import std
-import std.cas.ordinary_differential_equations
 import std.cas.geometry
+import std.cas.ordinary_differential_equations
 import std.cas.symbolic_matrix
 
-sym x, y, z, t, p, q
-sym fallback
+sym x, y, z
 let zero = std.cas.parse("0")
 let one = std.cas.parse("1")
 let two = std.cas.parse("2")
+let three = std.cas.parse("3")
 
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
+std.printf("%s|", std.cas.to_text(
+    ordinary_differential_equations.solve_separable(one, "x", "y")))
+std.printf("%s|", std.cas.to_text(
+    ordinary_differential_equations.solve_separable(one, x, y)))
+std.printf("%s|", std.cas.to_text(
+    ordinary_differential_equations.solve_first_order_linear(
+        zero, one, "x", "y")))
+std.printf("%s|", std.cas.to_text(
+    ordinary_differential_equations.solve_first_order_linear(
+        zero, one, x, y)))
+std.printf("%s|", std.cas.to_text(
+    ordinary_differential_equations.solve_second_order_linear(
+        std.int_to_frac(1), std.int_to_frac(0), std.int_to_frac(0),
+        zero, "x", "y")))
+std.printf("%s|", std.cas.to_text(
+    ordinary_differential_equations.solve_second_order_linear(
+        std.int_to_frac(1), std.int_to_frac(0), std.int_to_frac(0),
+        zero, x, y)))
+std.printf("%s|", ordinary_differential_equations.classify_first_order(
+    std.cas.parse("x*y"), "x", "y"))
+std.printf("%s|", ordinary_differential_equations.classify_first_order(
+    std.cas.parse("x*y"), x, y))
+std.printf("%s|", ordinary_differential_equations.classify_higher_order(
+    [one, zero, one], zero, "x", "y"))
+std.printf("%s|", ordinary_differential_equations.classify_higher_order(
+    [one, zero, one], zero, x, y))
 
 {
-    let metric = symbolic_matrix.from_rows([[one, zero], [zero, one]])
-let inverse = geometry.metric_inverse(metric)
-std.printf("1,")
-            std.printf("1,")
-            std.printf("1")
+    let values = geometry.gradient(std.cas.parse("x^2 + y^2"), ["x", "y"])
+    std.printf("%s|%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]))
 }
+std.printf("%s|", std.cas.to_text(
+    geometry.divergence([x, y, z], ["x", "y", "z"])))
+{
+    let values = geometry.curl([y, z, x], ["x", "y", "z"])
+    std.printf("%s|%s|%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]), std.cas.to_text(values[2]))
+}
+std.printf("%s|", std.cas.to_text(
+    geometry.laplacian(std.cas.parse("x^2 + y^2"), ["x", "y"])))
+std.printf("%s|", std.cas.to_text(
+    geometry.vector_dot([one, two, three], [three, two, one])))
+{
+    let values = geometry.vector_cross(
+        [one, zero, zero], [zero, one, zero])
+    std.printf("%s|%s|%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]), std.cas.to_text(values[2]))
+}
+{
+    let values = geometry.line_plane_intersection(
+        [zero, zero, zero], [zero, zero, one],
+        [zero, zero, one], two)
+    std.printf("%s|%s|%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]), std.cas.to_text(values[2]))
+}
+{
+    let metric = symbolic_matrix.from_rows([[two, zero], [zero, one]])
+    std.printf("%s|", std.cas.to_text(geometry.metric_inverse(metric)))
+}
+std.printf("%s|", std.cas.to_text(
+    geometry.arc_length_x(zero, zero, one)))
+std.printf("%.4f|", geometry.vector_angle(
+    [one, zero], [zero, one]))
+std.printf("%s|", std.cas.to_text(geometry.point_plane_distance(
+    [zero, zero, two], [zero, zero, one], zero)))
+{
+    let values = geometry.surface_normal(
+        std.cas.parse("x^2 + y^2 + z^2 - 1"),
+        [x, y, z], [one, zero, zero])
+    std.printf("%s,%s,%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]), std.cas.to_text(values[2]))
+}
+std.printf("%s", std.cas.to_text(geometry.directional_derivative(
+    std.cas.parse("x^2 + y^2"), [x, y], [one, zero], 1)))

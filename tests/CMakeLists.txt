@@ -38,6 +38,16 @@ set_target_properties(test_compilation_pipeline PROPERTIES
 )
 add_test(NAME compilation_pipeline COMMAND test_compilation_pipeline)
 
+add_executable(test_bridge_error_boundary test_bridge_error_boundary.cpp)
+target_link_libraries(test_bridge_error_boundary PRIVATE lamina_shared)
+target_include_directories(test_bridge_error_boundary
+    PRIVATE "${CMAKE_SOURCE_DIR}"
+)
+set_target_properties(test_bridge_error_boundary PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME bridge_error_boundary COMMAND test_bridge_error_boundary)
+
 add_executable(test_runtime_values
     test_runtime_values.cpp
     ../lmx.cpp
@@ -91,13 +101,13 @@ add_lamina_output_test(quantity_extended quantity_extended.lm "1.500|1,1|6.0 N|3
 add_lamina_output_test(stdlib_remaining stdlib_remaining.lm "x|1,1|5.0|8.0|5.0|3.0|CasError(InvalidArgument in lsr.differentiate: differentiate variable cannot be empty)")
 add_lamina_output_test(computer_algebra_extended computer_algebra_extended.lm "x^2 + (2)*x + 1|(1/2)*(x^2)|2|(1/6)*(x^3) + (1/2)*(x^2) + x + 1|1.0|1.0,2.0|1|-1,1|-1,1")
 add_lamina_output_test(computer_algebra_symbol_arguments computer_algebra_symbol_arguments.lm "2*x|(1/2)*(x^2)|0|ok|system")
-add_lamina_output_test(computer_algebra_algebra_remaining computer_algebra_algebra_remaining.lm "1,1,1,1,1,1,1,1,1,1,1,1")
-add_lamina_output_test(computer_algebra_symbolic_matrix_remaining computer_algebra_symbolic_matrix_remaining.lm "1,1,1,1,1,0,1,1,1,1,1,1")
-add_lamina_output_test(computer_algebra_analysis_remaining computer_algebra_analysis_remaining.lm "1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1")
-add_lamina_output_test(computer_algebra_ode_geometry_remaining computer_algebra_ode_geometry_remaining.lm "1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1")
+add_lamina_output_test(computer_algebra_algebra_remaining computer_algebra_algebra_remaining.lm "(x - 1)*(x + 1)|x + 1|1|(y + 1)*x|x*y + x|exp((2)*x) - 1|x - 1|0|1|-1*y + x|(-1, 1)|(x < -1 or x > 1)")
+add_lamina_output_test(computer_algebra_symbolic_matrix_remaining computer_algebra_symbolic_matrix_remaining.lm "[[1, 0], [0, 1]]|[[1, 0], [0, 1]]*[[2, 0], [0, 3]]|6|[[1/2, 0], [0, 1/3]]|2|2|[[1, 0], [0, 1]]|[[1]]*[[1]]*[[ln(2)]]|[[4, 0], [0, 6]]|[[1, -1*0], [0, 1]]|[[2, 0], [0, 3]]|positive_definite")
+add_lamina_output_test(computer_algebra_analysis_remaining computer_algebra_analysis_remaining.lm "-1*(2)*(((2)*y)^-1)*x|(2)*x|(2)*y|4|(3)*(x^3)*(x^-1)|1|continuous|(2)*(((4)*(x^2) + 1)^3/2^-1)|(2)*(((4)*(t^2) + 1)^3/2^-1)|(1/3)*pi|1|(x^2)*pi|1|1/4|0|pi|-2|0|x^-1|1|6|6|4,6|1,2,1|1,2|inf|0|0|1|0|1")
+add_lamina_output_test(computer_algebra_ode_geometry_remaining computer_algebra_ode_geometry_remaining.lm "-1*x + y|-1*x + y|C + x|C + x|exp(-0*x)*C1 + exp(-0*x)*C2*x|exp(-0*x)*C1 + exp(-0*x)*C2*x|separable|separable|linear2_const_coeff|linear2_const_coeff|(2)*x|(2)*y|3|-1|-1|-1|4|10|(0)*(0) - 1*(0)*(1)|(0)*(0) - 1*(0)*(1)|(1)*(1) - 1*(0)*(0)|0|0|2|[[1/2, 0], [0, 1]]|1|1.5708|2|1,0,0|(2)*x")
 add_lamina_output_test(lmmc_lsr_names lmmc_lsr_names.lm "1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1")
 add_lamina_output_test(lmmc_random_default lmmc_random_default.lm "1")
-add_lamina_output_test(lmmc_sparse_remaining lmmc_sparse_remaining.lm "1,1,1,1")
+add_lamina_output_test(lmmc_sparse_remaining lmmc_sparse_remaining.lm "2,4.0,2.0:3.0,9.0")
 add_lamina_output_test(math_scalar_distributions math_scalar_distributions.lm "3.142|0.0|3.0|3.0|0.500|0.375|0.368|err")
 add_lamina_output_test(mathematics_error_contract mathematics_error_contract.lm "domain:DomainError:evaluate_numeric:zero cannot be raised to a non-positive power|matrix:DimensionMismatch:matrix_mul:dimension mismatch|parse:ParseError:lsr.parse_expr:expected expression at byte 1|callback:CallbackFailure:integrate.adaptive:IndexOutOfRangeError: array len is 1 but you index 4|")
 add_lamina_output_test(math_linalg_advanced math_linalg_advanced.lm "6.0|9.0|9.0|10.0|10.0|2|0.6,0.4|30.0|1.0|3.0")

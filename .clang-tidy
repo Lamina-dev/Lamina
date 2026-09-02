@@ -1,0 +1,12 @@
+Checks: >-
+  -*,
+  clang-analyzer-core.*,
+  clang-analyzer-cplusplus.*,
+  clang-analyzer-deadcode.*,
+  bugprone-sizeof-expression,
+  bugprone-suspicious-memory-comparison,
+  bugprone-use-after-move,
+  performance-move-const-arg
+WarningsAsErrors: '*'
+HeaderFilterRegex: '^(?!.*[\\/]external[\\/]).*$'
+FormatStyle: none

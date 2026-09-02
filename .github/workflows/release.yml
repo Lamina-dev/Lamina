@@ -26,12 +26,12 @@ jobs:
             archive: linux-x64
             build_type: Release
             so_ext: .so
-            use_asm: 'OFF'
+            lmmp_asm: AUTO
           - os: macos-latest
             archive: macos
             build_type: Debug
             so_ext: .dylib
-            use_asm: 'OFF'
+            lmmp_asm: AUTO
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
@@ -41,15 +41,15 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Update math stack
+      - name: Initialize pinned submodules
         run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
 
 
       - name: Configure CMake
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }} -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }} -DLMCAS_USE_LAMMP_ASM=${{ matrix.use_asm }}
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }} -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }} -DLMCAS_LMMP_ASM=${{ matrix.lmmp_asm }}
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }} --target lamina laminac_s lamina_runtime_s test_compilation_pipeline test_runtime_values --parallel 4
+        run: cmake --build build --config ${{ matrix.build_type }} --target lamina laminac_s lamina_runtime_s test_bridge_error_boundary test_compilation_pipeline test_runtime_values --parallel 4
 
       - name: Test
         run: ctest --test-dir build -C ${{ matrix.build_type }} --parallel 4 --output-on-failure --timeout 300
@@ -70,6 +70,136 @@ jobs:
           name: lamina-${{ matrix.archive }}
           path: package/
 
+  quality-gates:
+    name: Root ${{ matrix.name }} and warnings (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASan and UBSan
+            cmake_flags: -DLMX_ENABLE_SANITIZERS=ON
+            asan_options: detect_leaks=1:strict_string_checks=1
+            ubsan_options: print_stacktrace=1:halt_on_error=1
+            tsan_options: ""
+          - name: TSan
+            cmake_flags: -DLMX_ENABLE_TSAN=ON
+            asan_options: ""
+            ubsan_options: ""
+            tsan_options: halt_on_error=1:second_deadlock_stack=1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Initialize pinned submodules
+        run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
+
+      - name: Configure CMake
+        run: cmake -S . -B build-quality -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=OFF -DLMX_WARNINGS_AS_ERRORS=ON ${{ matrix.cmake_flags }} -DLMCAS_LMMP_ASM=AUTO
+
+      - name: Build
+        run: cmake --build build-quality --target lamina test_bridge_error_boundary test_compilation_pipeline test_runtime_values --parallel 4
+
+      - name: Test
+        env:
+          ASAN_OPTIONS: ${{ matrix.asan_options }}
+          UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
+          TSAN_OPTIONS: ${{ matrix.tsan_options }}
+        run: ctest --test-dir build-quality --parallel 4 --output-on-failure --timeout 300
+
+  math-stack-sanitizers:
+    name: Full LMCAS/LMMC ${{ matrix.name }} (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASan and UBSan
+            preset: linux-asan-ubsan
+            asan_options: detect_leaks=1:strict_string_checks=1
+            ubsan_options: print_stacktrace=1:halt_on_error=1
+            tsan_options: ""
+          - name: TSan
+            preset: linux-tsan
+            asan_options: ""
+            ubsan_options: ""
+            tsan_options: halt_on_error=1:second_deadlock_stack=1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Initialize pinned submodules
+        run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
+
+      - name: Configure full math stack
+        working-directory: external/LMCAS
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build full math stack
+        working-directory: external/LMCAS
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Run full LMCAS and LMMC test suites
+        working-directory: external/LMCAS
+        env:
+          ASAN_OPTIONS: ${{ matrix.asan_options }}
+          UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
+          TSAN_OPTIONS: ${{ matrix.tsan_options }}
+        run: ctest --preset ${{ matrix.preset }}
+
+  installed-package:
+    name: Installed LMCAS package and standalone headers (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Initialize pinned submodules
+        run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
+
+      - name: Build and install package
+        working-directory: external/LMCAS
+        run: |
+          cmake --preset package
+          cmake --build --preset package
+
+      - name: Configure installed-package consumer
+        run: cmake -S external/LMCAS/tests/package_consumer -B build/package-consumer -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/external/LMCAS/build/package-install"
+
+      - name: Build standalone headers and consumer
+        run: cmake --build build/package-consumer --parallel 4
+
+      - name: Run installed-package consumer
+        run: ./build/package-consumer/lmcas_package_consumer
+
+  static-analysis:
+    name: Clang-Tidy static analysis (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Initialize pinned submodules
+        run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
+
+      - name: Configure static analysis
+        run: cmake --preset static-analysis
+
+      - name: Run static analysis build
+        run: cmake --build --preset static-analysis
+
   build-windows:
     name: Build and test (windows-latest, MinGW)
     runs-on: windows-latest
@@ -80,7 +210,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Update math stack
+      - name: Initialize pinned submodules
         shell: pwsh
         run: cmake -DROOT="$env:GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
 
@@ -92,15 +222,14 @@ jobs:
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-nasm
 
       - name: Configure CMake
         shell: msys2 {0}
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }} -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }} -DLMCAS_USE_LAMMP_ASM=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }} -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }} -DLMCAS_LMMP_ASM=AUTO
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build build --target lamina laminac_s lamina_runtime_s test_compilation_pipeline test_runtime_values --parallel 4
+        run: cmake --build build --target lamina laminac_s lamina_runtime_s test_bridge_error_boundary test_compilation_pipeline test_runtime_values --parallel 4
 
       - name: Test
         shell: msys2 {0}

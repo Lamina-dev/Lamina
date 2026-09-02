@@ -120,7 +120,7 @@ public:
                 p += sizeof(uint32_t) + length * sizeof(ConstantPoolInfo);
                 auto* data = const_cast<uint8_t*>(p);
                 for (uint32_t i = 0; i < length; ++i) {
-                    auto* element = &info->infos[i];
+                    auto* element = &info->data()[i];
                     switch (element->id) {
                     case ConstantId::Int:
                         break;
@@ -227,15 +227,15 @@ std::string CodeModuleObj::type_info() const noexcept {
     return "code";
 }
 
-bool CodeModuleObj::equals(const Object *other) const noexcept {
+bool CodeModuleObj::equals(const Object*) const noexcept {
     return false;
 }
 
-bool CodeModuleObj::operator==(const Object &other) const noexcept {
+bool CodeModuleObj::operator==(const Object&) const noexcept {
     return false;
 }
 
-bool CodeModuleObj::operator!=(const Object &other) const noexcept {
+bool CodeModuleObj::operator!=(const Object&) const noexcept {
     return false;
 }
 
@@ -473,7 +473,7 @@ std::string CodeModuleObj::disassemble() const noexcept {
                 out << "  #" << i << ": frac " << c.frac_info->num << "/" << c.frac_info->den << "\n";
                 break;
             case ConstantId::Str: {
-                const std::string str(c.str->str, c.str->length);
+                const std::string str(c.str->data(), c.str->length);
                 out << "  #" << i << ": str \"" << str << "\"\n";
                 break;
             }
@@ -481,7 +481,7 @@ std::string CodeModuleObj::disassemble() const noexcept {
                 out << "  #" << i << ": arr len=" << c.arr->len << " [";
                 for (uint32_t j = 0; j < c.arr->len; ++j) {
                     if (j > 0) out << ", ";
-                    const auto& element = c.arr->infos[j];
+                    const auto& element = c.arr->data()[j];
                     switch (element.id) {
                     case ConstantId::Int:
                         out << element.int_value;
@@ -490,7 +490,7 @@ std::string CodeModuleObj::disassemble() const noexcept {
                         out << element.frac_info->num << "/" << element.frac_info->den;
                         break;
                     case ConstantId::Str:
-                        out << '\"' << std::string(element.str->str, element.str->length) << '\"';
+                        out << '\"' << std::string(element.str->data(), element.str->length) << '\"';
                         break;
                     default:
                         break;
@@ -501,8 +501,8 @@ std::string CodeModuleObj::disassemble() const noexcept {
             }
             case ConstantId::AdtConstructor: {
                 const auto* info = c.adt_constructor;
-                const std::string type_name(info->data, info->type_name_length);
-                const std::string constructor(info->data + info->type_name_length,
+                const std::string type_name(info->data(), info->type_name_length);
+                const std::string constructor(info->data() + info->type_name_length,
                                               info->constructor_length);
                 out << "  #" << i << ": adt " << type_name << "." << constructor
                     << "/" << static_cast<unsigned>(info->field_count) << "\n";

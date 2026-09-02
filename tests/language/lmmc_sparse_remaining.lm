@@ -1,16 +1,46 @@
 import std
 import std.linalg
+import std.mathematics_error
 import std.sparse
 
-match linalg.matrix([[2.0, 0.0], [0.0, 3.0]]) {
-    Result.Ok(dense) => match sparse.from_dense(dense, 0.0) {
-        Result.Ok(value) => {
-            match sparse.subtract(value, value) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
-            match sparse.scale(value, 2.0) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
-            match sparse.diagonal(value) { Result.Ok(_) => std.printf("1,"), Result.Err(_) => std.printf("0,") }
-            match sparse.matmul_dense(value, dense) { Result.Ok(_) => std.printf("1"), Result.Err(_) => std.printf("0") }
-        },
-        Result.Err(_) => std.printf("0,0,0,0")
-    },
-    Result.Err(_) => std.printf("0,0,0,0")
+func matrix_value(value Result<matrix, mathematics_error.MathError>) -> matrix {
+    match value {
+        Result.Ok(matrix) => matrix,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
 }
+
+func sparse_value(value Result<sparse, mathematics_error.MathError>) -> sparse {
+    match value {
+        Result.Ok(matrix) => matrix,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func vector_value(value Result<vector, mathematics_error.MathError>) -> vector {
+    match value {
+        Result.Ok(vector) => vector,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func real_value(value Result<real, mathematics_error.MathError>) -> real {
+    match value {
+        Result.Ok(number) => number,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+let dense = matrix_value(linalg.matrix([[2.0, 0.0], [0.0, 3.0]]))
+let value = sparse_value(sparse.from_dense(dense, 0.0))
+let difference = sparse_value(sparse.subtract(value, value))
+let scaled = matrix_value(sparse.to_dense(sparse_value(sparse.scale(value, 2.0))))
+let diagonal = vector_value(sparse.diagonal(value))
+let product = matrix_value(sparse.matmul_dense(value, dense))
+
+std.printf("%lld,%.1f,%.1f:%.1f,%.1f",
+    sparse.nonzero_count(difference),
+    real_value(linalg.element_at(scaled, 0, 0)),
+    real_value(linalg.element_at(diagonal, 0)),
+    real_value(linalg.element_at(diagonal, 1)),
+    real_value(linalg.element_at(product, 1, 1)))

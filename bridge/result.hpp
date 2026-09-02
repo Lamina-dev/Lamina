@@ -16,6 +16,7 @@
 #include <result.hpp>
 #include "transform_engine.hpp"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -58,11 +59,12 @@ AdtObj* unary_expression_result(ExprObj* expr, const char* operation_name,
 template <typename ResultType>
 AdtObj* expr_array_result(const ResultType& result) {
     if (!result) return result_error(result.error());
-    auto* values = new ArrayObj();
+    auto values = make_owned_object<ArrayObj>();
     for (const auto& expression : result.value()) {
-        values->append(Value(new ExprObj(expression), ValueKind::Expr));
+        values->append(take_object_value(
+            make_owned_object<ExprObj>(expression), ValueKind::Expr));
     }
-    return result_ok(values, ValueKind::Obj);
+    return result_ok(values.release(), ValueKind::Obj);
 }
 
 } // namespace lmx::bridge

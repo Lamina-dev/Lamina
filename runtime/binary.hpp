@@ -15,13 +15,19 @@ struct FracInfo {
 };
 struct StringInfo {
     uint32_t length;
-    char str[];
+
+    [[nodiscard]] const char* data() const noexcept {
+        return reinterpret_cast<const char*>(this) + sizeof(*this);
+    }
 };
 struct AdtConstructorInfo {
     uint16_t type_name_length;
     uint16_t constructor_length;
     uint8_t field_count;
-    char data[];
+
+    [[nodiscard]] const char* data() const noexcept {
+        return reinterpret_cast<const char*>(this) + sizeof(*this);
+    }
 };
 enum class TypeTag : uint16_t {
     Func,
@@ -50,7 +56,15 @@ struct ConstantPoolInfo {
 
 struct ArrayInfo {
     uint32_t len;
-    ConstantPoolInfo infos[];
+
+    [[nodiscard]] ConstantPoolInfo* data() noexcept {
+        return reinterpret_cast<ConstantPoolInfo*>(
+            reinterpret_cast<char*>(this) + sizeof(*this));
+    }
+    [[nodiscard]] const ConstantPoolInfo* data() const noexcept {
+        return reinterpret_cast<const ConstantPoolInfo*>(
+            reinterpret_cast<const char*>(this) + sizeof(*this));
+    }
 };
 
 #pragma pack(pop)

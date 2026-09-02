@@ -23,15 +23,14 @@ MatrixObj* copied_matrix(MatrixObj* input) {
 
 namespace {
 
-ArrayObj* pivot_array(const std::vector<std::size_t>& pivots,
-                      std::string& error) {
-    auto* result = new ArrayObj();
+OwnedObject<ArrayObj> pivot_array(const std::vector<std::size_t>& pivots,
+                                  std::string& error) {
+    auto result = make_owned_object<ArrayObj>();
     for (const auto pivot : pivots) {
         if (pivot > static_cast<std::size_t>(
                         std::numeric_limits<LmInt>::max())) {
-            result->release();
             error = "linalg: pivot index exceeds Lamina int range";
-            return nullptr;
+            return {};
         }
         result->append(Value(static_cast<LmInt>(pivot)));
     }
@@ -76,33 +75,37 @@ AdtObj* solve_with_factor(const char* name, MatrixObj* factor,
 }
 } // namespace
 
-extern "C" LM_API AdtObj* lmx_linear_algebra_lower_upper_factorization(MatrixObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_lower_upper_factorization(MatrixObj* value) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid() || value->rows() != value->cols())
         return result_error(MathErrorCode::InvalidArgument, __func__, "linalg.lu_factor: expected a square matrix");
-    auto* factor = copied_matrix(value);
-    auto view = matrix_view(factor);
+    auto factor = adopt_object(copied_matrix(value));
+    auto view = matrix_view(factor.get());
     std::vector<std::size_t> pivots(value->rows());
     const auto status =
         lmmc_lu_decompose_inplace(&view, pivots.data(), nullptr);
     if (status != LMMC_STATUS_OK) {
-        factor->release();
         return result_error(status, "linalg.lu_factor");
     }
     std::string error;
-    auto* pivot_values = pivot_array(pivots, error);
+    auto pivot_values = pivot_array(pivots, error);
     if (!pivot_values) {
-        factor->release();
-        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+        return result_error(
+            MathErrorCode::InvalidArgument, __func__, std::move(error));
     }
     std::vector<Value> fields;
-    fields.emplace_back(factor, ValueKind::Matrix);
-    fields.emplace_back(pivot_values, ValueKind::Obj);
+    fields.emplace_back(take_object_value(std::move(factor), ValueKind::Matrix));
+    fields.emplace_back(
+        take_object_value(std::move(pivot_values), ValueKind::Obj));
     return result_ok(
         new AdtObj("LUFactor", "LUFactor", std::move(fields)), ValueKind::Obj);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_linear_algebra_solve_with_lower_upper_factorization(
-    AdtObj* factor, VectorObj* rhs) {
+    AdtObj* factor, VectorObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     const Value* matrix_field = nullptr;
     const Value* pivot_field = nullptr;
     std::string error;
@@ -122,50 +125,61 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_solve_with_lower_upper_factorizatio
     return solve_with_factor(
         "linalg.lu_solve", static_cast<MatrixObj*>(matrix_field->obj),
         values.data(), nullptr, rhs, 0);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_linear_algebra_cholesky_factor(MatrixObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_cholesky_factor(MatrixObj* value) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid() || value->rows() != value->cols())
         return result_error(MathErrorCode::InvalidArgument, __func__, 
             "linalg.cholesky_factor: expected a square matrix");
-    auto* factor = copied_matrix(value);
-    auto view = matrix_view(factor);
+    auto factor = adopt_object(copied_matrix(value));
+    auto view = matrix_view(factor.get());
     const auto status = lmmc_cholesky_decompose_inplace(&view);
     if (status != LMMC_STATUS_OK) {
-        factor->release();
         return result_error(status, "linalg.cholesky_factor");
     }
-    return result_ok(factor, ValueKind::Matrix);
+    return result_ok(factor.release(), ValueKind::Matrix);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_linear_algebra_cholesky_solve(
-    MatrixObj* factor, VectorObj* rhs) {
+    MatrixObj* factor, VectorObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     return solve_with_factor(
         "linalg.cholesky_solve", factor, nullptr, nullptr, rhs, 1);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_linear_algebra_orthogonal_triangular_factorization(MatrixObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_orthogonal_triangular_factorization(MatrixObj* value) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid() || value->rows() < value->cols())
         return result_error(MathErrorCode::InvalidArgument, __func__, 
             "linalg.qr_factor: expected rows greater than or equal to columns");
-    auto* factor = copied_matrix(value);
-    auto view = matrix_view(factor);
+    auto factor = adopt_object(copied_matrix(value));
+    auto view = matrix_view(factor.get());
     std::vector<double> tau(value->cols());
     const auto status =
         lmmc_qr_decompose_inplace(&view, tau.data(), tau.size());
     if (status != LMMC_STATUS_OK) {
-        factor->release();
         return result_error(status, "linalg.qr_factor");
     }
     std::vector<Value> fields;
-    fields.emplace_back(factor, ValueKind::Matrix);
-    fields.emplace_back(new VectorObj(std::move(tau)), ValueKind::Vector);
+    fields.emplace_back(take_object_value(std::move(factor), ValueKind::Matrix));
+    fields.emplace_back(take_object_value(
+        make_owned_object<VectorObj>(std::move(tau)), ValueKind::Vector));
     return result_ok(
         new AdtObj("QRFactor", "QRFactor", std::move(fields)), ValueKind::Obj);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_linear_algebra_solve_with_orthogonal_triangular_factorization(
-    AdtObj* factor, VectorObj* rhs) {
+    AdtObj* factor, VectorObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     const Value* matrix_field = nullptr;
     const Value* tau_field = nullptr;
     std::string error;
@@ -178,16 +192,22 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_solve_with_orthogonal_triangular_fa
     return solve_with_factor(
         "linalg.qr_solve", static_cast<MatrixObj*>(matrix_field->obj),
         nullptr, tau->data().data(), rhs, 2);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_linear_algebra_eigendecomposition(MatrixObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_eigendecomposition(MatrixObj* value) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid() || value->rows() != value->cols())
         return result_error(MathErrorCode::InvalidArgument, __func__, "linalg.eig: expected a square matrix");
     auto input = matrix_view(value);
     lmmc_eigen_gen_full_result_t output{};
     const auto status = lmmc_eigen_general_full(&input, &output);
+    const auto output_cleanup =
+        std::unique_ptr<lmmc_eigen_gen_full_result_t,
+                        decltype(&lmmc_eigen_gen_full_result_destroy)>(
+            &output, &lmmc_eigen_gen_full_result_destroy);
     if (status != LMMC_STATUS_OK) {
-        lmmc_eigen_gen_full_result_destroy(&output);
         return result_error(status, "linalg.eig");
     }
     const auto count = output.real_parts.size;
@@ -213,54 +233,67 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_eigendecomposition(MatrixObj* value
                 output.vectors_imag.data[row * output.vectors_imag.stride + source];
         }
     }
-    auto* real_values =
-        new MatrixObj(1, count, std::move(real_data));
-    auto* imag_values =
-        new MatrixObj(1, count, std::move(imag_data));
-    auto* real_vectors =
-        new MatrixObj(count, count, std::move(real_vector_data));
-    auto* imag_vectors =
-        new MatrixObj(count, count, std::move(imag_vector_data));
-    lmmc_eigen_gen_full_result_destroy(&output);
+    auto real_values =
+        make_owned_object<MatrixObj>(1, count, std::move(real_data));
+    auto imag_values =
+        make_owned_object<MatrixObj>(1, count, std::move(imag_data));
+    auto real_vectors =
+        make_owned_object<MatrixObj>(
+            count, count, std::move(real_vector_data));
+    auto imag_vectors =
+        make_owned_object<MatrixObj>(
+            count, count, std::move(imag_vector_data));
     std::vector<Value> fields;
-    fields.emplace_back(real_values, ValueKind::Matrix);
-    fields.emplace_back(imag_values, ValueKind::Matrix);
-    fields.emplace_back(real_vectors, ValueKind::Matrix);
-    fields.emplace_back(imag_vectors, ValueKind::Matrix);
+    fields.emplace_back(
+        take_object_value(std::move(real_values), ValueKind::Matrix));
+    fields.emplace_back(
+        take_object_value(std::move(imag_values), ValueKind::Matrix));
+    fields.emplace_back(
+        take_object_value(std::move(real_vectors), ValueKind::Matrix));
+    fields.emplace_back(
+        take_object_value(std::move(imag_vectors), ValueKind::Matrix));
     return result_ok(
         new AdtObj("EigenResult", "EigenResult", std::move(fields)),
         ValueKind::Obj);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_linear_algebra_singular_value_decomposition(MatrixObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_singular_value_decomposition(MatrixObj* value) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid())
         return result_error(MathErrorCode::InvalidArgument, __func__, "linalg.svd: invalid matrix");
     auto input = matrix_view(value);
     lmmc_svd_result_t output{};
     const auto status = lmmc_svd(&input, &output);
+    const auto output_cleanup =
+        std::unique_ptr<lmmc_svd_result_t,
+                        decltype(&lmmc_svd_result_destroy)>(
+            &output, &lmmc_svd_result_destroy);
     if (status != LMMC_STATUS_OK) {
-        lmmc_svd_result_destroy(&output);
         return result_error(status, "linalg.svd");
     }
-    auto* u = copy_lmmc_matrix(output.U);
+    auto u = adopt_object(copy_lmmc_matrix(output.U));
     std::vector<double> sigma(output.sigma.size * output.sigma.size, 0.0);
     for (std::size_t i = 0; i < output.sigma.size; ++i)
         sigma[i * output.sigma.size + i] = output.sigma.data[i];
-    auto* s = new MatrixObj(
+    auto s = make_owned_object<MatrixObj>(
         output.sigma.size, output.sigma.size, std::move(sigma));
-    auto* vt = copy_lmmc_matrix(output.Vt);
-    lmmc_svd_result_destroy(&output);
+    auto vt = adopt_object(copy_lmmc_matrix(output.Vt));
     std::vector<Value> fields;
-    fields.emplace_back(u, ValueKind::Matrix);
-    fields.emplace_back(s, ValueKind::Matrix);
-    fields.emplace_back(vt, ValueKind::Matrix);
+    fields.emplace_back(take_object_value(std::move(u), ValueKind::Matrix));
+    fields.emplace_back(take_object_value(std::move(s), ValueKind::Matrix));
+    fields.emplace_back(take_object_value(std::move(vt), ValueKind::Matrix));
     return result_ok(
         new AdtObj("SvdResult", "SvdResult", std::move(fields)),
         ValueKind::Obj);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_linear_algebra_pseudoinverse(
-    MatrixObj* value, const double tolerance) {
+    MatrixObj* value, const double tolerance) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid() || tolerance < 0.0 ||
         !std::isfinite(tolerance))
         return result_error(MathErrorCode::InvalidArgument, __func__, "linalg.pinv: invalid argument");
@@ -272,15 +305,20 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_pseudoinverse(
         return result_error(create_status, "linalg.pinv");
     const auto status = lmmc_pinv(&input, tolerance, &output);
     return lmmc_matrix_output("linalg.pinv", status, output);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_linear_algebra_condition_number(MatrixObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_condition_number(MatrixObj* value) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid())
         return result_error(MathErrorCode::InvalidArgument, __func__, "linalg.condition_number: invalid matrix");
     auto input = matrix_view(value);
     double output = 0.0;
     const auto status = lmmc_cond(&input, &output);
     return lmmc_real_result("linalg.condition_number", status, output);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 namespace {
@@ -295,24 +333,45 @@ AdtObj* linalg_matrix_field(
 }
 } // namespace
 
-extern "C" LM_API AdtObj* lmx_linear_algebra_eigen_real_values(AdtObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_eigen_real_values(AdtObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return linalg_matrix_field(value, "EigenResult", 0);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_linear_algebra_eigen_imag_values(AdtObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_eigen_imag_values(AdtObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return linalg_matrix_field(value, "EigenResult", 1);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_linear_algebra_eigen_real_vectors(AdtObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_eigen_real_vectors(AdtObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return linalg_matrix_field(value, "EigenResult", 2);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_linear_algebra_eigen_imag_vectors(AdtObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_eigen_imag_vectors(AdtObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return linalg_matrix_field(value, "EigenResult", 3);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_linear_algebra_svd_u(AdtObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_svd_u(AdtObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return linalg_matrix_field(value, "SvdResult", 0);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_linear_algebra_svd_s(AdtObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_svd_s(AdtObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return linalg_matrix_field(value, "SvdResult", 1);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_linear_algebra_svd_vt(AdtObj* value) {
+extern "C" LM_API AdtObj* lmx_linear_algebra_svd_vt(AdtObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return linalg_matrix_field(value, "SvdResult", 2);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

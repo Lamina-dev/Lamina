@@ -1,45 +1,90 @@
 import std
 import std.cas.calculus
-import std.cas.series
 import std.cas.complex_analysis
+import std.cas.series
 
 sym x, y, n, t, z
-sym fallback
 let zero = std.cas.parse("0")
 let one = std.cas.parse("1")
-let four_approx = std.cas.parse("4.0")
-let pi_value = std.cas.pi()
+let two = std.cas.parse("2")
+let three = std.cas.parse("3")
+let four = std.cas.parse("4")
 
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
+std.printf("%s|", std.cas.to_text(calculus.implicit_differentiate(
+    std.cas.parse("x^2 + y^2 - 1"), x, y)))
+{
+    let values = calculus.gradient(std.cas.parse("x^2 + y^2"), [x, y])
+    std.printf("%s|%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]))
+}
+std.printf("%s|", std.cas.to_text(
+    calculus.laplacian(std.cas.parse("x^2 + y^2"), [x, y])))
+std.printf("%s|", std.cas.to_text(
+    calculus.log_differentiate(std.cas.parse("x^3"), x)))
+std.printf("%s|", std.cas.to_text(
+    calculus.inverse_derivative(x, x, four)))
+std.printf("%s|", calculus.continuity_at(std.cas.parse("x^2"), x, zero))
+std.printf("%s|", std.cas.to_text(
+    calculus.curvature(std.cas.parse("x^2"), x)))
+std.printf("%s|", std.cas.to_text(
+    calculus.curvature_parametric(t, std.cas.parse("t^2"), t)))
+std.printf("%s|", std.cas.to_text(
+    calculus.volume_revolution_x(x, zero, one)))
+std.printf("%s|", std.cas.to_text(
+    calculus.arc_length_x(zero, zero, one)))
+std.printf("%s|", std.cas.to_text(
+    calculus.volume_revolution_y(x, zero, one)))
+std.printf("%s|", std.cas.to_text(
+    calculus.arc_length_y(zero, zero, one)))
+std.printf("%s|", std.cas.to_text(calculus.integrate_multiple(
+    std.cas.parse("x*y"), [x, y], [zero, zero], [one, one])))
+std.printf("%s|", std.cas.to_text(calculus.surface_area_revolution_x(
+    zero, x, zero, one)))
+std.printf("%s|", std.cas.to_text(calculus.surface_area_revolution_y(
+    one, x, zero, one)))
+{
+    let values = std.cas.set_to_array(
+        calculus.inverse_function(std.cas.parse("x^2"), x, four))
+    std.printf("%s|", std.cas.to_text(values[0]))
+}
+{
+    let values = std.cas.set_to_array(
+        calculus.inflection_points(std.cas.parse("x^3"), x))
+    std.printf("%s|", std.cas.to_text(values[0]))
+}
 
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
+std.printf("%s|", std.cas.to_text(
+    series.laurent(std.cas.parse("1/x"), x, zero, 2, 2)))
+std.printf("%s|", std.cas.to_text(
+    series.asymptotic(one, x, 3)))
+std.printf("%s|", std.cas.to_text(
+    series.symbolic_sum(n, n, one, three)))
+std.printf("%s|", std.cas.to_text(
+    series.symbolic_product(n, n, one, three)))
+{
+    let values = series.add([one, two], [three, four])
+    std.printf("%s,%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]))
+}
+{
+    let values = series.multiply([one, one], [one, one], 3)
+    std.printf("%s,%s,%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]), std.cas.to_text(values[2]))
+}
+{
+    let values = series.compose([one, two], [zero, one], 2)
+    std.printf("%s,%s|", std.cas.to_text(values[0]),
+        std.cas.to_text(values[1]))
+}
+std.printf("%s|", std.cas.to_text(
+    series.convergence_radius([one, one, one], n)))
+std.printf("%s|", std.cas.to_text(
+    series.limit_inferior(std.cas.parse("1/n"), n)))
+std.printf("%s|", std.cas.to_text(
+    series.limit_superior(std.cas.parse("1/n"), n)))
 
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1,")
-std.printf("1")
+std.printf("%s|", std.cas.to_text(
+    complex_analysis.residue(std.cas.parse("1/z"), z, zero, 1)))
+std.printf("%d|", complex_analysis.is_analytic(std.cas.parse("z^2"), z))
+std.printf("%s", std.cas.to_text(
+    complex_analysis.real_part(std.cas.parse("1 + 2*I"))))

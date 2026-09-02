@@ -106,7 +106,8 @@ AdtObj* tensor3_stat(
 } // namespace
 
 extern "C" LM_API AdtObj* lmx_tensor_from_flat(
-    VectorObj* values, ArrayObj* shape) {
+    VectorObj* values, ArrayObj* shape) noexcept try {
+    ensure_lmmc_runtime();
     if (!values) return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.from_flat: null values");
     std::vector<std::size_t> dimensions;
     std::size_t count = 0;
@@ -126,23 +127,29 @@ extern "C" LM_API AdtObj* lmx_tensor_from_flat(
     if (status == LMMC_STATUS_OK)
         std::copy(values->data().begin(), values->data().end(), output.data);
     return tensor_output("tensor.from_flat", status, output);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API ArrayObj* lmx_tensor_shape(TensorObj* value) {
-    auto* result = new ArrayObj();
-    if (!value || !value->valid()) return result;
+extern "C" LM_API ArrayObj* lmx_tensor_shape(TensorObj* value) noexcept try {
+    ensure_lmmc_runtime();
+    auto result = make_owned_object<ArrayObj>();
+    if (!value || !value->valid()) return result.release();
     for (std::size_t axis = 0; axis < value->tensor().ndim; ++axis) {
         if (value->tensor().dims[axis] >
             static_cast<std::size_t>(std::numeric_limits<LmInt>::max()))
-            return result;
+            return result.release();
         result->append(
             Value(static_cast<LmInt>(value->tensor().dims[axis])));
     }
-    return result;
+    return result.release();
+} catch (...) {
+    return nullptr;
 }
 
 extern "C" LM_API AdtObj* lmx_tensor_element_at(
-    TensorObj* value, ArrayObj* indices) {
+    TensorObj* value, ArrayObj* indices) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid())
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.get: invalid tensor");
     std::vector<std::size_t> checked_indices;
@@ -154,10 +161,13 @@ extern "C" LM_API AdtObj* lmx_tensor_element_at(
     const auto status = lmmc_tensor_get_nd(
         &value->tensor(), checked_indices.data(), &output);
     return lmmc_real_result("tensor.get", status, output);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_tensor_reshape(
-    TensorObj* value, ArrayObj* shape) {
+    TensorObj* value, ArrayObj* shape) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid())
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.reshape: invalid tensor");
     std::vector<std::size_t> dimensions;
@@ -172,10 +182,13 @@ extern "C" LM_API AdtObj* lmx_tensor_reshape(
         return result_error(status, "tensor.reshape");
     return result_ok(
         new TensorObj(value->storage(), view), ValueKind::Tensor);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_tensor_permute(
-    TensorObj* value, ArrayObj* permutation) {
+    TensorObj* value, ArrayObj* permutation) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid())
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.permute: invalid tensor");
     std::vector<std::size_t> axes;
@@ -187,11 +200,14 @@ extern "C" LM_API AdtObj* lmx_tensor_permute(
     return tensor_output(
         "tensor.permute",
         lmmc_tensor_permute(&value->tensor(), axes.data(), &output), output);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_tensor_contract(
     TensorObj* lhs, TensorObj* rhs, ArrayObj* lhs_axes,
-    ArrayObj* rhs_axes) {
+    ArrayObj* rhs_axes) noexcept try {
+    ensure_lmmc_runtime();
     if (!lhs || !rhs || !lhs->valid() || !rhs->valid())
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.contract: invalid tensor");
     std::vector<std::size_t> left_axes;
@@ -208,10 +224,13 @@ extern "C" LM_API AdtObj* lmx_tensor_contract(
             &lhs->tensor(), &rhs->tensor(), left_axes.data(),
             right_axes.data(), left_axes.size(), &output),
         output);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_tensor_mode_n_product(
-    TensorObj* value, MatrixObj* matrix, const LmInt mode) {
+    TensorObj* value, MatrixObj* matrix, const LmInt mode) noexcept try {
+    ensure_lmmc_runtime();
     if (!value || !value->valid() || !matrix || !matrix->valid() || mode < 0)
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.mode_n_product: invalid argument");
     auto input_matrix = matrix_view(matrix);
@@ -222,27 +241,42 @@ extern "C" LM_API AdtObj* lmx_tensor_mode_n_product(
             &value->tensor(), &input_matrix,
             static_cast<std::size_t>(mode), &output),
         output);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_tensor_add(
-    TensorObj* lhs, TensorObj* rhs) {
+    TensorObj* lhs, TensorObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     return tensor3_binary("tensor.add", lhs, rhs, lmmc_tensor_add);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_tensor_subtract(
-    TensorObj* lhs, TensorObj* rhs) {
+    TensorObj* lhs, TensorObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     return tensor3_binary("tensor.sub", lhs, rhs, lmmc_tensor_sub);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_tensor_multiply(
-    TensorObj* lhs, TensorObj* rhs) {
+    TensorObj* lhs, TensorObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     return tensor3_binary("tensor.mul", lhs, rhs, lmmc_tensor_mul);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_tensor_divide(
-    TensorObj* lhs, TensorObj* rhs) {
+    TensorObj* lhs, TensorObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     return tensor3_binary("tensor.div", lhs, rhs, lmmc_tensor_div);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_tensor_scale(
-    TensorObj* value, const double scalar) {
+    TensorObj* value, const double scalar) noexcept try {
+    ensure_lmmc_runtime();
     auto input = tensor3_view(value);
     if (!input.data || !std::isfinite(scalar))
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.scale: invalid argument");
@@ -257,23 +291,38 @@ extern "C" LM_API AdtObj* lmx_tensor_scale(
     }
     auto nd = tensor3_to_nd(output);
     return result_ok(new TensorObj(std::move(nd)), ValueKind::Tensor);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_tensor_norm(TensorObj* value) {
+extern "C" LM_API AdtObj* lmx_tensor_norm(TensorObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return tensor3_stat("tensor.norm", value, lmmc_tensor_norm_fro);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_tensor_sum(TensorObj* value) {
+extern "C" LM_API AdtObj* lmx_tensor_sum(TensorObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return tensor3_stat("tensor.sum", value, lmmc_tensor_sum);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_tensor_minimum(TensorObj* value) {
+extern "C" LM_API AdtObj* lmx_tensor_minimum(TensorObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return tensor3_stat("tensor.min", value, lmmc_tensor_min);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_tensor_maximum(TensorObj* value) {
+extern "C" LM_API AdtObj* lmx_tensor_maximum(TensorObj* value) noexcept try {
+    ensure_lmmc_runtime();
     return tensor3_stat("tensor.max", value, lmmc_tensor_max);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_tensor_sum_axis(
-    TensorObj* value, const LmInt axis) {
+    TensorObj* value, const LmInt axis) noexcept try {
+    ensure_lmmc_runtime();
     auto input = tensor3_view(value);
     if (!input.data || axis < 0 || axis > 2)
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.sum_axis: invalid argument");
@@ -285,12 +334,15 @@ extern "C" LM_API AdtObj* lmx_tensor_sum_axis(
         status = lmmc_tensor_sum_axis(
             &input, static_cast<std::size_t>(axis), &output);
     return lmmc_matrix_output("tensor.sum_axis", status, output);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_tensor_slice(
     TensorObj* value, const LmInt begin0, const LmInt end0,
     const LmInt begin1, const LmInt end1,
-    const LmInt begin2, const LmInt end2) {
+    const LmInt begin2, const LmInt end2) noexcept try {
+    ensure_lmmc_runtime();
     auto input = tensor3_view(value);
     if (!input.data || begin0 < 0 || begin1 < 0 || begin2 < 0 ||
         end0 < 0 || end1 < 0 || end2 < 0)
@@ -306,4 +358,6 @@ extern "C" LM_API AdtObj* lmx_tensor_slice(
     auto nd = tensor3_to_nd(output);
     return result_ok(
         new TensorObj(value->storage(), nd), ValueKind::Tensor);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

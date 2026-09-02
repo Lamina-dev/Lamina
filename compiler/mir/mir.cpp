@@ -11,7 +11,7 @@ MirExpr::MirExpr(const MirExprKind kind) noexcept : kind(kind) {}
 MirLiteralExpr::MirLiteralExpr(MirLiteralKind kind, std::string data) noexcept
     : MirExpr(MirExprKind::Literal), literal_kind(kind), data(std::move(data)) {}
 
-MirRefExpr::MirRefExpr(std::string name, bool is_temp) noexcept : MirExpr(MirExprKind::Ref), name(std::move(name)), is_temp(is_temp) {}
+MirRefExpr::MirRefExpr(std::string name, bool is_temp) noexcept : MirExpr(MirExprKind::Ref), is_temp(is_temp), name(std::move(name)) {}
 MirTempAssign::MirTempAssign(std::string name, std::shared_ptr<MirExpr> expr) noexcept
     : MirNode(MirNodeKind::TempAssign), name(std::move(name)), expr(std::move(expr)) {}
 MirExprNode::MirExprNode(std::shared_ptr<MirExpr> expr) noexcept : MirNode(MirNodeKind::Expr), expr(std::move(expr)) {}

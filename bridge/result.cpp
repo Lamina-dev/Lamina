@@ -36,8 +36,10 @@ AdtObj* expression_set_literal_result(const lamina::lsr::ExprSetResult& result) 
     if (!result) return result_error(result.error());
     std::vector<Value> values;
     values.reserve(result.value().size());
-    for (const auto& expression : result.value().elements())
-        values.emplace_back(new ExprObj(expression), ValueKind::Expr);
+    for (const auto& expression : result.value().elements()) {
+        values.emplace_back(take_object_value(
+            make_owned_object<ExprObj>(expression), ValueKind::Expr));
+    }
     return result_ok(
         new lmx::runtime::LiteralObj(
             lmx::runtime::LiteralObj::Kind::Set, std::move(values)),

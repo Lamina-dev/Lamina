@@ -27,7 +27,7 @@ cmake --build build --parallel
 | `liblamina`                  | 共享库         | 运行时 + 编译器，导出 C ABI（`lmx.h`） |
 | `laminac` / `lamina_runtime` | OBJECT 库      | 编译器前端 / 虚拟机                    |
 | `lmcas`                      | cas计算库      | 仓库LMCAS构建产物                      |
-| `Lammpore`                   | 核心数字计算库 | 仓库LAMMP构建产物                      |
+| `lmmp`                       | 核心数字计算库 | 仓库 LMMP 构建产物                     |
 运行：
 
 ```bash
@@ -175,4 +175,4 @@ main.cpp          lamina CLI
 | LSR 011 | 代数数据类型         | Draft   | 未实现                                                                                                                                                             |
 | LSR 012 | 元组类型             | Draft   | 部分实现，解构尚未实现                                                                                                                                             |
 | LSR 013 | 集合类型             | Draft   | 未实现                                                                                                                                                             |
-| LSR 015 | LAMMP 接口           | Draft   | 不适用                                                                                                                                                             |
+| LSR 015 | LMMP 接口            | Draft   | 不适用                                                                                                                                                             |

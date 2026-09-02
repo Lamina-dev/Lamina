@@ -1,0 +1,119 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 26,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "LMX_BUILD_TESTS": "ON",
+        "LMX_ENABLE_LTO": "OFF",
+        "LMX_FAST_BUILD": "ON",
+        "LMCAS_LMMP_ASM": "AUTO"
+      }
+    },
+    {
+      "name": "strict-debug",
+      "displayName": "Strict debug build",
+      "inherits": "base",
+      "cacheVariables": {
+        "LMX_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "linux-asan-ubsan",
+      "displayName": "Linux AddressSanitizer and UndefinedBehaviorSanitizer",
+      "inherits": "strict-debug",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "LMX_ENABLE_SANITIZERS": "ON"
+      }
+    },
+    {
+      "name": "linux-tsan",
+      "displayName": "Linux ThreadSanitizer",
+      "inherits": "strict-debug",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "LMX_ENABLE_TSAN": "ON"
+      }
+    },
+    {
+      "name": "static-analysis",
+      "displayName": "Strict debug with clang-tidy",
+      "inherits": "strict-debug",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "LMX_ENABLE_CLANG_TIDY": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "strict-debug",
+      "configurePreset": "strict-debug",
+      "jobs": 4
+    },
+    {
+      "name": "linux-asan-ubsan",
+      "configurePreset": "linux-asan-ubsan",
+      "jobs": 4
+    },
+    {
+      "name": "linux-tsan",
+      "configurePreset": "linux-tsan",
+      "jobs": 4
+    },
+    {
+      "name": "static-analysis",
+      "configurePreset": "static-analysis",
+      "jobs": 4
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "strict-debug",
+      "configurePreset": "strict-debug",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 4, "timeout": 300 }
+    },
+    {
+      "name": "linux-asan-ubsan",
+      "configurePreset": "linux-asan-ubsan",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 4, "timeout": 300 },
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:strict_string_checks=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      }
+    },
+    {
+      "name": "linux-tsan",
+      "configurePreset": "linux-tsan",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 4, "timeout": 300 },
+      "environment": {
+        "TSAN_OPTIONS": "halt_on_error=1:second_deadlock_stack=1"
+      }
+    }
+  ]
+}

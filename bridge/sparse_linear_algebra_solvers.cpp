@@ -28,8 +28,8 @@ AdtObj* iterative_options(const lmmc_itersolve_config_t& config,
     fields.emplace_back(config.rel_tol);
     fields.emplace_back(static_cast<LmInt>(config.max_iter));
     fields.emplace_back(static_cast<LmInt>(config.restart));
-    fields.emplace_back(static_cast<lmx::runtime::Object*>(
-        new StringObj(preconditioner)));
+    fields.emplace_back(take_object_value(
+        make_owned_object<StringObj>(preconditioner), ValueKind::Obj));
     fields.emplace_back(ilut_drop_tolerance);
     fields.emplace_back(ilut_max_fill);
     return result_ok(
@@ -125,7 +125,8 @@ AdtObj* iterative_result(
                               std::numeric_limits<LmInt>::max()))
         return result_error(MathErrorCode::NumericalFailure, __func__, "iterative solver iteration count overflow");
     std::vector<Value> fields;
-    fields.emplace_back(new VectorObj(std::move(solution)), ValueKind::Vector);
+    fields.emplace_back(take_object_value(
+        make_owned_object<VectorObj>(std::move(solution)), ValueKind::Vector));
     fields.emplace_back(result.converged != 0);
     fields.emplace_back(static_cast<LmInt>(result.num_iter));
     fields.emplace_back(result.initial_residual_norm);
@@ -225,7 +226,8 @@ AdtObj* run_iterative_solver(
 } // namespace
 
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_solve_with_lower_upper_factorization(
-    SparseMatrixObj* matrix, VectorObj* rhs) {
+    SparseMatrixObj* matrix, VectorObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     if (!matrix || !matrix->valid() || !rhs)
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse.lu_solve: invalid argument");
     lmmc_sparse_lu_t* factor = nullptr;
@@ -241,10 +243,13 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_solve_with_lower_upper_facto
     if (status != LMMC_STATUS_OK)
         return result_error(status, "sparse.lu_solve");
     return result_ok(new VectorObj(std::move(data)), ValueKind::Vector);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_cholesky_solve(
-    SparseMatrixObj* matrix, VectorObj* rhs) {
+    SparseMatrixObj* matrix, VectorObj* rhs) noexcept try {
+    ensure_lmmc_runtime();
     if (!matrix || !matrix->valid() || !rhs)
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse.cholesky_solve: invalid argument");
     lmmc_sparse_chol_t* factor = nullptr;
@@ -260,9 +265,12 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_cholesky_solve(
     if (status != LMMC_STATUS_OK)
         return result_error(status, "sparse.cholesky_solve");
     return result_ok(new VectorObj(std::move(data)), ValueKind::Vector);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_default_options(const LmInt size) {
+extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_default_options(const LmInt size) noexcept try {
+    ensure_lmmc_runtime();
     if (size <= 0)
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse.default_options: invalid size");
     lmmc_itersolve_config_t config{};
@@ -271,46 +279,75 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_default_options(const LmInt 
     if (status != LMMC_STATUS_OK)
         return result_error(status, "sparse.default_options");
     return iterative_options(config, "none", 1e-4, 20);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_conjugate_gradient(
-    SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) {
+    SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) noexcept try {
+    ensure_lmmc_runtime();
     return run_iterative_solver(0, matrix, rhs, options, nullptr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_biconjugate_gradient_stabilized(
-    SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) {
+    SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) noexcept try {
+    ensure_lmmc_runtime();
     return run_iterative_solver(1, matrix, rhs, options, nullptr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_generalized_minimal_residual(
-    SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) {
+    SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) noexcept try {
+    ensure_lmmc_runtime();
     return run_iterative_solver(2, matrix, rhs, options, nullptr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_minimum_residual(
-    SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) {
+    SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) noexcept try {
+    ensure_lmmc_runtime();
     return run_iterative_solver(3, matrix, rhs, options, nullptr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_least_squares_orthogonal_triangular(
-    SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) {
+    SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) noexcept try {
+    ensure_lmmc_runtime();
     return run_iterative_solver(4, matrix, rhs, options, nullptr);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_minres_operator(
-    const lmx::runtime::FuncObj* operation, VectorObj* rhs, AdtObj* options) {
+    const lmx::runtime::FuncObj* operation, VectorObj* rhs, AdtObj* options) noexcept try {
+    ensure_lmmc_runtime();
     return run_iterative_solver(3, nullptr, rhs, options, operation);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_lsqr_operator(
-    const lmx::runtime::FuncObj* operation, VectorObj* rhs, AdtObj* options) {
+    const lmx::runtime::FuncObj* operation, VectorObj* rhs, AdtObj* options) noexcept try {
+    ensure_lmmc_runtime();
     return run_iterative_solver(4, nullptr, rhs, options, operation);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_iterative_solution(AdtObj* result) {
+extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_iterative_solution(AdtObj* result) noexcept try {
+    ensure_lmmc_runtime();
     if (!result || result->type_name() != "IterativeResult")
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse: expected IterativeResult");
     const auto* field = result->field(0);
     if (!field || field->kind != ValueKind::Vector || !field->obj)
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse: invalid IterativeResult");
     return result_ok(field->obj->get(), ValueKind::Vector);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
-extern "C" LM_API bool lmx_sparse_linear_algebra_iterative_converged(AdtObj* result) {
+extern "C" LM_API bool lmx_sparse_linear_algebra_iterative_converged(AdtObj* result) noexcept try {
+    ensure_lmmc_runtime();
     const auto* field = result ? result->field(1) : nullptr;
     return field && field->kind == ValueKind::Bool && field->bool_val;
+} catch (...) {
+    return false;
 }
