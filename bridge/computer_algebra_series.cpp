@@ -67,10 +67,8 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_fourier_by_name(
     std::string error; const auto* f = checked_expr(value, error);
     const auto* p = checked_expr(period, error);
     if (!f || !p) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    auto result = lamina::fourier_series(
-        *f, variable, *p, static_cast<int>(terms));
-    return result ? result_ok(new ExprObj(std::move(result)), ValueKind::Expr)
-                  : result_error(MathErrorCode::UnsupportedExpression, __func__, "series.fourier_series: unsupported");
+    return checked_expr_result(lamina::fourier_series_checked(
+        *f, variable, *p, static_cast<int>(terms)));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

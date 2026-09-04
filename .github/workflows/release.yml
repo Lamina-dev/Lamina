@@ -98,7 +98,7 @@ jobs:
         run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
 
       - name: Configure CMake
-        run: cmake -S . -B build-quality -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=OFF -DLMX_WARNINGS_AS_ERRORS=ON ${{ matrix.cmake_flags }} -DLMCAS_LMMP_ASM=AUTO
+        run: cmake -S . -B build-quality -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=OFF -DLMX_WARNINGS_AS_ERRORS=ON ${{ matrix.cmake_flags }} -DLMCAS_LMMP_ASM=GENERIC
 
       - name: Build
         run: cmake --build build-quality --target lamina test_bridge_error_boundary test_compilation_pipeline test_runtime_values --parallel 4

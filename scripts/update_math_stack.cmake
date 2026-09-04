@@ -41,23 +41,3 @@ if(status_output MATCHES "(^|\n)[+U-]")
     message(FATAL_ERROR
         "submodule checkout differs from a recorded gitlink:\n${status_output}")
 endif()
-
-execute_process(
-    COMMAND "${CMAKE_COMMAND}"
-        "-DDYNCALL_SRC=${ROOT}/external/dyncall"
-        -P "${ROOT}/scripts/patch_dyncall.cmake"
-    RESULT_VARIABLE dyncall_patch_result
-)
-if(NOT dyncall_patch_result EQUAL 0)
-    message(FATAL_ERROR "failed to apply the pinned dyncall build patch")
-endif()
-
-execute_process(
-    COMMAND "${CMAKE_COMMAND}"
-        "-DLMMP_SRC=${ROOT}/external/LMCAS/LMMC/LMMP"
-        -P "${ROOT}/scripts/patch_lmmp.cmake"
-    RESULT_VARIABLE lmmp_patch_result
-)
-if(NOT lmmp_patch_result EQUAL 0)
-    message(FATAL_ERROR "failed to apply the pinned LMMP warning patch")
-endif()
