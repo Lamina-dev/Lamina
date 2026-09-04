@@ -109,27 +109,27 @@ lmx_ensure_submodule(LMCAS "${LMX_LMCAS_SOURCE_DIR}" "CMakeLists.txt")
 lmx_ensure_submodule(LMCAS "${LMX_LMCAS_SOURCE_DIR}/LMMC" "CMakeLists.txt")
 lmx_ensure_submodule(LMMP "${LMX_LMCAS_SOURCE_DIR}/LMMC/LMMP" "CMakeLists.txt")
 
-
+# dyncall's pinned CMake files need compatibility fixes for modern CMake and
+# clang-cl. Apply them to a binary-tree staging copy so configuration never
+# modifies the checked-out dependency.
+set(LMX_DYNCALL_BUILD_SOURCE_DIR
+    "${CMAKE_BINARY_DIR}/_deps/dyncall-src")
+file(REMOVE_RECURSE "${LMX_DYNCALL_BUILD_SOURCE_DIR}")
+file(MAKE_DIRECTORY "${LMX_DYNCALL_BUILD_SOURCE_DIR}")
+file(COPY "${LMX_DYNCALL_SOURCE_DIR}/"
+    DESTINATION "${LMX_DYNCALL_BUILD_SOURCE_DIR}"
+    PATTERN ".git" EXCLUDE)
 execute_process(
     COMMAND "${CMAKE_COMMAND}"
-        "-DDYNCALL_SRC=${LMX_DYNCALL_SOURCE_DIR}"
+        "-DDYNCALL_SRC=${LMX_DYNCALL_BUILD_SOURCE_DIR}"
         -P "${CMAKE_SOURCE_DIR}/scripts/patch_dyncall.cmake"
     RESULT_VARIABLE lmx_dyncall_patch_result
 )
 if(NOT lmx_dyncall_patch_result EQUAL 0)
-    message(FATAL_ERROR "Failed to apply the dyncall build patch")
-endif()
-execute_process(
-    COMMAND "${CMAKE_COMMAND}"
-        "-DLMMP_SRC=${LMX_LMCAS_SOURCE_DIR}/LMMC/LMMP"
-        -P "${CMAKE_SOURCE_DIR}/scripts/patch_lmmp.cmake"
-    RESULT_VARIABLE lmx_lmmp_patch_result
-)
-if(NOT lmx_lmmp_patch_result EQUAL 0)
-    message(FATAL_ERROR "Failed to apply the LMMP warning patch")
+    message(FATAL_ERROR "Failed to prepare the staged dyncall source tree")
 endif()
 include_directories(include)
-include_directories(${LMX_DYNCALL_SOURCE_DIR})
+include_directories(${LMX_DYNCALL_BUILD_SOURCE_DIR})
 include_directories(${LMX_LMCAS_SOURCE_DIR}/include)
 include_directories(${LMX_LMCAS_SOURCE_DIR}/LMMC/include)
 include_directories(${LMX_LMCAS_SOURCE_DIR}/LMMC/LMMP/include)
@@ -148,7 +148,7 @@ endif()
 if(NOT DEFINED DYNCALL_BUILD_EXAMPLES)
     set(DYNCALL_BUILD_EXAMPLES OFF CACHE BOOL "Build dyncall examples")
 endif()
-add_subdirectory("${LMX_DYNCALL_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external/dyncall" EXCLUDE_FROM_ALL)
+add_subdirectory("${LMX_DYNCALL_BUILD_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external/dyncall" EXCLUDE_FROM_ALL)
 
 
 
@@ -238,6 +238,8 @@ set(LMCAS_ENABLE_SANITIZERS "${LMX_ENABLE_SANITIZERS}")
 set(LMCAS_ENABLE_TSAN "${LMX_ENABLE_TSAN}")
 set(LMMC_ENABLE_SANITIZERS "${LMX_ENABLE_SANITIZERS}")
 set(LMMC_ENABLE_TSAN "${LMX_ENABLE_TSAN}")
+set(LMCAS_ENABLE_CLANG_TIDY "${LMX_ENABLE_CLANG_TIDY}")
+set(LMMC_ENABLE_CLANG_TIDY "${LMX_ENABLE_CLANG_TIDY}")
 if(NOT DEFINED LMMP_BUILD_TESTS)
     set(LMMP_BUILD_TESTS OFF)
 endif()
