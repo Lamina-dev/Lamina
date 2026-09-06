@@ -4,7 +4,7 @@
 #include "bridge/unit_bridge.hpp"
 #include <cstdarg>
 #include "bridge/linear_algebra_internal.hpp"
-#include "lmmc/lsr_stdlib.h"
+#include "lmmc/stdlib.h"
 #include "lmmc/linear_algebra.h"
 
 using namespace lmx::bridge;
@@ -119,7 +119,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_matrix_norm(MatrixObj* value) noexc
 extern "C" LM_API AdtObj* lmx_linear_algebra_transpose(MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_unary_result("matrix_transpose", value,
-                                    lmmc_lsr_linalg_transpose);
+                                    lmmc_std_linalg_transpose);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -127,7 +127,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_transpose(MatrixObj* value) noexcep
 extern "C" LM_API AdtObj* lmx_linear_algebra_multiply(MatrixObj* lhs, MatrixObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_binary_result("matrix_mul", lhs, rhs,
-                                     lmmc_lsr_linalg_matmul);
+                                     lmmc_std_linalg_matmul);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -140,7 +140,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_matrix_vector_product(MatrixObj* ma
     auto input_matrix = matrix_view(matrix);
     auto input_vector = vector_view(vector);
     lmmc_vec_t output{};
-    const auto status = lmmc_lsr_linalg_matvec(&input_matrix, &input_vector,
+    const auto status = lmmc_std_linalg_matvec(&input_matrix, &input_vector,
                                                 &output);
     return lmmc_vector_output("matrix_vector_mul", status, output);
 } catch (...) {
@@ -151,7 +151,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_identity_matrix(const LmInt size) n
     ensure_lmmc_runtime();
     if (size <= 0) return result_error(MathErrorCode::InvalidArgument, __func__, "matrix_eye: size must be positive");
     lmmc_mat_t output{};
-    const auto status = lmmc_lsr_linalg_eye(static_cast<std::size_t>(size),
+    const auto status = lmmc_std_linalg_eye(static_cast<std::size_t>(size),
                                              &output);
     return lmmc_matrix_output("matrix_eye", status, output);
 } catch (...) {
@@ -163,7 +163,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_diagonal_matrix(VectorObj* diagonal
     if (!diagonal) return result_error(MathErrorCode::InvalidArgument, __func__, "matrix_diag: null vector");
     auto input = vector_view(diagonal);
     lmmc_mat_t output{};
-    const auto status = lmmc_lsr_linalg_diag(&input, &output);
+    const auto status = lmmc_std_linalg_diag(&input, &output);
     return lmmc_matrix_output("matrix_diag", status, output);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -172,7 +172,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_diagonal_matrix(VectorObj* diagonal
 extern "C" LM_API AdtObj* lmx_linear_algebra_add(MatrixObj* lhs, MatrixObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_binary_result("matrix_add", lhs, rhs,
-                                     lmmc_lsr_linalg_mat_add);
+                                     lmmc_std_linalg_mat_add);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -180,7 +180,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_add(MatrixObj* lhs, MatrixObj* rhs)
 extern "C" LM_API AdtObj* lmx_linear_algebra_subtract(MatrixObj* lhs, MatrixObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_binary_result("matrix_sub", lhs, rhs,
-                                     lmmc_lsr_linalg_mat_sub);
+                                     lmmc_std_linalg_mat_sub);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -189,7 +189,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_elementwise_multiply(MatrixObj* lhs
                                                     MatrixObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_binary_result("matrix_mul_elements", lhs, rhs,
-                                     lmmc_lsr_linalg_mat_mul_elem);
+                                     lmmc_std_linalg_mat_mul_elem);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -198,7 +198,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_elementwise_divide(MatrixObj* lhs,
                                                     MatrixObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_binary_result("matrix_div_elements", lhs, rhs,
-                                     lmmc_lsr_linalg_mat_div);
+                                     lmmc_std_linalg_mat_div);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -207,7 +207,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_elementwise_power(MatrixObj* base,
                                                     MatrixObj* exponent) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_binary_result("matrix_pow_elements", base, exponent,
-                                     lmmc_lsr_linalg_mat_pow_elem);
+                                     lmmc_std_linalg_mat_pow_elem);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -216,7 +216,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_add_scalar(MatrixObj* value,
                                                   const double scalar) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_scalar_result("matrix_add_scalar", value, scalar,
-                                     lmmc_lsr_linalg_mat_add_scalar);
+                                     lmmc_std_linalg_mat_add_scalar);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -225,7 +225,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_subtract_scalar(MatrixObj* value,
                                                   const double scalar) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_scalar_result("matrix_sub_scalar", value, scalar,
-                                     lmmc_lsr_linalg_mat_sub_scalar);
+                                     lmmc_std_linalg_mat_sub_scalar);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -234,7 +234,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_multiply_scalar(MatrixObj* value,
                                                   const double scalar) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_scalar_result("matrix_mul_scalar", value, scalar,
-                                     lmmc_lsr_linalg_mat_mul_scalar);
+                                     lmmc_std_linalg_mat_mul_scalar);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -243,7 +243,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_divide_scalar(MatrixObj* value,
                                                   const double scalar) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_scalar_result("matrix_div_scalar", value, scalar,
-                                     lmmc_lsr_linalg_mat_div_scalar);
+                                     lmmc_std_linalg_mat_div_scalar);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -252,7 +252,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_power_scalar(MatrixObj* value,
                                                   const double scalar) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_scalar_result("matrix_pow_scalar", value, scalar,
-                                     lmmc_lsr_linalg_mat_pow_scalar);
+                                     lmmc_std_linalg_mat_pow_scalar);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -261,7 +261,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_scale(MatrixObj* value,
                                              const double scalar) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_scalar_result("matrix_scale", value, scalar,
-                                     lmmc_lsr_linalg_mat_scale);
+                                     lmmc_std_linalg_mat_scale);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -274,7 +274,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_integer_power(MatrixObj* value,
     }
     auto input = matrix_view(value);
     lmmc_mat_t output{};
-    const auto status = lmmc_lsr_linalg_mat_pow_int(&input, exponent, &output);
+    const auto status = lmmc_std_linalg_mat_pow_int(&input, exponent, &output);
     return lmmc_matrix_output("matrix_pow_int", status, output);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -283,7 +283,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_integer_power(MatrixObj* value,
 extern "C" LM_API AdtObj* lmx_linear_algebra_adjoint(MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_unary_result("matrix_adjoint", value,
-                                    lmmc_lsr_linalg_adjoint);
+                                    lmmc_std_linalg_adjoint);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -291,7 +291,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_adjoint(MatrixObj* value) noexcept 
 extern "C" LM_API AdtObj* lmx_linear_algebra_inverse(MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_unary_result("matrix_inverse", value,
-                                    lmmc_lsr_linalg_inv);
+                                    lmmc_std_linalg_inv);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -301,7 +301,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_det(MatrixObj* value) noexcept try 
     if (!value || !value->valid()) return result_error(MathErrorCode::InvalidArgument, __func__, "matrix_det: invalid matrix");
     auto input = matrix_view(value);
     lmmc_real_t output = 0.0;
-    const auto status = lmmc_lsr_linalg_det(&input, &output);
+    const auto status = lmmc_std_linalg_det(&input, &output);
     return lmmc_real_result("matrix_det", status, output);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -312,7 +312,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_trace(MatrixObj* value) noexcept tr
     if (!value || !value->valid()) return result_error(MathErrorCode::InvalidArgument, __func__, "matrix_trace: invalid matrix");
     auto input = matrix_view(value);
     lmmc_real_t output = 0.0;
-    const auto status = lmmc_lsr_linalg_trace(&input, &output);
+    const auto status = lmmc_std_linalg_trace(&input, &output);
     return lmmc_real_result("matrix_trace", status, output);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -323,7 +323,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_rank(MatrixObj* value) noexcept try
     if (!value || !value->valid()) return result_error(MathErrorCode::InvalidArgument, __func__, "matrix_rank: invalid matrix");
     auto input = matrix_view(value);
     std::size_t output = 0;
-    const auto status = lmmc_lsr_linalg_rank(&input, &output);
+    const auto status = lmmc_std_linalg_rank(&input, &output);
     if (status != LMMC_STATUS_OK) return result_error(status, "matrix_rank");
     return result_ok(static_cast<LmInt>(output));
 } catch (...) {
@@ -334,7 +334,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_solve_left(MatrixObj* lhs,
                                                   MatrixObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_matrix_binary_result("matrix_solve_left", lhs, rhs,
-                                     lmmc_lsr_linalg_solve_left);
+                                     lmmc_std_linalg_solve_left);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -348,7 +348,7 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_solve_right(MatrixObj* lhs,
     auto left = matrix_view(lhs);
     auto right = matrix_view(rhs);
     lmmc_mat_t output{};
-    const auto status = lmmc_lsr_linalg_solve_right(&left, &right, &output);
+    const auto status = lmmc_std_linalg_solve_right(&left, &right, &output);
     return lmmc_matrix_output("matrix_solve_right", status, output);
 } catch (...) {
     return c_abi_current_exception(__func__);

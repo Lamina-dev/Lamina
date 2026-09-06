@@ -17,11 +17,11 @@ using lmx::bridge::math_internal::checked_expr_result;
 /** @brief Adds ordered power-series coefficients. @param lhs Borrowed coefficients. @param rhs Borrowed coefficients. @return Owning Result coefficient array or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_add(ArrayObj* lhs, ArrayObj* rhs) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> a, b; std::string error;
+    std::vector<LMCAS::ExprPtr> a, b; std::string error;
     if (!array_expressions(lhs, a, error) || !array_expressions(rhs, b, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "series.add: " + error);
     auto values = make_owned_object<ArrayObj>();
-    for (const auto& expression : lamina::power_series_add(a, b)) {
+    for (const auto& expression : LMCAS::power_series_add(a, b)) {
         values->append(take_object_value(
             make_owned_object<ExprObj>(expression), ValueKind::Expr));
     }
@@ -35,10 +35,10 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_multiply(
     ensure_lmmc_runtime();
     if (order < 0 || order > std::numeric_limits<int>::max())
         return result_error(MathErrorCode::InvalidArgument, __func__, "series.multiply: invalid order");
-    std::vector<lamina::lsr::ExprPtr> a, b; std::string error;
+    std::vector<LMCAS::ExprPtr> a, b; std::string error;
     if (!array_expressions(lhs, a, error) || !array_expressions(rhs, b, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "series.multiply: " + error);
-    return expr_array_result(lamina::power_series_multiply_checked(
+    return expr_array_result(LMCAS::power_series_multiply_checked(
         a, b, static_cast<int>(order)));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -49,10 +49,10 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_compose(
     ensure_lmmc_runtime();
     if (order < 0 || order > std::numeric_limits<int>::max())
         return result_error(MathErrorCode::InvalidArgument, __func__, "series.compose: invalid order");
-    std::vector<lamina::lsr::ExprPtr> f, g; std::string error;
+    std::vector<LMCAS::ExprPtr> f, g; std::string error;
     if (!array_expressions(outer, f, error) || !array_expressions(inner, g, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "series.compose: " + error);
-    return expr_array_result(lamina::power_series_compose_checked(
+    return expr_array_result(LMCAS::power_series_compose_checked(
         f, g, static_cast<int>(order)));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -67,7 +67,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_fourier_by_name(
     std::string error; const auto* f = checked_expr(value, error);
     const auto* p = checked_expr(period, error);
     if (!f || !p) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(lamina::fourier_series_checked(
+    return checked_expr_result(LMCAS::fourier_series_checked(
         *f, variable, *p, static_cast<int>(terms)));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -78,11 +78,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_convergence_radius_by_name
     ensure_lmmc_runtime();
     if (!variable || variable[0] == '\0')
         return result_error(MathErrorCode::InvalidArgument, __func__, "series.convergence_radius: empty variable");
-    std::vector<lamina::lsr::ExprPtr> values; std::string error;
+    std::vector<LMCAS::ExprPtr> values; std::string error;
     if (!array_expressions(coefficients, values, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "series.convergence_radius: " + error);
     return checked_expr_result(
-        lamina::convergence_radius_checked(values, variable));
+        LMCAS::convergence_radius_checked(values, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -94,10 +94,10 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_convergence_test_by_name(
         return result_error(MathErrorCode::InvalidArgument, __func__, "series.convergence_test: empty variable");
     std::string error; const auto* term = checked_expr(value, error);
     if (!term) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::convergence_test_checked(*term, variable);
+    const auto result = LMCAS::convergence_test_checked(*term, variable);
     if (!result) return result_error(result.error());
-    const char* state = result.value().result == lamina::ConvergenceResult::Convergent
-        ? "convergent" : result.value().result == lamina::ConvergenceResult::Divergent
+    const char* state = result.value().result == LMCAS::ConvergenceResult::Convergent
+        ? "convergent" : result.value().result == LMCAS::ConvergenceResult::Divergent
         ? "divergent" : "inconclusive";
     std::vector<Value> fields;
     fields.emplace_back(take_object_value(
@@ -121,7 +121,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_limit_inferior_by_name(
         return result_error(
             MathErrorCode::InvalidArgument, __func__, std::move(error));
     }
-    return checked_expr_result(lamina::lim_inf_checked(*term, variable));
+    return checked_expr_result(LMCAS::lim_inf_checked(*term, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -137,7 +137,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_limit_superior_by_name(
         return result_error(
             MathErrorCode::InvalidArgument, __func__, std::move(error));
     }
-    return checked_expr_result(lamina::lim_sup_checked(*term, variable));
+    return checked_expr_result(LMCAS::lim_sup_checked(*term, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -152,7 +152,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_total_differential_by_na
         return result_error(MathErrorCode::InvalidArgument, __func__, "calculus.total_differential: " + error);
     auto components = make_owned_object<ArrayObj>();
     for (const auto& [derivative, variable] :
-         lamina::total_differential(*expression, names)) {
+         LMCAS::total_differential(*expression, names)) {
         if (!derivative) {
             return result_error(MathErrorCode::InvalidArgument, __func__,
                 "calculus.total_differential: null derivative");
@@ -191,7 +191,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_log_differentiate_by_nam
         return result_error(MathErrorCode::InvalidArgument, __func__, "calculus.log_differentiate: empty variable");
     return checked_expression_operation("calculus.log_differentiate", value,
         [&](const auto& expression) {
-            return lamina::log_differentiate(expression, variable);
+            return LMCAS::log_differentiate(expression, variable);
         });
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -216,7 +216,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inverse_derivative_by_na
     std::string error; const auto* function = checked_expr(value, error);
     const auto* target = checked_expr(point, error);
     if (!function || !target) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(lamina::inverse_derivative_checked(
+    return checked_expr_result(LMCAS::inverse_derivative_checked(
         *function, variable, *target));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -241,7 +241,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inverse_function_by_name
     std::string error; const auto* function = checked_expr(value, error);
     const auto* y = checked_expr(target, error);
     if (!function || !y) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::inverse_function_checked(*function, variable, *y);
+    const auto result = LMCAS::inverse_function_checked(*function, variable, *y);
     if (!result) return result_error(result.error());
     return math_internal::unordered_expr_result(result.value());
 } catch (...) {
@@ -266,7 +266,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_asymptotes_by_name(
         return result_error(MathErrorCode::InvalidArgument, __func__, "calculus.asymptotes: empty variable");
     std::string error; const auto* function = checked_expr(value, error);
     if (!function) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::asymptotes_checked(*function, variable);
+    const auto result = LMCAS::asymptotes_checked(*function, variable);
     if (!result) return result_error(result.error());
     auto vertical = make_owned_object<ArrayObj>();
     auto horizontal = make_owned_object<ArrayObj>();
@@ -306,12 +306,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_continuity_at_by_name(
     const auto* target = checked_expr(point, error);
     if (!function || !target) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     const auto result =
-        lamina::continuity_at_checked(*function, variable, *target);
+        LMCAS::continuity_at_checked(*function, variable, *target);
     if (!result) return result_error(result.error());
     const auto type = result.value();
-    const char* name = type == lamina::ContinuityType::Continuous ? "continuous"
-        : type == lamina::ContinuityType::Removable ? "removable"
-        : type == lamina::ContinuityType::Jump ? "jump" : "essential";
+    const char* name = type == LMCAS::ContinuityType::Continuous ? "continuous"
+        : type == LMCAS::ContinuityType::Removable ? "removable"
+        : type == LMCAS::ContinuityType::Jump ? "jump" : "essential";
     return result_ok(new StringObj(name), ValueKind::Obj);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -324,7 +324,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inflection_points_by_nam
         return result_error(MathErrorCode::InvalidArgument, __func__, "calculus.inflection_points: empty variable");
     std::string error; const auto* function = checked_expr(value, error);
     if (!function) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::inflection_points_checked(*function, variable);
+    const auto result = LMCAS::inflection_points_checked(*function, variable);
     if (!result) return result_error(result.error());
     return math_internal::unordered_expr_result(result.value());
 } catch (...) {
@@ -338,7 +338,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curvature_by_name(
         return result_error(MathErrorCode::InvalidArgument, __func__, "calculus.curvature: empty variable");
     std::string error; const auto* function = checked_expr(value, error);
     if (!function) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(lamina::curvature_checked(*function, variable));
+    return checked_expr_result(LMCAS::curvature_checked(*function, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -352,7 +352,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curvature_parametric_by_
     const auto* yv = checked_expr(y, error);
     if (!xv || !yv) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return checked_expr_result(
-        lamina::curvature_parametric_checked(*xv, *yv, variable));
+        LMCAS::curvature_parametric_checked(*xv, *yv, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -366,7 +366,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_surface_area_x_by_name(
     const auto* a = checked_expr(lower, error); const auto* b = checked_expr(upper, error);
     if (!f || !a || !b) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return checked_expr_result(
-        lamina::surface_area_revolution_x_checked(*f, variable, *a, *b));
+        LMCAS::surface_area_revolution_x_checked(*f, variable, *a, *b));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -380,7 +380,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_surface_area_y_by_name(
     const auto* a = checked_expr(lower, error); const auto* b = checked_expr(upper, error);
     if (!f || !a || !b) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return checked_expr_result(
-        lamina::surface_area_revolution_y_checked(*f, variable, *a, *b));
+        LMCAS::surface_area_revolution_y_checked(*f, variable, *a, *b));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -391,7 +391,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_volume_y(
     std::string error; const auto* f = checked_expr(value, error);
     const auto* a = checked_expr(lower, error); const auto* b = checked_expr(upper, error);
     if (!f || !a || !b) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(lamina::volume_of_revolution_y_checked(*f, *a, *b));
+    return checked_expr_result(LMCAS::volume_of_revolution_y_checked(*f, *a, *b));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -402,7 +402,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_arc_length_y(
     std::string error; const auto* f = checked_expr(value, error);
     const auto* a = checked_expr(lower, error); const auto* b = checked_expr(upper, error);
     if (!f || !a || !b) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(lamina::arc_length_y_checked(*f, *a, *b));
+    return checked_expr_result(LMCAS::arc_length_y_checked(*f, *a, *b));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -411,21 +411,21 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_integrate_multiple_by_na
     ExprObj* value, ArrayObj* variables, ArrayObj* lowers, ArrayObj* uppers) noexcept try {
     ensure_lmmc_runtime();
     std::string error; const auto* integrand = checked_expr(value, error);
-    std::vector<std::string> names; std::vector<lamina::lsr::ExprPtr> a, b;
+    std::vector<std::string> names; std::vector<LMCAS::ExprPtr> a, b;
     if (!integrand || !array_strings(variables, names, error) ||
         !array_expressions(lowers, a, error) || !array_expressions(uppers, b, error) ||
         names.size() != a.size() || names.size() != b.size())
         return result_error(MathErrorCode::InvalidArgument, __func__, "calculus.integrate_multiple: invalid arrays");
-    std::vector<lamina::IntegrationStep> steps;
+    std::vector<LMCAS::IntegrationStep> steps;
     for (std::size_t index = 0; index < names.size(); ++index)
         steps.push_back({names[index], a[index], b[index]});
-    lamina::Integrator integrator;
-    lamina::ComputationContext context;
-    const auto result = lamina::integrate_multiple_checked(
+    LMCAS::Integrator integrator;
+    LMCAS::ComputationContext context;
+    const auto result = LMCAS::integrate_multiple_checked(
         **integrand, steps, integrator, context);
     if (!result) return result_error(result.error());
     return result_ok(new ExprObj(
-        std::make_shared<SymbolicExpr>(result.value())), ValueKind::Expr);
+        std::make_shared<LMCAS::SymbolicExpr>(result.value())), ValueKind::Expr);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

@@ -19,7 +19,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_laplace_by_na
     if (!value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integral_transforms_laplace_by_names",
                             std::move(error));
-    return transform_engine_result_value(lamina::laplace_transform_checked(
+    return transform_engine_result_value(LMCAS::laplace_transform_checked(
         *value, time_variable ? time_variable : "",
         frequency_variable ? frequency_variable : ""));
 } catch (...) {
@@ -35,7 +35,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_inverse_lapla
     if (!value)
         return result_error(MathErrorCode::InvalidArgument,
                             "lmx_computer_algebra_integral_transforms_inverse_laplace_by_names", std::move(error));
-    return transform_engine_result_value(lamina::inverse_laplace_checked(
+    return transform_engine_result_value(LMCAS::inverse_laplace_checked(
         *value, frequency_variable ? frequency_variable : "",
         time_variable ? time_variable : ""));
 } catch (...) {
@@ -51,7 +51,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_fourier_by_na
     if (!value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integral_transforms_fourier_by_names",
                             std::move(error));
-    return transform_engine_result_value(lamina::fourier_transform_checked(
+    return transform_engine_result_value(LMCAS::fourier_transform_checked(
         *value, time_variable ? time_variable : "",
         frequency_variable ? frequency_variable : ""));
 } catch (...) {
@@ -67,7 +67,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_inverse_fouri
     if (!value)
         return result_error(MathErrorCode::InvalidArgument,
                             "lmx_computer_algebra_integral_transforms_inverse_fourier_by_names", std::move(error));
-    return transform_engine_result_value(lamina::inverse_fourier_transform_checked(
+    return transform_engine_result_value(LMCAS::inverse_fourier_transform_checked(
         *value, frequency_variable ? frequency_variable : "",
         time_variable ? time_variable : ""));
 } catch (...) {
@@ -83,7 +83,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_z_transform_b
     if (!value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integral_transforms_z_transform_by_names",
                             std::move(error));
-    return transform_engine_result_value(lamina::z_transform_checked(
+    return transform_engine_result_value(LMCAS::z_transform_checked(
         *value, index_variable ? index_variable : "",
         frequency_variable ? frequency_variable : ""));
 } catch (...) {
@@ -99,7 +99,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_convolve_by_n
     if (!left || !right)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integral_transforms_convolve_by_name",
                             std::move(error));
-    return transform_engine_result_value(lamina::convolve_checked(
+    return transform_engine_result_value(LMCAS::convolve_checked(
         *left, *right, variable ? variable : ""));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -117,7 +117,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_residue_by_name(
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_residue_by_name",
                             error.empty() ? "invalid order" : std::move(error));
     }
-    return expr_result_ok(lamina::residue_checked(
+    return expr_result_ok(LMCAS::residue_checked(
         *value, variable ? variable : "", *point_value,
         static_cast<int>(order)));
 } catch (...) {
@@ -137,7 +137,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_cauchy_integral_by_name(
                             "lmx_computer_algebra_cauchy_integral_by_name",
                             error.empty() ? "invalid order" : std::move(error));
     }
-    return expr_result_ok(lamina::cauchy_integral_checked(
+    return expr_result_ok(LMCAS::cauchy_integral_checked(
         *value, variable ? variable : "", *point_value,
         static_cast<int>(order)));
 } catch (...) {
@@ -150,7 +150,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_is_analytic_by_name(ExprObj* expr
     std::string error;
     const auto* value = checked_expr(expression, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::is_analytic_checked(
+    const auto result = LMCAS::is_analytic_checked(
         *value, variable ? variable : "");
     if (!result) return result_error(result.error());
     return result_ok(result.value());
@@ -167,7 +167,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_implicit_differentiate_b
         return result_error(MathErrorCode::InvalidArgument,
                             "lmx_computer_algebra_calculus_implicit_differentiate_by_names", std::move(error));
     return expr_pointer_result(
-        lamina::implicit_diff(*value, independent ? independent : "",
+        LMCAS::implicit_diff(*value, independent ? independent : "",
                               dependent ? dependent : ""),
         "lmx_computer_algebra_calculus_implicit_differentiate_by_names");
 } catch (...) {
@@ -188,7 +188,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_laurent_series_by_name(
                             "lmx_computer_algebra_series_laurent_series_by_name",
                             error.empty() ? "invalid order" : std::move(error));
     }
-    return expr_result_ok(lamina::laurent_series_checked(
+    return expr_result_ok(LMCAS::laurent_series_checked(
         *value, variable ? variable : "", *center_value,
         static_cast<int>(negative_order), static_cast<int>(positive_order)));
 } catch (...) {
@@ -205,7 +205,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_asymptotic_by_name(
                             error.empty() ? "invalid order" : std::move(error));
     }
     return expr_pointer_result(
-        lamina::asymptotic_expand(*value, variable ? variable : "",
+        LMCAS::asymptotic_expand(*value, variable ? variable : "",
                                   static_cast<int>(order)),
         "lmx_computer_algebra_series_asymptotic_by_name");
 } catch (...) {
@@ -224,7 +224,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_symbolic_sum_by_name(
         return result_error(MathErrorCode::InvalidArgument,
                             "lmx_computer_algebra_series_symbolic_sum_by_name", std::move(error));
     return expr_pointer_result(
-        lamina::symbolic_sum(*value, variable ? variable : "", *lower_value,
+        LMCAS::symbolic_sum(*value, variable ? variable : "", *lower_value,
                              *upper_value),
         "lmx_computer_algebra_series_symbolic_sum_by_name");
 } catch (...) {
@@ -243,7 +243,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_symbolic_product_by_name(
         return result_error(MathErrorCode::InvalidArgument,
                             "lmx_computer_algebra_series_symbolic_product_by_name", std::move(error));
     return expr_pointer_result(
-        lamina::symbolic_product(*value, variable ? variable : "",
+        LMCAS::symbolic_product(*value, variable ? variable : "",
                                  *lower_value, *upper_value),
         "lmx_computer_algebra_series_symbolic_product_by_name");
 } catch (...) {

@@ -287,7 +287,7 @@ int main() {
         ValueKind::Assumptions);
     const auto assumption_status =
         static_cast<AssumptionsObj*>(copied_assumptions.obj)
-            ->context().assume_domain_checked("x", lamina::Domain::Real);
+            ->context().assume_domain_checked("x", LMCAS::Domain::Real);
     if (!require(static_cast<bool>(assumption_status),
                  "checked assumption mutation must succeed") ||
         !require(empty_assumptions != copied_assumptions,

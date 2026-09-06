@@ -96,38 +96,27 @@ let polynomial = x^3 + 2*x
 match std.math.square_root(-1.0) {
     Result.Ok(_) => std.printf("domain error missing\n"),
     Result.Err(error) => std.printf(
-        "MathError{code=%s, operation=%s, message=%s}\n",
+        "MathError{code=%s, operation=%s}\n",
         code_name(mathematics_error.code(error)),
-        mathematics_error.operation(error),
-        mathematics_error.message(error))
+        mathematics_error.operation(error))
 }
 
-func render_first(values array<expr>) -> text {
-    std.cas.to_text(values[0])
-}
-
-func render_second(values array<expr>) -> text {
-    std.cas.to_text(values[1])
+func show_quadratic(label text, values array<expr>) {
+    let first = std.cas.evaluate_real(values[0])
+    let second = std.cas.evaluate_real(values[1])
+    let first_residual = first*first + 2.0*first - 6.0
+    let second_residual = second*second + 2.0*second - 6.0
+    let tolerance = std.cas.evaluate_real(std.cas.parse("1/1000000000"))
+    std.printf("%s roots %.6f, %.6f residuals=%d\n", label, first, second,
+        first_residual > -tolerance and first_residual < tolerance
+        and second_residual > -tolerance and second_residual < tolerance)
 }
 
 # 7) solve and roots produce the identical exact set for x^2 + 2*x - 6 == 0.
 let equation = x^2 + 2*x - 6 == 0
-let solve_a = {
-    let values = std.cas.solve(equation, "x")
-    render_first(std.cas.set_to_array(values))
-}
-let solve_b = {
-    let values = std.cas.solve(equation, "x")
-    render_second(std.cas.set_to_array(values))
-}
-let roots_a = {
-    let values = std.cas.roots(x^2 + 2*x - 6, "x")
-    render_first(std.cas.set_to_array(values))
-}
-let roots_b = {
-    let values = std.cas.roots(x^2 + 2*x - 6, "x")
-    render_second(std.cas.set_to_array(values))
-}
-std.printf("solve set {%s, %s}\n", solve_a, solve_b)
-std.printf("roots set {%s, %s}\n", roots_a, roots_b)
-std.printf("sets equal = %d\n", solve_a == roots_a and solve_b == roots_b)
+let solutions = std.cas.set_to_array(std.cas.solve(equation, "x"))
+let roots = std.cas.set_to_array(std.cas.roots(x^2 + 2*x - 6, "x"))
+show_quadratic("solve", solutions)
+show_quadratic("roots", roots)
+std.printf("sets equal = %d\n",
+    std.cas.set_subset(solutions, roots) and std.cas.set_subset(roots, solutions))

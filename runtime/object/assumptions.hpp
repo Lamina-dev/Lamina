@@ -9,14 +9,14 @@
 namespace lmx::runtime {
 
 class AssumptionsObj final : public Object {
-    lamina::AssumptionContext context_;
+    LMCAS::AssumptionContext context_;
 
 public:
     AssumptionsObj();
-    explicit AssumptionsObj(lamina::AssumptionContext context);
+    explicit AssumptionsObj(LMCAS::AssumptionContext context);
 
-    [[nodiscard]] lamina::AssumptionContext& context() noexcept { return context_; }
-    [[nodiscard]] const lamina::AssumptionContext& context() const noexcept {
+    [[nodiscard]] LMCAS::AssumptionContext& context() noexcept { return context_; }
+    [[nodiscard]] const LMCAS::AssumptionContext& context() const noexcept {
         return context_;
     }
     [[nodiscard]] AssumptionsObj* copy() const;

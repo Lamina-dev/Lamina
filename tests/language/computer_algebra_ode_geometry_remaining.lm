@@ -19,14 +19,14 @@ std.printf("%s|", std.cas.to_text(
 std.printf("%s|", std.cas.to_text(
     ordinary_differential_equations.solve_first_order_linear(
         zero, one, x, y)))
-std.printf("%s|", std.cas.to_text(
+std.printf("%d|", std.cas.equivalent(
     ordinary_differential_equations.solve_second_order_linear(
         std.int_to_frac(1), std.int_to_frac(0), std.int_to_frac(0),
-        zero, "x", "y")))
-std.printf("%s|", std.cas.to_text(
+        zero, "x", "y"), std.cas.parse("C1 + C2*x")))
+std.printf("%d|", std.cas.equivalent(
     ordinary_differential_equations.solve_second_order_linear(
         std.int_to_frac(1), std.int_to_frac(0), std.int_to_frac(0),
-        zero, x, y)))
+        zero, x, y), std.cas.parse("C1 + C2*x")))
 std.printf("%s|", ordinary_differential_equations.classify_first_order(
     std.cas.parse("x*y"), "x", "y"))
 std.printf("%s|", ordinary_differential_equations.classify_first_order(

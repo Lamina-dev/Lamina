@@ -1,7 +1,7 @@
 #include "bridge/unit_bridge.hpp"
 
 #include "runtime/object/quantity.hpp"
-#include "lmmc/lsr_stdlib.h"
+#include "lmmc/stdlib.h"
 
 
 #include <cctype>
@@ -66,7 +66,7 @@ bool unit_product_expression(const std::string& lhs, const std::string& rhs,
     else if (right == "1") result = lhs;
     else result = lhs + '*' + right;
     int ignored = 0;
-    return lmmc_lsr_units_is_dimensionless(result.c_str(), &ignored) == LMMC_STATUS_OK;
+    return lmmc_std_units_is_dimensionless(result.c_str(), &ignored) == LMMC_STATUS_OK;
 }
 
 AdtObj* quantity_result(const double si_value, std::string unit,
@@ -77,7 +77,7 @@ AdtObj* quantity_result(const double si_value, std::string unit,
                             "non-finite quantity value");
     }
     int ignored = 0;
-    const auto status = lmmc_lsr_units_is_dimensionless(unit.c_str(), &ignored);
+    const auto status = lmmc_std_units_is_dimensionless(unit.c_str(), &ignored);
     if (status != LMMC_STATUS_OK)
         return result_error(status, operation ? operation : "quantity");
     return result_ok(new QuantityObj(si_value, std::move(unit)),

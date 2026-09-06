@@ -1,7 +1,7 @@
 
 #pragma once
 #include "object.hpp"
-#include "lsr_expr.hpp"
+#include "expr.hpp"
 
 #include <string>
 #include <functional>
@@ -10,11 +10,11 @@
 namespace lmx::runtime {
 
 class ExprObj : public Object {
-    lamina::lsr::ExprPtr expr_;
+    LMCAS::ExprPtr expr_;
     std::string error_;
 
 public:
-    explicit ExprObj(lamina::lsr::ExprPtr expr) noexcept
+    explicit ExprObj(LMCAS::ExprPtr expr) noexcept
         : Object(ObjectKind::Expr), expr_(std::move(expr)) {}
 
     explicit ExprObj(std::string error) noexcept
@@ -24,7 +24,7 @@ public:
         return static_cast<bool>(expr_);
     }
 
-    [[nodiscard]] const lamina::lsr::ExprPtr& expr() const noexcept {
+    [[nodiscard]] const LMCAS::ExprPtr& expr() const noexcept {
         return expr_;
     }
 

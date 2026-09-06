@@ -1,6 +1,6 @@
 # Checked-result migration
 
-LMCAS computation APIs now treat `lamina::Result<T>` and `lamina::CasError` as the authoritative failure contract. Callers must inspect a result before reading `value()` and must propagate `error()` without converting every failure to `InvalidArgument`.
+LMCAS computation APIs use the `LMCAS` namespace and treat `LMCAS::Result<T>` and `LMCAS::CasError` as the authoritative failure contract. Callers must inspect a result before reading `value()` and must propagate `error()` without converting every failure to `InvalidArgument`.
 
 ## Replace unchecked calls
 
@@ -17,7 +17,7 @@ Prefer the checked entry point whenever both forms exist:
 The overload without an explicit context remains suitable for a single bounded operation. Multi-step work should share one context so cancellation and resource accounting cover the complete computation.
 
 ```cpp
-lamina::ComputationContext context({
+LMCAS::ComputationContext context({
     .max_steps = 100000,
     .max_recursion_depth = 256,
 });

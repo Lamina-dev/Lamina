@@ -13,7 +13,7 @@ using namespace lmx::bridge;
 
 namespace {
 bool nested_expressions(
-    ArrayObj* rows, std::vector<std::vector<std::shared_ptr<SymbolicExpr>>>& output,
+    ArrayObj* rows, std::vector<std::vector<std::shared_ptr<LMCAS::SymbolicExpr>>>& output,
     std::string& error) {
     if (!rows || rows->values().empty()) {
         error = "matrix requires at least one row";
@@ -26,7 +26,7 @@ bool nested_expressions(
             error = "matrix row is not an array";
             return false;
         }
-        std::vector<lamina::lsr::ExprPtr> row;
+        std::vector<LMCAS::ExprPtr> row;
         if (!array_expressions(
                 static_cast<ArrayObj*>(row_value.obj), row, error))
             return false;
@@ -60,12 +60,12 @@ AdtObj* decomposition_result(
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_from_rows(ArrayObj* rows) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<std::vector<std::shared_ptr<SymbolicExpr>>> values;
+    std::vector<std::vector<std::shared_ptr<LMCAS::SymbolicExpr>>> values;
     std::string error;
     if (!nested_expressions(rows, values, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "matrix.from_rows: " + error);
     return result_ok(
-        new ExprObj(SymbolicExpr::matrix(values)), ValueKind::Expr);
+        new ExprObj(LMCAS::SymbolicExpr::matrix(values)), ValueKind::Expr);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -76,7 +76,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_multiply(
     const auto* left = checked_expr(lhs, error);
     const auto* right = checked_expr(rhs, error);
     if (!left || !right) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::matrix_multiply_checked(*left, *right);
+    const auto result = LMCAS::matrix_multiply_checked(*left, *right);
     if (!result) return result_error(result.error());
     return result_ok(new ExprObj(result.value()), ValueKind::Expr);
 } catch (...) {
@@ -87,7 +87,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_determinant(ExprO
     std::string error;
     const auto* checked = checked_expr(value, error);
     if (!checked) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::matrix_determinant_checked(*checked);
+    const auto result = LMCAS::matrix_determinant_checked(*checked);
     if (!result) return result_error(result.error());
     return result_ok(new ExprObj(result.value()), ValueKind::Expr);
 } catch (...) {
@@ -98,7 +98,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_inverse(ExprObj* 
     std::string error;
     const auto* checked = checked_expr(value, error);
     if (!checked) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::matrix_inverse_checked(*checked);
+    const auto result = LMCAS::matrix_inverse_checked(*checked);
     if (!result) return result_error(result.error());
     return result_ok(new ExprObj(result.value()), ValueKind::Expr);
 } catch (...) {
@@ -110,7 +110,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_lower_upper_decom
     const auto* checked = checked_expr(value, error);
     if (!checked) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return decomposition_result(
-        "SymbolicLU", lamina::lu_decomposition_checked(*checked),
+        "SymbolicLU", LMCAS::lu_decomposition_checked(*checked),
         [](const auto& result) { return std::array{result.P, result.L, result.U}; });
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -121,7 +121,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_orthogonal_triang
     const auto* checked = checked_expr(value, error);
     if (!checked) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return decomposition_result(
-        "SymbolicQR", lamina::qr_decomposition_checked(*checked),
+        "SymbolicQR", LMCAS::qr_decomposition_checked(*checked),
         [](const auto& result) { return std::array{result.Q, result.R}; });
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -132,7 +132,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_cholesky(ExprObj*
     const auto* checked = checked_expr(value, error);
     if (!checked) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return decomposition_result(
-        "SymbolicCholesky", lamina::cholesky_decomposition_checked(*checked),
+        "SymbolicCholesky", LMCAS::cholesky_decomposition_checked(*checked),
         [](const auto& result) { return std::array{result.L}; });
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -143,7 +143,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_singular_value_de
     const auto* checked = checked_expr(value, error);
     if (!checked) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return decomposition_result(
-        "SymbolicSvd", lamina::svd_decomposition_checked(*checked),
+        "SymbolicSvd", LMCAS::svd_decomposition_checked(*checked),
         [](const auto& result) {
             return std::array{result.U, result.S, result.V};
         });
@@ -156,7 +156,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_jordan(ExprObj* v
     const auto* checked = checked_expr(value, error);
     if (!checked) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return decomposition_result(
-        "JordanForm", lamina::jordan_form_checked(*checked),
+        "JordanForm", LMCAS::jordan_form_checked(*checked),
         [](const auto& result) { return std::array{result.J, result.P}; });
 } catch (...) {
     return c_abi_current_exception(__func__);

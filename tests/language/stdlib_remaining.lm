@@ -30,7 +30,6 @@ match std.linalg.matrix([[3.0, 4.0,], [0.0, 0.0,],]) {
 }
 match std.cas.raw.differentiate(x, "") {
     Result.Ok(_) => std.printf("%.1f|unexpected", std.int_to_frac(3)),
-    Result.Err(error) => std.printf("%.1f|CasError(%s in %s: %s)",
-        std.int_to_frac(3), code_name(mathematics_error.code(error)),
-        mathematics_error.operation(error), mathematics_error.message(error))
+    Result.Err(error) => std.printf("%.1f|%s",
+        std.int_to_frac(3), code_name(mathematics_error.code(error)))
 }

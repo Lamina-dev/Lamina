@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <string>
 #include <lmmc/stats.h>
-#include <lmmc/lsr_stdlib.h>
+#include <lmmc/stdlib.h>
 #include <vector>
 
 using namespace lmx::bridge;
@@ -228,7 +228,7 @@ extern "C" LM_API AdtObj* lmx_statistics_normal_probability_density(
     const double x, const double mean, const double stddev) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
-        "stats.normal_probability_density", x, mean, stddev, lmmc_lsr_stats_normal_pdf);
+        "stats.normal_probability_density", x, mean, stddev, lmmc_std_stats_normal_pdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -236,7 +236,7 @@ extern "C" LM_API AdtObj* lmx_statistics_normal_cumulative_distribution(
     const double x, const double mean, const double stddev) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
-        "stats.normal_cumulative_distribution", x, mean, stddev, lmmc_lsr_stats_normal_cdf);
+        "stats.normal_cumulative_distribution", x, mean, stddev, lmmc_std_stats_normal_cdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -245,7 +245,7 @@ extern "C" LM_API AdtObj* lmx_statistics_normal_quantile(
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
         "stats.normal_quantile", p, mean, stddev,
-        lmmc_lsr_stats_normal_quantile);
+        lmmc_std_stats_normal_quantile);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -253,7 +253,7 @@ extern "C" LM_API AdtObj* lmx_statistics_student_t_probability_density(const dou
                                              const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.student_t_probability_density", x, df,
-                                   lmmc_lsr_stats_t_pdf);
+                                   lmmc_std_stats_t_pdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -261,7 +261,7 @@ extern "C" LM_API AdtObj* lmx_statistics_student_t_cumulative_distribution(const
                                              const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.student_t_cumulative_distribution", x, df,
-                                   lmmc_lsr_stats_t_cdf);
+                                   lmmc_std_stats_t_cdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -269,7 +269,7 @@ extern "C" LM_API AdtObj* lmx_statistics_t_quantile(const double p,
                                                   const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.t_quantile", p, df,
-                                   lmmc_lsr_stats_t_quantile);
+                                   lmmc_std_stats_t_quantile);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -277,7 +277,7 @@ extern "C" LM_API AdtObj* lmx_statistics_chi_squared_probability_density(const d
                                                 const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.chi_squared_probability_density", x, df,
-                                   lmmc_lsr_stats_chi2_pdf);
+                                   lmmc_std_stats_chi2_pdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -285,7 +285,7 @@ extern "C" LM_API AdtObj* lmx_statistics_chi_squared_cumulative_distribution(con
                                                 const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.chi_squared_cumulative_distribution", x, df,
-                                   lmmc_lsr_stats_chi2_cdf);
+                                   lmmc_std_stats_chi2_cdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -293,7 +293,7 @@ extern "C" LM_API AdtObj* lmx_statistics_chi2_quantile(const double p,
                                                      const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.chi2_quantile", p, df,
-                                   lmmc_lsr_stats_chi2_quantile);
+                                   lmmc_std_stats_chi2_quantile);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -301,7 +301,7 @@ extern "C" LM_API AdtObj* lmx_statistics_fisher_f_probability_density(
     const double x, const double df1, const double df2) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
-        "stats.fisher_f_probability_density", x, df1, df2, lmmc_lsr_stats_f_pdf);
+        "stats.fisher_f_probability_density", x, df1, df2, lmmc_std_stats_f_pdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -309,7 +309,7 @@ extern "C" LM_API AdtObj* lmx_statistics_fisher_f_cumulative_distribution(
     const double x, const double df1, const double df2) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
-        "stats.fisher_f_cumulative_distribution", x, df1, df2, lmmc_lsr_stats_f_cdf);
+        "stats.fisher_f_cumulative_distribution", x, df1, df2, lmmc_std_stats_f_cdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -317,7 +317,7 @@ extern "C" LM_API AdtObj* lmx_statistics_f_quantile(
     const double p, const double df1, const double df2) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
-        "stats.f_quantile", p, df1, df2, lmmc_lsr_stats_f_quantile);
+        "stats.f_quantile", p, df1, df2, lmmc_std_stats_f_quantile);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -325,7 +325,7 @@ extern "C" LM_API AdtObj* lmx_statistics_gamma_pdf(
     const double x, const double shape, const double scale) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
-        "stats.gamma_pdf", x, shape, scale, lmmc_lsr_stats_gamma_pdf);
+        "stats.gamma_pdf", x, shape, scale, lmmc_std_stats_gamma_pdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -333,7 +333,7 @@ extern "C" LM_API AdtObj* lmx_statistics_gamma_cdf(
     const double x, const double shape, const double scale) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
-        "stats.gamma_cdf", x, shape, scale, lmmc_lsr_stats_gamma_cdf);
+        "stats.gamma_cdf", x, shape, scale, lmmc_std_stats_gamma_cdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -342,7 +342,7 @@ extern "C" LM_API AdtObj* lmx_statistics_gamma_quantile(
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
         "stats.gamma_quantile", p, shape, scale,
-        lmmc_lsr_stats_gamma_quantile);
+        lmmc_std_stats_gamma_quantile);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -350,7 +350,7 @@ extern "C" LM_API AdtObj* lmx_statistics_beta_pdf(
     const double x, const double alpha, const double beta) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
-        "stats.beta_pdf", x, alpha, beta, lmmc_lsr_stats_beta_pdf);
+        "stats.beta_pdf", x, alpha, beta, lmmc_std_stats_beta_pdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -358,7 +358,7 @@ extern "C" LM_API AdtObj* lmx_statistics_beta_cdf(
     const double x, const double alpha, const double beta) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
-        "stats.beta_cdf", x, alpha, beta, lmmc_lsr_stats_beta_cdf);
+        "stats.beta_cdf", x, alpha, beta, lmmc_std_stats_beta_cdf);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -367,7 +367,7 @@ extern "C" LM_API AdtObj* lmx_statistics_beta_quantile(
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
         "stats.beta_quantile", p, alpha, beta,
-        lmmc_lsr_stats_beta_quantile);
+        lmmc_std_stats_beta_quantile);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -376,7 +376,7 @@ extern "C" LM_API AdtObj* lmx_statistics_binomial_probability_mass(
     ensure_lmmc_runtime();
     if (k < 0 || n < 0) return result_error(MathErrorCode::InvalidArgument, __func__, "stats.binomial_probability_mass: invalid count");
     lmmc_real_t result = 0.0;
-    const auto status = lmmc_lsr_stats_binomial_pmf(
+    const auto status = lmmc_std_stats_binomial_pmf(
         static_cast<std::size_t>(k), static_cast<std::size_t>(n), p, &result);
     return lmmc_real_result("stats.binomial_probability_mass", status, result);
 } catch (...) {
@@ -387,7 +387,7 @@ extern "C" LM_API AdtObj* lmx_statistics_binomial_cumulative_distribution(
     ensure_lmmc_runtime();
     if (k < 0 || n < 0) return result_error(MathErrorCode::InvalidArgument, __func__, "stats.binomial_cumulative_distribution: invalid count");
     lmmc_real_t result = 0.0;
-    const auto status = lmmc_lsr_stats_binomial_cdf(
+    const auto status = lmmc_std_stats_binomial_cdf(
         static_cast<std::size_t>(k), static_cast<std::size_t>(n), p, &result);
     return lmmc_real_result("stats.binomial_cumulative_distribution", status, result);
 } catch (...) {
@@ -398,7 +398,7 @@ extern "C" LM_API AdtObj* lmx_statistics_poisson_probability_mass(const LmInt k,
     ensure_lmmc_runtime();
     if (k < 0) return result_error(MathErrorCode::InvalidArgument, __func__, "stats.poisson_probability_mass: invalid count");
     lmmc_real_t result = 0.0;
-    const auto status = lmmc_lsr_stats_poisson_pmf(
+    const auto status = lmmc_std_stats_poisson_pmf(
         static_cast<std::size_t>(k), lambda, &result);
     return lmmc_real_result("stats.poisson_probability_mass", status, result);
 } catch (...) {
@@ -409,7 +409,7 @@ extern "C" LM_API AdtObj* lmx_statistics_poisson_cumulative_distribution(const L
     ensure_lmmc_runtime();
     if (k < 0) return result_error(MathErrorCode::InvalidArgument, __func__, "stats.poisson_cumulative_distribution: invalid count");
     lmmc_real_t result = 0.0;
-    const auto status = lmmc_lsr_stats_poisson_cdf(
+    const auto status = lmmc_std_stats_poisson_cdf(
         static_cast<std::size_t>(k), lambda, &result);
     return lmmc_real_result("stats.poisson_cumulative_distribution", status, result);
 } catch (...) {

@@ -5,7 +5,7 @@
 #include "include/lmx.h"
 
 #include "compiler/compiler.hpp"
-#include "runtime/object/lsr_expr_obj.hpp"
+#include "runtime/object/expr_obj.hpp"
 #include "runtime/object/StringObj.hpp"
 #include "runtime/object/adt.hpp"
 #include "runtime/object/array.hpp"
@@ -29,7 +29,7 @@ using runtime::ExprObj;
 using runtime::StringObj;
 using runtime::Value;
 using runtime::ValueKind;
-const lamina::lsr::ExprPtr* checked_expr(ExprObj* expr, std::string& error);
+const LMCAS::ExprPtr* checked_expr(ExprObj* expr, std::string& error);
 
 // Ownership contract for this header family (result/conversions/runtime_views/
 // unit_bridge): every exported function returning a runtime object pointer
@@ -38,12 +38,12 @@ const lamina::lsr::ExprPtr* checked_expr(ExprObj* expr, std::string& error);
 // the duration of the call unless explicitly documented otherwise.
 
 [[noreturn]] ExprObj* expression_internal_error(std::string message);
-ExprObj* expr_from_result(const lamina::lsr::ExprResult& result);
-AdtObj* expr_result_ok(const lamina::lsr::ExprResult& result);
-AdtObj* expr_pointer_result(lamina::lsr::ExprPtr value,
+ExprObj* expr_from_result(const LMCAS::ExprResult& result);
+AdtObj* expr_result_ok(const LMCAS::ExprResult& result);
+AdtObj* expr_pointer_result(LMCAS::ExprPtr value,
                                 const char* operation);
-AdtObj* expression_set_literal_result(const lamina::lsr::ExprSetResult& result);
-AdtObj* transform_engine_result_value(const lamina::TransformEngineResult& result);
+AdtObj* expression_set_literal_result(const LMCAS::ExprSetResult& result);
+AdtObj* transform_engine_result_value(const LMCAS::TransformEngineResult& result);
 
 template <typename Operation>
 AdtObj* unary_expression_result(ExprObj* expr, const char* operation_name,

@@ -48,7 +48,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_simpson_by_name(ExprObj
     if (intervals <= 0 || intervals > std::numeric_limits<int>::max()) {
         return result_error(MathErrorCode::InvalidArgument, __func__, "Simpson integration: invalid interval count");
     }
-    const auto result = lamina::quadrature_simpson_numeric(
+    const auto result = LMCAS::quadrature_simpson_numeric(
         *value, variable ? variable : "", *lower_value, *upper_value,
         static_cast<int>(intervals));
     if (!result) return result_error(result.error());
@@ -73,7 +73,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_gaussian_by_name(ExprOb
     if (points <= 0 || points > std::numeric_limits<int>::max()) {
         return result_error(MathErrorCode::InvalidArgument, __func__, "Gaussian integration: invalid point count");
     }
-    const auto result = lamina::quadrature_gaussian_numeric(
+    const auto result = LMCAS::quadrature_gaussian_numeric(
         *value, variable ? variable : "", *lower_value, *upper_value,
         static_cast<int>(points));
     if (!result) return result_error(result.error());
@@ -99,7 +99,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_adaptive_by_name(ExprOb
     if (max_depth <= 0 || max_depth > std::numeric_limits<int>::max()) {
         return result_error(MathErrorCode::InvalidArgument, __func__, "Adaptive integration: invalid maximum depth");
     }
-    const auto result = lamina::adaptive_simpson_numeric(
+    const auto result = LMCAS::adaptive_simpson_numeric(
         *value, variable ? variable : "", *lower_value, *upper_value,
         tolerance, static_cast<int>(max_depth));
     if (!result) return result_error(result.error());
@@ -147,7 +147,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_gradient_by_names(ExprOb
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     std::vector<std::string> names;
     if (!array_strings(variables, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, error);
-    return expr_array_result(lamina::gradient_checked(*value, names));
+    return expr_array_result(LMCAS::gradient_checked(*value, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -155,26 +155,26 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_gradient_by_names(ExprOb
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_divergence_by_names(
     ArrayObj* field, ArrayObj* variables) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> expressions;
+    std::vector<LMCAS::ExprPtr> expressions;
     std::vector<std::string> names;
     std::string error;
     if (!array_expressions(field, expressions, error) ||
         !array_strings(variables, names, error))
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_calculus_divergence_by_names",
                             std::move(error));
-    return expr_result_ok(lamina::divergence_checked(expressions, names));
+    return expr_result_ok(LMCAS::divergence_checked(expressions, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curl_by_names(ArrayObj* field, ArrayObj* variables) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> expressions;
+    std::vector<LMCAS::ExprPtr> expressions;
     std::vector<std::string> names;
     std::string error;
     if (!array_expressions(field, expressions, error) ||
         !array_strings(variables, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, error);
-    return expr_array_result(lamina::curl_checked(expressions, names));
+    return expr_array_result(LMCAS::curl_checked(expressions, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -188,7 +188,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_laplacian_by_names(
     if (!value || !array_strings(variables, names, error))
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_calculus_laplacian_by_names",
                             std::move(error));
-    return expr_result_ok(lamina::laplacian_checked(*value, names));
+    return expr_result_ok(LMCAS::laplacian_checked(*value, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -196,14 +196,14 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_laplacian_by_names(
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_jacobian_by_names(
     ArrayObj* functions, ArrayObj* variables) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> expressions;
+    std::vector<LMCAS::ExprPtr> expressions;
     std::vector<std::string> names;
     std::string error;
     if (!array_expressions(functions, expressions, error) ||
         !array_strings(variables, names, error))
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_calculus_jacobian_by_names",
                             std::move(error));
-    return expr_result_ok(lamina::jacobian_checked(expressions, names));
+    return expr_result_ok(LMCAS::jacobian_checked(expressions, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -217,7 +217,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_hessian_by_names(
     if (!value || !array_strings(variables, names, error))
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_calculus_hessian_by_names",
                             std::move(error));
-    return expr_result_ok(lamina::hessian_checked(*value, names));
+    return expr_result_ok(LMCAS::hessian_checked(*value, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -229,25 +229,25 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_gradient_by_symbols(Expr
     if (!checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     const auto* value = checked_expr(e, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return expr_array_result(lamina::gradient_checked(*value, names));
+    return expr_array_result(LMCAS::gradient_checked(*value, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 /** @brief Symbol-array divergence. @param f Borrowed expression field. @param v Borrowed ordered symbol array. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_divergence_by_symbols(ArrayObj* f, ArrayObj* v) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> field; std::vector<std::string> names; std::string error;
+    std::vector<LMCAS::ExprPtr> field; std::vector<std::string> names; std::string error;
     if (!array_expressions(f, field, error) || !checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return expr_result_ok(lamina::divergence_checked(field, names));
+    return expr_result_ok(LMCAS::divergence_checked(field, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 /** @brief Symbol-array curl. @param f Borrowed expression field. @param v Borrowed ordered symbol array. @return Owning Result array or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curl_by_symbols(ArrayObj* f, ArrayObj* v) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> field; std::vector<std::string> names; std::string error;
+    std::vector<LMCAS::ExprPtr> field; std::vector<std::string> names; std::string error;
     if (!array_expressions(f, field, error) || !checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return expr_array_result(lamina::curl_checked(field, names));
+    return expr_array_result(LMCAS::curl_checked(field, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -256,16 +256,16 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_laplacian_by_symbols(Exp
     ensure_lmmc_runtime();
     std::vector<std::string> names; std::string error; const auto* value = checked_expr(e, error);
     if (!value || !checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return expr_result_ok(lamina::laplacian_checked(*value, names));
+    return expr_result_ok(LMCAS::laplacian_checked(*value, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 /** @brief Symbol-array Jacobian. @param f Borrowed expressions. @param v Borrowed ordered symbol array. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_jacobian_by_symbols(ArrayObj* f, ArrayObj* v) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> values; std::vector<std::string> names; std::string error;
+    std::vector<LMCAS::ExprPtr> values; std::vector<std::string> names; std::string error;
     if (!array_expressions(f, values, error) || !checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return expr_result_ok(lamina::jacobian_checked(values, names));
+    return expr_result_ok(LMCAS::jacobian_checked(values, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -274,7 +274,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_hessian_by_symbols(ExprO
     ensure_lmmc_runtime();
     std::vector<std::string> names; std::string error; const auto* value = checked_expr(e, error);
     if (!value || !checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return expr_result_ok(lamina::hessian_checked(*value, names));
+    return expr_result_ok(LMCAS::hessian_checked(*value, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -289,7 +289,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_volume_revolution_x(
     if (!value || !lower_value || !upper_value)
         return result_error(MathErrorCode::InvalidArgument,
                             "lmx_computer_algebra_calculus_volume_revolution_x", std::move(error));
-    return expr_result_ok(lamina::volume_of_revolution_x_checked(
+    return expr_result_ok(LMCAS::volume_of_revolution_x_checked(
         *value, *lower_value, *upper_value));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -306,7 +306,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_arc_length_x(
         return result_error(MathErrorCode::InvalidArgument,
                             "lmx_computer_algebra_calculus_arc_length_x", std::move(error));
     return expr_result_ok(
-        lamina::arc_length_x_checked(*value, *lower_value, *upper_value));
+        LMCAS::arc_length_x_checked(*value, *lower_value, *upper_value));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

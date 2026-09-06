@@ -65,7 +65,7 @@ OwnedObject<T> adopt_object(T* value) noexcept {
     return OwnedObject<T>(value);
 }
 
-MathErrorCode math_error_code(lamina::CasErrc code) noexcept;
+MathErrorCode math_error_code(LMCAS::CasErrc code) noexcept;
 MathErrorCode math_error_code(lmmc_status_t status) noexcept;
 
 runtime::AdtObj* make_mathematics_error(MathErrorCode code,
@@ -73,11 +73,11 @@ runtime::AdtObj* make_mathematics_error(MathErrorCode code,
                                         std::string message);
 runtime::AdtObj* result_error(MathErrorCode code, std::string operation,
                               std::string message);
-runtime::AdtObj* result_error(const lamina::CasError& error);
+runtime::AdtObj* result_error(const LMCAS::CasError& error);
 runtime::AdtObj* result_error(lmmc_status_t status, std::string operation);
 runtime::AdtObj* c_abi_error(MathErrorCode code, const char* operation,
                              const char* message) noexcept;
-runtime::AdtObj* c_abi_error(const lamina::CasError& error) noexcept;
+runtime::AdtObj* c_abi_error(const LMCAS::CasError& error) noexcept;
 runtime::AdtObj* c_abi_current_exception(
     const char* operation) noexcept;
 runtime::AdtObj* result_ok(double value);

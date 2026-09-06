@@ -7,14 +7,14 @@
 using namespace lmx::bridge;
 
 namespace {
-bool is_equality_relation(const SymbolicExpr& expression) {
-    const auto relation = std::dynamic_pointer_cast<const RelationalNode>(
-        lamina::detail::node(expression));
-    return relation && relation->op() == lamina::RelationOp::EQ;
+bool is_equality_relation(const LMCAS::SymbolicExpr& expression) {
+    const auto relation = std::dynamic_pointer_cast<const LMCAS::RelationalNode>(
+        LMCAS::detail::node(expression));
+    return relation && relation->op() == LMCAS::RelationOp::EQ;
 }
 
 AdtObj* equality_required() {
-    return result_error(MathErrorCode::InvalidArgument, "lsr.solve_expr_set",
+    return result_error(MathErrorCode::InvalidArgument, "LMCAS.solve_expr_set",
                         "solve requires an equality relation");
 }
 }
@@ -29,7 +29,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_solve_by_name(Ex
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     if (!is_equality_relation(**value)) return equality_required();
     return expression_set_literal_result(
-        lamina::lsr::solve(*value, variable ? variable : ""));
+        LMCAS::solve(*value, variable ? variable : ""));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -41,7 +41,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_roots_by_name(Ex
     const auto* value = checked_expr(expression, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return expression_set_literal_result(
-        lamina::lsr::roots(*value, variable ? variable : ""));
+        LMCAS::roots(*value, variable ? variable : ""));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -63,7 +63,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_symbol(ExprObj* 
     const auto* value = checked_expr(equation, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     if (!is_equality_relation(**value)) return equality_required();
-    return expression_set_literal_result(lamina::lsr::solve(*value, name));
+    return expression_set_literal_result(LMCAS::solve(*value, name));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -84,7 +84,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_roots_by_symbol(
     if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     const auto* value = checked_expr(expression, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return expression_set_literal_result(lamina::lsr::roots(*value, name));
+    return expression_set_literal_result(LMCAS::roots(*value, name));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

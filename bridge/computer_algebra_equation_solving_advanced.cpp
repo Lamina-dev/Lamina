@@ -26,19 +26,19 @@
 using namespace lmx::bridge;
 
 namespace {
-AdtObj* unordered_expr_result(std::vector<lamina::lsr::ExprPtr> values) {
-    return expression_set_literal_result(lamina::lsr::ExprSet::make(std::move(values)));
+AdtObj* unordered_expr_result(std::vector<LMCAS::ExprPtr> values) {
+    return expression_set_literal_result(LMCAS::ExprSet::make(std::move(values)));
 }
 
 ArrayObj* value_solution_tables(
-    const std::vector<std::map<std::string, SymbolicExpr>>& solutions) {
+    const std::vector<std::map<std::string, LMCAS::SymbolicExpr>>& solutions) {
     auto result = make_owned_object<ArrayObj>();
     for (const auto& solution : solutions) {
         std::vector<TableObj::Entry> entries;
         for (const auto& [name, expression] : solution) {
             auto value = take_object_value(
                 make_owned_object<ExprObj>(
-                    std::make_shared<SymbolicExpr>(expression)),
+                    std::make_shared<LMCAS::SymbolicExpr>(expression)),
                 ValueKind::Expr);
             entries.emplace_back(name, std::move(value));
         }
@@ -48,23 +48,23 @@ ArrayObj* value_solution_tables(
     return result.release();
 }
 
-std::optional<lamina::InequalityType> checked_inequality_type(
+std::optional<LMCAS::InequalityType> checked_inequality_type(
     const char* relation) {
     const std::string name = relation ? relation : "";
-    if (name == "<") return lamina::InequalityType::LessThan;
-    if (name == "<=") return lamina::InequalityType::LessEqual;
-    if (name == ">") return lamina::InequalityType::GreaterThan;
-    if (name == ">=") return lamina::InequalityType::GreaterEqual;
+    if (name == "<") return LMCAS::InequalityType::LessThan;
+    if (name == "<=") return LMCAS::InequalityType::LessEqual;
+    if (name == ">") return LMCAS::InequalityType::GreaterThan;
+    if (name == ">=") return LMCAS::InequalityType::GreaterEqual;
     return std::nullopt;
 }
 
 AdtObj* interval_union_result(
-    const lamina::Result<lamina::IntervalUnion>& result,
+    const LMCAS::Result<LMCAS::IntervalUnion>& result,
     const std::string& variable) {
     if (!result) return result_error(result.error());
     auto expression = result.value().to_expr(variable);
     if (!expression) {
-        const auto empty = lamina::lsr::finite_set({});
+        const auto empty = LMCAS::finite_set({});
         if (!empty) return result_error(empty.error());
         expression = empty.value();
     }
@@ -101,7 +101,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_factor_transcendental_by_
     const auto* expression = checked_expr(value, error);
     if (!expression) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return unordered_expr_result(
-        lamina::factor_transcendental(*expression, variable));
+        LMCAS::factor_transcendental(*expression, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -121,17 +121,17 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_factor_transcendental_by_
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_polynomial_system_full_by_names(
     ArrayObj* equations, ArrayObj* variables) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> expressions;
+    std::vector<LMCAS::ExprPtr> expressions;
     std::vector<std::string> names;
     std::string error;
     if (!array_expressions(equations, expressions, error) ||
         !array_strings(variables, names, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.polynomial_system: " + error);
-    std::vector<SymbolicExpr> values;
+    std::vector<LMCAS::SymbolicExpr> values;
     values.reserve(expressions.size());
     for (const auto& expression : expressions) values.push_back(*expression);
     const auto solutions =
-        lamina::Solver::solve_polynomial_system_checked(values, names);
+        LMCAS::Solver::solve_polynomial_system_checked(values, names);
     if (!solutions) return result_error(solutions.error());
     return result_ok(value_solution_tables(solutions.value()), ValueKind::Obj);
 } catch (...) {
@@ -142,7 +142,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_polynomial_syste
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_parametric_system_by_names(
     ArrayObj* equations, ArrayObj* unknowns, ArrayObj* parameters) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> values;
+    std::vector<LMCAS::ExprPtr> values;
     std::vector<std::string> unknown_names, parameter_names;
     std::string error;
     if (!array_expressions(equations, values, error) ||
@@ -150,7 +150,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_parametric_syste
         !array_strings(parameters, parameter_names, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.parametric_system: " + error);
     return result_ok(math_internal::solution_tables(
-        lamina::ParametricSolver::solve_system(
+        LMCAS::ParametricSolver::solve_system(
             values, unknown_names, parameter_names)), ValueKind::Obj);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -159,7 +159,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_parametric_syste
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_parametric_system_by_symbols(
     ArrayObj* equations, ArrayObj* unknowns, ArrayObj* parameters) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> values;
+    std::vector<LMCAS::ExprPtr> values;
     std::vector<std::string> unknown_names, parameter_names;
     std::string error;
     if (!array_expressions(equations, values, error) ||
@@ -167,7 +167,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_parametric_syste
         !math_internal::checked_symbol_names(parameters, parameter_names, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.parametric_system: " + error);
     return result_ok(math_internal::solution_tables(
-        lamina::ParametricSolver::solve_system(
+        LMCAS::ParametricSolver::solve_system(
             values, unknown_names, parameter_names)), ValueKind::Obj);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -177,17 +177,17 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_parametric_syste
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_groebner_basis_by_names(
     ArrayObj* polynomials, ArrayObj* variables) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> expressions;
+    std::vector<LMCAS::ExprPtr> expressions;
     std::vector<std::string> names;
     std::string error;
     if (!array_expressions(polynomials, expressions, error) ||
         !array_strings(variables, names, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.groebner_basis: " + error);
-    std::vector<SymbolicExpr> values;
+    std::vector<LMCAS::SymbolicExpr> values;
     for (const auto& expression : expressions) values.push_back(*expression);
-    std::vector<lamina::lsr::ExprPtr> result;
-    for (auto& expression : lamina::Solver::groebner_basis(values, names))
-        result.push_back(std::make_shared<SymbolicExpr>(std::move(expression)));
+    std::vector<LMCAS::ExprPtr> result;
+    for (auto& expression : LMCAS::Solver::groebner_basis(values, names))
+        result.push_back(std::make_shared<LMCAS::SymbolicExpr>(std::move(expression)));
     return unordered_expr_result(std::move(result));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -196,17 +196,17 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_groebner_basis_b
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_reduced_groebner_basis_by_names(
     ArrayObj* polynomials, ArrayObj* variables) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> expressions;
+    std::vector<LMCAS::ExprPtr> expressions;
     std::vector<std::string> names;
     std::string error;
     if (!array_expressions(polynomials, expressions, error) ||
         !array_strings(variables, names, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.reduced_groebner_basis: " + error);
-    std::vector<SymbolicExpr> values;
+    std::vector<LMCAS::SymbolicExpr> values;
     for (const auto& expression : expressions) values.push_back(*expression);
-    std::vector<lamina::lsr::ExprPtr> result;
-    for (auto& expression : lamina::Solver::reduced_groebner_basis(values, names))
-        result.push_back(std::make_shared<SymbolicExpr>(std::move(expression)));
+    std::vector<LMCAS::ExprPtr> result;
+    for (auto& expression : LMCAS::Solver::reduced_groebner_basis(values, names))
+        result.push_back(std::make_shared<LMCAS::SymbolicExpr>(std::move(expression)));
     return unordered_expr_result(std::move(result));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -217,14 +217,14 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_ideal_membership
     ensure_lmmc_runtime();
     std::string error;
     const auto* checked = checked_expr(polynomial, error);
-    std::vector<lamina::lsr::ExprPtr> basis_values;
+    std::vector<LMCAS::ExprPtr> basis_values;
     std::vector<std::string> names;
     if (!checked || !array_expressions(basis, basis_values, error) ||
         !array_strings(variables, names, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.ideal_membership: " + error);
-    std::vector<SymbolicExpr> values;
+    std::vector<LMCAS::SymbolicExpr> values;
     for (const auto& expression : basis_values) values.push_back(*expression);
-    return result_ok(lamina::Solver::ideal_membership(
+    return result_ok(LMCAS::Solver::ideal_membership(
         **checked, values, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -235,19 +235,19 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_elimination_idea
     ensure_lmmc_runtime();
     if (count < 0 || count > std::numeric_limits<int>::max())
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.elimination_ideal: invalid elimination count");
-    std::vector<lamina::lsr::ExprPtr> expressions;
+    std::vector<LMCAS::ExprPtr> expressions;
     std::vector<std::string> names;
     std::string error;
     if (!array_expressions(basis, expressions, error) ||
         !array_strings(variables, names, error) ||
         static_cast<std::size_t>(count) > names.size())
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.elimination_ideal: " + error);
-    std::vector<SymbolicExpr> values;
+    std::vector<LMCAS::SymbolicExpr> values;
     for (const auto& expression : expressions) values.push_back(*expression);
-    std::vector<lamina::lsr::ExprPtr> result;
-    for (auto& expression : lamina::Solver::elimination_ideal(
+    std::vector<LMCAS::ExprPtr> result;
+    for (auto& expression : LMCAS::Solver::elimination_ideal(
              values, names, static_cast<int>(count)))
-        result.push_back(std::make_shared<SymbolicExpr>(std::move(expression)));
+        result.push_back(std::make_shared<LMCAS::SymbolicExpr>(std::move(expression)));
     return unordered_expr_result(std::move(result));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -259,21 +259,21 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_inequalities_by_
     ensure_lmmc_runtime();
     if (!variable || variable[0] == '\0')
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.inequalities: empty variable");
-    std::vector<lamina::lsr::ExprPtr> values;
+    std::vector<LMCAS::ExprPtr> values;
     std::vector<std::string> relation_names;
     std::string error;
     if (!array_expressions(expressions, values, error) ||
         !array_strings(relations, relation_names, error) ||
         values.size() != relation_names.size())
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.inequalities: invalid arrays");
-    std::vector<std::pair<lamina::lsr::ExprPtr, lamina::InequalityType>> inputs;
+    std::vector<std::pair<LMCAS::ExprPtr, LMCAS::InequalityType>> inputs;
     for (std::size_t index = 0; index < values.size(); ++index) {
         const auto type = checked_inequality_type(relation_names[index].c_str());
         if (!type) return result_error(MathErrorCode::InvalidArgument, __func__, "solve.inequalities: unknown relation");
         inputs.emplace_back(values[index], *type);
     }
     return interval_union_result(
-        lamina::InequalitySolver::solve_inequalities_checked(inputs, variable),
+        LMCAS::InequalitySolver::solve_inequalities_checked(inputs, variable),
         variable);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -290,11 +290,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_rational_inequal
     const auto* n = checked_expr(numerator, error);
     const auto* d = checked_expr(denominator, error);
     if (!n || !d) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    auto result = lamina::InequalitySolver::solve_rational_inequality(
+    auto result = LMCAS::InequalitySolver::solve_rational_inequality(
         *n, *d, *type, variable);
     auto expression = result.to_expr(variable);
     if (!expression) {
-        const auto empty = lamina::lsr::finite_set({});
+        const auto empty = LMCAS::finite_set({});
         if (!empty) return result_error(empty.error());
         expression = empty.value();
     }
@@ -410,14 +410,14 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_rational_inequal
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_parametric_piecewise_by_names(
     ArrayObj* equations, ArrayObj* unknowns, ArrayObj* parameters) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> values;
+    std::vector<LMCAS::ExprPtr> values;
     std::vector<std::string> unknown_names, parameter_names;
     std::string error;
     if (!array_expressions(equations, values, error) ||
         !array_strings(unknowns, unknown_names, error) ||
         !array_strings(parameters, parameter_names, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.parametric_piecewise: " + error);
-    const auto piecewise = lamina::ParametricSolver::solve_system_piecewise(
+    const auto piecewise = LMCAS::ParametricSolver::solve_system_piecewise(
         values, unknown_names, parameter_names);
     auto cases = make_owned_object<ArrayObj>();
     for (const auto& item : piecewise.cases) {

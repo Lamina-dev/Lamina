@@ -11,8 +11,11 @@ match std.math.binary_logarithm(eight) {
 }
 
 match std.math.binary_logarithm(negative) {
-    Result.Ok(_) => std.printf("ok|"),
-    Result.Err(_) => std.printf("err|")
+    Result.Ok(_) => std.printf("unexpected|"),
+    Result.Err(error) => match mathematics_error.code(error) {
+        mathematics_error.IndexOutOfBounds => std.printf("IndexOutOfBounds|"),
+        _ => std.printf("unexpected error|")
+    }
 }
 
 match invalid {

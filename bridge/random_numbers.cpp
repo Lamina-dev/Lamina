@@ -11,7 +11,7 @@
 #include <vector>
 
 #include <lmmc/random.h>
-#include <lmmc/lsr_stdlib.h>
+#include <lmmc/stdlib.h>
 #include "runtime/object/random.hpp"
 
 using lmx::runtime::RandomObj;
@@ -252,7 +252,7 @@ lmmc_rng_t* default_rng(std::string& error) {
     if (!context.value) {
         const auto status = lmmc_rng_create(&context.value);
         if (status != LMMC_STATUS_OK) {
-            error = std::string("random.default: ") + lmmc_lsr_error_name(status);
+            error = std::string("random.default: ") + lmmc_std_error_name(status);
             return nullptr;
         }
     }

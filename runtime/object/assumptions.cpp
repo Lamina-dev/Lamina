@@ -8,7 +8,7 @@ namespace lmx::runtime {
 AssumptionsObj::AssumptionsObj()
     : Object(ObjectKind::Assumptions) {}
 
-AssumptionsObj::AssumptionsObj(lamina::AssumptionContext context)
+AssumptionsObj::AssumptionsObj(LMCAS::AssumptionContext context)
     : Object(ObjectKind::Assumptions), context_(std::move(context)) {}
 
 AssumptionsObj* AssumptionsObj::copy() const {

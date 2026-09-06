@@ -34,7 +34,7 @@ bool debug_dump_enabled() noexcept {
     return value && value[0] != '\0' && value[0] != '0';
 }
 
-const lamina::lsr::ExprPtr* checked_expr(ExprObj* expr, std::string& error) {
+const LMCAS::ExprPtr* checked_expr(ExprObj* expr, std::string& error) {
     if (!expr) {
         error = "CasError(InvalidArgument: null expr)";
         return nullptr;
@@ -46,14 +46,14 @@ const lamina::lsr::ExprPtr* checked_expr(ExprObj* expr, std::string& error) {
     return &expr->expr();
 }
 
-lamina::lsr::ExprResult invalid_expr_operation(const std::string& message,
+LMCAS::ExprResult invalid_expr_operation(const std::string& message,
                                                const char* operation) {
-    return lamina::lsr::ExprResult::failure(
-        lamina::CasErrc::InvalidArgument, message, operation);
+    return LMCAS::ExprResult::failure(
+        LMCAS::CasErrc::InvalidArgument, message, operation);
 }
 
 bool collect_expr_arguments(va_list& args, const LmInt count,
-                            std::vector<lamina::lsr::ExprPtr>& values,
+                            std::vector<LMCAS::ExprPtr>& values,
                             std::string& error) {
     if (count < 0 || count > 65535) {
         error = "CasError(InvalidArgument: invalid Expr argument count)";
@@ -72,8 +72,8 @@ bool collect_expr_arguments(va_list& args, const LmInt count,
 bool checked_symbol_name(ExprObj* expr, std::string& name, std::string& error) {
     const auto* value = checked_expr(expr, error);
     if (!value) return false;
-    const auto variable = std::dynamic_pointer_cast<const VariableNode>(
-        lamina::detail::node(**value));
+    const auto variable = std::dynamic_pointer_cast<const LMCAS::VariableNode>(
+        LMCAS::detail::node(**value));
     if (!variable) {
         error = "CasError(InvalidArgument: expr must be a single symbol)";
         return false;
@@ -110,7 +110,7 @@ bool array_numbers(const ArrayObj* array, std::vector<double>& result,
 }
 
 bool array_expressions(const ArrayObj* array,
-                       std::vector<lamina::lsr::ExprPtr>& result,
+                       std::vector<LMCAS::ExprPtr>& result,
                        std::string& error) {
     if (!array) {
         error = "null array";
@@ -151,7 +151,7 @@ bool array_strings(const ArrayObj* array, std::vector<std::string>& result,
 bool expr_to_real(ExprObj* expr, double& result, std::string& error) {
     const auto* value = checked_expr(expr, error);
     if (!value) return false;
-    const auto evaluated = lamina::lsr::evalf(**value);
+    const auto evaluated = LMCAS::evalf(**value);
     if (!evaluated) {
         error = evaluated.error().message;
         return false;
@@ -160,14 +160,14 @@ bool expr_to_real(ExprObj* expr, double& result, std::string& error) {
     return true;
 }
 
-std::optional<lamina::lsr::NumberDomainSet> number_domain_for_name(
+std::optional<LMCAS::NumberDomainSet> number_domain_for_name(
     const char* name) {
     const std::string domain = name ? name : "";
-    if (domain == "integers") return lamina::lsr::integers();
-    if (domain == "rationals") return lamina::lsr::rationals();
-    if (domain == "reals") return lamina::lsr::reals();
-    if (domain == "complexes") return lamina::lsr::complexes();
-    if (domain == "expressions") return lamina::lsr::expressions();
+    if (domain == "integers") return LMCAS::integers();
+    if (domain == "rationals") return LMCAS::rationals();
+    if (domain == "reals") return LMCAS::reals();
+    if (domain == "complexes") return LMCAS::complexes();
+    if (domain == "expressions") return LMCAS::expressions();
     return std::nullopt;
 }
 
@@ -196,14 +196,14 @@ AdtObj* lmmc_complex_result(const char* operation,
     return result_error(status, operation ? operation : "LMMC");
 }
 
-std::optional<lamina::UnitDefinition> resolved_unit_definition(
+std::optional<LMCAS::UnitDefinition> resolved_unit_definition(
     const char* dimension_text, const LmInt numerator,
     const LmInt denominator, std::string& error) {
     if (!dimension_text || denominator <= 0 || numerator <= 0) {
         error = "CasError(UnitInvalid: invalid unit definition)";
         return std::nullopt;
     }
-    lamina::DimensionSignature::Exponents exponents;
+    LMCAS::DimensionSignature::Exponents exponents;
     const std::string dimension(dimension_text);
     if (dimension != "1") {
         std::size_t cursor = 0;
@@ -229,15 +229,15 @@ std::optional<lamina::UnitDefinition> resolved_unit_definition(
                 error = "CasError(UnitInvalid: malformed dimension signature)";
                 return std::nullopt;
             }
-            exponents.emplace(name, Rational(exponent));
+            exponents.emplace(name, LMCAS::Rational(exponent));
             if (separator == std::string::npos) break;
             cursor = separator + 1;
         }
     }
-    return lamina::UnitDefinition{
-        lamina::DimensionSignature(std::move(exponents)),
-        Rational(BigInt(std::to_string(numerator)),
-                 BigInt(std::to_string(denominator)))};
+    return LMCAS::UnitDefinition{
+        LMCAS::DimensionSignature(std::move(exponents)),
+        LMCAS::Rational(LMCAS::BigInt(std::to_string(numerator)),
+                 LMCAS::BigInt(std::to_string(denominator)))};
 }
 
 } // namespace lmx::bridge

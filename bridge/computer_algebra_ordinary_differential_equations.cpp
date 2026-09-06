@@ -11,7 +11,7 @@
 using namespace lmx::bridge;
 
 namespace {
-AdtObj* ode_solution_result(const lamina::ODESolutionResult& result) {
+AdtObj* ode_solution_result(const LMCAS::ODESolutionResult& result) {
     if (!result) return result_error(result.error());
     if (!result.value().general_solution)
         return result_error(MathErrorCode::Inconclusive, __func__, "CasError(Inconclusive in ode: null solution)");
@@ -19,19 +19,19 @@ AdtObj* ode_solution_result(const lamina::ODESolutionResult& result) {
         new ExprObj(result.value().general_solution), ValueKind::Expr);
 }
 
-const char* ode_type_name(lamina::ODEType type) {
+const char* ode_type_name(LMCAS::ODEType type) {
     switch (type) {
-    case lamina::ODEType::Separable: return "separable";
-    case lamina::ODEType::Linear1: return "linear1";
-    case lamina::ODEType::Linear2_ConstCoeff: return "linear2_const_coeff";
-    case lamina::ODEType::Homogeneous: return "homogeneous";
-    case lamina::ODEType::Bernoulli: return "bernoulli";
-    case lamina::ODEType::Exact: return "exact";
-    case lamina::ODEType::HigherOrder_ConstCoeff: return "higher_order_const_coeff";
-    case lamina::ODEType::Euler: return "euler";
-    case lamina::ODEType::System: return "system";
-    case lamina::ODEType::LaplaceMethod: return "laplace";
-    case lamina::ODEType::Frobenius: return "frobenius";
+    case LMCAS::ODEType::Separable: return "separable";
+    case LMCAS::ODEType::Linear1: return "linear1";
+    case LMCAS::ODEType::Linear2_ConstCoeff: return "linear2_const_coeff";
+    case LMCAS::ODEType::Homogeneous: return "homogeneous";
+    case LMCAS::ODEType::Bernoulli: return "bernoulli";
+    case LMCAS::ODEType::Exact: return "exact";
+    case LMCAS::ODEType::HigherOrder_ConstCoeff: return "higher_order_const_coeff";
+    case LMCAS::ODEType::Euler: return "euler";
+    case LMCAS::ODEType::System: return "system";
+    case LMCAS::ODEType::LaplaceMethod: return "laplace";
+    case LMCAS::ODEType::Frobenius: return "frobenius";
     default: return "unknown";
     }
 }
@@ -48,7 +48,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     std::string error; const auto* pv = checked_expr(p, error);
     const auto* qv = checked_expr(q, error);
     if (!pv || !qv) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return ode_solution_result(lamina::solve_bernoulli_ode_checked(
+    return ode_solution_result(LMCAS::solve_bernoulli_ode_checked(
         *pv, *qv, static_cast<int>(power), independent, dependent));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -62,7 +62,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     std::string error; const auto* mv = checked_expr(m, error);
     const auto* nv = checked_expr(n, error);
     if (!mv || !nv) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return ode_solution_result(lamina::solve_exact_ode_checked(
+    return ode_solution_result(LMCAS::solve_exact_ode_checked(
         *mv, *nv, independent, dependent));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -75,7 +75,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode.solve_homogeneous: invalid variable");
     std::string error; const auto* value = checked_expr(rhs, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return ode_solution_result(lamina::solve_homogeneous_ode_checked(
+    return ode_solution_result(LMCAS::solve_homogeneous_ode_checked(
         *value, independent, dependent));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -92,7 +92,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     if (!force || !array_numbers(coefficients, values, error) ||
         values.empty() || values.size() > 7)
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode.solve_higher_order: " + error);
-    return ode_solution_result(lamina::solve_higher_order_ode_checked(
+    return ode_solution_result(LMCAS::solve_higher_order_ode_checked(
         values, *force, independent, dependent));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -109,7 +109,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     if (!force || !array_numbers(coefficients, values, error) ||
         values.size() < 3 || values.size() > 4)
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode.solve_euler: invalid coefficients");
-    return ode_solution_result(lamina::solve_euler_ode_checked(
+    return ode_solution_result(LMCAS::solve_euler_ode_checked(
         values, *force, independent, dependent));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -123,7 +123,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     std::string error; const auto* a = checked_expr(y1, error);
     const auto* b = checked_expr(y2, error); const auto* g = checked_expr(forcing, error);
     if (!a || !b || !g) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return ode_solution_result(lamina::solve_variation_of_parameters_checked(
+    return ode_solution_result(LMCAS::solve_variation_of_parameters_checked(
         *a, *b, *g, independent));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -138,15 +138,15 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     std::string error; const auto* pv = checked_expr(p, error);
     const auto* qv = checked_expr(q, error); const auto* x0 = checked_expr(point, error);
     if (!pv || !qv || !x0) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::solve_frobenius_checked(
+    const auto result = LMCAS::solve_frobenius_checked(
         *pv, *qv, *x0, independent, static_cast<int>(order));
     if (!result) return result_error(result.error());
     if (!result.value().series_solution)
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode.solve_frobenius: null series");
     const char* point_type =
-        result.value().point_type == lamina::ODESingularityType::Ordinary
+        result.value().point_type == LMCAS::ODESingularityType::Ordinary
         ? "ordinary" : result.value().point_type ==
-        lamina::ODESingularityType::RegularSingular
+        LMCAS::ODESingularityType::RegularSingular
         ? "regular_singular" : "irregular_singular";
     auto roots = make_owned_object<ArrayObj>();
     for (double root : result.value().indicial_roots)
@@ -174,7 +174,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_c
     std::string error; const auto* value = checked_expr(rhs, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return result_ok(new StringObj(ode_type_name(
-        lamina::classify_first_order_ode(*value, independent, dependent).type)),
+        LMCAS::classify_first_order_ode(*value, independent, dependent).type)),
         ValueKind::Obj);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -186,12 +186,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_c
     ensure_lmmc_runtime();
     if (!independent || !dependent)
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode.classify_higher_order: invalid variable");
-    std::vector<lamina::lsr::ExprPtr> values; std::string error;
+    std::vector<LMCAS::ExprPtr> values; std::string error;
     const auto* force = checked_expr(forcing, error);
     if (!force || !array_expressions(coefficients, values, error) || values.empty())
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode.classify_higher_order: " + error);
     return result_ok(new StringObj(ode_type_name(
-        lamina::classify_higher_order_ode(
+        LMCAS::classify_higher_order_ode(
             values, *force, independent, dependent).type)), ValueKind::Obj);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -278,7 +278,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
         return result_error(MathErrorCode::InvalidArgument, __func__, "ordinary_differential_equations.solve_separable: invalid variable");
     return checked_expression_operation("ordinary_differential_equations.solve_separable", rhs,
         [&](const auto& expression) {
-            return lamina::solve_separable_ode(
+            return LMCAS::solve_separable_ode(
                 expression, independent, dependent);
         });
 } catch (...) {
@@ -295,7 +295,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     const auto* checked_forcing = checked_expr(forcing, error);
     if (!checked_coefficient || !checked_forcing)
         return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    auto result = lamina::solve_linear1_ode(
+    auto result = LMCAS::solve_linear1_ode(
         *checked_coefficient, *checked_forcing,
         independent, dependent);
     if (!result)
@@ -315,7 +315,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     std::string error;
     const auto* checked_forcing = checked_expr(forcing, error);
     if (!checked_forcing) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::solve_linear2_ode_checked(
+    const auto result = LMCAS::solve_linear2_ode_checked(
         a, b, c, *checked_forcing, independent, dependent);
     if (!result) return result_error(result.error());
     return result_ok(new ExprObj(result.value()), ValueKind::Expr);

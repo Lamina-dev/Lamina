@@ -13,7 +13,7 @@ using lmx::bridge::math_internal::checked_expr_result;
 
 namespace {
 AdtObj* nested_expr_array_result(
-    const std::vector<std::vector<lamina::lsr::ExprPtr>>& values) {
+    const std::vector<std::vector<LMCAS::ExprPtr>>& values) {
     auto outer = make_owned_object<ArrayObj>();
     for (const auto& vector : values) {
         auto inner = make_owned_object<ArrayObj>();
@@ -36,7 +36,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_eigenvalues(ExprO
     ensure_lmmc_runtime();
     std::string error; const auto* matrix = checked_expr(value, error);
     if (!matrix) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::matrix_eigenvalues_checked(*matrix);
+    const auto result = LMCAS::matrix_eigenvalues_checked(*matrix);
     if (!result) return result_error(result.error());
     return math_internal::unordered_expr_result(result.value());
 } catch (...) {
@@ -47,7 +47,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_eigenvectors(Expr
     ensure_lmmc_runtime();
     std::string error; const auto* matrix = checked_expr(value, error);
     if (!matrix) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::matrix_eigenvectors_checked(*matrix);
+    const auto result = LMCAS::matrix_eigenvectors_checked(*matrix);
     if (!result) return result_error(result.error());
     return nested_expr_array_result(result.value());
 } catch (...) {
@@ -58,7 +58,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_rotation(double t
     ensure_lmmc_runtime();
     if (dimension <= 0 || dimension > std::numeric_limits<int>::max())
         return result_error(MathErrorCode::InvalidArgument, __func__, "matrix.rotation: invalid dimension");
-    return checked_expr_result(lamina::matrix_rotation_checked(
+    return checked_expr_result(LMCAS::matrix_rotation_checked(
         theta, static_cast<int>(dimension)));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -68,7 +68,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_reflection(double
     ensure_lmmc_runtime();
     if (dimension <= 0 || dimension > std::numeric_limits<int>::max())
         return result_error(MathErrorCode::InvalidArgument, __func__, "matrix.reflection: invalid dimension");
-    return checked_expr_result(lamina::matrix_reflection_checked(
+    return checked_expr_result(LMCAS::matrix_reflection_checked(
         angle, static_cast<int>(dimension)));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -79,7 +79,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_scaling(
     ensure_lmmc_runtime();
     if (dimension <= 0 || dimension > std::numeric_limits<int>::max())
         return result_error(MathErrorCode::InvalidArgument, __func__, "matrix.scaling: invalid dimension");
-    return checked_expr_result(lamina::matrix_scaling_checked(
+    return checked_expr_result(LMCAS::matrix_scaling_checked(
         sx, sy, static_cast<int>(dimension)));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -88,7 +88,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_scaling(
 extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_trace(ExprObj* value) noexcept try {
     ensure_lmmc_runtime();
     return checked_expression_operation("matrix.trace", value,
-        [](const auto& matrix) { return lamina::matrix_trace(matrix); });
+        [](const auto& matrix) { return LMCAS::matrix_trace(matrix); });
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -97,7 +97,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_rank(ExprObj* val
     ensure_lmmc_runtime();
     std::string error; const auto* matrix = checked_expr(value, error);
     if (!matrix) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto rank = lamina::matrix_rank_checked(*matrix);
+    const auto rank = LMCAS::matrix_rank_checked(*matrix);
     if (!rank) return result_error(rank.error());
     if (rank.value() >
         static_cast<std::size_t>(std::numeric_limits<LmInt>::max())) {
@@ -113,7 +113,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_rank(ExprObj* val
 extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_exponential(ExprObj* value) noexcept try {
     ensure_lmmc_runtime();
     return checked_expression_operation("matrix.exponential", value,
-        [](const auto& matrix) { return lamina::matrix_exp(matrix); });
+        [](const auto& matrix) { return LMCAS::matrix_exp(matrix); });
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -121,7 +121,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_exponential(ExprO
 extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_natural_logarithm(ExprObj* value) noexcept try {
     ensure_lmmc_runtime();
     return checked_expression_operation("matrix.natural_logarithm", value,
-        [](const auto& matrix) { return lamina::matrix_log(matrix); });
+        [](const auto& matrix) { return LMCAS::matrix_log(matrix); });
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -131,7 +131,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_kronecker(ExprObj
     std::string error; const auto* a = checked_expr(lhs, error);
     const auto* b = checked_expr(rhs, error);
     if (!a || !b) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    auto result = lamina::kronecker(*a, *b);
+    auto result = LMCAS::kronecker(*a, *b);
     return result ? result_ok(new ExprObj(std::move(result)), ValueKind::Expr)
                   : result_error(MathErrorCode::InvalidArgument, __func__, "matrix.kronecker: invalid dimensions");
 } catch (...) {
@@ -141,11 +141,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_kronecker(ExprObj
 extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_gram_schmidt(
     ArrayObj* vectors, bool normalize) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<std::vector<lamina::lsr::ExprPtr>> values;
+    std::vector<std::vector<LMCAS::ExprPtr>> values;
     std::string error;
     if (!math_internal::nested_expressions(vectors, values, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "matrix.gram_schmidt: " + error);
-    return nested_expr_array_result(lamina::gram_schmidt(values, normalize));
+    return nested_expr_array_result(LMCAS::gram_schmidt(values, normalize));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -155,7 +155,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_symbolic_matrix_classify_quadrati
     std::string error; const auto* matrix = checked_expr(value, error);
     if (!matrix) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return result_ok(
-        new StringObj(lamina::classify_quadratic_form(*matrix)),
+        new StringObj(LMCAS::classify_quadratic_form(*matrix)),
         ValueKind::Obj);
 } catch (...) {
     return c_abi_current_exception(__func__);

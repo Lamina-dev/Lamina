@@ -5,7 +5,7 @@
 #include "include/lmx.h"
 
 #include "compiler/compiler.hpp"
-#include "runtime/object/lsr_expr_obj.hpp"
+#include "runtime/object/expr_obj.hpp"
 #include "runtime/object/StringObj.hpp"
 #include "runtime/object/adt.hpp"
 #include "runtime/object/complex.hpp"
@@ -41,24 +41,24 @@ using runtime::ValueKind;
 using runtime::VectorObj;
 
 void ensure_lmmc_runtime() noexcept;
-const lamina::lsr::ExprPtr* checked_expr(ExprObj* expr, std::string& error);
+const LMCAS::ExprPtr* checked_expr(ExprObj* expr, std::string& error);
 bool checked_symbol_name(ExprObj* expr, std::string& name,
                          std::string& error);
-lamina::lsr::ExprResult invalid_expr_operation(const std::string& message,
+LMCAS::ExprResult invalid_expr_operation(const std::string& message,
                                                const char* operation);
 bool collect_expr_arguments(va_list& args, LmInt count,
-                            std::vector<lamina::lsr::ExprPtr>& values,
+                            std::vector<LMCAS::ExprPtr>& values,
                             std::string& error);
 bool numeric_value(const Value& value, double& result) noexcept;
 bool array_numbers(const ArrayObj* array, std::vector<double>& result,
                    std::string& error);
 bool array_expressions(const ArrayObj* array,
-                       std::vector<lamina::lsr::ExprPtr>& result,
+                       std::vector<LMCAS::ExprPtr>& result,
                        std::string& error);
 bool array_strings(const ArrayObj* array, std::vector<std::string>& result,
                    std::string& error);
 bool expr_to_real(ExprObj* expr, double& result, std::string& error);
-std::optional<lamina::lsr::NumberDomainSet> number_domain_for_name(
+std::optional<LMCAS::NumberDomainSet> number_domain_for_name(
     const char* name);
 bool checked_complex(ComplexObj* value, lmmc_complex_t& result) noexcept;
 AdtObj* complex_result_ok(const lmmc_complex_t& value);
@@ -66,7 +66,7 @@ AdtObj* lmmc_real_result(const char* operation, lmmc_status_t status,
                          lmmc_real_t value);
 AdtObj* lmmc_complex_result(const char* operation, lmmc_status_t status,
                             const lmmc_complex_t& value);
-std::optional<lamina::UnitDefinition> resolved_unit_definition(
+std::optional<LMCAS::UnitDefinition> resolved_unit_definition(
     const char* dimension_text, LmInt numerator, LmInt denominator,
     std::string& error);
 

@@ -13,8 +13,8 @@ using lmx::bridge::math_internal::checked_expression_operation;
 using lmx::bridge::math_internal::checked_expr_result;
 
 namespace {
-lamina::lsr::ExprResult complex_expression(const lamina::ComplexSymbolic& value) {
-    return lamina::lsr::complex(value.real, value.imag);
+LMCAS::ExprResult complex_expression(const LMCAS::ComplexSymbolic& value) {
+    return LMCAS::complex(value.real, value.imag);
 }
 } // namespace
 
@@ -23,12 +23,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_argument(ExprObj
     ensure_lmmc_runtime();
     std::string error; const auto* expression = checked_expr(value, error);
     if (!expression) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto real = lamina::real_part_checked(*expression);
-    const auto imag = lamina::imag_part_checked(*expression);
+    const auto real = LMCAS::real_part_checked(*expression);
+    const auto imag = LMCAS::imag_part_checked(*expression);
     if (!real) return result_error(real.error());
     if (!imag) return result_error(imag.error());
-    return checked_expr_result(lamina::complex_arg_checked(
-        lamina::ComplexSymbolic{real.value(), imag.value()}));
+    return checked_expr_result(LMCAS::complex_arg_checked(
+        LMCAS::ComplexSymbolic{real.value(), imag.value()}));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -39,7 +39,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_exponential_form
     std::string error; const auto* r = checked_expr(radius, error);
     const auto* t = checked_expr(angle, error);
     if (!r || !t) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::complex_exp_form_checked(*r, *t);
+    const auto result = LMCAS::complex_exp_form_checked(*r, *t);
     if (!result) return result_error(result.error());
     const auto expression = complex_expression(result.value());
     if (!expression) return result_error(expression.error());
@@ -54,7 +54,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_trigonometric_fo
     std::string error; const auto* r = checked_expr(radius, error);
     const auto* t = checked_expr(angle, error);
     if (!r || !t) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    const auto result = lamina::complex_trig_form_checked(*r, *t);
+    const auto result = LMCAS::complex_trig_form_checked(*r, *t);
     if (!result) return result_error(result.error());
     const auto expression = complex_expression(result.value());
     if (!expression) return result_error(expression.error());
@@ -70,14 +70,14 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_nth_roots(
         return result_error(MathErrorCode::InvalidArgument, __func__, "complex.nth_roots: invalid degree");
     std::string error; const auto* expression = checked_expr(value, error);
     if (!expression) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    auto roots_result = lamina::solve_complex_nth_root_checked(
+    auto roots_result = LMCAS::solve_complex_nth_root_checked(
         *expression, static_cast<int>(degree));
     if (!roots_result ||
         roots_result.value().size() != static_cast<std::size_t>(degree)) {
-        const auto approximate = lamina::lsr::evalf(**expression);
+        const auto approximate = LMCAS::evalf(**expression);
         if (approximate && approximate.value().is_finite()) {
-            roots_result = lamina::solve_complex_nth_root_checked(
-                SymbolicExpr::number(approximate.value().value),
+            roots_result = LMCAS::solve_complex_nth_root_checked(
+                LMCAS::SymbolicExpr::number(approximate.value().value),
                 static_cast<int>(degree));
         }
     }
@@ -88,7 +88,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_nth_roots(
             MathErrorCode::Inconclusive, __func__,
             "CasError(Inconclusive in complex.nth_roots)");
     }
-    std::vector<lamina::lsr::ExprPtr> values;
+    std::vector<LMCAS::ExprPtr> values;
     for (const auto& root : roots) {
         const auto converted = complex_expression(root);
         if (!converted)
@@ -107,9 +107,9 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_quadratic_roots(
     const auto* bv = checked_expr(b, error); const auto* cv = checked_expr(c, error);
     if (!av || !bv || !cv) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     const auto roots =
-        lamina::solve_complex_quadratic_checked(*av, *bv, *cv);
+        LMCAS::solve_complex_quadratic_checked(*av, *bv, *cv);
     if (!roots) return result_error(roots.error());
-    std::vector<lamina::lsr::ExprPtr> values;
+    std::vector<LMCAS::ExprPtr> values;
     for (const auto& root : roots.value()) {
         const auto converted = complex_expression(root);
         if (!converted) return result_error(converted.error());
@@ -127,7 +127,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_analytic_continu
         return result_error(MathErrorCode::InvalidArgument, __func__, "complex.analytic_continuation: empty variable");
     return checked_expression_operation("complex.analytic_continuation", value,
         [&](const auto& expression) {
-            return lamina::analytic_continuation(expression, variable);
+            return LMCAS::analytic_continuation(expression, variable);
         });
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -137,7 +137,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_real_part(ExprOb
     ensure_lmmc_runtime();
     std::string error; const auto* expression = checked_expr(value, error);
     if (!expression) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(lamina::real_part_checked(*expression));
+    return checked_expr_result(LMCAS::real_part_checked(*expression));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -146,7 +146,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_imag_part(ExprOb
     ensure_lmmc_runtime();
     std::string error; const auto* expression = checked_expr(value, error);
     if (!expression) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(lamina::imag_part_checked(*expression));
+    return checked_expr_result(LMCAS::imag_part_checked(*expression));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -155,7 +155,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_complex_analysis_conjugate(ExprOb
     ensure_lmmc_runtime();
     std::string error; const auto* expression = checked_expr(value, error);
     if (!expression) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(lamina::conjugate_checked(*expression));
+    return checked_expr_result(LMCAS::conjugate_checked(*expression));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

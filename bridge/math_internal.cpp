@@ -3,7 +3,7 @@
 namespace lmx::bridge::math_internal {
 
 ArrayObj* solution_tables(
-    const std::vector<std::map<std::string, lamina::lsr::ExprPtr>>& solutions) {
+    const std::vector<std::map<std::string, LMCAS::ExprPtr>>& solutions) {
     auto result = make_owned_object<ArrayObj>();
     for (const auto& solution : solutions) {
         std::vector<TableObj::Entry> entries;
@@ -42,7 +42,7 @@ bool checked_symbol_names(
 
 bool nested_expressions(
     ArrayObj* rows,
-    std::vector<std::vector<lamina::lsr::ExprPtr>>& output,
+    std::vector<std::vector<LMCAS::ExprPtr>>& output,
     std::string& error) {
     if (!rows || rows->values().empty()) {
         error = "matrix requires at least one row";
@@ -55,7 +55,7 @@ bool nested_expressions(
             error = "matrix row is not an array";
             return false;
         }
-        std::vector<lamina::lsr::ExprPtr> row;
+        std::vector<LMCAS::ExprPtr> row;
         if (!array_expressions(
                 static_cast<ArrayObj*>(row_value.obj), row, error)) {
             return false;
@@ -70,9 +70,9 @@ bool nested_expressions(
     return true;
 }
 
-AdtObj* unordered_expr_result(std::vector<lamina::lsr::ExprPtr> values) {
+AdtObj* unordered_expr_result(std::vector<LMCAS::ExprPtr> values) {
     return expression_set_literal_result(
-        lamina::lsr::ExprSet::make(std::move(values)));
+        LMCAS::ExprSet::make(std::move(values)));
 }
 
 ArrayObj* symbol_text_array(ArrayObj* symbols, std::string& error) {
@@ -86,7 +86,7 @@ ArrayObj* symbol_text_array(ArrayObj* symbols, std::string& error) {
     return result.release();
 }
 
-AdtObj* checked_expr_result(const lamina::ExpressionResult& result) {
+AdtObj* checked_expr_result(const LMCAS::ExpressionResult& result) {
     if (!result) return result_error(result.error());
     if (!result.value()) {
         return result_error(MathErrorCode::InternalError, __func__, 

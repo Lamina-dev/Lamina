@@ -45,24 +45,24 @@ runtime::AdtObj* make_result_ok(std::vector<runtime::Value> fields) {
 
 } // namespace
 
-MathErrorCode math_error_code(const lamina::CasErrc code) noexcept {
+MathErrorCode math_error_code(const LMCAS::CasErrc code) noexcept {
     switch (code) {
-    case lamina::CasErrc::InvalidArgument: return MathErrorCode::InvalidArgument;
-    case lamina::CasErrc::ParseError: return MathErrorCode::ParseError;
-    case lamina::CasErrc::UnboundSymbol: return MathErrorCode::UnboundSymbol;
-    case lamina::CasErrc::DomainError: return MathErrorCode::DomainError;
-    case lamina::CasErrc::DimensionMismatch: return MathErrorCode::DimensionMismatch;
-    case lamina::CasErrc::UnitInvalid: return MathErrorCode::UnitInvalid;
-    case lamina::CasErrc::UnitStripTypeMismatch: return MathErrorCode::UnitStripTypeMismatch;
-    case lamina::CasErrc::SetElementTypeMismatch: return MathErrorCode::SetElementTypeMismatch;
-    case lamina::CasErrc::SetOperandTypeMismatch: return MathErrorCode::SetOperandTypeMismatch;
-    case lamina::CasErrc::SetElementNotHashable: return MathErrorCode::SetElementNotHashable;
-    case lamina::CasErrc::UnsupportedExpression: return MathErrorCode::UnsupportedExpression;
-    case lamina::CasErrc::Inconclusive: return MathErrorCode::Inconclusive;
-    case lamina::CasErrc::ResourceLimit: return MathErrorCode::ResourceLimit;
-    case lamina::CasErrc::Cancelled: return MathErrorCode::Cancelled;
-    case lamina::CasErrc::NumericFailure: return MathErrorCode::NumericalFailure;
-    case lamina::CasErrc::InternalInvariant: return MathErrorCode::InternalError;
+    case LMCAS::CasErrc::InvalidArgument: return MathErrorCode::InvalidArgument;
+    case LMCAS::CasErrc::ParseError: return MathErrorCode::ParseError;
+    case LMCAS::CasErrc::UnboundSymbol: return MathErrorCode::UnboundSymbol;
+    case LMCAS::CasErrc::DomainError: return MathErrorCode::DomainError;
+    case LMCAS::CasErrc::DimensionMismatch: return MathErrorCode::DimensionMismatch;
+    case LMCAS::CasErrc::UnitInvalid: return MathErrorCode::UnitInvalid;
+    case LMCAS::CasErrc::UnitStripTypeMismatch: return MathErrorCode::UnitStripTypeMismatch;
+    case LMCAS::CasErrc::SetElementTypeMismatch: return MathErrorCode::SetElementTypeMismatch;
+    case LMCAS::CasErrc::SetOperandTypeMismatch: return MathErrorCode::SetOperandTypeMismatch;
+    case LMCAS::CasErrc::SetElementNotHashable: return MathErrorCode::SetElementNotHashable;
+    case LMCAS::CasErrc::UnsupportedExpression: return MathErrorCode::UnsupportedExpression;
+    case LMCAS::CasErrc::Inconclusive: return MathErrorCode::Inconclusive;
+    case LMCAS::CasErrc::ResourceLimit: return MathErrorCode::ResourceLimit;
+    case LMCAS::CasErrc::Cancelled: return MathErrorCode::Cancelled;
+    case LMCAS::CasErrc::NumericFailure: return MathErrorCode::NumericalFailure;
+    case LMCAS::CasErrc::InternalInvariant: return MathErrorCode::InternalError;
     }
     return MathErrorCode::InternalError;
 }
@@ -119,7 +119,7 @@ runtime::AdtObj* result_error(const MathErrorCode code, std::string operation,
     return new runtime::AdtObj("Result", "Err", std::move(fields));
 }
 
-runtime::AdtObj* result_error(const lamina::CasError& error) {
+runtime::AdtObj* result_error(const LMCAS::CasError& error) {
     return result_error(math_error_code(error.code), error.operation,
                         error.message);
 }
@@ -141,7 +141,7 @@ runtime::AdtObj* c_abi_error(const MathErrorCode code,
     }
 }
 
-runtime::AdtObj* c_abi_error(const lamina::CasError& error) noexcept {
+runtime::AdtObj* c_abi_error(const LMCAS::CasError& error) noexcept {
     try {
         return result_error(error);
     } catch (...) {
@@ -153,8 +153,8 @@ runtime::AdtObj* c_abi_current_exception(
     const char* operation) noexcept {
     try {
         throw;
-    } catch (const lamina::detail::ResultPropagation& propagation) {
-        return c_abi_error(propagation.error());
+    } catch (const LMCAS::CasError& error) {
+        return c_abi_error(error);
     } catch (const std::bad_alloc&) {
         return c_abi_error(MathErrorCode::ResourceLimit, operation,
                            "bridge allocation failed");
@@ -203,10 +203,10 @@ runtime::AdtObj* allocation_failure_probe() noexcept try {
 }
 
 runtime::AdtObj* checked_failure_probe() noexcept try {
-    throw lamina::detail::ResultPropagation(lamina::CasError{
-        lamina::CasErrc::DomainError,
+    throw LMCAS::CasError{
+        LMCAS::CasErrc::DomainError,
         "checked failure",
-        "checked.operation"});
+        "checked.operation"};
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

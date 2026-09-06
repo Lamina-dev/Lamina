@@ -8,16 +8,16 @@
 namespace lmx::bridge::math_internal {
 
 ArrayObj* solution_tables(
-    const std::vector<std::map<std::string, lamina::lsr::ExprPtr>>& solutions);
+    const std::vector<std::map<std::string, LMCAS::ExprPtr>>& solutions);
 bool checked_symbol_names(
     ArrayObj* values, std::vector<std::string>& names, std::string& error);
 bool nested_expressions(
     ArrayObj* rows,
-    std::vector<std::vector<lamina::lsr::ExprPtr>>& output,
+    std::vector<std::vector<LMCAS::ExprPtr>>& output,
     std::string& error);
-AdtObj* unordered_expr_result(std::vector<lamina::lsr::ExprPtr> values);
+AdtObj* unordered_expr_result(std::vector<LMCAS::ExprPtr> values);
 ArrayObj* symbol_text_array(ArrayObj* symbols, std::string& error);
-AdtObj* checked_expr_result(const lamina::ExpressionResult& result);
+AdtObj* checked_expr_result(const LMCAS::ExpressionResult& result);
 
 template <typename Operation>
 AdtObj* checked_expression_operation(

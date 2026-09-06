@@ -16,10 +16,9 @@ func code_name(code mathematics_error.MathErrorCode) -> text {
 }
 
 func observe(label text, error mathematics_error.MathError) {
-    std.printf("%s:%s:%s:%s|", label,
+    std.printf("%s:%s:%s|", label,
         code_name(mathematics_error.code(error)),
-        mathematics_error.operation(error),
-        mathematics_error.message(error))
+        mathematics_error.operation(error))
 }
 
 func failing_integrand(value real) -> real {

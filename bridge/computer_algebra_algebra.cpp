@@ -17,7 +17,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_factor(ExprObj* value) no
     const auto* expression = checked_expr(value, error);
     if (!expression)
         return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    lamina::ComputationContext context;
+    LMCAS::ComputationContext context;
     auto result = (*expression)->factor_checked(context);
     if (!result) return result_error(result.error());
     return result_ok(new ExprObj(result.value()), ValueKind::Expr);
@@ -45,8 +45,8 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_polynomial_greatest_commo
     const auto* left = checked_expr(lhs, error);
     const auto* right = checked_expr(rhs, error);
     if (!left || !right) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    lamina::ComputationContext context;
-    auto result = lamina::symbolic_polynomial_gcd(
+    LMCAS::ComputationContext context;
+    auto result = LMCAS::symbolic_polynomial_gcd(
         **left, **right, context);
     if (!result) return result_error(result.error());
     return result_ok(new ExprObj(result.value()), ValueKind::Expr);
@@ -63,7 +63,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_algebra_polynomial_resultant(
     const auto* right = checked_expr(rhs, error);
     if (!left || !right) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return checked_expression_operation("algebra.polynomial_resultant", lhs, [&](const auto&) {
-        return SymbolicExpr::poly_resultant(*left, *right, variable);
+        return LMCAS::SymbolicExpr::poly_resultant(*left, *right, variable);
     });
 } catch (...) {
     return c_abi_current_exception(__func__);

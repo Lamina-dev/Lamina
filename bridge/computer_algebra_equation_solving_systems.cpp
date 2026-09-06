@@ -14,7 +14,7 @@ using namespace lmx::bridge;
 namespace {
 ArrayObj* solution_tables(
     const std::vector<std::map<std::string,
-        std::shared_ptr<SymbolicExpr>>>& solutions) {
+        std::shared_ptr<LMCAS::SymbolicExpr>>>& solutions) {
     auto result = make_owned_object<ArrayObj>();
     for (const auto& solution : solutions) {
         std::vector<TableObj::Entry> entries;
@@ -33,14 +33,14 @@ ArrayObj* solution_tables(
 extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_system_by_names(
     ArrayObj* equations, ArrayObj* variables) noexcept try {
     ensure_lmmc_runtime();
-    std::vector<lamina::lsr::ExprPtr> checked_equations;
+    std::vector<LMCAS::ExprPtr> checked_equations;
     std::vector<std::string> checked_variables;
     std::string error;
     if (!array_expressions(equations, checked_equations, error) ||
         !array_strings(variables, checked_variables, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.system: " + error);
     return result_ok(
-        solution_tables(SymbolicExpr::solve_system(
+        solution_tables(LMCAS::SymbolicExpr::solve_system(
             checked_equations, checked_variables)),
         ValueKind::Obj);
 } catch (...) {
@@ -75,11 +75,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_system_by_symbol
         }
         names.push_back(std::move(name));
     }
-    std::vector<lamina::lsr::ExprPtr> checked_equations;
+    std::vector<LMCAS::ExprPtr> checked_equations;
     if (!array_expressions(equations, checked_equations, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "solve.system: " + error);
     return result_ok(
-        solution_tables(SymbolicExpr::solve_system(checked_equations, names)),
+        solution_tables(LMCAS::SymbolicExpr::solve_system(checked_equations, names)),
         ValueKind::Obj);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -95,13 +95,13 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_inequality(
     const auto* checked = checked_expr(expression, error);
     if (!checked) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     const std::string relation_name(relation);
-    std::optional<lamina::InequalityType> type;
-    if (relation_name == "<") type = lamina::InequalityType::LessThan;
-    else if (relation_name == "<=") type = lamina::InequalityType::LessEqual;
-    else if (relation_name == ">") type = lamina::InequalityType::GreaterThan;
-    else if (relation_name == ">=") type = lamina::InequalityType::GreaterEqual;
+    std::optional<LMCAS::InequalityType> type;
+    if (relation_name == "<") type = LMCAS::InequalityType::LessThan;
+    else if (relation_name == "<=") type = LMCAS::InequalityType::LessEqual;
+    else if (relation_name == ">") type = LMCAS::InequalityType::GreaterThan;
+    else if (relation_name == ">=") type = LMCAS::InequalityType::GreaterEqual;
     if (!type) return result_error(MathErrorCode::InvalidArgument, __func__, "solve.inequality: unknown relation");
-    const auto result = lamina::InequalitySolver::solve_inequality_checked(
+    const auto result = LMCAS::InequalitySolver::solve_inequality_checked(
         *checked, *type, variable);
     if (!result) return result_error(result.error());
     const auto& intervals = result.value().intervals();
@@ -110,7 +110,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_inequality(
         !intervals.front().lower.is_neg_infinity &&
         !intervals.front().upper.is_pos_infinity) {
         return result_ok(
-            expr_from_result(lamina::lsr::interval(
+            expr_from_result(LMCAS::interval(
                 intervals.front().lower.value, intervals.front().upper.value,
                 !intervals.front().lower.is_open,
                 !intervals.front().upper.is_open)),

@@ -24,10 +24,10 @@ std.printf("%s|", std.cas.to_text(
 std.printf("%s|", std.cas.to_text(
     calculus.inverse_derivative(x, x, four)))
 std.printf("%s|", calculus.continuity_at(std.cas.parse("x^2"), x, zero))
-std.printf("%s|", std.cas.to_text(
-    calculus.curvature(std.cas.parse("x^2"), x)))
-std.printf("%s|", std.cas.to_text(
-    calculus.curvature_parametric(t, std.cas.parse("t^2"), t)))
+std.printf("%.6f|", std.cas.evaluate_real_with(
+    calculus.curvature(std.cas.parse("x^2"), x), ["x"], [1]))
+std.printf("%.6f|", std.cas.evaluate_real_with(
+    calculus.curvature_parametric(t, std.cas.parse("t^2"), t), ["t"], [1]))
 std.printf("%s|", std.cas.to_text(
     calculus.volume_revolution_x(x, zero, one)))
 std.printf("%s|", std.cas.to_text(

@@ -6,14 +6,14 @@
 
 #include <string>
 
-#include <lmmc/lsr_stdlib.h>
+#include <lmmc/stdlib.h>
 using namespace lmx::bridge;
 
 extern "C" LM_API AdtObj* lmx_units_from_cartesian(const double value, const char* unit) noexcept try {
     ensure_lmmc_runtime();
     if (!unit) return result_error(MathErrorCode::InvalidArgument, __func__, "quantity: null unit");
     lmmc_real_t si_value = 0.0;
-    const auto status = lmmc_lsr_units_strip_num(value, unit, &si_value);
+    const auto status = lmmc_std_units_strip_num(value, unit, &si_value);
     if (status != LMMC_STATUS_OK) return result_error(status, "quantity");
     return quantity_result(si_value, unit, "quantity");
 } catch (...) {
@@ -25,7 +25,7 @@ extern "C" LM_API AdtObj* lmx_units_convert(QuantityObj* value,
     ensure_lmmc_runtime();
     if (!value || !target_unit) return result_error(MathErrorCode::InvalidArgument, __func__, "quantity_convert: invalid argument");
     lmmc_real_t ignored = 0.0;
-    const auto status = lmmc_lsr_units_convert(1.0, value->unit().c_str(),
+    const auto status = lmmc_std_units_convert(1.0, value->unit().c_str(),
                                                target_unit, &ignored);
     if (status != LMMC_STATUS_OK) return result_error(status, "quantity_convert");
     return quantity_result(value->si_value(), target_unit, "quantity_convert");
@@ -37,7 +37,7 @@ extern "C" LM_API AdtObj* lmx_units_value(QuantityObj* value) noexcept try {
     ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "quantity_value: null quantity");
     lmmc_real_t displayed = 0.0;
-    const auto status = lmmc_lsr_units_convert_from_si(
+    const auto status = lmmc_std_units_convert_from_si(
         value->si_value(), value->unit().c_str(), &displayed);
     return lmmc_real_result("quantity_value", status, displayed);
 } catch (...) {
@@ -62,7 +62,7 @@ extern "C" LM_API AdtObj* lmx_units_is_dimensionless(QuantityObj* value) noexcep
     ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "quantity_is_dimensionless: null quantity");
     int result = 0;
-    const auto status = lmmc_lsr_units_is_dimensionless(value->unit().c_str(), &result);
+    const auto status = lmmc_std_units_is_dimensionless(value->unit().c_str(), &result);
     if (status != LMMC_STATUS_OK) {
         return result_error(status, "quantity_is_dimensionless");
     }
@@ -75,7 +75,7 @@ extern "C" LM_API AdtObj* lmx_units_add(QuantityObj* lhs, QuantityObj* rhs) noex
     ensure_lmmc_runtime();
     if (!lhs || !rhs) return result_error(MathErrorCode::InvalidArgument, __func__, "quantity_add: null quantity");
     lmmc_real_t ignored = 0.0;
-    const auto status = lmmc_lsr_units_convert(1.0, rhs->unit().c_str(),
+    const auto status = lmmc_std_units_convert(1.0, rhs->unit().c_str(),
                                                lhs->unit().c_str(), &ignored);
     if (status != LMMC_STATUS_OK) return result_error(status, "quantity_add");
     return quantity_result(lhs->si_value() + rhs->si_value(), lhs->unit(), "quantity_add");
@@ -87,7 +87,7 @@ extern "C" LM_API AdtObj* lmx_units_subtract(QuantityObj* lhs, QuantityObj* rhs)
     ensure_lmmc_runtime();
     if (!lhs || !rhs) return result_error(MathErrorCode::InvalidArgument, __func__, "quantity_sub: null quantity");
     lmmc_real_t ignored = 0.0;
-    const auto status = lmmc_lsr_units_convert(1.0, rhs->unit().c_str(),
+    const auto status = lmmc_std_units_convert(1.0, rhs->unit().c_str(),
                                                lhs->unit().c_str(), &ignored);
     if (status != LMMC_STATUS_OK) return result_error(status, "quantity_sub");
     return quantity_result(lhs->si_value() - rhs->si_value(), lhs->unit(), "quantity_sub");
