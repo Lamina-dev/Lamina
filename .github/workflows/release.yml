@@ -179,7 +179,7 @@ jobs:
         run: cmake --build build/package-consumer --parallel 4
 
       - name: Run installed-package consumer
-        run: ./build/package-consumer/lmcas_package_consumer
+        run: LD_LIBRARY_PATH="$GITHUB_WORKSPACE/external/LMCAS/build/package-install/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ./build/package-consumer/lmcas_package_consumer
 
   static-analysis:
     name: Clang-Tidy static analysis (ubuntu-latest)
@@ -194,8 +194,13 @@ jobs:
       - name: Initialize pinned submodules
         run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
 
+      - name: Install C++23-capable clang-tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy-19
+
       - name: Configure static analysis
-        run: cmake --preset static-analysis
+        run: cmake --preset static-analysis -DLMX_CLANG_TIDY_EXECUTABLE=/usr/bin/clang-tidy-19
 
       - name: Run static analysis build
         run: cmake --build --preset static-analysis
