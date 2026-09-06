@@ -29,23 +29,30 @@ NativeFuncObj::NativeFuncObj(
     : addr(addr), args_ty_len(args_ty_len), ret_ty(ret_ty), args_ty(args_ty), name(name) {}
 
 namespace {
+template <typename T>
+T read_scalar(const uint8_t* p) noexcept {
+    T value;
+    std::memcpy(&value, p, sizeof(value));
+    return value;
+}
+
 class ModuleLoader {
 public:
     static bool check_magic(const uint8_t*& p) noexcept {
         using Magic = decltype(LMX_MAGIC_NUM);
-        if (*reinterpret_cast<const Magic*>(p) != LMX_MAGIC_NUM) return false;
+        if (read_scalar<Magic>(p) != LMX_MAGIC_NUM) return false;
         p += sizeof(Magic);
         return true;
     }
     static bool check_version(const uint8_t*& p) noexcept {
         using Version = decltype(LMX_VERSION);
-        if (*reinterpret_cast<const Version*>(p) != LMX_VERSION) return false;
+        if (read_scalar<Version>(p) != LMX_VERSION) return false;
         p += sizeof(Version);
         return true;
     }
 
     static bool load_native_decl(std::vector<NativeFuncObj>& result, DLLib*& handle, const uint8_t*& p) {
-        const auto size = *reinterpret_cast<const uint64_t*>(p);
+        const auto size = read_scalar<uint64_t>(p);
         p += sizeof(uint64_t);
         const auto over = p + size;
 
@@ -90,14 +97,14 @@ public:
     }
 
     static bool load_cp(std::vector<ConstantPoolInfo>& result, const uint8_t*& p) noexcept {
-        const auto size = *reinterpret_cast<const uint64_t*>(p);
+        const auto size = read_scalar<uint64_t>(p);
         p += sizeof(uint64_t);
         const auto over = p + size;
         while (p != over) {
             switch (static_cast<ConstantId>(*p++)) {
             case ConstantId::Int: {
                 using IdType = int64_t;
-                result.emplace_back(*reinterpret_cast<const IdType*>(p));
+                result.emplace_back(read_scalar<IdType>(p));
                 p += sizeof(IdType);
                 break;
             }
@@ -155,10 +162,10 @@ public:
         return true;
     }
     static bool load_funcs(CodeModuleObj* mod, std::vector<FuncObj>& result, const uint8_t*& p) noexcept {
-        const auto over = p + *reinterpret_cast<const uint64_t*>(p) + sizeof(uint64_t);
+        const auto over = p + read_scalar<uint64_t>(p) + sizeof(uint64_t);
         p += sizeof(uint64_t);
         while (p != over) {
-            const auto len = *reinterpret_cast<const uint32_t*>(p);
+            const auto len = read_scalar<uint32_t>(p);
             p += sizeof(uint32_t);
             result.emplace_back(mod, p, len);
             p += len;
@@ -167,7 +174,7 @@ public:
     }
 
     static bool load_entry_code(const uint8_t*& code, size_t& code_len, const uint8_t*& p) noexcept {
-        code_len = *reinterpret_cast<const uint64_t*>(p);
+        code_len = read_scalar<uint64_t>(p);
         p += sizeof(uint64_t);
         code = p;
         p += code_len;
@@ -175,7 +182,7 @@ public:
     }
 
     static bool load_imports(decltype(CodeModuleObj::imports)& mod, const uint8_t*& p) {
-        const auto over = p + *reinterpret_cast<const uint64_t*>(p) + sizeof(uint64_t);
+        const auto over = p + read_scalar<uint64_t>(p) + sizeof(uint64_t);
         p += sizeof(uint64_t);
         while (p != over) {
             std::string tmp = reinterpret_cast<const char *>(p);

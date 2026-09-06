@@ -380,7 +380,6 @@ struct NativeFuncCallExpr : ExprNode {
 
     explicit NativeFuncCallExpr(const SuffixParenNode* sp) noexcept;
 };
-static_assert(sizeof(SuffixParenNode) == sizeof(NativeFuncCallExpr));
 
 struct SuffixBracketNode : ExprNode {
     std::shared_ptr<ExprNode> expr;

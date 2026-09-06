@@ -74,14 +74,17 @@ LM_API LmState* lmx_newState() {
     return &global_state;
 }
 LM_API void lmx_deleteState(const LmState* state) {
+    delete reinterpret_cast<lmx::runtime::LaminaVM*>(state->vm);
     const LmLinkedNode* node = state->n;
     while (node != nullptr) {
-        if (node->ptr != nullptr) free(node->ptr);
+        if (node->ptr != nullptr) {
+            static_cast<lmx::runtime::CodeModuleObj*>(node->ptr)->~CodeModuleObj();
+            free(node->ptr);
+        }
         const auto last = node->last;
         free((void*)node);
         node = last;
     }
-    delete reinterpret_cast<lmx::runtime::LaminaVM*>(state->vm);
 }
 static LmLinkedNode* newLickedNode(LmLinkedNode* old) {
     auto* node = static_cast<LmLinkedNode *>(malloc(sizeof(LmLinkedNode)));

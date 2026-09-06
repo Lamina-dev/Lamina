@@ -385,7 +385,7 @@ Value LaminaVM::execute(const uint8_t* ip, Frame* stop_frame) {
     }
 
     VM_LABEL(IDiv) {
-        new (&regs[ip[1]]) Value(
+        regs[ip[1]] = Value(
             fraction_component(regs[ip[2]].int_val),
             fraction_component(regs[ip[3]].int_val));
         VM_NEXT

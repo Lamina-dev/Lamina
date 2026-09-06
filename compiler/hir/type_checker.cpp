@@ -1594,7 +1594,7 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
         break;
     }
     case ASTKind::SuffixParen: {
-        const auto node = reinterpret_cast<SuffixParenNode*>(expr.get());
+        const auto node = static_cast<SuffixParenNode*>(expr.get());
         if (const auto bounds = interval_constructor_bounds(node->expr.get())) {
             const auto standard_module = find_global("std");
             if (standard_module.has_value() &&
@@ -1832,10 +1832,8 @@ void TypeCkContext::check_expr(std::shared_ptr<ExprNode>& expr) noexcept {
             if (symbolic_fallback) break;
             node->type = std::reinterpret_pointer_cast<FunctionType>(left)->ret_ty;
         } else if (left->kind == TypeKind::NativeFunction) {
-            const auto native_symbol = node->adt_constructor;
-            new (expr.get()) NativeFuncCallExpr(node);
-            const auto node = reinterpret_cast<NativeFuncCallExpr*>(expr.get());
-            node->adt_constructor = native_symbol;
+            expr = std::make_shared<NativeFuncCallExpr>(node);
+            const auto node = static_cast<NativeFuncCallExpr*>(expr.get());
             const auto func_ty = std::reinterpret_pointer_cast<NativeFunctionType>(left);
             bool has_va_list = false;
             size_t fixed_arg_cnt = func_ty->params_ty.size();
