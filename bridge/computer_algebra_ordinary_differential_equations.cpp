@@ -11,10 +11,12 @@
 using namespace lmx::bridge;
 
 namespace {
-AdtObj* ode_solution_result(const LMCAS::ODESolutionResult& result) {
+AdtObj* ode_solution_result(
+    const char* operation_name, const LMCAS::ODESolutionResult& result)
+{
     if (!result) return result_error(result.error());
     if (!result.value().general_solution)
-        return result_error(MathErrorCode::Inconclusive, __func__, "CasError(Inconclusive in ode: null solution)");
+        return result_error(MathErrorCode::Inconclusive, operation_name, "CasError(Inconclusive in ode: null solution)");
     return result_ok(
         new ExprObj(result.value().general_solution), ValueKind::Expr);
 }
@@ -35,9 +37,8 @@ const char* ode_type_name(LMCAS::ODEType type) {
     default: return "unknown";
     }
 }
-} // namespace
+}
 
-/** @brief Solves a Bernoulli ODE. @param p Borrowed P coefficient. @param q Borrowed Q coefficient. @param power Bernoulli power. @param independent Borrowed independent name. @param dependent Borrowed dependent name. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_bernoulli_by_names(
     ExprObj* p, ExprObj* q, LmInt power,
     const char* independent, const char* dependent) noexcept try {
@@ -48,12 +49,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     std::string error; const auto* pv = checked_expr(p, error);
     const auto* qv = checked_expr(q, error);
     if (!pv || !qv) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return ode_solution_result(LMCAS::solve_bernoulli_ode_checked(
-        *pv, *qv, static_cast<int>(power), independent, dependent));
+    return ode_solution_result(
+        __func__, LMCAS::solve_bernoulli_ode_checked(
+            *pv, *qv, static_cast<int>(power), independent, dependent));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves an exact ODE. @param m Borrowed M coefficient. @param n Borrowed N coefficient. @param independent Borrowed independent name. @param dependent Borrowed dependent name. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_exact_by_names(
     ExprObj* m, ExprObj* n, const char* independent, const char* dependent) noexcept try {
     ensure_lmmc_runtime();
@@ -62,12 +63,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     std::string error; const auto* mv = checked_expr(m, error);
     const auto* nv = checked_expr(n, error);
     if (!mv || !nv) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return ode_solution_result(LMCAS::solve_exact_ode_checked(
-        *mv, *nv, independent, dependent));
+    return ode_solution_result(
+        __func__, LMCAS::solve_exact_ode_checked(
+            *mv, *nv, independent, dependent));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves a homogeneous first-order ODE. @param rhs Borrowed RHS. @param independent Borrowed independent name. @param dependent Borrowed dependent name. @return Owning Result Expr or error. @ownership Input borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_homogeneous_by_names(
     ExprObj* rhs, const char* independent, const char* dependent) noexcept try {
     ensure_lmmc_runtime();
@@ -75,12 +76,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode.solve_homogeneous: invalid variable");
     std::string error; const auto* value = checked_expr(rhs, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return ode_solution_result(LMCAS::solve_homogeneous_ode_checked(
-        *value, independent, dependent));
+    return ode_solution_result(
+        __func__, LMCAS::solve_homogeneous_ode_checked(
+            *value, independent, dependent));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves a higher-order constant-coefficient ODE. @param coefficients Borrowed numeric coefficients. @param forcing Borrowed forcing expression. @param independent Borrowed independent name. @param dependent Borrowed dependent name. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_higher_order_by_names(
     ArrayObj* coefficients, ExprObj* forcing,
     const char* independent, const char* dependent) noexcept try {
@@ -92,12 +93,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     if (!force || !array_numbers(coefficients, values, error) ||
         values.empty() || values.size() > 7)
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode.solve_higher_order: " + error);
-    return ode_solution_result(LMCAS::solve_higher_order_ode_checked(
-        values, *force, independent, dependent));
+    return ode_solution_result(
+        __func__, LMCAS::solve_higher_order_ode_checked(
+            values, *force, independent, dependent));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves a Cauchy-Euler ODE. @param coefficients Borrowed numeric coefficients. @param forcing Borrowed forcing expression. @param independent Borrowed independent name. @param dependent Borrowed dependent name. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_euler_by_names(
     ArrayObj* coefficients, ExprObj* forcing,
     const char* independent, const char* dependent) noexcept try {
@@ -109,12 +110,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     if (!force || !array_numbers(coefficients, values, error) ||
         values.size() < 3 || values.size() > 4)
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode.solve_euler: invalid coefficients");
-    return ode_solution_result(LMCAS::solve_euler_ode_checked(
-        values, *force, independent, dependent));
+    return ode_solution_result(
+        __func__, LMCAS::solve_euler_ode_checked(
+            values, *force, independent, dependent));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves by variation of parameters. @param y1 Borrowed homogeneous solution. @param y2 Borrowed homogeneous solution. @param forcing Borrowed forcing expression. @param independent Borrowed variable name. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_variation_of_parameters_by_name(
     ExprObj* y1, ExprObj* y2, ExprObj* forcing, const char* independent) noexcept try {
     ensure_lmmc_runtime();
@@ -123,12 +124,12 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     std::string error; const auto* a = checked_expr(y1, error);
     const auto* b = checked_expr(y2, error); const auto* g = checked_expr(forcing, error);
     if (!a || !b || !g) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return ode_solution_result(LMCAS::solve_variation_of_parameters_checked(
-        *a, *b, *g, independent));
+    return ode_solution_result(
+        __func__, LMCAS::solve_variation_of_parameters_checked(
+            *a, *b, *g, independent));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes a Frobenius series solution. @param p Borrowed P coefficient. @param q Borrowed Q coefficient. @param point Borrowed expansion point. @param independent Borrowed variable name. @param order Positive truncation order. @return Owning Result FrobeniusSolution or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_frobenius_by_name(
     ExprObj* p, ExprObj* q, ExprObj* point,
     const char* independent, LmInt order) noexcept try {
@@ -165,7 +166,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Classifies a first-order ODE. @param rhs Borrowed RHS. @param independent Borrowed independent name. @param dependent Borrowed dependent name. @return Owning Result text or error. @ownership Input borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_classify_first_order_by_names(
     ExprObj* rhs, const char* independent, const char* dependent) noexcept try {
     ensure_lmmc_runtime();
@@ -179,7 +179,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_c
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Classifies a higher-order ODE. @param coefficients Borrowed expression coefficients. @param forcing Borrowed forcing expression. @param independent Borrowed independent name. @param dependent Borrowed dependent name. @return Owning Result text or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_classify_higher_order_by_names(
     ArrayObj* coefficients, ExprObj* forcing,
     const char* independent, const char* dependent) noexcept try {
@@ -196,7 +195,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_c
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves Bernoulli ODE using symbols. @param p Borrowed P. @param q Borrowed Q. @param power Power. @param x Borrowed independent symbol. @param y Borrowed dependent symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_bernoulli_by_symbols(ExprObj* p, ExprObj* q, LmInt power, ExprObj* x, ExprObj* y) noexcept try {
     ensure_lmmc_runtime();
     std::string a, b, error; if (!checked_symbol_name(x, a, error) || !checked_symbol_name(y, b, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -204,7 +202,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves exact ODE using symbols. @param m Borrowed M. @param n Borrowed N. @param x Borrowed independent symbol. @param y Borrowed dependent symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_exact_by_symbols(ExprObj* m, ExprObj* n, ExprObj* x, ExprObj* y) noexcept try {
     ensure_lmmc_runtime();
     std::string a, b, error; if (!checked_symbol_name(x, a, error) || !checked_symbol_name(y, b, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -212,7 +209,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves homogeneous ODE using symbols. @param rhs Borrowed RHS. @param x Borrowed independent symbol. @param y Borrowed dependent symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_homogeneous_by_symbols(ExprObj* rhs, ExprObj* x, ExprObj* y) noexcept try {
     ensure_lmmc_runtime();
     std::string a, b, error; if (!checked_symbol_name(x, a, error) || !checked_symbol_name(y, b, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -220,7 +216,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves higher-order ODE using symbols. @param coefficients Borrowed coefficients. @param forcing Borrowed forcing. @param x Borrowed independent symbol. @param y Borrowed dependent symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_higher_order_by_symbols(ArrayObj* coefficients, ExprObj* forcing, ExprObj* x, ExprObj* y) noexcept try {
     ensure_lmmc_runtime();
     std::string a, b, error; if (!checked_symbol_name(x, a, error) || !checked_symbol_name(y, b, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -228,7 +223,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves Euler ODE using symbols. @param coefficients Borrowed coefficients. @param forcing Borrowed forcing. @param x Borrowed independent symbol. @param y Borrowed dependent symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_euler_by_symbols(ArrayObj* coefficients, ExprObj* forcing, ExprObj* x, ExprObj* y) noexcept try {
     ensure_lmmc_runtime();
     std::string a, b, error; if (!checked_symbol_name(x, a, error) || !checked_symbol_name(y, b, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -236,7 +230,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves variation of parameters using a symbol. @param y1 Borrowed solution. @param y2 Borrowed solution. @param forcing Borrowed forcing. @param x Borrowed independent symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_variation_of_parameters_by_symbol(ExprObj* y1, ExprObj* y2, ExprObj* forcing, ExprObj* x) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(x, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -244,7 +237,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves Frobenius series using a symbol. @param p Borrowed P. @param q Borrowed Q. @param point Borrowed point. @param x Borrowed independent symbol. @param order Order. @return Owning Result FrobeniusSolution or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_frobenius_by_symbol(ExprObj* p, ExprObj* q, ExprObj* point, ExprObj* x, LmInt order) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(x, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -252,7 +244,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Classifies first-order ODE using symbols. @param rhs Borrowed RHS. @param x Borrowed independent symbol. @param y Borrowed dependent symbol. @return Owning Result text or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_classify_first_order_by_symbols(ExprObj* rhs, ExprObj* x, ExprObj* y) noexcept try {
     ensure_lmmc_runtime();
     std::string a, b, error; if (!checked_symbol_name(x, a, error) || !checked_symbol_name(y, b, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -260,7 +251,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_c
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Classifies higher-order ODE using symbols. @param coefficients Borrowed coefficients. @param forcing Borrowed forcing. @param x Borrowed independent symbol. @param y Borrowed dependent symbol. @return Owning Result text or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_classify_higher_order_by_symbols(ArrayObj* coefficients, ExprObj* forcing, ExprObj* x, ExprObj* y) noexcept try {
     ensure_lmmc_runtime();
     std::string a, b, error; if (!checked_symbol_name(x, a, error) || !checked_symbol_name(y, b, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -323,7 +313,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     return c_abi_current_exception(__func__);
 }
 
-/** @brief Symbol-argument separable ODE solve. @param r Borrowed RHS. @param x Borrowed independent symbol. @param y Borrowed dependent symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_separable_by_symbols(ExprObj* r, ExprObj* x, ExprObj* y) noexcept try {
     ensure_lmmc_runtime();
     std::string a, b, error;
@@ -332,7 +321,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-argument first-order linear ODE solve. @param c Borrowed coefficient. @param f Borrowed forcing. @param x Borrowed independent symbol. @param y Borrowed dependent symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_first_order_linear_by_symbols(ExprObj* c, ExprObj* f, ExprObj* x, ExprObj* y) noexcept try {
     ensure_lmmc_runtime();
     std::string a, b, error;
@@ -341,7 +329,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-argument second-order linear ODE solve. @param a Coefficient. @param b Coefficient. @param c Coefficient. @param f Borrowed forcing. @param x Borrowed independent symbol. @param y Borrowed dependent symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_solve_second_order_linear_by_symbols(double a, double b, double c, ExprObj* f, ExprObj* x, ExprObj* y) noexcept try {
     ensure_lmmc_runtime();
     std::string independent, dependent, error;

@@ -1,0 +1,61 @@
+import std.mathematics_error
+import std
+import std.cas.equation_solving
+
+
+sym x, y
+
+let derivative = std.cas.differentiate(x^2, x)
+let antiderivative = std.cas.integrate(x, x)
+let roots = std.cas.solve(x^2 == 1, x)
+let system = equation_solving.system([x + y == 3, x - y == 1], [x, y])
+let invalid = std.cas.raw.differentiate(x^2, x^2)
+let invalid_ok = match invalid {
+    Result.Ok(_) => false,
+    Result.Err(error) => match mathematics_error.code(error) {
+        mathematics_error.InvalidArgument =>
+            mathematics_error.operation(error) == "lmx_computer_algebra_differentiate_by_name",
+        _ => false
+    }
+}
+
+std.printf("%d|%d|%d|", std.cas.equivalent(derivative, 2*x),
+    std.cas.equivalent(std.cas.differentiate(antiderivative, x), x), invalid_ok)
+let items = std.cas.set_to_array(roots)
+let expected = [std.cas.parse("-1"), std.cas.parse("1")]
+std.printf("%d|%d", std.cas.set_subset(items, expected)
+    and std.cas.set_subset(expected, items),
+    std.cas.equivalent(std.cas.table_expr(system[0], "x"), 2 as expr)
+    and std.cas.equivalent(std.cas.table_expr(system[0], "y"), 1 as expr))
+
+# solve 的变量须为符号或符号名称，输入须为等式；
+# roots 的输入可为表达式。
+func is_expected_invalid_argument(
+    error mathematics_error.MathError, operation text) -> bool {
+    if mathematics_error.operation(error) != operation {
+        return false
+    }
+    match mathematics_error.code(error) {
+        mathematics_error.InvalidArgument => true,
+        _ => false
+    }
+}
+let invalid_variable = match std.cas.raw.solve(x^2 == 1, x^2) {
+    Result.Ok(_) => false,
+    Result.Err(error) => is_expected_invalid_argument(
+        error, "lmx_cas_solve_by_symbol")
+}
+let invalid_expression = match std.cas.raw.solve(x^2 - 1, "x") {
+    Result.Ok(_) => false,
+    Result.Err(error) => is_expected_invalid_argument(
+        error, "LMCAS.solve_expr_set")
+}
+let invalid_relation = match std.cas.raw.solve(x < 1, x) {
+    Result.Ok(_) => false,
+    Result.Err(error) => is_expected_invalid_argument(
+        error, "LMCAS.solve_expr_set")
+}
+let root_items = std.cas.set_to_array(std.cas.roots(x^2 - 1, x))
+std.printf("|%d|%d|%d|%d", invalid_variable, invalid_expression,
+    invalid_relation, std.cas.set_subset(root_items, expected)
+    and std.cas.set_subset(expected, root_items))

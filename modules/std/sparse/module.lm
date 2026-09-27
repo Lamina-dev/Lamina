@@ -30,6 +30,6 @@ func generalized_minimal_residual(matrix sparse, rhs vector, options IterativeOp
 func minimum_residual(matrix sparse, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_minimum_residual"
 func least_squares_orthogonal_triangular(matrix sparse, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_least_squares_orthogonal_triangular"
 func minres_operator(operation func(vector) -> vector, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_minres_operator"
-func lsqr_operator(operation func(vector) -> vector, rhs vector, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_lsqr_operator"
+func lsqr_operator(forward_operation func(vector) -> vector, transpose_operation func(vector) -> vector, rhs vector, solution_size int, options IterativeOptions) -> Result<IterativeResult, mathematics_error.MathError> = "lmx_sparse_linear_algebra_lsqr_operator"
 func solution(result IterativeResult) -> Result<vector, mathematics_error.MathError> = "lmx_sparse_linear_algebra_iterative_solution"
 func converged(result IterativeResult) -> bool = "lmx_sparse_linear_algebra_iterative_converged"

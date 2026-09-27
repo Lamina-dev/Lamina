@@ -1,0 +1,116 @@
+import std
+import std.cas
+import std.mathematics_error
+
+sym x
+
+func show_exact(label text, count int, values set<expr>, expected array<expr>) {
+    let items = std.cas.set_to_array(values)
+    # 双向包含保证根集完整且精确；RootOf 身份以集合成员关系为准，
+    # 返回顺序可任意。
+    let complete = std.cas.set_subset(items, expected)
+        and std.cas.set_subset(expected, items)
+    var index = 0
+    std.printf("%s", label)
+    loop count {
+        std.printf("%d|", std.cas.set_contains(items, expected[index]))
+        index = index + 1
+    }
+    std.printf("complete=%d\n", complete)
+}
+
+func show_equivalent_pair(label text, values set<expr>, expected array<expr>) {
+    let items = std.cas.set_to_array(values)
+    let first = std.cas.equivalent(items[0], expected[0])
+        or std.cas.equivalent(items[1], expected[0])
+    let second = std.cas.equivalent(items[0], expected[1])
+        or std.cas.equivalent(items[1], expected[1])
+    let exact_cardinality = std.cas.set_subset(items, [items[0], items[1]])
+        and std.cas.set_subset([items[0], items[1]], items)
+    std.printf("%s%d|%d|complete=%d\n", label, first, second,
+        first and second and exact_cardinality)
+}
+
+func show_error(label text, result Result<set<expr>, mathematics_error.MathError>) {
+    match result {
+        Result.Ok(_) => std.printf("%sunexpected\n", label),
+        Result.Err(error) => match mathematics_error.code(error) {
+            mathematics_error.InvalidArgument => std.printf("%s!InvalidArgument:%s\n",
+                label, mathematics_error.operation(error)),
+            _ => std.printf("%sunexpected error\n", label)
+        }
+    }
+}
+
+func show_quadratic(label text, values set<expr>, expected array<expr>) {
+    let items = std.cas.set_to_array(values)
+    let first = std.cas.evaluate_real(items[0])
+    let second = std.cas.evaluate_real(items[1])
+    let first_residual = first*first + 2.0*first - 6.0
+    let second_residual = second*second + 2.0*second - 6.0
+    let tolerance = std.cas.evaluate_real(std.cas.parse("1/1000000000"))
+    let expected_first = std.cas.evaluate_real(expected[0])
+    let expected_second = std.cas.evaluate_real(expected[1])
+    let direct_first = first - expected_first
+    let direct_second = second - expected_second
+    let swapped_first = first - expected_second
+    let swapped_second = second - expected_first
+    let pair_matches = ((direct_first > -tolerance and direct_first < tolerance)
+        and (direct_second > -tolerance and direct_second < tolerance))
+        or ((swapped_first > -tolerance and swapped_first < tolerance)
+            and (swapped_second > -tolerance and swapped_second < tolerance))
+    let exact_cardinality = std.cas.set_subset(items, [items[0], items[1]])
+        and std.cas.set_subset([items[0], items[1]], items)
+    let complete = pair_matches and exact_cardinality
+    let residuals = first_residual > -tolerance
+        and first_residual < tolerance
+        and second_residual > -tolerance
+        and second_residual < tolerance
+    std.printf("%sresiduals=%d|complete=%d\n", label, residuals, complete)
+}
+
+let unit_roots = [std.cas.parse("-1"), std.cas.parse("1")]
+show_exact("solve-x2m1:", 2, std.cas.solve(x^2 == 1, "x"), unit_roots)
+show_exact("roots-x2m1:", 2, std.cas.roots(x^2 - 1, "x"), unit_roots)
+let quadratic_roots = [
+    std.cas.parse("-1 - sqrt(7)"),
+    std.cas.parse("-1 + sqrt(7)")
+]
+show_quadratic("solve-q:", std.cas.solve(x^2 + 2*x - 6 == 0, "x"),
+    quadratic_roots)
+show_quadratic("roots-q:", std.cas.roots(x^2 + 2*x - 6, "x"),
+    quadratic_roots)
+show_error("solve-neq:", std.cas.raw.solve(x^2 + 1 < 3, "x"))
+let quintic_roots = [
+    std.cas.parse("RootOf(x^5-x-1, x, 0)"),
+    std.cas.parse("RootOf(x^5-x-1, x, 1)"),
+    std.cas.parse("RootOf(x^5-x-1, x, 2)"),
+    std.cas.parse("RootOf(x^5-x-1, x, 3)"),
+    std.cas.parse("RootOf(x^5-x-1, x, 4)")
+]
+show_exact("solve-deg5:", 5, std.cas.solve(x^5 - x - 1 == 0, "x"), quintic_roots)
+show_equivalent_pair("solve-complex:", std.cas.solve(x^2 + 1 == 0, "x"), [-I, I])
+# roots 采用集合语义，重根 1 对应唯一的精确值。
+show_exact("roots-repeated:", 1, std.cas.roots((x - 1)^2, "x"),
+    [std.cas.parse("1")])
+
+{
+    let items = std.cas.set_to_array(
+        std.cas.solve(x + std.cas.exponential(x) == 0, "x"))
+    let root = std.cas.evaluate_real(items[0])
+    let residual = root
+        + std.cas.evaluate_real(std.cas.exponential(items[0]))
+    let expected = std.cas.evaluate_real(
+        std.cas.parse("-0.5671432904097838"))
+    let tolerance = std.cas.evaluate_real(std.cas.parse("1/10000000000"))
+    let value_delta = root - expected
+    let value_matches = value_delta >= -tolerance
+        and value_delta <= tolerance
+    let residual_matches = residual >= -tolerance
+        and residual <= tolerance
+    # A non-empty set contained in its first singleton has exactly one value.
+    let complete = std.cas.set_subset(items, [items[0]])
+        and std.cas.set_subset([items[0]], items)
+    std.printf("solve-lambert:value=%d|residuals=%d|complete=%d\n",
+        value_matches, residual_matches, complete)
+}

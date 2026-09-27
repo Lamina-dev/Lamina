@@ -56,7 +56,7 @@ AdtObj* solve_with_factor(const char* name, MatrixObj* factor,
                           const std::size_t* pivots, const double* tau,
                           VectorObj* rhs, const int algorithm) {
     if (!factor || !factor->valid() || !rhs)
-        return result_error(MathErrorCode::InvalidArgument, __func__, std::string(name) + ": invalid argument");
+        return result_error(MathErrorCode::InvalidArgument, name, std::string(name) + ": invalid argument");
     auto matrix = matrix_view(factor);
     auto input = vector_view(rhs);
     const std::size_t output_size =

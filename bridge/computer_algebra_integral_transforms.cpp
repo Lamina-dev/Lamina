@@ -250,7 +250,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_symbolic_product_by_name(
     return c_abi_current_exception(__func__);
 }
 
-/** @brief Symbol-argument Laplace transform. @param e Borrowed expression. @param a Borrowed time symbol. @param b Borrowed frequency symbol. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_laplace_by_symbols(ExprObj* e, ExprObj* a, ExprObj* b) noexcept try {
     ensure_lmmc_runtime();
     std::string x, y, error;
@@ -259,7 +258,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_laplace_by_sy
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-argument inverse Laplace transform. @param e Borrowed expression. @param a Borrowed frequency symbol. @param b Borrowed time symbol. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_inverse_laplace_by_symbols(ExprObj* e, ExprObj* a, ExprObj* b) noexcept try {
     ensure_lmmc_runtime();
     std::string x, y, error;
@@ -268,7 +266,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_inverse_lapla
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-argument Fourier transform. @param e Borrowed expression. @param a Borrowed time symbol. @param b Borrowed frequency symbol. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_fourier_by_symbols(ExprObj* e, ExprObj* a, ExprObj* b) noexcept try {
     ensure_lmmc_runtime();
     std::string x, y, error;
@@ -277,7 +274,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_fourier_by_sy
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-argument inverse Fourier transform. @param e Borrowed expression. @param a Borrowed frequency symbol. @param b Borrowed time symbol. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_inverse_fourier_by_symbols(ExprObj* e, ExprObj* a, ExprObj* b) noexcept try {
     ensure_lmmc_runtime();
     std::string x, y, error;
@@ -286,7 +282,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_inverse_fouri
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-argument Z transform. @param e Borrowed expression. @param a Borrowed index symbol. @param b Borrowed frequency symbol. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_z_transform_by_symbols(ExprObj* e, ExprObj* a, ExprObj* b) noexcept try {
     ensure_lmmc_runtime();
     std::string x, y, error;
@@ -295,7 +290,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_z_transform_b
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-argument convolution. @param a Borrowed left expression. @param b Borrowed right expression. @param v Borrowed variable symbol. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_convolve_by_symbol(ExprObj* a, ExprObj* b, ExprObj* v) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error;
@@ -305,7 +299,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_convolve_by_s
     return c_abi_current_exception(__func__);
 }
 
-/** @brief Symbol-argument residue. @param e Borrowed expression. @param v Borrowed variable symbol. @param p Borrowed point. @param n Positive order. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_residue_by_symbol(ExprObj* e, ExprObj* v, ExprObj* p, LmInt n) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error;
@@ -314,7 +307,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_residue_by_symbol(ExprObj* e, Exp
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-argument Cauchy integral. @param e Borrowed expression. @param v Borrowed variable symbol. @param p Borrowed point. @param n Positive order. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_cauchy_integral_by_symbol(ExprObj* e, ExprObj* v, ExprObj* p, LmInt n) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error;
@@ -323,7 +315,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_cauchy_integral_by_symbol(ExprObj
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-argument analyticity query. @param e Borrowed expression. @param v Borrowed variable symbol. @return Owning Result bool or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_is_analytic_by_symbol(ExprObj* e, ExprObj* v) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error;
@@ -332,7 +323,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_is_analytic_by_symbol(ExprObj* e,
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-argument implicit differentiation. @param e Borrowed expression. @param a Borrowed independent symbol. @param b Borrowed dependent symbol. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_implicit_differentiate_by_symbols(ExprObj* e, ExprObj* a, ExprObj* b) noexcept try {
     ensure_lmmc_runtime();
     std::string x, y, error;
@@ -342,7 +332,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_implicit_differentiate_b
     return c_abi_current_exception(__func__);
 }
 
-/** @brief Symbol-variable Laurent series. @param e Borrowed expression. @param v Borrowed symbol. @param c Borrowed center. @param n Negative order. @param p Positive order. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_laurent_series_by_symbol(ExprObj* e, ExprObj* v, ExprObj* c, LmInt n, LmInt p) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error;
@@ -351,7 +340,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_laurent_series_by_symbol(E
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-variable asymptotic expansion. @param e Borrowed expression. @param v Borrowed symbol. @param n Positive order. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_asymptotic_by_symbol(ExprObj* e, ExprObj* v, LmInt n) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error;
@@ -360,7 +348,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_asymptotic_by_symbol(ExprO
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-variable symbolic sum. @param e Borrowed expression. @param v Borrowed symbol. @param l Borrowed lower bound. @param u Borrowed upper bound. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_symbolic_sum_by_symbol(ExprObj* e, ExprObj* v, ExprObj* l, ExprObj* u) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error;
@@ -369,7 +356,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_symbolic_sum_by_symbol(Exp
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-variable symbolic product. @param e Borrowed expression. @param v Borrowed symbol. @param l Borrowed lower bound. @param u Borrowed upper bound. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_symbolic_product_by_symbol(ExprObj* e, ExprObj* v, ExprObj* l, ExprObj* u) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error;

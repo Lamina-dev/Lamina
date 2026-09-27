@@ -1,7 +1,7 @@
 #pragma once
 
 #include "object.hpp"
-#include "lmmc/tensor.h"
+#include "lmmc/tensor_nd.h"
 
 #include <cstddef>
 #include <memory>

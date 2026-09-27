@@ -3,6 +3,7 @@
 #include "bridge/runtime_views.hpp"
 #include "bridge/unit_bridge.hpp"
 #include <cstdarg>
+#include <optional>
 #include "bridge/callback.hpp"
 #include "runtime/object/sparse.hpp"
 #include "lmmc/sparse.h"
@@ -13,6 +14,13 @@ using namespace lmx::bridge;
 
 namespace {
 using lmx::runtime::SparseMatrixObj;
+enum class IterativeAlgorithm {
+    ConjugateGradient,
+    BiconjugateGradientStabilized,
+    GeneralizedMinimalResidual,
+    MinimumResidual,
+    LeastSquaresOrthogonalTriangular,
+};
 
 AdtObj* iterative_options(const lmmc_itersolve_config_t& config,
                           const char* preconditioner,
@@ -136,94 +144,157 @@ AdtObj* iterative_result(
         ValueKind::Obj);
 }
 
+struct IterativeOperatorCallbacks {
+    std::optional<VectorCallbackContext> forward;
+    std::optional<VectorCallbackContext> transpose;
+
+    IterativeOperatorCallbacks(
+        const lmx::runtime::FuncObj* forward_operation,
+        const lmx::runtime::FuncObj* transpose_operation,
+        const std::size_t input_size,
+        const std::size_t output_size) {
+        if (forward_operation)
+            forward.emplace(forward_operation, input_size, output_size);
+        if (transpose_operation)
+            transpose.emplace(transpose_operation, output_size, input_size);
+    }
+};
+
+lmmc_status_t iterative_forward_adapter(
+    const lmmc_vec_t* input, lmmc_vec_t* output, void* user_data) noexcept {
+    auto* callbacks = static_cast<IterativeOperatorCallbacks*>(user_data);
+    if (!callbacks || !callbacks->forward)
+        return LMMC_STATUS_INVALID_ARGUMENT;
+    return vector_callback_trampoline(
+        input, output, &*callbacks->forward);
+}
+
+lmmc_status_t iterative_transpose_adapter(
+    const lmmc_vec_t* input, lmmc_vec_t* output, void* user_data) noexcept {
+    auto* callbacks = static_cast<IterativeOperatorCallbacks*>(user_data);
+    if (!callbacks || !callbacks->transpose)
+        return LMMC_STATUS_INVALID_ARGUMENT;
+    return vector_callback_trampoline(
+        input, output, &*callbacks->transpose);
+}
+
 AdtObj* run_iterative_solver(
-    const int algorithm, SparseMatrixObj* matrix, VectorObj* rhs,
-    AdtObj* options, const lmx::runtime::FuncObj* operation) {
+    const IterativeAlgorithm algorithm, SparseMatrixObj* matrix, VectorObj* rhs,
+    AdtObj* options, const lmx::runtime::FuncObj* forward_operation,
+    const lmx::runtime::FuncObj* transpose_operation,
+    const std::size_t operator_solution_size = 0) {
     if (!rhs || rhs->size() == 0)
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse iterative solver: invalid rhs");
-    if (!operation && (!matrix || !matrix->valid()))
+    if (!forward_operation && (!matrix || !matrix->valid()))
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse iterative solver: invalid matrix");
-    const auto problem_size = rhs->size();
+    if (algorithm == IterativeAlgorithm::LeastSquaresOrthogonalTriangular &&
+        (!forward_operation || !transpose_operation))
+        return result_error(MathErrorCode::InvalidArgument, __func__,
+                            "matrix-free LSQR requires forward and transpose operations");
+    const auto rhs_size = rhs->size();
+    const auto solution_size =
+        algorithm == IterativeAlgorithm::LeastSquaresOrthogonalTriangular
+        ? (matrix ? matrix->matrix().cols : operator_solution_size)
+        : rhs_size;
+    if (solution_size == 0)
+        return result_error(MathErrorCode::InvalidArgument, __func__,
+                            "matrix-free LSQR requires a positive solution size");
     lmmc_itersolve_config_t config{};
     std::string preconditioner;
     double drop_tolerance = 0.0;
     std::size_t max_fill = 0;
     std::string error;
     if (!parse_iterative_options(
-            options, problem_size, config, preconditioner,
+            options, solution_size, config, preconditioner,
             drop_tolerance, max_fill, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    if (operation && preconditioner != "none")
+    if (forward_operation && preconditioner != "none")
         return result_error(MathErrorCode::InvalidArgument, __func__, 
             "matrix-free solver only supports the `none` preconditioner");
     PreconditionerGuard preconditioner_guard;
     const lmmc_sparse_mat_t* sparse =
         matrix ? &matrix->matrix() : nullptr;
     const auto preconditioner_status = create_preconditioner(
-        preconditioner, sparse, problem_size, drop_tolerance, max_fill,
+        preconditioner, sparse, solution_size, drop_tolerance, max_fill,
         preconditioner_guard);
     if (preconditioner_status != LMMC_STATUS_OK)
         return result_error(preconditioner_status, "sparse preconditioner");
 
-    VectorCallbackContext callback_context(
-        operation, problem_size, problem_size);
-    if (operation) {
-        config.apply_op = vector_callback_trampoline;
-        config.op_user_data = &callback_context;
+    IterativeOperatorCallbacks callbacks(
+        forward_operation, transpose_operation, solution_size, rhs_size);
+    if (forward_operation) {
+        config.apply_op = iterative_forward_adapter;
+        config.op_user_data = &callbacks;
+    }
+    if (transpose_operation) {
+        config.apply_transpose_op = iterative_transpose_adapter;
+        config.op_user_data = &callbacks;
     }
     auto b = vector_view(rhs);
-    std::vector<double> solution(problem_size, 0.0);
-    lmmc_vec_t x{problem_size, solution.data(), 0};
+    std::vector<double> solution(solution_size, 0.0);
+    lmmc_vec_t x{solution_size, solution.data(), 0};
     lmmc_itersolve_result_t result{};
+    const auto* precond =
+        preconditioner == "none" ? nullptr : &preconditioner_guard.value;
     lmmc_status_t status = LMMC_STATUS_INVALID_ARGUMENT;
-    const auto* precond = preconditioner == "none"
-        ? nullptr : &preconditioner_guard.value;
-    if (algorithm == 0)
-        status = lmmc_cg_solve(sparse, &b, precond, &config, &x, &result);
-    else if (algorithm == 1)
-        status = lmmc_bicgstab_solve(
-            sparse, &b, precond, &config, &x, &result);
-    else if (algorithm == 2)
-        status = lmmc_gmres_solve(
-            sparse, &b, precond, &config, &x, &result);
-    else if (algorithm == 3) {
-        for (int attempt = 0; attempt < 8; ++attempt) {
-            status = lmmc_minres_solve(
+    switch (algorithm) {
+        case IterativeAlgorithm::ConjugateGradient:
+            status =
+                lmmc_cg_solve(sparse, &b, precond, &config, &x, &result);
+            break;
+        case IterativeAlgorithm::BiconjugateGradientStabilized:
+            status = lmmc_bicgstab_solve(
                 sparse, &b, precond, &config, &x, &result);
-            if (status != LMMC_STATUS_OK) break;
-            if (operation) {
-                std::vector<double> applied(problem_size);
-                lmmc_vec_t applied_view{
-                    problem_size, applied.data(), 0};
-                status = vector_callback_trampoline(
-                    &x, &applied_view, &callback_context);
+            break;
+        case IterativeAlgorithm::GeneralizedMinimalResidual:
+            status = lmmc_gmres_solve(
+                sparse, &b, precond, &config, &x, &result);
+            break;
+        case IterativeAlgorithm::MinimumResidual:
+            for (int attempt = 0; attempt < 8; ++attempt) {
+                status = lmmc_minres_solve(
+                    sparse, &b, precond, &config, &x, &result);
                 if (status != LMMC_STATUS_OK) break;
-                double residual_squared = 0.0;
-                for (std::size_t index = 0; index < problem_size; ++index) {
-                    const double residual =
-                        applied[index] - rhs->data()[index];
-                    residual_squared += residual * residual;
+                if (forward_operation) {
+                    std::vector<double> applied(rhs_size);
+                    lmmc_vec_t applied_view{
+                        rhs_size, applied.data(), 0};
+                    status = iterative_forward_adapter(
+                        &x, &applied_view, &callbacks);
+                    if (status != LMMC_STATUS_OK) break;
+                    double residual_squared = 0.0;
+                    for (std::size_t index = 0; index < rhs_size; ++index) {
+                        const double residual =
+                            applied[index] - rhs->data()[index];
+                        residual_squared += residual * residual;
+                    }
+                    result.final_residual_norm = std::sqrt(residual_squared);
+                    result.converged =
+                        result.final_residual_norm <=
+                            config.abs_tol +
+                                config.rel_tol * result.initial_residual_norm;
                 }
-                result.final_residual_norm = std::sqrt(residual_squared);
-                result.converged =
-                    result.final_residual_norm <=
-                        config.abs_tol +
-                            config.rel_tol * result.initial_residual_norm;
+                if (result.converged) break;
             }
-            if (result.converged) break;
-        }
+            break;
+        case IterativeAlgorithm::LeastSquaresOrthogonalTriangular:
+            status = lmmc_lsqr_solve(
+                sparse, &b, &config, &x, &result);
+            break;
     }
-    else
-        status = lmmc_lsqr_solve(sparse, &b, &config, &x, &result);
-    if (operation && callback_context.failed())
+    if (callbacks.forward && callbacks.forward->failed())
         return result_error(MathErrorCode::CallbackFailure,
                             "sparse iterative solver",
-                            std::move(callback_context.error));
+                            std::move(callbacks.forward->error));
+    if (callbacks.transpose && callbacks.transpose->failed())
+        return result_error(MathErrorCode::CallbackFailure,
+                            "sparse iterative solver",
+                            std::move(callbacks.transpose->error));
     if (status != LMMC_STATUS_OK)
         return result_error(status, "sparse iterative solver");
     return iterative_result(std::move(solution), result);
 }
-} // namespace
+}
 
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_solve_with_lower_upper_factorization(
     SparseMatrixObj* matrix, VectorObj* rhs) noexcept try {
@@ -286,49 +357,70 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_default_options(const LmInt 
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_conjugate_gradient(
     SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) noexcept try {
     ensure_lmmc_runtime();
-    return run_iterative_solver(0, matrix, rhs, options, nullptr);
+    return run_iterative_solver(
+        IterativeAlgorithm::ConjugateGradient,
+        matrix, rhs, options, nullptr, nullptr);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_biconjugate_gradient_stabilized(
     SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) noexcept try {
     ensure_lmmc_runtime();
-    return run_iterative_solver(1, matrix, rhs, options, nullptr);
+    return run_iterative_solver(
+        IterativeAlgorithm::BiconjugateGradientStabilized,
+        matrix, rhs, options, nullptr, nullptr);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_generalized_minimal_residual(
     SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) noexcept try {
     ensure_lmmc_runtime();
-    return run_iterative_solver(2, matrix, rhs, options, nullptr);
+    return run_iterative_solver(
+        IterativeAlgorithm::GeneralizedMinimalResidual,
+        matrix, rhs, options, nullptr, nullptr);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_minimum_residual(
     SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) noexcept try {
     ensure_lmmc_runtime();
-    return run_iterative_solver(3, matrix, rhs, options, nullptr);
+    return run_iterative_solver(
+        IterativeAlgorithm::MinimumResidual,
+        matrix, rhs, options, nullptr, nullptr);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_least_squares_orthogonal_triangular(
     SparseMatrixObj* matrix, VectorObj* rhs, AdtObj* options) noexcept try {
     ensure_lmmc_runtime();
-    return run_iterative_solver(4, matrix, rhs, options, nullptr);
+    return run_iterative_solver(
+        IterativeAlgorithm::LeastSquaresOrthogonalTriangular,
+        matrix, rhs, options, nullptr, nullptr);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_minres_operator(
     const lmx::runtime::FuncObj* operation, VectorObj* rhs, AdtObj* options) noexcept try {
     ensure_lmmc_runtime();
-    return run_iterative_solver(3, nullptr, rhs, options, operation);
+    return run_iterative_solver(
+        IterativeAlgorithm::MinimumResidual,
+        nullptr, rhs, options, operation, nullptr);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_lsqr_operator(
-    const lmx::runtime::FuncObj* operation, VectorObj* rhs, AdtObj* options) noexcept try {
+    const lmx::runtime::FuncObj* forward_operation,
+    const lmx::runtime::FuncObj* transpose_operation,
+    VectorObj* rhs, const LmInt solution_size,
+    AdtObj* options) noexcept try {
     ensure_lmmc_runtime();
-    return run_iterative_solver(4, nullptr, rhs, options, operation);
+    if (solution_size <= 0)
+        return result_error(MathErrorCode::InvalidArgument, __func__,
+                            "matrix-free LSQR requires a positive solution size");
+    return run_iterative_solver(
+        IterativeAlgorithm::LeastSquaresOrthogonalTriangular,
+        nullptr, rhs, options, forward_operation, transpose_operation,
+        static_cast<std::size_t>(solution_size));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

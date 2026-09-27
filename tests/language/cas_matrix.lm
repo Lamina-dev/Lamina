@@ -1,0 +1,58 @@
+import std
+import std.cas.symbolic_matrix
+
+func near(value expr, expected expr) -> bool {
+    let delta = std.cas.evaluate_real(value) - std.cas.evaluate_real(expected)
+    let tolerance = std.cas.evaluate_real(std.cas.parse("1/1000000000000"))
+    delta >= -tolerance and delta <= tolerance
+}
+
+# 矩阵元素满足 trace(A E_ji) = A_ij，以代数运算作为元素比较的依据。
+func diagonal_entries(value expr, first expr, second expr) -> bool {
+    let zero = std.cas.parse("0")
+    let one = std.cas.parse("1")
+    let e11 = symbolic_matrix.from_rows([[one, zero], [zero, zero]])
+    let e22 = symbolic_matrix.from_rows([[zero, zero], [zero, one]])
+    let e12 = symbolic_matrix.from_rows([[zero, one], [zero, zero]])
+    let e21 = symbolic_matrix.from_rows([[zero, zero], [one, zero]])
+    near(symbolic_matrix.trace(symbolic_matrix.multiply(value, e11)), first)
+        and near(symbolic_matrix.trace(symbolic_matrix.multiply(value, e22)), second)
+        and near(symbolic_matrix.trace(symbolic_matrix.multiply(value, e12)), zero)
+        and near(symbolic_matrix.trace(symbolic_matrix.multiply(value, e21)), zero)
+}
+
+let zero = std.cas.parse("0")
+let one = std.cas.parse("1")
+let two = std.cas.parse("2")
+let three = std.cas.parse("3")
+let identity = symbolic_matrix.from_rows([[one, zero], [zero, one]])
+let diagonal = symbolic_matrix.from_rows([[two, zero], [zero, three]])
+let zero_matrix = symbolic_matrix.from_rows([[zero, zero], [zero, zero]])
+let scalar_two = symbolic_matrix.from_rows([[two]])
+
+let numeric_zero = std.cas.evaluate_real(zero) as expr
+let numeric_one = std.cas.evaluate_real(one) as expr
+let numeric_identity = symbolic_matrix.from_rows(
+    [[numeric_one, numeric_zero], [numeric_zero, numeric_one]])
+
+std.printf("%d|", diagonal_entries(identity, one, one))
+std.printf("%d|", std.cas.equivalent(std.cas.simplify(
+    symbolic_matrix.multiply(identity, diagonal)), diagonal))
+std.printf("%d|", std.cas.equivalent(symbolic_matrix.determinant(diagonal), std.cas.parse("6")))
+std.printf("%d|", std.cas.equivalent(symbolic_matrix.inverse(diagonal),
+    symbolic_matrix.from_rows([[std.cas.simplify(std.cas.parse("1/2")), zero],
+        [zero, std.cas.simplify(std.cas.parse("1/3"))]])))
+std.printf("%d|", std.cas.equivalent(symbolic_matrix.trace(identity), two))
+std.printf("%lld|", symbolic_matrix.rank(identity))
+std.printf("%d|", std.cas.equivalent(symbolic_matrix.exponential(zero_matrix), identity))
+# 输入为 1×1 矩阵，其迹等于唯一元素 log(2)。
+std.printf("%d|", near(symbolic_matrix.trace(
+    symbolic_matrix.natural_logarithm(scalar_two)),
+    std.cas.parse("approx(0.6931471805599453)")))
+std.printf("%d|", std.cas.equivalent(symbolic_matrix.kronecker(scalar_two, diagonal),
+    symbolic_matrix.from_rows([[std.cas.parse("4"), zero], [zero, std.cas.parse("6")]])))
+std.printf("%d|", std.cas.equivalent(std.cas.simplify(
+    symbolic_matrix.rotation(std.int_to_frac(0), 2)), numeric_identity))
+std.printf("%d|", diagonal_entries(
+    symbolic_matrix.scaling(std.int_to_frac(2), std.int_to_frac(3), 2), two, three))
+std.printf("%s", symbolic_matrix.classify_quadratic_form(diagonal))

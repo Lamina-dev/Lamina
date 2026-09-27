@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bridge/mathematics_error.hpp"
+#include "bridge/conversions.hpp"
 
 #include "include/lmx.h"
 
@@ -20,7 +21,6 @@
 #include <string>
 #include <vector>
 
-
 namespace lmx::bridge {
 
 using runtime::AdtObj;
@@ -29,7 +29,6 @@ using runtime::ExprObj;
 using runtime::StringObj;
 using runtime::Value;
 using runtime::ValueKind;
-const LMCAS::ExprPtr* checked_expr(ExprObj* expr, std::string& error);
 
 // Ownership contract for this header family (result/conversions/runtime_views/
 // unit_bridge): every exported function returning a runtime object pointer
@@ -67,4 +66,4 @@ AdtObj* expr_array_result(const ResultType& result) {
     return result_ok(values.release(), ValueKind::Obj);
 }
 
-} // namespace lmx::bridge
+}

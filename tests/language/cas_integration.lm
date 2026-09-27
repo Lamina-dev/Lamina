@@ -1,0 +1,47 @@
+import std.mathematics_error
+import std
+import std.complex
+
+sym x
+
+let parsed = std.cas.parse("x^2 + 2*x + 1")
+let integral = std.cas.integrate(x, "x")
+let limit = std.cas.limit((x^2 - 1) / (x - 1), "x", 1 as expr, "")
+let series = std.cas.series(std.cas.cosine(x), "x", 0 as expr, 6)
+let trig = std.cas.sine(std.cas.pi() / 2)
+let complex_value = std.cas.evaluate_complex(1 + 2 * I)
+
+std.printf("%d|%d|%d|%d|",
+    std.cas.equivalent(parsed, x^2 + 2*x + 1),
+    std.cas.equivalent(std.cas.differentiate(integral, "x"), x),
+    std.cas.equivalent(limit, 2 as expr),
+    std.cas.equivalent(series, 1 - x^2/2 + x^4/24 - x^6/720))
+
+{
+    let value = std.cas.evaluate_real(trig)
+    std.printf("%.1f|", value)
+}
+
+std.printf("%.1f,%.1f|", std.complex.real_part(complex_value),
+    std.complex.imaginary_part(complex_value))
+
+{
+    let value = std.cas.equivalent(parsed, (x + 1)^2)
+    std.printf("%d|", value)
+}
+
+{
+    let values = std.cas.solve(x^2 == 1, "x")
+    let items = std.cas.set_to_array(values)
+    let expected = [std.cas.parse("-1"), std.cas.parse("1")]
+    std.printf("%d|", std.cas.set_subset(items, expected)
+        and std.cas.set_subset(expected, items))
+}
+
+{
+    let values = std.cas.roots(x^2 - 1, "x")
+    let items = std.cas.set_to_array(values)
+    let expected = [std.cas.parse("-1"), std.cas.parse("1")]
+    std.printf("%d", std.cas.set_subset(items, expected)
+        and std.cas.set_subset(expected, items))
+}

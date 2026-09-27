@@ -13,7 +13,9 @@ namespace {
 using lmx::runtime::SparseMatrixObj;
 
 AdtObj* sparse_output(
-    const char* name, const lmmc_status_t status, lmmc_sparse_mat_t& output) {
+    const char* operation_name, const char* name,
+    const lmmc_status_t status, lmmc_sparse_mat_t& output)
+{
     if (status != LMMC_STATUS_OK) {
         lmmc_sparse_destroy(&output);
         return result_error(status, name);
@@ -21,7 +23,7 @@ AdtObj* sparse_output(
     auto* result = new SparseMatrixObj(std::move(output));
     if (!result->valid()) {
         result->release();
-        return result_error(MathErrorCode::InvalidArgument, __func__, std::string(name) + ": invalid CSR output");
+        return result_error(MathErrorCode::InvalidArgument, operation_name, std::string(name) + ": invalid CSR output");
     }
     return result_ok(result, ValueKind::Sparse);
 }
@@ -33,7 +35,7 @@ bool checked_sparse(SparseMatrixObj* value, std::string& error) {
     }
     return true;
 }
-} // namespace
+}
 
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_from_dense(
     MatrixObj* value, const double epsilon) noexcept try {
@@ -44,7 +46,7 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_from_dense(
     auto input = matrix_view(value);
     lmmc_sparse_mat_t output{};
     return sparse_output(
-        "sparse.from_dense",
+        __func__, "sparse.from_dense",
         lmmc_sparse_from_dense(&input, epsilon, &output), output);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -88,7 +90,7 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_from_triplets(
         status = lmmc_sparse_builder_build(
             builder, LMMC_SPARSE_CSR, &output);
     lmmc_sparse_builder_destroy(builder);
-    return sparse_output("sparse.from_triplets", status, output);
+    return sparse_output(__func__, "sparse.from_triplets", status, output);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -140,7 +142,7 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_transpose(SparseMatrixObj* v
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse.transpose: " + error);
     lmmc_sparse_mat_t output{};
     return sparse_output(
-        "sparse.transpose",
+        __func__, "sparse.transpose",
         lmmc_sparse_transpose(&value->matrix(), &output), output);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -154,7 +156,7 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_add(
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse.add: " + error);
     lmmc_sparse_mat_t output{};
     return sparse_output(
-        "sparse.add",
+        __func__, "sparse.add",
         lmmc_sparse_add(
             1.0, &lhs->matrix(), 1.0, &rhs->matrix(), &output),
         output);
@@ -170,7 +172,7 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_multiply(
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse.mul: " + error);
     lmmc_sparse_mat_t output{};
     return sparse_output(
-        "sparse.mul",
+        __func__, "sparse.mul",
         lmmc_sparse_mat_mat_mul_sparse(
             &lhs->matrix(), &rhs->matrix(), &output),
         output);
@@ -209,7 +211,6 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_norm(SparseMatrixObj* value)
     return c_abi_current_exception(__func__);
 }
 
-/** @brief Subtracts sparse matrices. @param lhs Borrowed sparse matrix. @param rhs Borrowed sparse matrix. @return Owning Result sparse matrix or error. @ownership Inputs borrowed; output destroyed or adopted on every path. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_subtract(
     SparseMatrixObj* lhs, SparseMatrixObj* rhs) noexcept try {
     ensure_lmmc_runtime();
@@ -217,12 +218,11 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_subtract(
     if (!checked_sparse(lhs, error) || !checked_sparse(rhs, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse.sub: " + error);
     lmmc_sparse_mat_t output{};
-    return sparse_output("sparse.sub", lmmc_sparse_add(
+    return sparse_output(__func__, "sparse.sub", lmmc_sparse_add(
         1.0, &lhs->matrix(), -1.0, &rhs->matrix(), &output), output);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Returns a scaled sparse matrix. @param value Borrowed sparse matrix. @param scalar Finite scale. @return Owning Result sparse matrix or error. @ownership Input borrowed; output destroyed or adopted on every path. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_scale(
     SparseMatrixObj* value, double scalar) noexcept try {
     ensure_lmmc_runtime();
@@ -230,12 +230,11 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_scale(
     if (!checked_sparse(value, error) || !std::isfinite(scalar))
         return result_error(MathErrorCode::InvalidArgument, __func__, "sparse.scale: invalid argument");
     lmmc_sparse_mat_t output{};
-    return sparse_output("sparse.scale", lmmc_sparse_add(
+    return sparse_output(__func__, "sparse.scale", lmmc_sparse_add(
         scalar, &value->matrix(), 0.0, &value->matrix(), &output), output);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Extracts sparse main diagonal. @param value Borrowed square sparse matrix. @return Owning Result vector or error. @ownership Input borrowed; output destroyed or adopted on every path. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_diagonal(SparseMatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     std::string error;
@@ -247,7 +246,6 @@ extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_diagonal(SparseMatrixObj* va
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Multiplies sparse by dense matrix. @param sparse Borrowed sparse matrix. @param dense Borrowed dense matrix. @return Owning Result dense matrix or error. @ownership Inputs borrowed; output destroyed or adopted on every path. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_sparse_linear_algebra_matmul_dense(
     SparseMatrixObj* sparse, MatrixObj* dense) noexcept try {
     ensure_lmmc_runtime();

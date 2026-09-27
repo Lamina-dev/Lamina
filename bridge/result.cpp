@@ -19,6 +19,10 @@ ExprObj* expr_from_result(const LMCAS::ExprResult& result) {
 
 AdtObj* expr_result_ok(const LMCAS::ExprResult& result) {
     if (!result) return result_error(result.error());
+    if (!result.value()) {
+        return result_error(MathErrorCode::InternalError, __func__,
+            "CasError(InternalInvariant: null expression result)");
+    }
     return result_ok(new ExprObj(result.value()), ValueKind::Expr);
 }
 
@@ -38,7 +42,8 @@ AdtObj* expression_set_literal_result(const LMCAS::ExprSetResult& result) {
     values.reserve(result.value().size());
     for (const auto& expression : result.value().elements()) {
         values.emplace_back(take_object_value(
-            make_owned_object<ExprObj>(expression), ValueKind::Expr));
+            make_owned_object<ExprObj>(
+                std::make_shared<LMCAS::SymbolicExpr>(*expression)), ValueKind::Expr));
     }
     return result_ok(
         new lmx::runtime::LiteralObj(
@@ -56,4 +61,4 @@ AdtObj* transform_engine_result_value(const LMCAS::TransformEngineResult& result
         new ExprObj(result.value().value.expression), ValueKind::Expr);
 }
 
-} // namespace lmx::bridge
+}

@@ -9,29 +9,6 @@
 #include "symbolic_geometry.hpp"
 using namespace lmx::bridge;
 
-namespace {
-bool checked_symbol_names(
-    ArrayObj* values, std::vector<std::string>& names, std::string& error) {
-    if (!values) {
-        error = "CasError(InvalidArgument: null symbol array)";
-        return false;
-    }
-    names.reserve(static_cast<std::size_t>(values->len()));
-    for (const auto& value : values->values()) {
-        if (value.kind != ValueKind::Expr || !value.obj) {
-            error = "CasError(InvalidArgument: symbol array contains a non-expression value)";
-            return false;
-        }
-        std::string name;
-        if (!checked_symbol_name(
-                reinterpret_cast<ExprObj*>(value.obj), name, error))
-            return false;
-        names.push_back(std::move(name));
-    }
-    return true;
-}
-} // namespace
-
 extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_simpson_by_name(ExprObj* expression,
                                                   const char* variable,
                                                   ExprObj* lower,
@@ -108,7 +85,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_adaptive_by_name(ExprOb
     return c_abi_current_exception(__func__);
 }
 
-/** @brief Symbol-variable Simpson integration. @param e Borrowed integrand. @param v Borrowed symbol. @param l Borrowed lower bound. @param u Borrowed upper bound. @param n Positive interval count. @return Owning Result real or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_simpson_by_symbol(
     ExprObj* e, ExprObj* v, ExprObj* l, ExprObj* u, LmInt n) noexcept try {
     ensure_lmmc_runtime();
@@ -118,7 +94,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_simpson_by_symbol(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-variable Gaussian integration. @param e Borrowed integrand. @param v Borrowed symbol. @param l Borrowed lower bound. @param u Borrowed upper bound. @param n Positive point count. @return Owning Result real or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_gaussian_by_symbol(
     ExprObj* e, ExprObj* v, ExprObj* l, ExprObj* u, LmInt n) noexcept try {
     ensure_lmmc_runtime();
@@ -128,7 +103,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_gaussian_by_symbol(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-variable adaptive integration. @param e Borrowed integrand. @param v Borrowed symbol. @param l Borrowed lower bound. @param u Borrowed upper bound. @param t Tolerance. @param d Maximum depth. @return Owning Result real or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_adaptive_by_symbol(
     ExprObj* e, ExprObj* v, ExprObj* l, ExprObj* u, double t, LmInt d) noexcept try {
     ensure_lmmc_runtime();
@@ -222,58 +196,52 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_hessian_by_names(
     return c_abi_current_exception(__func__);
 }
 
-/** @brief Symbol-array gradient. @param e Borrowed expression. @param v Borrowed ordered symbol array. @return Owning Result array or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_gradient_by_symbols(ExprObj* e, ArrayObj* v) noexcept try {
     ensure_lmmc_runtime();
     std::vector<std::string> names; std::string error;
-    if (!checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (!math_internal::checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     const auto* value = checked_expr(e, error);
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return expr_array_result(LMCAS::gradient_checked(*value, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-array divergence. @param f Borrowed expression field. @param v Borrowed ordered symbol array. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_divergence_by_symbols(ArrayObj* f, ArrayObj* v) noexcept try {
     ensure_lmmc_runtime();
     std::vector<LMCAS::ExprPtr> field; std::vector<std::string> names; std::string error;
-    if (!array_expressions(f, field, error) || !checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (!array_expressions(f, field, error) || !math_internal::checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return expr_result_ok(LMCAS::divergence_checked(field, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-array curl. @param f Borrowed expression field. @param v Borrowed ordered symbol array. @return Owning Result array or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curl_by_symbols(ArrayObj* f, ArrayObj* v) noexcept try {
     ensure_lmmc_runtime();
     std::vector<LMCAS::ExprPtr> field; std::vector<std::string> names; std::string error;
-    if (!array_expressions(f, field, error) || !checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (!array_expressions(f, field, error) || !math_internal::checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return expr_array_result(LMCAS::curl_checked(field, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-array Laplacian. @param e Borrowed expression. @param v Borrowed ordered symbol array. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_laplacian_by_symbols(ExprObj* e, ArrayObj* v) noexcept try {
     ensure_lmmc_runtime();
     std::vector<std::string> names; std::string error; const auto* value = checked_expr(e, error);
-    if (!value || !checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (!value || !math_internal::checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return expr_result_ok(LMCAS::laplacian_checked(*value, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-array Jacobian. @param f Borrowed expressions. @param v Borrowed ordered symbol array. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_jacobian_by_symbols(ArrayObj* f, ArrayObj* v) noexcept try {
     ensure_lmmc_runtime();
     std::vector<LMCAS::ExprPtr> values; std::vector<std::string> names; std::string error;
-    if (!array_expressions(f, values, error) || !checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (!array_expressions(f, values, error) || !math_internal::checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return expr_result_ok(LMCAS::jacobian_checked(values, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Symbol-array Hessian. @param e Borrowed expression. @param v Borrowed ordered symbol array. @return Owning Expr or CasError. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_hessian_by_symbols(ExprObj* e, ArrayObj* v) noexcept try {
     ensure_lmmc_runtime();
     std::vector<std::string> names; std::string error; const auto* value = checked_expr(e, error);
-    if (!value || !checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (!value || !math_internal::checked_symbol_names(v, names, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     return expr_result_ok(LMCAS::hessian_checked(*value, names));
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -310,7 +278,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_arc_length_x(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-
 
 extern "C" LM_API StringObj* lmx_computer_algebra_to_text(ExprObj* expr) noexcept try {
     ensure_lmmc_runtime();

@@ -44,14 +44,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_differentiate_by_name(ExprObj* ex
     return c_abi_current_exception(__func__);
 }
 
-/**
- * @brief Differentiates an expression with respect to a symbol expression.
- * @param expr Borrowed valid Lamina expression to differentiate.
- * @param variable Borrowed Lamina expression containing exactly one symbol.
- * @return A newly allocated expression containing the derivative or CasError.
- * @ownership Caller owns the returned ExprObj; inputs are borrowed.
- * @threadsafe Current VM thread only.
- */
 extern "C" LM_API AdtObj* lmx_computer_algebra_differentiate_by_symbol(ExprObj* expr, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
     std::string name;
@@ -247,14 +239,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_by_name(ExprObj* expr,
     return c_abi_current_exception(__func__);
 }
 
-/**
- * @brief Integrates an expression with respect to a symbol expression.
- * @param expr Borrowed valid Lamina expression to integrate.
- * @param variable Borrowed Lamina expression containing exactly one symbol.
- * @return A newly allocated antiderivative expression or CasError.
- * @ownership Caller owns the returned ExprObj; inputs are borrowed.
- * @threadsafe Current VM thread only.
- */
 extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_by_symbol(
     ExprObj* expr, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -316,16 +300,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_limit_by_name(
     return c_abi_current_exception(__func__);
 }
 
-/**
- * @brief Evaluates a limit using a symbol expression as its variable.
- * @param expr Borrowed valid Lamina expression.
- * @param variable Borrowed Lamina expression containing exactly one symbol.
- * @param point Borrowed valid Lamina limit point.
- * @param direction Borrowed textual direction accepted by the existing limit binding.
- * @return A newly allocated limit expression or CasError.
- * @ownership Caller owns the return; all inputs are borrowed.
- * @threadsafe Current VM thread only.
- */
 extern "C" LM_API AdtObj* lmx_computer_algebra_limit_by_symbol(
     ExprObj* expr, ExprObj* variable, ExprObj* point, const char* direction) noexcept try {
     ensure_lmmc_runtime();
@@ -359,16 +333,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_by_name(
     return c_abi_current_exception(__func__);
 }
 
-/**
- * @brief Expands a series using a symbol expression as its variable.
- * @param expr Borrowed valid Lamina expression.
- * @param variable Borrowed Lamina expression containing exactly one symbol.
- * @param point Borrowed valid expansion point.
- * @param order Non-negative expansion order in Lamina integer range.
- * @return A newly allocated series expression or CasError.
- * @ownership Caller owns the return; all inputs are borrowed.
- * @threadsafe Current VM thread only.
- */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_symbol(
     ExprObj* expr, ExprObj* variable, ExprObj* point, const LmInt order) noexcept try {
     ensure_lmmc_runtime();
@@ -430,15 +394,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_substitute_named_by_name(
     return c_abi_current_exception(__func__);
 }
 
-/**
- * @brief Substitutes a value for a variable supplied as a symbol expression.
- * @param expr Borrowed valid Lamina expression.
- * @param variable Borrowed Lamina expression containing exactly one symbol.
- * @param replacement Borrowed valid Lamina replacement expression.
- * @return A newly allocated substituted expression or CasError.
- * @ownership Caller owns the return; all inputs are borrowed.
- * @threadsafe Current VM thread only.
- */
 extern "C" LM_API AdtObj* lmx_computer_algebra_substitute_named_by_symbol(
     ExprObj* expr, ExprObj* variable, ExprObj* replacement) noexcept try {
     ensure_lmmc_runtime();

@@ -54,8 +54,15 @@ func query(value assumptions, expression expr, property text) -> assumptions.Tru
     }
 }
 
-func period(value assumptions, expression expr) -> expr {
-    match assumptions.period(value, expression) {
+func query_periodic(value assumptions, expression expr, variable text) -> assumptions.Truth {
+    match assumptions.query_periodic(value, expression, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func period(value assumptions, expression expr, variable text) -> expr {
+    match assumptions.period(value, expression, variable) {
         Result.Ok(value) => value,
         Result.Err(error) => mathematics_error.raise(error)
     }

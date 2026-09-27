@@ -1,0 +1,40 @@
+import std.mathematics_error
+import std
+
+
+let zero = 0 as expr
+let one = std.cas.parse("1")
+
+{
+    let value = std.cas.integrate_simpson(std.cas.parse("x^2"), "x", zero, one, 100)
+    std.printf("%.4f|", value)
+}
+
+{
+    let value = std.cas.integrate_gaussian(std.cas.parse("x^2"), "x", zero, one, 3)
+    std.printf("%.4f|", value)
+}
+
+{
+    let values = std.cas.gradient(std.cas.parse("x^2 + y^2"), ["x", "y"])
+    std.printf("%d,%d|", std.cas.equivalent(values[0], std.cas.parse("2*x")),
+        std.cas.equivalent(values[1], std.cas.parse("2*y")))
+}
+
+std.printf("%d|", std.cas.equivalent(std.cas.laplacian(
+    std.cas.parse("x^2 + y^2"), ["x", "y"]), 4 as expr))
+std.printf("%d|", std.cas.equivalent(std.cas.divergence(
+    [std.cas.parse("x^2"), std.cas.parse("y^2")], ["x", "y"]),
+    std.cas.parse("2*x + 2*y")))
+std.printf("%d|", std.cas.equivalent(std.cas.simplify(
+    std.cas.laplace(one, "t", "s")), std.cas.simplify(std.cas.parse("1/s"))))
+std.printf("%d|", std.cas.equivalent(std.cas.residue(
+    std.cas.parse("1/z"), "z", zero, 1), one))
+sym k
+std.printf("%d|", std.cas.equivalent(std.cas.symbolic_sum(
+    k, "k", one, std.cas.parse("3")), 6 as expr))
+let implicit_derivative = std.cas.implicit_differentiate(
+    std.cas.parse("x^2 + y^2 - 1"), "x", "y")
+std.printf("%d",
+    std.cas.evaluate_real_with(implicit_derivative, ["x", "y"], [2, 4]) == -0.5
+    and std.cas.evaluate_real_with(implicit_derivative, ["x", "y"], [-3, 2]) == 1.5)

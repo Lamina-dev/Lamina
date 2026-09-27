@@ -1,12 +1,9 @@
 #include "bridge/result.hpp"
 #include "bridge/conversions.hpp"
-#include "bridge/runtime_views.hpp"
-#include "bridge/unit_bridge.hpp"
-#include <cstdarg>
 
 using namespace lmx::bridge;
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_set_contains(ArrayObj* set, ExprObj* element) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_set_contains(ArrayObj* set, ExprObj* element) noexcept try {
     ensure_lmmc_runtime();
     std::vector<LMCAS::ExprPtr> values;
     std::string error;
@@ -23,13 +20,8 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_set_contains(ArrayObj* set, ExprO
     return c_abi_current_exception(__func__);
 }
 
-/**
- * @brief Converts a Lamina `set<expr>` into an array in engine order.
- *
- * The source set is unordered; the produced array order is an implementation
- * detail of the expression set and must never be relied upon by callers.
- */
-extern "C" LM_API ArrayObj* lmx_computer_algebra_set_to_array(
+// 数组沿用引擎的集合遍历顺序；调用方通过成员关系和集合运算比较结果。
+extern "C" LM_API ArrayObj* lmx_cas_set_to_array(
     lmx::runtime::LiteralObj* set) noexcept try {
     ensure_lmmc_runtime();
     auto values = make_owned_object<ArrayObj>();
@@ -43,7 +35,7 @@ extern "C" LM_API ArrayObj* lmx_computer_algebra_set_to_array(
     return nullptr;
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_set_subset(ArrayObj* lhs, ArrayObj* rhs) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_set_subset(ArrayObj* lhs, ArrayObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     std::vector<LMCAS::ExprPtr> left_values;
     std::vector<LMCAS::ExprPtr> right_values;
@@ -81,33 +73,34 @@ AdtObj* set_binary_operation(ArrayObj* lhs, ArrayObj* rhs, Operation operation) 
     auto values = make_owned_object<ArrayObj>();
     for (const auto& element : combined.value().elements()) {
         values->append(take_object_value(
-            make_owned_object<ExprObj>(element), ValueKind::Expr));
+            make_owned_object<ExprObj>(
+                std::make_shared<LMCAS::SymbolicExpr>(*element)), ValueKind::Expr));
     }
     return result_ok(values.release(), ValueKind::Obj);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_set_union(ArrayObj* lhs, ArrayObj* rhs) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_set_union(ArrayObj* lhs, ArrayObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     return set_binary_operation(lhs, rhs, LMCAS::expr_set_union);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_set_intersection(ArrayObj* lhs, ArrayObj* rhs) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_set_intersection(ArrayObj* lhs, ArrayObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     return set_binary_operation(lhs, rhs, LMCAS::expr_set_intersection);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_set_difference(ArrayObj* lhs, ArrayObj* rhs) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_set_difference(ArrayObj* lhs, ArrayObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     return set_binary_operation(lhs, rhs, LMCAS::expr_set_difference);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_set_symmetric_difference(ArrayObj* lhs,
+extern "C" LM_API AdtObj* lmx_cas_set_symmetric_difference(ArrayObj* lhs,
                                                          ArrayObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     return set_binary_operation(lhs, rhs,
@@ -116,7 +109,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_set_symmetric_difference(ArrayObj
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_domain_contains(const char* domain,
+extern "C" LM_API AdtObj* lmx_cas_domain_contains(const char* domain,
                                                 ExprObj* element) noexcept try {
     ensure_lmmc_runtime();
     const auto checked_domain = number_domain_for_name(domain);
@@ -131,7 +124,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_domain_contains(const char* domai
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_domain_subset(const char* lhs,
+extern "C" LM_API AdtObj* lmx_cas_domain_subset(const char* lhs,
                                               const char* rhs) noexcept try {
     ensure_lmmc_runtime();
     const auto left = number_domain_for_name(lhs);
@@ -144,7 +137,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_domain_subset(const char* lhs,
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_set_subset_domain(ArrayObj* set,
+extern "C" LM_API AdtObj* lmx_cas_set_subset_domain(ArrayObj* set,
                                                   const char* domain) noexcept try {
     ensure_lmmc_runtime();
     const auto checked_domain = number_domain_for_name(domain);

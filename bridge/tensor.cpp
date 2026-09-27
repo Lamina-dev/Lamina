@@ -47,7 +47,7 @@ AdtObj* tensor_output(
     return result_ok(new TensorObj(std::move(output)), ValueKind::Tensor);
 }
 
-lmmc_tensor_t tensor3_view(TensorObj* value) {
+lmmc_tensor3_t tensor3_view(TensorObj* value) {
     if (!value || value->tensor().ndim != 3) return {};
     const auto& tensor = value->tensor();
     return {tensor.dims[0], tensor.dims[1], tensor.dims[2],
@@ -55,7 +55,7 @@ lmmc_tensor_t tensor3_view(TensorObj* value) {
             tensor.data, 0};
 }
 
-lmmc_tensor_nd_t tensor3_to_nd(lmmc_tensor_t& value) {
+lmmc_tensor_nd_t tensor3_to_nd(lmmc_tensor3_t& value) {
     lmmc_tensor_nd_t result{};
     result.ndim = 3;
     result.dims[0] = value.dim0;
@@ -71,21 +71,23 @@ lmmc_tensor_nd_t tensor3_to_nd(lmmc_tensor_t& value) {
 }
 
 AdtObj* tensor3_binary(
-    const char* name, TensorObj* lhs, TensorObj* rhs,
+    const char* operation_name, const char* name,
+    TensorObj* lhs, TensorObj* rhs,
     lmmc_status_t (*operation)(
-        const lmmc_tensor_t*, const lmmc_tensor_t*, lmmc_tensor_t*)) {
+        const lmmc_tensor3_t*, const lmmc_tensor3_t*, lmmc_tensor3_t*))
+{
     auto left = tensor3_view(lhs);
     auto right = tensor3_view(rhs);
     if (!left.data || !right.data)
-        return result_error(MathErrorCode::InvalidArgument, __func__, std::string(name) +
-                                 ": expected two rank-3 tensors");
-    lmmc_tensor_t output{};
+        return result_error(MathErrorCode::InvalidArgument, operation_name,
+                            std::string(name) + ": expected two rank-3 tensors");
+    lmmc_tensor3_t output{};
     auto status =
         lmmc_tensor3_create(left.dim0, left.dim1, left.dim2, &output);
     if (status == LMMC_STATUS_OK)
         status = operation(&left, &right, &output);
     if (status != LMMC_STATUS_OK) {
-        lmmc_tensor_destroy(&output);
+        lmmc_tensor3_destroy(&output);
         return result_error(status, name);
     }
     auto nd = tensor3_to_nd(output);
@@ -93,17 +95,18 @@ AdtObj* tensor3_binary(
 }
 
 AdtObj* tensor3_stat(
-    const char* name, TensorObj* value,
-    lmmc_status_t (*operation)(const lmmc_tensor_t*, double*)) {
+    const char* operation_name, const char* name, TensorObj* value,
+    lmmc_status_t (*operation)(const lmmc_tensor3_t*, double*))
+{
     auto input = tensor3_view(value);
     if (!input.data)
-        return result_error(MathErrorCode::InvalidArgument, __func__, std::string(name) +
-                                 ": expected a rank-3 tensor");
+        return result_error(MathErrorCode::InvalidArgument, operation_name,
+                            std::string(name) + ": expected a rank-3 tensor");
     double output = 0.0;
     const auto status = operation(&input, &output);
     return lmmc_real_result(name, status, output);
 }
-} // namespace
+}
 
 extern "C" LM_API AdtObj* lmx_tensor_from_flat(
     VectorObj* values, ArrayObj* shape) noexcept try {
@@ -123,7 +126,7 @@ extern "C" LM_API AdtObj* lmx_tensor_from_flat(
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.from_flat: non-finite value");
     lmmc_tensor_nd_t output{};
     auto status =
-        lmmc_tensor_create(dimensions.size(), dimensions.data(), &output);
+        lmmc_tensor_nd_create(dimensions.size(), dimensions.data(), &output);
     if (status == LMMC_STATUS_OK)
         std::copy(values->data().begin(), values->data().end(), output.data);
     return tensor_output("tensor.from_flat", status, output);
@@ -158,7 +161,7 @@ extern "C" LM_API AdtObj* lmx_tensor_element_at(
         checked_indices.size() != value->tensor().ndim)
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.get: invalid indices");
     double output = 0.0;
-    const auto status = lmmc_tensor_get_nd(
+    const auto status = lmmc_tensor_nd_get(
         &value->tensor(), checked_indices.data(), &output);
     return lmmc_real_result("tensor.get", status, output);
 } catch (...) {
@@ -199,7 +202,7 @@ extern "C" LM_API AdtObj* lmx_tensor_permute(
     lmmc_tensor_nd_t output{};
     return tensor_output(
         "tensor.permute",
-        lmmc_tensor_permute(&value->tensor(), axes.data(), &output), output);
+        lmmc_tensor_nd_permute(&value->tensor(), axes.data(), &output), output);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -220,7 +223,7 @@ extern "C" LM_API AdtObj* lmx_tensor_contract(
     lmmc_tensor_nd_t output{};
     return tensor_output(
         "tensor.contract",
-        lmmc_tensor_contract(
+        lmmc_tensor_nd_contract(
             &lhs->tensor(), &rhs->tensor(), left_axes.data(),
             right_axes.data(), left_axes.size(), &output),
         output);
@@ -237,7 +240,7 @@ extern "C" LM_API AdtObj* lmx_tensor_mode_n_product(
     lmmc_tensor_nd_t output{};
     return tensor_output(
         "tensor.mode_n_product",
-        lmmc_tensor_mode_n_product(
+        lmmc_tensor_nd_mode_n_product(
             &value->tensor(), &input_matrix,
             static_cast<std::size_t>(mode), &output),
         output);
@@ -248,28 +251,28 @@ extern "C" LM_API AdtObj* lmx_tensor_mode_n_product(
 extern "C" LM_API AdtObj* lmx_tensor_add(
     TensorObj* lhs, TensorObj* rhs) noexcept try {
     ensure_lmmc_runtime();
-    return tensor3_binary("tensor.add", lhs, rhs, lmmc_tensor_add);
+    return tensor3_binary(__func__, "tensor.add", lhs, rhs, lmmc_tensor3_add);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_tensor_subtract(
     TensorObj* lhs, TensorObj* rhs) noexcept try {
     ensure_lmmc_runtime();
-    return tensor3_binary("tensor.sub", lhs, rhs, lmmc_tensor_sub);
+    return tensor3_binary(__func__, "tensor.sub", lhs, rhs, lmmc_tensor3_sub);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_tensor_multiply(
     TensorObj* lhs, TensorObj* rhs) noexcept try {
     ensure_lmmc_runtime();
-    return tensor3_binary("tensor.mul", lhs, rhs, lmmc_tensor_mul);
+    return tensor3_binary(__func__, "tensor.mul", lhs, rhs, lmmc_tensor3_mul);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_tensor_divide(
     TensorObj* lhs, TensorObj* rhs) noexcept try {
     ensure_lmmc_runtime();
-    return tensor3_binary("tensor.div", lhs, rhs, lmmc_tensor_div);
+    return tensor3_binary(__func__, "tensor.div", lhs, rhs, lmmc_tensor3_div);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -280,13 +283,13 @@ extern "C" LM_API AdtObj* lmx_tensor_scale(
     auto input = tensor3_view(value);
     if (!input.data || !std::isfinite(scalar))
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.scale: invalid argument");
-    lmmc_tensor_t output{};
+    lmmc_tensor3_t output{};
     auto status =
         lmmc_tensor3_create(input.dim0, input.dim1, input.dim2, &output);
     if (status == LMMC_STATUS_OK)
-        status = lmmc_tensor_scale(&input, scalar, &output);
+        status = lmmc_tensor3_scale(&input, scalar, &output);
     if (status != LMMC_STATUS_OK) {
-        lmmc_tensor_destroy(&output);
+        lmmc_tensor3_destroy(&output);
         return result_error(status, "tensor.scale");
     }
     auto nd = tensor3_to_nd(output);
@@ -297,25 +300,25 @@ extern "C" LM_API AdtObj* lmx_tensor_scale(
 
 extern "C" LM_API AdtObj* lmx_tensor_norm(TensorObj* value) noexcept try {
     ensure_lmmc_runtime();
-    return tensor3_stat("tensor.norm", value, lmmc_tensor_norm_fro);
+    return tensor3_stat(__func__, "tensor.norm", value, lmmc_tensor3_norm_fro);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_tensor_sum(TensorObj* value) noexcept try {
     ensure_lmmc_runtime();
-    return tensor3_stat("tensor.sum", value, lmmc_tensor_sum);
+    return tensor3_stat(__func__, "tensor.sum", value, lmmc_tensor3_sum);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_tensor_minimum(TensorObj* value) noexcept try {
     ensure_lmmc_runtime();
-    return tensor3_stat("tensor.min", value, lmmc_tensor_min);
+    return tensor3_stat(__func__, "tensor.min", value, lmmc_tensor3_min);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_tensor_maximum(TensorObj* value) noexcept try {
     ensure_lmmc_runtime();
-    return tensor3_stat("tensor.max", value, lmmc_tensor_max);
+    return tensor3_stat(__func__, "tensor.max", value, lmmc_tensor3_max);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -331,7 +334,7 @@ extern "C" LM_API AdtObj* lmx_tensor_sum_axis(
     lmmc_mat_t output{};
     auto status = lmmc_mat_create(rows, cols, &output);
     if (status == LMMC_STATUS_OK)
-        status = lmmc_tensor_sum_axis(
+        status = lmmc_tensor3_sum_axis(
             &input, static_cast<std::size_t>(axis), &output);
     return lmmc_matrix_output("tensor.sum_axis", status, output);
 } catch (...) {
@@ -347,8 +350,8 @@ extern "C" LM_API AdtObj* lmx_tensor_slice(
     if (!input.data || begin0 < 0 || begin1 < 0 || begin2 < 0 ||
         end0 < 0 || end1 < 0 || end2 < 0)
         return result_error(MathErrorCode::InvalidArgument, __func__, "tensor.slice: invalid argument");
-    lmmc_tensor_t output{};
-    const auto status = lmmc_tensor_slice_view(
+    lmmc_tensor3_t output{};
+    const auto status = lmmc_tensor3_slice_view(
         &input, static_cast<std::size_t>(begin0),
         static_cast<std::size_t>(end0), static_cast<std::size_t>(begin1),
         static_cast<std::size_t>(end1), static_cast<std::size_t>(begin2),

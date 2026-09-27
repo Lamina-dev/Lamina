@@ -1,0 +1,109 @@
+import std
+import std.cas.geometry
+import std.cas.ordinary_differential_equations
+import std.cas.symbolic_matrix
+
+func same(value expr, expected text) -> bool {
+    std.cas.equivalent(std.cas.simplify(value), std.cas.simplify(std.cas.parse(expected)))
+}
+
+func near(value expr, expected frac) -> bool {
+    let delta = std.cas.evaluate_real(value) - expected
+    let tolerance = std.cas.evaluate_real(std.cas.parse("1/1000000000000"))
+    delta >= -tolerance and delta <= tolerance
+}
+
+sym x, y, z
+let zero = std.cas.parse("0")
+let one = std.cas.parse("1")
+let two = std.cas.parse("2")
+let three = std.cas.parse("3")
+
+# 可分离方程的解采用隐式第一积分形式，此例为 y-x。
+std.printf("%d|", same(
+    ordinary_differential_equations.solve_separable(one, "x", "y"), "y-x"))
+std.printf("%d|", same(
+    ordinary_differential_equations.solve_separable(one, x, y), "y-x"))
+std.printf("%d|", same(ordinary_differential_equations.solve_first_order_linear(
+    zero, one, "x", "y"), "C+x"))
+std.printf("%d|", same(ordinary_differential_equations.solve_first_order_linear(
+    zero, one, x, y), "C+x"))
+std.printf("%d|", std.cas.equivalent(
+    ordinary_differential_equations.solve_second_order_linear(
+        std.int_to_frac(1), std.int_to_frac(0), std.int_to_frac(0),
+        zero, "x", "y"), std.cas.parse("C1 + C2*x")))
+std.printf("%d|", std.cas.equivalent(
+    ordinary_differential_equations.solve_second_order_linear(
+        std.int_to_frac(1), std.int_to_frac(0), std.int_to_frac(0),
+        zero, x, y), std.cas.parse("C1 + C2*x")))
+std.printf("%s|", ordinary_differential_equations.classify_first_order(
+    std.cas.parse("x*y"), "x", "y"))
+std.printf("%s|", ordinary_differential_equations.classify_first_order(
+    std.cas.parse("x*y"), x, y))
+std.printf("%s|", ordinary_differential_equations.classify_higher_order(
+    [one, zero, one], zero, "x", "y"))
+std.printf("%s|", ordinary_differential_equations.classify_higher_order(
+    [one, zero, one], zero, x, y))
+
+{
+    let solution = ordinary_differential_equations.solve_frobenius(
+        zero, one, zero, x, 6)
+    match solution {
+        ordinary_differential_equations.FrobeniusSolution(
+            series, point_type, _, order
+        ) => {
+            let d1 = std.cas.differentiate(series, x)
+            let d2 = std.cas.differentiate(d1, x)
+            let d3 = std.cas.differentiate(d2, x)
+            let d4 = std.cas.differentiate(d3, x)
+            let d5 = std.cas.differentiate(d4, x)
+            let d6 = std.cas.differentiate(d5, x)
+            std.printf("%d|",
+                near(std.cas.substitute(series, x => zero), 1.0)
+                and near(std.cas.substitute(d1, x => zero), 0.0)
+                and near(std.cas.substitute(d2, x => zero), -1.0)
+                and near(std.cas.substitute(d3, x => zero), 0.0)
+                and near(std.cas.substitute(d4, x => zero), 1.0)
+                and near(std.cas.substitute(d5, x => zero), 0.0)
+                and near(std.cas.substitute(d6, x => zero), -1.0)
+                and point_type == "ordinary" and order == 6)
+        }
+    }
+}
+
+{
+    let values = geometry.gradient(std.cas.parse("x^2 + y^2"), ["x", "y"])
+    std.printf("%d|%d|", same(values[0], "2*x"), same(values[1], "2*y"))
+}
+std.printf("%d|", same(geometry.divergence([x, y, z], ["x", "y", "z"]), "3"))
+{
+    let values = geometry.curl([y, z, x], ["x", "y", "z"])
+    std.printf("%d|%d|%d|", same(values[0], "-1"), same(values[1], "-1"), same(values[2], "-1"))
+}
+std.printf("%d|", same(geometry.laplacian(std.cas.parse("x^2 + y^2"), ["x", "y"]), "4"))
+std.printf("%d|", same(geometry.vector_dot([one, two, three], [three, two, one]), "10"))
+{
+    let values = geometry.vector_cross([one, zero, zero], [zero, one, zero])
+    std.printf("%d|%d|%d|", same(values[0], "0"), same(values[1], "0"), same(values[2], "1"))
+}
+{
+    let values = geometry.line_plane_intersection(
+        [zero, zero, zero], [zero, zero, one], [zero, zero, one], two)
+    std.printf("%d|%d|%d|", same(values[0], "0"), same(values[1], "0"), same(values[2], "2"))
+}
+{
+    let metric = symbolic_matrix.from_rows([[two, zero], [zero, one]])
+    std.printf("%d|", std.cas.equivalent(geometry.metric_inverse(metric),
+        symbolic_matrix.from_rows([[std.cas.simplify(std.cas.parse("1/2")), zero], [zero, one]])))
+}
+std.printf("%d|", same(geometry.arc_length_x(zero, zero, one), "1"))
+std.printf("%.4f|", geometry.vector_angle([one, zero], [zero, one]))
+std.printf("%d|", same(geometry.point_plane_distance(
+    [zero, zero, two], [zero, zero, one], zero), "2"))
+{
+    let values = geometry.surface_normal(
+        std.cas.parse("x^2 + y^2 + z^2 - 1"), [x, y, z], [one, zero, zero])
+    std.printf("%d,%d,%d|", near(values[0], 1.0), near(values[1], 0.0), near(values[2], 0.0))
+}
+std.printf("%d", same(geometry.directional_derivative(
+    std.cas.parse("x^2 + y^2"), [x, y], [one, zero], 1), "2*x"))

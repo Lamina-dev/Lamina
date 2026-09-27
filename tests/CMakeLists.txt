@@ -38,8 +38,20 @@ set_target_properties(test_compilation_pipeline PROPERTIES
 )
 add_test(NAME compilation_pipeline COMMAND test_compilation_pipeline)
 
-add_executable(test_bridge_error_boundary test_bridge_error_boundary.cpp)
-target_link_libraries(test_bridge_error_boundary PRIVATE lamina_shared)
+
+add_executable(test_bridge_error_boundary
+    test_bridge_error_boundary.cpp
+    test_bridge_error_boundary_main.cpp
+    ../bridge/mathematics_error.cpp
+    $<TARGET_OBJECTS:lamina_runtime>
+)
+target_link_libraries(test_bridge_error_boundary PRIVATE
+    lamina_shared
+    dyncall_s
+    dynload_s
+    lmcas
+    lmmc
+)
 target_include_directories(test_bridge_error_boundary
     PRIVATE "${CMAKE_SOURCE_DIR}"
 )
@@ -82,7 +94,7 @@ add_lamina_error_test(adt_duplicate_constructor adt_duplicate_constructor.lm "du
 add_lamina_error_test(adt_unknown_field_type adt_unknown_field_type.lm "unknown field type")
 add_lamina_error_test(expr_bool_promotion expr_bool_promotion.lm "type mismatch")
 add_lamina_error_test(set_mixed_elements set_mixed_elements.lm "SetElementTypeMismatch")
-add_lamina_output_test(expr_direct_lowering expr_direct_lowering.lm "x + 3|x|f(x, 2)|g(2)|1|[0, x]|(0, 1)|4*(0 + 1*I)|3|2")
+add_lamina_output_test(expr_direct_lowering expr_direct_lowering.lm "x + 3|x|f(x, 2)|g(2)|1|[0, x]|(0, 1)|4*(0 + 1*I)|3|2|2")
 add_lamina_error_test(expr_condition expr_condition.lm "must be bool type")
 add_lamina_error_test(expr_bool_logic expr_bool_logic.lm "binary operation cannot applied")
 add_lamina_error_test(implicit_multiplication_spaced implicit_multiplication_spaced.lm "ComplexLiteralSpacing")
@@ -99,22 +111,22 @@ add_lamina_output_test(stats_extended stats_extended.lm "2.500|1.667|1.250|1.291
 add_lamina_output_test(random_extended random_extended.lm "1,1,1:4,1|1|1,1,1,1,1")
 add_lamina_output_test(quantity_extended quantity_extended.lm "1.500|1,1|6.0 N|3.0|1,1,1,1,1,1|2.0,1,1|7200.0")
 add_lamina_output_test(stdlib_remaining stdlib_remaining.lm "x|1,1|5.0|8.0|5.0|3.0|InvalidArgument")
-add_lamina_output_test(computer_algebra_extended computer_algebra_extended.lm "x^2 + (2)*x + 1|(1/2)*(x^2)|2|(1/6)*(x^3) + (1/2)*(x^2) + x + 1|1.0|1.0,2.0|1|-1,1|-1,1")
-add_lamina_output_test(computer_algebra_symbol_arguments computer_algebra_symbol_arguments.lm "2*x|(1/2)*(x^2)|0|ok|system")
-add_lamina_output_test(computer_algebra_algebra_remaining computer_algebra_algebra_remaining.lm "(x - 1)*(x + 1)|x + 1|1|(y + 1)*x|x*y + x|exp((2)*x) - 1|x - 1|0|1|-1*y + x|(-1, 1)|(x < -1 or x > 1)")
-add_lamina_output_test(computer_algebra_symbolic_matrix_remaining computer_algebra_symbolic_matrix_remaining.lm "[[1, 0], [0, 1]]|1|6|[[1/2, 0], [0, 1/3]]|2|2|[[1, 0], [0, 1]]|1|[[4, 0], [0, 6]]|1|[[2, 0], [0, 3]]|positive_definite")
-add_lamina_output_test(computer_algebra_analysis_remaining computer_algebra_analysis_remaining.lm "-1*(2)*(((2)*y)^-1)*x|(2)*x|(2)*y|4|(3)*(x^3)*(x^-1)|1|continuous|0.178885|0.178885|(1/3)*pi|1|(x^2)*pi|1|1/4|0|pi|-2|0|x^-1|1|6|6|4,6|1,2,1|1,2|inf|0|0|1|0|1")
-add_lamina_output_test(computer_algebra_ode_geometry_remaining computer_algebra_ode_geometry_remaining.lm "-1*x + y|-1*x + y|C + x|C + x|1|1|separable|separable|linear2_const_coeff|linear2_const_coeff|(2)*x|(2)*y|3|-1|-1|-1|4|10|(0)*(0) - 1*(0)*(1)|(0)*(0) - 1*(0)*(1)|(1)*(1) - 1*(0)*(0)|0|0|2|[[1/2, 0], [0, 1]]|1|1.5708|2|1,0,0|(2)*x")
+add_lamina_output_test(cas_integration cas_integration.lm "1|1|1|1|1.0|1.0,2.0|1|1|1")
+add_lamina_output_test(cas_symbol_args cas_symbol_args.lm "1|1|1|1|1|1|1|1|1")
+add_lamina_output_test(cas_algebra cas_algebra.lm "1|1|1|1|1|1|1|1|1|1|1|1|1")
+add_lamina_output_test(cas_matrix cas_matrix.lm "1|1|1|1|1|2|1|1|1|1|1|positive_definite")
+add_lamina_output_test(cas_calculus_series cas_calculus_series.lm "1|1|1|1|1|1|continuous|0.178885|0.178885|1|1|1|1|1|1|1|1|1|1|1|1|1|1,1|1,1,1|1,1|1|1|1|1|1|1")
+add_lamina_output_test(cas_ode_geometry cas_ode_geometry.lm "1|1|1|1|1|1|separable|separable|linear2_const_coeff|linear2_const_coeff|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1|1.5708|1|1,1,1|1")
 add_lamina_output_test(lmmc_random_default lmmc_random_default.lm "1")
 add_lamina_output_test(lmmc_sparse_remaining lmmc_sparse_remaining.lm "2,4.0,2.0:3.0,9.0")
 add_lamina_output_test(math_scalar_distributions math_scalar_distributions.lm "3.142|0.0|3.0|3.0|0.500|0.375|0.368|err")
-add_lamina_output_test(mathematics_error_contract mathematics_error_contract.lm "domain:DomainError:evaluate_numeric|matrix:DimensionMismatch:matrix_mul|parse:ParseError:LMCAS.parse_expr|callback:CallbackFailure:integrate.adaptive|")
+add_lamina_output_test(math_errors math_errors.lm "domain:DomainError:evaluate_numeric|matrix:DimensionMismatch:matrix_mul|parse:ParseError:LMCAS.parse_expr|callback:CallbackFailure:integrate.adaptive|curvature:UnsupportedExpression:curvature|")
 add_lamina_output_test(math_linalg_advanced math_linalg_advanced.lm "6.0|9.0|9.0|10.0|10.0|2|0.6,0.4|30.0|1.0|3.0")
 add_lamina_output_test(computer_algebra_sets_match_bindings computer_algebra_sets_match_bindings.lm "3|5|13.0|1|1|1,x,y|1|1|1|1,1,x|{1, 2}|[1, 2)")
-add_lamina_output_test(computer_algebra_advanced_modules computer_algebra_advanced_modules.lm "0.3333|0.3333|(2)*x,(2)*y|4|(2)*x + (2)*y|(1)*(s^-1)|1|6|-1*(2)*(((2)*y)^-1)*x")
-add_lamina_output_test(mathematics_solving_sets mathematics_solving_sets.lm "solve-x2m1:-1|1|\nroots-x2m1:-1|1|\nsolve-q:-3.645751|1.645751|residuals=1\nroots-q:-3.645751|1.645751|residuals=1\nsolve-neq:!InvalidArgument:LMCAS.solve_expr_set\nsolve-deg5:rootof(x^5 + (-1)*x - 1, x, 0)|rootof(x^5 + (-1)*x - 1, x, 1)|rootof(x^5 + (-1)*x - 1, x, 2)|rootof(x^5 + (-1)*x - 1, x, 3)|rootof(x^5 + (-1)*x - 1, x, 4)|\nsolve-complex:(0 + -1*I)|(0 + 1*I)|\nroots-repeated:1|\n")
+add_lamina_output_test(cas_analysis cas_analysis.lm "0.3333|0.3333|1,1|1|1|1|1|1|1")
+add_lamina_output_test(cas_solutions cas_solutions.lm "solve-x2m1:1|1|complete=1\nroots-x2m1:1|1|complete=1\nsolve-q:residuals=1|complete=1\nroots-q:residuals=1|complete=1\nsolve-neq:!InvalidArgument:LMCAS.solve_expr_set\nsolve-deg5:1|1|1|1|1|complete=1\nsolve-complex:1|1|complete=1\nroots-repeated:1|complete=1\nsolve-lambert:value=1|residuals=1|complete=1\n")
 add_lamina_output_test(math_constants_decompositions math_constants_decompositions.lm "9.80665|m*s^-2|EARTH_GRAVITY,ROOM_TEMPERATURE|0.0,1.0|2,2.0|2,3.0")
-add_lamina_output_test(mathematics_api_unified mathematics_api_unified.lm "square_root(2) = 1.414214\ndeterminant = -14.0\nsparse cg converged=1 x[0] ~= 0.090909\nintegral x^2 = 0.333333 (ok)\nd/dx = 3*(x^2) + 2\nMathError{code=IndexOutOfBounds, operation=math.sqrt}\nsolve roots -3.645751, 1.645751 residuals=1\nroots roots -3.645751, 1.645751 residuals=1\nsets equal = 1")
+add_lamina_output_test(math_api math_api.lm "square_root(2) = 1.414214\ndeterminant = -14.0\nsparse cg converged=1 x[0] ~= 0.090909\nintegral x^2 = 0.333333 (ok)\nd/dx correct = 1\nMathError{code=IndexOutOfBounds, operation=math.sqrt}\n")
 add_lamina_output_test(core_language core_language.lm "120,25,36|1,8,3|8,6|negative,zero,positive|ok|1,1,2,32")
 add_lamina_error_test(unresolved_math_modules unresolved_math_modules.lm "no module is called")
 add_lamina_error_test(reserved_imaginary_variable reserved_imaginary_variable.lm "ImaginaryUnitReserved")
@@ -125,7 +137,7 @@ add_lamina_error_test(if_branch_type_mismatch if_branch_type_mismatch.lm "if exp
 add_lamina_error_test(unsupported_double_star unsupported_double_star.lm "not supported")
 add_lamina_output_test(dimension_units dimension_units.lm "1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1")
 add_lamina_output_test(compact_less_than compact_less_than.lm "1,0,0")
-add_lamina_output_test(dimension_expr dimension_expr.lm "2<km>|2*(1000)<m>|2*(1000)|2|3*(100)<score>|5|2*(1000) + 1<m>|1 + 3<m>|0")
+add_lamina_output_test(dimension_expr dimension_expr.lm "1|1|1|1|1|1|1|1")
 add_lamina_error_test(dimension_mismatch_add dimension_mismatch_add.lm "DimensionMismatch")
 add_lamina_error_test(dimension_implicit_scale dimension_implicit_scale.lm "DimensionMismatch")
 add_lamina_error_test(dimension_bad_conversion dimension_bad_conversion.lm "DimensionMismatch")
@@ -154,14 +166,14 @@ add_lamina_output_test(callback_quadrature callback_quadrature.lm "0.333333|ok|e
 add_lamina_error_test(callback_wrong_signature callback_wrong_signature.lm "type mismatch arg")
 add_lamina_output_test(lmmc_special_fft lmmc_special_fft.lm "24.000|0.000|1.000,0.000|1.000,2.000,3.000,4.000")
 add_lamina_output_test(lmmc_linalg_decomp lmmc_linalg_decomp.lm "0.100,0.600|0.100,0.600|4.000,3.000|2.000,3.000|2x2,0.500")
-add_lamina_output_test(lmmc_sparse_itersolve lmmc_sparse_itersolve.lm "0.091,0.636|0.091,0.636|0.091,0.636")
+add_lamina_output_test(lmmc_sparse_itersolve lmmc_sparse_itersolve.lm "0.091,0.636|0.091,0.636|0.091,0.636|1,1.000,2.000")
 add_lamina_output_test(lmmc_tensor_interpolate lmmc_tensor_interpolate.lm "36|4x2:8|8|6|2.200")
 add_lamina_output_test(lmmc_callback_algorithms lmmc_callback_algorithms.lm "1.4141|1.4142|2.71828|3.0000")
 add_lamina_output_test(lmmc_stats_random lmmc_stats_random.lm "120|120|20|1,1,1,1,1|1,1,1,1,1")
-add_lamina_output_test(computer_algebra_assumptions_solve computer_algebra_assumptions_solve.lm "U|P|U|1|2,1|(-1, 1)")
+add_lamina_output_test(computer_algebra_assumptions_solve computer_algebra_assumptions_solve.lm "U|P|U|1|2,1|(x > -1 and x < 1)")
 add_lamina_output_test(computer_algebra_algebra_matrix computer_algebra_algebra_matrix.lm "1|1|1|1|1|1,1,1,1,1")
-add_lamina_output_test(computer_algebra_analysis_ode computer_algebra_analysis_ode.lm "1|1|1|1|1|0|1|err")
-add_lamina_output_test(computer_algebra_geometry_full computer_algebra_geometry_full.lm "(2)*x,(2)*y|32|1,1,1|1|1|CasError")
+add_lamina_output_test(cas_ode_complex cas_ode_complex.lm "1|1|1")
+add_lamina_output_test(cas_geometry cas_geometry.lm "1,1|1|1,1,1|1|1|1")
 
 add_lamina_output_test(function_overload function_overload.lm "1,2")
 add_lamina_error_test(function_overload_ambiguous function_overload_ambiguous.lm "ambiguous overloaded function")

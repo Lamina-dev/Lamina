@@ -1,7 +1,5 @@
 #include "bridge/conversions.hpp"
 
-#include "internal/symbolic_ast/arithmetic.hpp"
-
 #include <cstdarg>
 #include <exception>
 #include <iostream>
@@ -22,16 +20,11 @@ public:
     LmmcRuntimeLifetime(const LmmcRuntimeLifetime&) = delete;
     LmmcRuntimeLifetime& operator=(const LmmcRuntimeLifetime&) = delete;
 };
-} // namespace
+}
 
 void ensure_lmmc_runtime() noexcept {
     static thread_local LmmcRuntimeLifetime lifetime;
     (void)lifetime;
-}
-
-bool debug_dump_enabled() noexcept {
-    const char* value = std::getenv("LMX_DEBUG_DUMP");
-    return value && value[0] != '\0' && value[0] != '0';
 }
 
 const LMCAS::ExprPtr* checked_expr(ExprObj* expr, std::string& error) {
@@ -72,13 +65,12 @@ bool collect_expr_arguments(va_list& args, const LmInt count,
 bool checked_symbol_name(ExprObj* expr, std::string& name, std::string& error) {
     const auto* value = checked_expr(expr, error);
     if (!value) return false;
-    const auto variable = std::dynamic_pointer_cast<const LMCAS::VariableNode>(
-        LMCAS::detail::node(**value));
-    if (!variable) {
+    const auto symbol = LMCAS::symbol_name(*value);
+    if (!symbol) {
         error = "CasError(InvalidArgument: expr must be a single symbol)";
         return false;
     }
-    name = variable->name();
+    name = *symbol;
     return true;
 }
 
@@ -240,4 +232,4 @@ std::optional<LMCAS::UnitDefinition> resolved_unit_definition(
                  LMCAS::BigInt(std::to_string(denominator)))};
 }
 
-} // namespace lmx::bridge
+}

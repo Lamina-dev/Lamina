@@ -1,8 +1,6 @@
 #include "bridge/result.hpp"
 #include "bridge/conversions.hpp"
 #include "bridge/runtime_views.hpp"
-#include "bridge/unit_bridge.hpp"
-#include <cstdarg>
 
 #include <cstdint>
 #include <string>
@@ -12,21 +10,21 @@
 
 using namespace lmx::bridge;
 
-extern "C" LM_API AdtObj* lmx_statistics_mean(VectorObj* value) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_mean(VectorObj* value) noexcept try {
     ensure_lmmc_runtime();
     return vector_stat_result("stats_mean", value, lmmc_vec_mean);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_variance(VectorObj* value) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_variance(VectorObj* value) noexcept try {
     ensure_lmmc_runtime();
     return vector_stat_result("stats_variance", value, lmmc_vec_variance_sample);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_variance_population(VectorObj* value) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_variance_population(VectorObj* value) noexcept try {
     ensure_lmmc_runtime();
     return vector_stat_result("stats_variance_population", value,
                               lmmc_vec_variance_population);
@@ -34,14 +32,14 @@ extern "C" LM_API AdtObj* lmx_statistics_variance_population(VectorObj* value) n
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_standard_deviation(VectorObj* value) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_stddev(VectorObj* value) noexcept try {
     ensure_lmmc_runtime();
     return vector_stat_result("stats_stddev", value, lmmc_vec_stddev_sample);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_stddev_population(VectorObj* value) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_stddev_population(VectorObj* value) noexcept try {
     ensure_lmmc_runtime();
     return vector_stat_result("stats_stddev_population", value,
                               lmmc_vec_stddev_population);
@@ -49,14 +47,14 @@ extern "C" LM_API AdtObj* lmx_statistics_stddev_population(VectorObj* value) noe
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_median(VectorObj* value) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_median(VectorObj* value) noexcept try {
     ensure_lmmc_runtime();
     return vector_stat_result("stats_median", value, lmmc_vec_median);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_quantile(VectorObj* value, const double p) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_quantile(VectorObj* value, const double p) noexcept try {
     ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "stats_quantile: null vector");
     auto input = vector_view(value);
@@ -67,7 +65,7 @@ extern "C" LM_API AdtObj* lmx_statistics_quantile(VectorObj* value, const double
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_covariance(VectorObj* lhs, VectorObj* rhs) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_covariance(VectorObj* lhs, VectorObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     if (!lhs || !rhs) return result_error(MathErrorCode::InvalidArgument, __func__, "stats_covariance: null vector");
     auto left = vector_view(lhs);
@@ -79,7 +77,7 @@ extern "C" LM_API AdtObj* lmx_statistics_covariance(VectorObj* lhs, VectorObj* r
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_correlation(VectorObj* lhs, VectorObj* rhs) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_correlation(VectorObj* lhs, VectorObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     if (!lhs || !rhs) return result_error(MathErrorCode::InvalidArgument, __func__, "stats_correlation: null vector");
     auto left = vector_view(lhs);
@@ -91,7 +89,7 @@ extern "C" LM_API AdtObj* lmx_statistics_correlation(VectorObj* lhs, VectorObj* 
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_histogram(VectorObj* value, const LmInt bins) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_histogram(VectorObj* value, const LmInt bins) noexcept try {
     ensure_lmmc_runtime();
     if (!value || bins <= 0) return result_error(MathErrorCode::InvalidArgument, __func__, "stats_histogram: invalid argument");
     auto input = vector_view(value);
@@ -114,7 +112,7 @@ extern "C" LM_API AdtObj* lmx_statistics_histogram(VectorObj* value, const LmInt
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_factorial(const LmInt n) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_factorial(const LmInt n) noexcept try {
     ensure_lmmc_runtime();
     if (n < 0 || n > std::numeric_limits<std::uint32_t>::max())
         return result_error(MathErrorCode::InvalidArgument, __func__, "stats.factorial: invalid argument");
@@ -126,14 +124,14 @@ extern "C" LM_API AdtObj* lmx_statistics_factorial(const LmInt n) noexcept try {
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_combinations(
+extern "C" LM_API AdtObj* lmx_stats_combinations(
     const LmInt n, const LmInt r) noexcept try {
     ensure_lmmc_runtime();
     if (n < 0 || r < 0 || r > n ||
         n > std::numeric_limits<std::uint32_t>::max())
         return result_error(MathErrorCode::InvalidArgument, __func__, "stats.ncr: invalid argument");
     double output = 0.0;
-    lmmc_stats_nCr(
+    lmmc_stats_ncr(
         &output, static_cast<std::uint32_t>(n),
         static_cast<std::uint32_t>(r));
     return std::isfinite(output)
@@ -142,14 +140,14 @@ extern "C" LM_API AdtObj* lmx_statistics_combinations(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_permutations(
+extern "C" LM_API AdtObj* lmx_stats_permutations(
     const LmInt n, const LmInt r) noexcept try {
     ensure_lmmc_runtime();
     if (n < 0 || r < 0 || r > n ||
         n > std::numeric_limits<std::uint32_t>::max())
         return result_error(MathErrorCode::InvalidArgument, __func__, "stats.npr: invalid argument");
     double output = 0.0;
-    lmmc_stats_nPr(
+    lmmc_stats_npr(
         &output, static_cast<std::uint32_t>(n),
         static_cast<std::uint32_t>(r));
     return std::isfinite(output)
@@ -161,10 +159,11 @@ extern "C" LM_API AdtObj* lmx_statistics_permutations(
 
 namespace {
 AdtObj* matrix_stat_output(
-    const char* name, MatrixObj* value,
-    lmmc_status_t (*operation)(const lmmc_mat_t*, lmmc_mat_t*)) {
+    const char* operation_name, const char* name, MatrixObj* value,
+    lmmc_status_t (*operation)(const lmmc_mat_t*, lmmc_mat_t*))
+{
     if (!value || !value->valid())
-        return result_error(MathErrorCode::InvalidArgument, __func__, std::string(name) + ": invalid matrix");
+        return result_error(MathErrorCode::InvalidArgument, operation_name, std::string(name) + ": invalid matrix");
     auto input = matrix_view(value);
     lmmc_mat_t output{};
     auto status = lmmc_mat_create(value->cols(), value->cols(), &output);
@@ -173,7 +172,7 @@ AdtObj* matrix_stat_output(
 }
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_column_mean(MatrixObj* value) noexcept try {
+extern "C" LM_API AdtObj* lmx_stats_column_mean(MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     if (!value || !value->valid())
         return result_error(MathErrorCode::InvalidArgument, __func__, "stats.column_mean: invalid matrix");
@@ -187,44 +186,44 @@ extern "C" LM_API AdtObj* lmx_statistics_column_mean(MatrixObj* value) noexcept 
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_covariance_matrix_sample(
+extern "C" LM_API AdtObj* lmx_stats_covariance_matrix_sample(
     MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     return matrix_stat_output(
-        "stats.covariance_matrix_sample", value,
+        __func__, "stats.covariance_matrix_sample", value,
         lmmc_mat_covariance_sample);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_covariance_matrix_population(
+extern "C" LM_API AdtObj* lmx_stats_covariance_matrix_population(
     MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     return matrix_stat_output(
-        "stats.covariance_matrix_population", value,
+        __func__, "stats.covariance_matrix_population", value,
         lmmc_mat_covariance_population);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_correlation_matrix_sample(
+extern "C" LM_API AdtObj* lmx_stats_correlation_matrix_sample(
     MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     return matrix_stat_output(
-        "stats.correlation_matrix_sample", value,
+        __func__, "stats.correlation_matrix_sample", value,
         lmmc_mat_correlation_sample);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_correlation_matrix_population(
+extern "C" LM_API AdtObj* lmx_stats_correlation_matrix_population(
     MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     return matrix_stat_output(
-        "stats.correlation_matrix_population", value,
+        __func__, "stats.correlation_matrix_population", value,
         lmmc_mat_correlation_population);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_statistics_normal_probability_density(
+extern "C" LM_API AdtObj* lmx_stats_normal_pdf(
     const double x, const double mean, const double stddev) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -232,7 +231,7 @@ extern "C" LM_API AdtObj* lmx_statistics_normal_probability_density(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_normal_cumulative_distribution(
+extern "C" LM_API AdtObj* lmx_stats_normal_cdf(
     const double x, const double mean, const double stddev) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -240,7 +239,7 @@ extern "C" LM_API AdtObj* lmx_statistics_normal_cumulative_distribution(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_normal_quantile(
+extern "C" LM_API AdtObj* lmx_stats_normal_quantile(
     const double p, const double mean, const double stddev) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -249,7 +248,7 @@ extern "C" LM_API AdtObj* lmx_statistics_normal_quantile(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_student_t_probability_density(const double x,
+extern "C" LM_API AdtObj* lmx_stats_t_pdf(const double x,
                                              const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.student_t_probability_density", x, df,
@@ -257,7 +256,7 @@ extern "C" LM_API AdtObj* lmx_statistics_student_t_probability_density(const dou
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_student_t_cumulative_distribution(const double x,
+extern "C" LM_API AdtObj* lmx_stats_t_cdf(const double x,
                                              const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.student_t_cumulative_distribution", x, df,
@@ -265,7 +264,7 @@ extern "C" LM_API AdtObj* lmx_statistics_student_t_cumulative_distribution(const
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_t_quantile(const double p,
+extern "C" LM_API AdtObj* lmx_stats_t_quantile(const double p,
                                                   const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.t_quantile", p, df,
@@ -273,7 +272,7 @@ extern "C" LM_API AdtObj* lmx_statistics_t_quantile(const double p,
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_chi_squared_probability_density(const double x,
+extern "C" LM_API AdtObj* lmx_stats_chi2_pdf(const double x,
                                                 const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.chi_squared_probability_density", x, df,
@@ -281,7 +280,7 @@ extern "C" LM_API AdtObj* lmx_statistics_chi_squared_probability_density(const d
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_chi_squared_cumulative_distribution(const double x,
+extern "C" LM_API AdtObj* lmx_stats_chi2_cdf(const double x,
                                                 const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.chi_squared_cumulative_distribution", x, df,
@@ -289,7 +288,7 @@ extern "C" LM_API AdtObj* lmx_statistics_chi_squared_cumulative_distribution(con
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_chi2_quantile(const double p,
+extern "C" LM_API AdtObj* lmx_stats_chi2_quantile(const double p,
                                                      const double df) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result("stats.chi2_quantile", p, df,
@@ -297,7 +296,7 @@ extern "C" LM_API AdtObj* lmx_statistics_chi2_quantile(const double p,
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_fisher_f_probability_density(
+extern "C" LM_API AdtObj* lmx_stats_f_pdf(
     const double x, const double df1, const double df2) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -305,7 +304,7 @@ extern "C" LM_API AdtObj* lmx_statistics_fisher_f_probability_density(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_fisher_f_cumulative_distribution(
+extern "C" LM_API AdtObj* lmx_stats_f_cdf(
     const double x, const double df1, const double df2) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -313,7 +312,7 @@ extern "C" LM_API AdtObj* lmx_statistics_fisher_f_cumulative_distribution(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_f_quantile(
+extern "C" LM_API AdtObj* lmx_stats_f_quantile(
     const double p, const double df1, const double df2) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -321,7 +320,7 @@ extern "C" LM_API AdtObj* lmx_statistics_f_quantile(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_gamma_pdf(
+extern "C" LM_API AdtObj* lmx_stats_gamma_pdf(
     const double x, const double shape, const double scale) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -329,7 +328,7 @@ extern "C" LM_API AdtObj* lmx_statistics_gamma_pdf(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_gamma_cdf(
+extern "C" LM_API AdtObj* lmx_stats_gamma_cdf(
     const double x, const double shape, const double scale) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -337,7 +336,7 @@ extern "C" LM_API AdtObj* lmx_statistics_gamma_cdf(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_gamma_quantile(
+extern "C" LM_API AdtObj* lmx_stats_gamma_quantile(
     const double p, const double shape, const double scale) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -346,7 +345,7 @@ extern "C" LM_API AdtObj* lmx_statistics_gamma_quantile(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_beta_pdf(
+extern "C" LM_API AdtObj* lmx_stats_beta_pdf(
     const double x, const double alpha, const double beta) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -354,7 +353,7 @@ extern "C" LM_API AdtObj* lmx_statistics_beta_pdf(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_beta_cdf(
+extern "C" LM_API AdtObj* lmx_stats_beta_cdf(
     const double x, const double alpha, const double beta) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -362,7 +361,7 @@ extern "C" LM_API AdtObj* lmx_statistics_beta_cdf(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_beta_quantile(
+extern "C" LM_API AdtObj* lmx_stats_beta_quantile(
     const double p, const double alpha, const double beta) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_ternary_real_result(
@@ -371,7 +370,7 @@ extern "C" LM_API AdtObj* lmx_statistics_beta_quantile(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_binomial_probability_mass(
+extern "C" LM_API AdtObj* lmx_stats_binomial_pmf(
     const LmInt k, const LmInt n, const double p) noexcept try {
     ensure_lmmc_runtime();
     if (k < 0 || n < 0) return result_error(MathErrorCode::InvalidArgument, __func__, "stats.binomial_probability_mass: invalid count");
@@ -382,7 +381,7 @@ extern "C" LM_API AdtObj* lmx_statistics_binomial_probability_mass(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_binomial_cumulative_distribution(
+extern "C" LM_API AdtObj* lmx_stats_binomial_cdf(
     const LmInt k, const LmInt n, const double p) noexcept try {
     ensure_lmmc_runtime();
     if (k < 0 || n < 0) return result_error(MathErrorCode::InvalidArgument, __func__, "stats.binomial_cumulative_distribution: invalid count");
@@ -393,7 +392,7 @@ extern "C" LM_API AdtObj* lmx_statistics_binomial_cumulative_distribution(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_poisson_probability_mass(const LmInt k,
+extern "C" LM_API AdtObj* lmx_stats_poisson_pmf(const LmInt k,
                                                    const double lambda) noexcept try {
     ensure_lmmc_runtime();
     if (k < 0) return result_error(MathErrorCode::InvalidArgument, __func__, "stats.poisson_probability_mass: invalid count");
@@ -404,7 +403,7 @@ extern "C" LM_API AdtObj* lmx_statistics_poisson_probability_mass(const LmInt k,
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_statistics_poisson_cumulative_distribution(const LmInt k,
+extern "C" LM_API AdtObj* lmx_stats_poisson_cdf(const LmInt k,
                                                    const double lambda) noexcept try {
     ensure_lmmc_runtime();
     if (k < 0) return result_error(MathErrorCode::InvalidArgument, __func__, "stats.poisson_cumulative_distribution: invalid count");

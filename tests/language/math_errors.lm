@@ -4,6 +4,7 @@ import std.math
 import std.linalg
 import std.integrate
 import std.cas.raw
+import std.cas.raw.calculus
 
 func code_name(code mathematics_error.MathErrorCode) -> text {
     match code {
@@ -11,6 +12,7 @@ func code_name(code mathematics_error.MathErrorCode) -> text {
         mathematics_error.DimensionMismatch => "DimensionMismatch",
         mathematics_error.ParseError => "ParseError",
         mathematics_error.CallbackFailure => "CallbackFailure",
+        mathematics_error.UnsupportedExpression => "UnsupportedExpression",
         _ => "unexpected"
     }
 }
@@ -56,4 +58,9 @@ match integrate.adaptive(
 ) {
     Result.Ok(_) => std.printf("callback:unexpected\n"),
     Result.Err(error) => observe("callback", error)
+}
+
+match std.cas.raw.calculus.curvature(std.cas.parse("floor(x)"), "x") {
+    Result.Ok(_) => std.printf("curvature:unexpected\n"),
+    Result.Err(error) => observe("curvature", error)
 }

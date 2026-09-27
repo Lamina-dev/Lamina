@@ -1,0 +1,100 @@
+import std
+import std.cas.algebra
+import std.cas.equation_solving
+
+sym x, y
+
+let x2_minus_one = std.cas.parse("x^2 - 1")
+let x_minus_one = std.cas.parse("x - 1")
+let x_plus_one = std.cas.parse("x + 1")
+
+{
+    let expected = std.cas.parse("(x - 1)*(x + 1)")
+    let factored = algebra.factor(x2_minus_one)
+    std.printf("%d|", std.cas.equivalent(factored, expected)
+        and not std.cas.structurally_equal(factored, x2_minus_one))
+}
+{
+    let value = std.cas.parse("(x^2 - 1)/(x - 1)")
+    let cancelled = algebra.cancel(value)
+    std.printf("%d|", std.cas.equivalent(cancelled, x + 1)
+        and not std.cas.structurally_equal(cancelled, value))
+}
+std.printf("%d|", std.cas.structurally_equal(algebra.simplify_trigonometric(
+    std.cas.parse("sin(x)^2 + cos(x)^2")), 1 as expr))
+{
+    let value = std.cas.parse("x*y + x")
+    let expected = x*(y + 1)
+    let factored = algebra.factor_multivariate(value)
+    std.printf("%d|", std.cas.equivalent(factored, expected)
+        and not std.cas.structurally_equal(factored, value))
+}
+std.printf("%d|", std.cas.equivalent(
+    algebra.multivariate_greatest_common_divisor(
+        std.cas.parse("x*y + x"), std.cas.parse("x*y + x")), x*(y + 1)))
+
+{
+    let factors = std.cas.set_to_array(
+        algebra.factor_transcendental(std.cas.parse("exp(2*x) - 1"), x))
+    let expected = [std.cas.exponential(2*x) - 1]
+    std.printf("%d|", std.cas.set_subset(factors, expected)
+        and std.cas.set_subset(expected, factors))
+}
+
+std.printf("%d|", std.cas.equivalent(
+    algebra.polynomial_greatest_common_divisor(
+        x2_minus_one, std.cas.parse("x^2 - 2*x + 1")), x - 1))
+std.printf("%d|", std.cas.equivalent(
+    algebra.polynomial_resultant(x2_minus_one, x_minus_one, "x"), 0 as expr))
+std.printf("%d|", equation_solving.ideal_membership(
+    std.cas.parse("x + y - 1"), [std.cas.parse("x + y - 1")], ["x", "y"]))
+
+{
+    let generators = [
+        std.cas.parse("x + y - 1"),
+        std.cas.parse("x - y")
+    ]
+    let basis = std.cas.set_to_array(
+        equation_solving.groebner_basis(generators, ["x", "y"]))
+    let expected = [
+        generators[0],
+        generators[1],
+        std.cas.parse("2*y - 1")
+    ]
+    let first_present = std.cas.equivalent(basis[0], expected[0])
+        or std.cas.equivalent(basis[1], expected[0])
+        or std.cas.equivalent(basis[2], expected[0])
+    let second_present = std.cas.equivalent(basis[0], expected[1])
+        or std.cas.equivalent(basis[1], expected[1])
+        or std.cas.equivalent(basis[2], expected[1])
+    let third_present = std.cas.equivalent(basis[0], expected[2])
+        or std.cas.equivalent(basis[1], expected[2])
+        or std.cas.equivalent(basis[2], expected[2])
+    let exact_cardinality = std.cas.set_subset(
+        basis, [basis[0], basis[1], basis[2]])
+        and std.cas.set_subset([basis[0], basis[1], basis[2]], basis)
+    let complete = first_present and second_present and third_present
+        and exact_cardinality
+    let generators_reduce =
+        equation_solving.ideal_membership(generators[0], basis, ["x", "y"])
+        and equation_solving.ideal_membership(generators[1], basis, ["x", "y"])
+    let new_generator_reconstructs =
+        std.cas.equivalent(expected[2], generators[0] - generators[1])
+    std.printf("%d|", complete and generators_reduce
+        and new_generator_reconstructs)
+}
+
+{
+    let value = std.cas.evaluate_real_with(
+        std.cas.parse("log(x, 10)"), ["x"], [100])
+    let delta = value - 2.0
+    let tolerance = std.cas.evaluate_real(std.cas.parse("1/1000000000000"))
+    std.printf("%d|", delta >= -tolerance and delta <= tolerance)
+}
+
+std.printf("%d|", std.cas.structurally_equal(
+    equation_solving.inequality(x2_minus_one, "<", "x"),
+    std.cas.parse("x > -1 and x < 1")))
+std.printf("%d", std.cas.equivalent(
+    equation_solving.rational_inequality(
+        x_minus_one, x_plus_one, ">", x), std.cas.parse("x < -1 or x > 1")))

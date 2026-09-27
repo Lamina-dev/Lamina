@@ -2,15 +2,18 @@
 
 namespace lmx::bridge::math_internal {
 
-ArrayObj* solution_tables(
-    const std::vector<std::map<std::string, LMCAS::ExprPtr>>& solutions) {
+template <typename Expression, typename Convert>
+ArrayObj* solution_tables_impl(
+    const std::vector<std::map<std::string, Expression>>& solutions,
+    Convert convert) {
     auto result = make_owned_object<ArrayObj>();
     for (const auto& solution : solutions) {
         std::vector<TableObj::Entry> entries;
         for (const auto& [name, expression] : solution) {
-            auto value = take_object_value(
-                make_owned_object<ExprObj>(expression), ValueKind::Expr);
-            entries.emplace_back(name, std::move(value));
+            entries.emplace_back(
+                name, take_object_value(
+                    make_owned_object<ExprObj>(convert(expression)),
+                    ValueKind::Expr));
         }
         result->append(take_object_value(
             make_owned_object<TableObj>(std::move(entries)), ValueKind::Table));
@@ -18,8 +21,22 @@ ArrayObj* solution_tables(
     return result.release();
 }
 
+ArrayObj* solution_tables(
+    const std::vector<std::map<std::string, LMCAS::ExprPtr>>& solutions) {
+    return solution_tables_impl(
+        solutions, [](const LMCAS::ExprPtr& expression) { return expression; });
+}
+
+ArrayObj* solution_tables(
+    const std::vector<std::map<std::string, LMCAS::SymbolicExpr>>& solutions) {
+    return solution_tables_impl(solutions, [](const LMCAS::SymbolicExpr& expression) {
+        return std::make_shared<LMCAS::SymbolicExpr>(expression);
+    });
+}
+
 bool checked_symbol_names(
-    ArrayObj* values, std::vector<std::string>& names, std::string& error) {
+    ArrayObj* values, std::vector<std::string>& names, std::string& error,
+    const char* non_expression_message) {
     if (!values) {
         error = "CasError(InvalidArgument: null symbol array)";
         return false;
@@ -27,7 +44,7 @@ bool checked_symbol_names(
     names.reserve(static_cast<std::size_t>(values->len()));
     for (const auto& value : values->values()) {
         if (value.kind != ValueKind::Expr || !value.obj) {
-            error = "CasError(InvalidArgument: symbol array contains a non-expression value)";
+            error = non_expression_message;
             return false;
         }
         std::string name;
@@ -86,13 +103,4 @@ ArrayObj* symbol_text_array(ArrayObj* symbols, std::string& error) {
     return result.release();
 }
 
-AdtObj* checked_expr_result(const LMCAS::ExpressionResult& result) {
-    if (!result) return result_error(result.error());
-    if (!result.value()) {
-        return result_error(MathErrorCode::InternalError, __func__, 
-            "CasError(InternalInvariant: null expression result)");
-    }
-    return result_ok(new ExprObj(result.value()), ValueKind::Expr);
 }
-
-} // namespace lmx::bridge::math_internal

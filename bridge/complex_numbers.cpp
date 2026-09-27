@@ -113,17 +113,24 @@ extern "C" LM_API AdtObj* lmx_complex_numbers_absolute_value(ComplexObj* value) 
 
 namespace {
 AdtObj* complex_unary(
-    const char* name, ComplexObj* value,
-    lmmc_status_t (*operation)(const lmmc_complex_t*, lmmc_complex_t*)) {
+    const char* operation_name, ComplexObj* value,
+    lmmc_status_t (*operation)(const lmmc_complex_t*, lmmc_complex_t*))
+{
     lmmc_complex_t input{}, output{};
-    if (!checked_complex(value, input))
-        return result_error(MathErrorCode::InvalidArgument, __func__, std::string(name) + ": invalid argument");
-    return lmmc_complex_result(name, operation(&input, &output), output);
+    if (!checked_complex(value, input)) {
+        return result_error(
+            MathErrorCode::InvalidArgument, operation_name,
+            std::string(operation_name) + ": invalid argument");
+    }
+    return lmmc_complex_result(
+        operation_name, operation(&input, &output), output);
 }
 
-AdtObj* fft_transform(ArrayObj* values, const bool inverse) {
+AdtObj* fft_transform(
+    const char* operation_name, ArrayObj* values, const bool inverse)
+{
     if (!values || values->values().empty())
-        return result_error(MathErrorCode::EmptyInput, __func__, "fft: input must not be empty");
+        return result_error(MathErrorCode::EmptyInput, operation_name, "fft: input must not be empty");
     std::vector<double> real;
     std::vector<double> imag;
     real.reserve(values->values().size());
@@ -131,17 +138,17 @@ AdtObj* fft_transform(ArrayObj* values, const bool inverse) {
     for (const auto& value : values->values()) {
         if (value.kind != ValueKind::Complex || !value.obj ||
             value.obj->get_kind() != lmx::runtime::ObjectKind::Complex)
-            return result_error(MathErrorCode::InvalidArgument, __func__, "fft: input contains a non-complex value");
+            return result_error(MathErrorCode::InvalidArgument, operation_name, "fft: input contains a non-complex value");
         const auto* number = static_cast<const ComplexObj*>(value.obj);
         if (!std::isfinite(number->real()) || !std::isfinite(number->imag()))
-            return result_error(MathErrorCode::InvalidArgument, __func__, "fft: input contains a non-finite value");
+            return result_error(MathErrorCode::InvalidArgument, operation_name, "fft: input contains a non-finite value");
         real.push_back(number->real());
         imag.push_back(number->imag());
     }
     const auto status = inverse
         ? lmmc_fft_inverse(real.data(), imag.data(), real.size())
         : lmmc_fft_forward(real.data(), imag.data(), real.size());
-    if (status != LMMC_STATUS_OK) return result_error(status, "fft");
+    if (status != LMMC_STATUS_OK) return result_error(status, operation_name);
     auto result = make_owned_object<ArrayObj>();
     for (std::size_t index = 0; index < real.size(); ++index) {
         result->append(take_object_value(
@@ -175,31 +182,31 @@ extern "C" LM_API AdtObj* lmx_complex_numbers_argument(ComplexObj* value) noexce
 }
 extern "C" LM_API AdtObj* lmx_complex_numbers_exponential(ComplexObj* value) noexcept try {
     ensure_lmmc_runtime();
-    return complex_unary("complex.exp", value, lmmc_complex_exp);
+    return complex_unary(__func__, value, lmmc_complex_exp);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_complex_numbers_natural_logarithm(ComplexObj* value) noexcept try {
     ensure_lmmc_runtime();
-    return complex_unary("complex.log", value, lmmc_complex_log);
+    return complex_unary(__func__, value, lmmc_complex_log);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_complex_numbers_square_root(ComplexObj* value) noexcept try {
     ensure_lmmc_runtime();
-    return complex_unary("complex.sqrt", value, lmmc_complex_sqrt);
+    return complex_unary(__func__, value, lmmc_complex_sqrt);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_complex_numbers_sine(ComplexObj* value) noexcept try {
     ensure_lmmc_runtime();
-    return complex_unary("complex.sin", value, lmmc_complex_sin);
+    return complex_unary(__func__, value, lmmc_complex_sin);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_complex_numbers_cosine(ComplexObj* value) noexcept try {
     ensure_lmmc_runtime();
-    return complex_unary("complex.cos", value, lmmc_complex_cos);
+    return complex_unary(__func__, value, lmmc_complex_cos);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -217,13 +224,13 @@ extern "C" LM_API AdtObj* lmx_complex_numbers_power(
 
 extern "C" LM_API AdtObj* lmx_fast_fourier_transform_forward(ArrayObj* values) noexcept try {
     ensure_lmmc_runtime();
-    return fft_transform(values, false);
+    return fft_transform(__func__, values, false);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_fast_fourier_transform_inverse(ArrayObj* values) noexcept try {
     ensure_lmmc_runtime();
-    return fft_transform(values, true);
+    return fft_transform(__func__, values, true);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

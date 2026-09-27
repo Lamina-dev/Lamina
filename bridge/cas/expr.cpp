@@ -1,11 +1,7 @@
 #include "bridge/result.hpp"
 #include "bridge/conversions.hpp"
-#include "bridge/runtime_views.hpp"
-#include "bridge/unit_bridge.hpp"
 #include <cstdarg>
 #include "include/lmx_expr.h"
-
-#include <cstdarg>
 
 using namespace lmx::bridge;
 
@@ -14,9 +10,9 @@ struct VaListEnd {
     va_list* args;
     ~VaListEnd() { va_end(*args); }
 };
-} // namespace
+}
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_symbol(
+extern "C" LM_API ExprObj* lmx_cas_expr_symbol(
     const char* name) noexcept try {
     ensure_lmmc_runtime();
     return expr_from_result(LMCAS::sym(name ? name : ""));
@@ -24,71 +20,71 @@ extern "C" LM_API ExprObj* lmx_computer_algebra_expression_symbol(
     return nullptr;
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_symbol(const char* name) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_symbol(const char* name) noexcept try {
     ensure_lmmc_runtime();
     return expr_result_ok(LMCAS::sym(name ? name : ""));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_parse(const char* source) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_parse(const char* source) noexcept try {
     ensure_lmmc_runtime();
     return expr_result_ok(LMCAS::parse_expr(source ? source : ""));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_pi() noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_pi() noexcept try {
     ensure_lmmc_runtime();
     return expr_result_ok(LMCAS::pi());
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_euler_number() noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_euler_number() noexcept try {
     ensure_lmmc_runtime();
     return expr_result_ok(LMCAS::e());
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_golden_ratio() noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_golden_ratio() noexcept try {
     ensure_lmmc_runtime();
     return expr_result_ok(LMCAS::phi());
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_imaginary_unit() noexcept try {
+extern "C" LM_API ExprObj* lmx_cas_expr_imaginary_unit() noexcept try {
     ensure_lmmc_runtime();
     return expr_from_result(LMCAS::imaginary_unit());
 } catch (...) {
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_integer(const LmInt value) noexcept try {
+extern "C" LM_API ExprObj* lmx_cas_expr_integer(const LmInt value) noexcept try {
     ensure_lmmc_runtime();
-    return expr_from_result(LMCAS::integer(value));
+    return expr_from_result(LMCAS::integer(LMCAS::BigInt(value)));
 } catch (...) {
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_rational(const LmInt numerator,
+extern "C" LM_API ExprObj* lmx_cas_expr_rational(const LmInt numerator,
                                                const LmInt denominator) noexcept try {
     ensure_lmmc_runtime();
     if (denominator == 0) return expression_internal_error("CasError(DivisionByZero: rational denominator is zero)");
     return expr_from_result(LMCAS::rational(LMCAS::Rational(
-        LMCAS::BigInt(std::to_string(numerator)), LMCAS::BigInt(std::to_string(denominator)))));
+        LMCAS::BigInt(numerator), LMCAS::BigInt(denominator))));
 } catch (...) {
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_promote_value(const lmx::runtime::Value* value) noexcept try {
+extern "C" LM_API ExprObj* lmx_cas_expr_promote_value(const lmx::runtime::Value* value) noexcept try {
     ensure_lmmc_runtime();
     if (!value) return expression_internal_error("CasError(InvalidArgument: null Lamina value)");
     switch (value->kind) {
     case lmx::runtime::ValueKind::Int:
-        return expr_from_result(LMCAS::integer(value->int_val));
+        return expr_from_result(LMCAS::integer(LMCAS::BigInt(value->int_val)));
     case lmx::runtime::ValueKind::Fraction:
         return expr_from_result(LMCAS::rational(LMCAS::Rational(
             value->frac_val.numerator(), value->frac_val.denominator())));
@@ -121,7 +117,7 @@ extern "C" LM_API ExprObj* lmx_computer_algebra_expression_promote_value(const l
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_unary(const LmInt operation,
+extern "C" LM_API ExprObj* lmx_cas_expr_unary(const LmInt operation,
                                             ExprObj* operand) noexcept try {
     ensure_lmmc_runtime();
     std::string error;
@@ -140,7 +136,7 @@ extern "C" LM_API ExprObj* lmx_computer_algebra_expression_unary(const LmInt ope
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_binary(const LmInt operation,
+extern "C" LM_API ExprObj* lmx_cas_expr_binary(const LmInt operation,
                                              ExprObj* lhs, ExprObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     std::string error;
@@ -172,7 +168,7 @@ extern "C" LM_API ExprObj* lmx_computer_algebra_expression_binary(const LmInt op
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_function(const char* name,
+extern "C" LM_API ExprObj* lmx_cas_expr_function(const char* name,
                                                const LmInt count, ...) noexcept try {
     ensure_lmmc_runtime();
     va_list args;
@@ -187,7 +183,7 @@ extern "C" LM_API ExprObj* lmx_computer_algebra_expression_function(const char* 
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_set(const LmInt count, ...) noexcept try {
+extern "C" LM_API ExprObj* lmx_cas_expr_set(const LmInt count, ...) noexcept try {
     ensure_lmmc_runtime();
     va_list args;
     va_start(args, count);
@@ -201,7 +197,7 @@ extern "C" LM_API ExprObj* lmx_computer_algebra_expression_set(const LmInt count
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_interval(ExprObj* lower, ExprObj* upper,
+extern "C" LM_API ExprObj* lmx_cas_expr_interval(ExprObj* lower, ExprObj* upper,
                                                const bool lower_closed,
                                                const bool upper_closed) noexcept try {
     ensure_lmmc_runtime();
@@ -216,7 +212,7 @@ extern "C" LM_API ExprObj* lmx_computer_algebra_expression_interval(ExprObj* low
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_attach_unit(
+extern "C" LM_API ExprObj* lmx_cas_expr_attach_unit(
     ExprObj* value, const char* display_unit, const char* dimension,
     const LmInt scale_numerator, const LmInt scale_denominator) noexcept try {
     ensure_lmmc_runtime();
@@ -234,7 +230,7 @@ extern "C" LM_API ExprObj* lmx_computer_algebra_expression_attach_unit(
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_convert_unit(
+extern "C" LM_API ExprObj* lmx_cas_expr_convert_unit(
     ExprObj* value, const char* display_unit, const char* dimension,
     const LmInt scale_numerator, const LmInt scale_denominator) noexcept try {
     ensure_lmmc_runtime();
@@ -252,7 +248,7 @@ extern "C" LM_API ExprObj* lmx_computer_algebra_expression_convert_unit(
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_strip_base_value(ExprObj* value) noexcept try {
+extern "C" LM_API ExprObj* lmx_cas_expr_strip_base_value(ExprObj* value) noexcept try {
     ensure_lmmc_runtime();
     std::string error;
     const auto* expression = checked_expr(value, error);
@@ -264,7 +260,7 @@ extern "C" LM_API ExprObj* lmx_computer_algebra_expression_strip_base_value(Expr
     return nullptr;
 }
 
-extern "C" LM_API ExprObj* lmx_computer_algebra_expression_strip_display_value(ExprObj* value) noexcept try {
+extern "C" LM_API ExprObj* lmx_cas_expr_strip_display_value(ExprObj* value) noexcept try {
     ensure_lmmc_runtime();
     std::string error;
     const auto* expression = checked_expr(value, error);

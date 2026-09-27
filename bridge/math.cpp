@@ -1,8 +1,6 @@
 #include "bridge/result.hpp"
 #include "bridge/conversions.hpp"
 #include "bridge/runtime_views.hpp"
-#include "bridge/unit_bridge.hpp"
-#include <cstdarg>
 
 #include <cstddef>
 #include <string>
@@ -10,7 +8,7 @@
 
 using namespace lmx::bridge;
 
-extern "C" LM_API AdtObj* lmx_mathematics_hypotenuse(ExprObj* lhs, ExprObj* rhs) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_hypot(ExprObj* lhs, ExprObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     double x = 0.0;
     double y = 0.0;
@@ -19,36 +17,36 @@ extern "C" LM_API AdtObj* lmx_mathematics_hypotenuse(ExprObj* lhs, ExprObj* rhs)
     if (!expr_to_real(rhs, y, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     lmmc_real_t out = 0.0;
     const auto status = lmmc_hypot(x, y, &out);
-    return lmmc_real_result("lmx_mathematics_hypotenuse", status, out);
+    return lmmc_real_result("lmx_math_hypot", status, out);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_mathematics_binary_logarithm(ExprObj* expr) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_log2(ExprObj* expr) noexcept try {
     ensure_lmmc_runtime();
     double x = 0.0;
     std::string error;
     if (!expr_to_real(expr, x, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     lmmc_real_t out = 0.0;
     const auto status = lmmc_log2(x, &out);
-    return lmmc_real_result("lmx_mathematics_binary_logarithm", status, out);
+    return lmmc_real_result("lmx_math_log2", status, out);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_mathematics_binary_exponential(ExprObj* expr) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_exp2(ExprObj* expr) noexcept try {
     ensure_lmmc_runtime();
     double x = 0.0;
     std::string error;
     if (!expr_to_real(expr, x, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     lmmc_real_t out = 0.0;
     const auto status = lmmc_exp2(x, &out);
-    return lmmc_real_result("lmx_mathematics_binary_exponential", status, out);
+    return lmmc_real_result("lmx_math_exp2", status, out);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_mathematics_pi() noexcept try {
+extern "C" LM_API AdtObj* lmx_math_pi() noexcept try {
     ensure_lmmc_runtime();
     lmmc_real_t value = 0.0;
     const auto status = lmmc_std_math_pi(&value);
@@ -57,7 +55,7 @@ extern "C" LM_API AdtObj* lmx_mathematics_pi() noexcept try {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_mathematics_euler_number() noexcept try {
+extern "C" LM_API AdtObj* lmx_math_e() noexcept try {
     ensure_lmmc_runtime();
     lmmc_real_t value = 0.0;
     const auto status = lmmc_std_math_e(&value);
@@ -66,7 +64,7 @@ extern "C" LM_API AdtObj* lmx_mathematics_euler_number() noexcept try {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_mathematics_golden_ratio() noexcept try {
+extern "C" LM_API AdtObj* lmx_math_phi() noexcept try {
     ensure_lmmc_runtime();
     lmmc_real_t value = 0.0;
     const auto status = lmmc_std_math_phi(&value);
@@ -75,7 +73,7 @@ extern "C" LM_API AdtObj* lmx_mathematics_golden_ratio() noexcept try {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API ArrayObj* lmx_mathematics_constants() noexcept try {
+extern "C" LM_API ArrayObj* lmx_math_constants() noexcept try {
     ensure_lmmc_runtime();
     auto result = make_owned_object<ArrayObj>();
     const auto count = lmmc_std_constants_count();
@@ -91,7 +89,7 @@ extern "C" LM_API ArrayObj* lmx_mathematics_constants() noexcept try {
     return nullptr;
 }
 
-extern "C" LM_API AdtObj* lmx_mathematics_constant(const char* name) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_constant(const char* name) noexcept try {
     ensure_lmmc_runtime();
     lmmc_real_t value = 0.0;
     const auto status = lmmc_std_constants_get(name, &value);
@@ -100,7 +98,7 @@ extern "C" LM_API AdtObj* lmx_mathematics_constant(const char* name) noexcept tr
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_mathematics_constant_unit(const char* name) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_constant_unit(const char* name) noexcept try {
     ensure_lmmc_runtime();
     const char* unit = lmmc_std_constants_unit(name);
     if (!unit) return result_error(MathErrorCode::InvalidArgument, __func__, "math.constant_unit: unknown constant");
@@ -109,106 +107,106 @@ extern "C" LM_API AdtObj* lmx_mathematics_constant_unit(const char* name) noexce
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_mathematics_imaginary_unit() noexcept try {
+extern "C" LM_API AdtObj* lmx_math_i() noexcept try {
     ensure_lmmc_runtime();
     lmmc_complex_t value{};
-    const auto status = lmmc_std_math_I(&value);
+    const auto status = lmmc_std_math_i(&value);
     return lmmc_complex_result("math.I", status, value);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_mathematics_sine(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_sin(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.sin", value, lmmc_std_math_sin);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_cosine(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_cos(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.cos", value, lmmc_std_math_cos);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_tangent(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_tan(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.tan", value, lmmc_std_math_tan);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_inverse_sine(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_asin(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.asin", value, lmmc_std_math_asin);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_inverse_cosine(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_acos(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.acos", value, lmmc_std_math_acos);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_inverse_tangent(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_atan(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.atan", value, lmmc_std_math_atan);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_square_root(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_sqrt(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.sqrt", value, lmmc_std_math_sqrt);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_exponential(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_exp(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.exp", value, lmmc_std_math_exp);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_natural_logarithm(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_ln(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.ln", value, lmmc_std_math_ln);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_natural_logarithm_legacy(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_log(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.log", value, lmmc_std_math_log);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_common_logarithm(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_log10(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.log10", value, lmmc_std_math_log10);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_absolute_value(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_abs(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.abs", value, lmmc_std_math_abs);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_floor(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_floor(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.floor", value, lmmc_std_math_floor);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_ceil(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_ceil(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.ceil", value, lmmc_std_math_ceil);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_round(const double value) noexcept try {
+extern "C" LM_API AdtObj* lmx_math_round(const double value) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_unary_real_result("math.round", value, lmmc_std_math_round);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_power(const double base,
+extern "C" LM_API AdtObj* lmx_math_pow(const double base,
                                          const double exponent) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result(
@@ -216,7 +214,7 @@ extern "C" LM_API AdtObj* lmx_mathematics_power(const double base,
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_logarithm(const double value,
+extern "C" LM_API AdtObj* lmx_math_log_base(const double value,
                                               const double base) noexcept try {
     ensure_lmmc_runtime();
     return lmmc_binary_real_result(
@@ -224,7 +222,7 @@ extern "C" LM_API AdtObj* lmx_mathematics_logarithm(const double value,
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_mathematics_clamp(const double value,
+extern "C" LM_API AdtObj* lmx_math_clamp(const double value,
                                            const double lower,
                                            const double upper) noexcept try {
     ensure_lmmc_runtime();

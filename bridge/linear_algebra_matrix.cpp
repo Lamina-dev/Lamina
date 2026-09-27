@@ -354,7 +354,6 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_solve_right(MatrixObj* lhs,
     return c_abi_current_exception(__func__);
 }
 
-/** @brief Returns matrix shape as a two-element dense vector. @param value Borrowed valid matrix. @return Owning Result vector `[rows, cols]` or error. @ownership Input borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_linear_algebra_shape(MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     if (!value || !value->valid())
@@ -365,7 +364,6 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_shape(MatrixObj* value) noexcept tr
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes matrix one-norm. @param value Borrowed valid matrix. @return Owning Result real or error. @ownership Input borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_linear_algebra_one_norm(MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     if (!value || !value->valid())
@@ -377,7 +375,6 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_one_norm(MatrixObj* value) noexcept
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes matrix infinity-norm. @param value Borrowed valid matrix. @return Owning Result real or error. @ownership Input borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_linear_algebra_infinity_norm(MatrixObj* value) noexcept try {
     ensure_lmmc_runtime();
     if (!value || !value->valid())
@@ -388,7 +385,6 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_infinity_norm(MatrixObj* value) noe
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves a dense least-squares problem by QR decomposition. @param matrix Borrowed m-by-n matrix with m at least n. @param rhs Borrowed m-vector. @return Owning Result n-vector or error. @ownership Inputs borrowed; all LMMC temporaries destroyed on every path. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_linear_algebra_least_squares(
     MatrixObj* matrix, VectorObj* rhs) noexcept try {
     ensure_lmmc_runtime();
@@ -410,7 +406,6 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_least_squares(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves a dense triangular system. @param matrix Borrowed square triangular matrix. @param rhs Borrowed matching vector. @param upper True for upper triangular. @param unit_diagonal True for implicit unit diagonal. @return Owning Result vector or error. @ownership Inputs borrowed; output destroyed or adopted on every path. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_linear_algebra_solve_triangular(
     MatrixObj* matrix, VectorObj* rhs, bool upper, bool unit_diagonal) noexcept try {
     ensure_lmmc_runtime();

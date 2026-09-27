@@ -48,6 +48,7 @@
 #include "vector_calculus.hpp"
 
 LmState global_state;
+#if !NDEBUG
 namespace {
 
 bool debug_dump_enabled() noexcept {
@@ -56,6 +57,7 @@ bool debug_dump_enabled() noexcept {
 }
 
 } // namespace
+#endif
 
 
 extern "C" LM_API int lmx_printf(const char* fmt, ...) {

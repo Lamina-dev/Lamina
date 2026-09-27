@@ -1,0 +1,91 @@
+import std
+import std.cas.calculus
+import std.cas.complex_analysis
+import std.cas.series
+
+func same(value expr, expected text) -> bool {
+    std.cas.equivalent(std.cas.simplify(value), std.cas.simplify(std.cas.parse(expected)))
+}
+
+func near(actual real, expected frac) -> bool {
+    let delta = actual - expected
+    let tolerance = std.cas.evaluate_real(std.cas.parse("1/1000000000000"))
+    delta >= -tolerance and delta <= tolerance
+}
+
+sym x, y, n, t, z
+let zero = std.cas.parse("0")
+let one = std.cas.parse("1")
+let two = std.cas.parse("2")
+let three = std.cas.parse("3")
+let four = std.cas.parse("4")
+
+{
+    let derivative = calculus.implicit_differentiate(std.cas.parse("x^2 + y^2 - 1"), x, y)
+    std.printf("%d|", near(std.cas.evaluate_real_with(derivative, ["x", "y"], [2, 4]), -0.5)
+        and near(std.cas.evaluate_real_with(derivative, ["x", "y"], [-3, 2]), 1.5))
+}
+{
+    let values = calculus.gradient(std.cas.parse("x^2 + y^2"), [x, y])
+    std.printf("%d|%d|", same(values[0], "2*x"), same(values[1], "2*y"))
+}
+std.printf("%d|", same(calculus.laplacian(std.cas.parse("x^2 + y^2"), [x, y]), "4"))
+{
+    let derivative = calculus.log_differentiate(std.cas.parse("x^3"), x)
+    std.printf("%d|", near(std.cas.evaluate_real_with(derivative, ["x"], [1]), 3.0)
+        and near(std.cas.evaluate_real_with(derivative, ["x"], [2]), 12.0)
+        and near(std.cas.evaluate_real_with(derivative, ["x"], [-2]), 12.0))
+}
+std.printf("%d|", same(calculus.inverse_derivative(x, x, four), "1"))
+std.printf("%s|", calculus.continuity_at(std.cas.parse("x^2"), x, zero))
+std.printf("%.6f|", std.cas.evaluate_real_with(
+    calculus.curvature(std.cas.parse("x^2"), x), ["x"], [1]))
+std.printf("%.6f|", std.cas.evaluate_real_with(
+    calculus.curvature_parametric(t, std.cas.parse("t^2"), t), ["t"], [1]))
+std.printf("%d|", same(calculus.volume_revolution_x(x, zero, one), "pi/3"))
+std.printf("%d|", same(calculus.arc_length_x(zero, zero, one), "1"))
+std.printf("%d|", same(calculus.volume_revolution_y(x, zero, one), "x^2*pi"))
+std.printf("%d|", same(calculus.arc_length_y(zero, zero, one), "1"))
+std.printf("%d|", same(calculus.integrate_multiple(
+    std.cas.parse("x*y"), [x, y], [zero, zero], [one, one]), "1/4"))
+std.printf("%d|", same(calculus.surface_area_revolution_x(zero, x, zero, one), "0"))
+std.printf("%d|", same(calculus.surface_area_revolution_y(one, x, zero, one), "pi"))
+{
+    let values = std.cas.set_to_array(
+        calculus.inverse_function(std.cas.parse("x^2"), x, four))
+    let expected = [std.cas.simplify(std.cas.parse("-2")), two]
+    std.printf("%d|", std.cas.set_subset(values, expected) and std.cas.set_subset(expected, values))
+}
+{
+    let values = std.cas.set_to_array(
+        calculus.inflection_points(std.cas.parse("x^3"), x))
+    std.printf("%d|", std.cas.set_subset(values, [zero]) and std.cas.set_subset([zero], values))
+}
+
+std.printf("%d|", same(series.laurent(std.cas.parse("1/x"), x, zero, 2, 2), "1/x"))
+std.printf("%d|", same(series.asymptotic(one, x, 3), "1"))
+std.printf("%d|", same(series.symbolic_sum(n, n, one, three), "6"))
+std.printf("%d|", same(series.symbolic_product(n, n, one, three), "6"))
+{
+    let values = series.add([one, two], [three, four])
+    std.printf("%d,%d|", same(values[0], "4"), same(values[1], "6"))
+}
+{
+    let values = series.multiply([one, one], [one, one], 3)
+    std.printf("%d,%d,%d|", same(values[0], "1"), same(values[1], "2"), same(values[2], "1"))
+}
+{
+    let values = series.compose([one, two], [zero, one], 2)
+    std.printf("%d,%d|", same(values[0], "1"), same(values[1], "2"))
+}
+# 有限多项式的收敛半径为正无穷；单侧极限提供独立的正无穷值，
+# 使结构比较以无穷值节点为基准。
+let positive_infinity = std.cas.limit(one/x, x, zero, "right")
+std.printf("%d|", std.cas.structurally_equal(
+    series.convergence_radius([one, one, one], n), positive_infinity))
+std.printf("%d|", same(series.limit_inferior(std.cas.parse("1/n"), n), "0"))
+std.printf("%d|", same(series.limit_superior(std.cas.parse("1/n"), n), "0"))
+
+std.printf("%d|", same(complex_analysis.residue(std.cas.parse("1/z"), z, zero, 1), "1"))
+std.printf("%d|", complex_analysis.is_analytic(std.cas.parse("z^2"), z))
+std.printf("%d", same(complex_analysis.real_part(std.cas.parse("1 + 2*I")), "1"))

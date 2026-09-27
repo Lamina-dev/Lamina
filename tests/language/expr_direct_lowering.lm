@@ -23,8 +23,10 @@ let substituted = std.cas.substitute(x + 1, binding)
 let replacement = match binding {
     Binding.Binding(_, right) => right
 }
+let numbers = [2]
+let indexed expr = numbers[0]
 
-std.printf("%s|%s|%s|%s|%d|%s|%s|%s|%s|%s\n",
+std.printf("%s|%s|%s|%s|%d|%s|%s|%s|%s|%s|%s\n",
     std.cas.to_text(sum),
     std.cas.to_text(ordinary),
     std.cas.to_text(uninterpreted),
@@ -34,4 +36,5 @@ std.printf("%s|%s|%s|%s|%d|%s|%s|%s|%s|%s\n",
     std.cas.to_text(forced),
     std.cas.to_text(imaginary),
     std.cas.to_text(substituted),
-    std.cas.to_text(replacement))
+    std.cas.to_text(replacement),
+    std.cas.to_text(indexed))

@@ -12,9 +12,7 @@
 
 using namespace lmx::bridge;
 using lmx::bridge::math_internal::checked_expression_operation;
-using lmx::bridge::math_internal::checked_expr_result;
 
-/** @brief Adds ordered power-series coefficients. @param lhs Borrowed coefficients. @param rhs Borrowed coefficients. @return Owning Result coefficient array or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_add(ArrayObj* lhs, ArrayObj* rhs) noexcept try {
     ensure_lmmc_runtime();
     std::vector<LMCAS::ExprPtr> a, b; std::string error;
@@ -29,7 +27,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_add(ArrayObj* lhs, ArrayOb
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Multiplies ordered power-series coefficients. @param lhs Borrowed coefficients. @param rhs Borrowed coefficients. @param order Positive truncation order. @return Owning Result coefficient array or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_multiply(
     ArrayObj* lhs, ArrayObj* rhs, LmInt order) noexcept try {
     ensure_lmmc_runtime();
@@ -43,7 +40,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_multiply(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Composes ordered power-series coefficients. @param outer Borrowed outer coefficients. @param inner Borrowed inner coefficients. @param order Positive truncation order. @return Owning Result coefficient array or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_compose(
     ArrayObj* outer, ArrayObj* inner, LmInt order) noexcept try {
     ensure_lmmc_runtime();
@@ -57,7 +53,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_compose(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Builds a truncated Fourier series. @param value Borrowed function. @param variable Borrowed variable name. @param period Borrowed period. @param terms Positive term count. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_fourier_by_name(
     ExprObj* value, const char* variable, ExprObj* period, LmInt terms) noexcept try {
     ensure_lmmc_runtime();
@@ -67,12 +62,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_fourier_by_name(
     std::string error; const auto* f = checked_expr(value, error);
     const auto* p = checked_expr(period, error);
     if (!f || !p) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(LMCAS::fourier_series_checked(
+    return expr_result_ok(LMCAS::fourier_series_checked(
         *f, variable, *p, static_cast<int>(terms)));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Returns the infinite convergence radius of a finite coefficient polynomial. @param coefficients Borrowed complete finite coefficient list. @param variable Borrowed polynomial variable name. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_convergence_radius_by_name(
     ArrayObj* coefficients, const char* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -81,12 +75,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_convergence_radius_by_name
     std::vector<LMCAS::ExprPtr> values; std::string error;
     if (!array_expressions(coefficients, values, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "series.convergence_radius: " + error);
-    return checked_expr_result(
+    return expr_result_ok(
         LMCAS::convergence_radius_checked(values, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes a convergence-test classification. @param value Borrowed general term. @param variable Borrowed index name. @return Owning Result ConvergenceInfo or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_convergence_test_by_name(
     ExprObj* value, const char* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -109,7 +102,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_convergence_test_by_name(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes sequence lim inf. @param value Borrowed term. @param variable Borrowed index name. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_limit_inferior_by_name(
     ExprObj* value, const char* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -121,11 +113,10 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_limit_inferior_by_name(
         return result_error(
             MathErrorCode::InvalidArgument, __func__, std::move(error));
     }
-    return checked_expr_result(LMCAS::lim_inf_checked(*term, variable));
+    return expr_result_ok(LMCAS::lim_inf_checked(*term, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes sequence lim sup. @param value Borrowed term. @param variable Borrowed index name. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_limit_superior_by_name(
     ExprObj* value, const char* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -137,12 +128,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_limit_superior_by_name(
         return result_error(
             MathErrorCode::InvalidArgument, __func__, std::move(error));
     }
-    return checked_expr_result(LMCAS::lim_sup_checked(*term, variable));
+    return expr_result_ok(LMCAS::lim_sup_checked(*term, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-/** @brief Computes total differential components. @param value Borrowed expression. @param variables Borrowed variable-name array. @return Owning Result array of component tables or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_total_differential_by_names(
     ExprObj* value, ArrayObj* variables) noexcept try {
     ensure_lmmc_runtime();
@@ -171,7 +161,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_total_differential_by_na
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes total differential components from symbols. @param value Borrowed expression. @param variables Borrowed symbol array. @return Owning Result array of component tables or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_total_differential_by_symbols(
     ExprObj* value, ArrayObj* variables) noexcept try {
     ensure_lmmc_runtime();
@@ -183,7 +172,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_total_differential_by_sy
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Applies logarithmic differentiation. @param value Borrowed expression. @param variable Borrowed variable name. @return Owning Result Expr or error. @ownership Input borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_log_differentiate_by_name(
     ExprObj* value, const char* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -196,7 +184,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_log_differentiate_by_nam
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Applies logarithmic differentiation using a symbol. @param value Borrowed expression. @param variable Borrowed symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_log_differentiate_by_symbol(
     ExprObj* value, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -207,7 +194,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_log_differentiate_by_sym
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes inverse-function derivative. @param value Borrowed function. @param variable Borrowed variable name. @param point Borrowed target point. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inverse_derivative_by_name(
     ExprObj* value, const char* variable, ExprObj* point) noexcept try {
     ensure_lmmc_runtime();
@@ -216,12 +202,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inverse_derivative_by_na
     std::string error; const auto* function = checked_expr(value, error);
     const auto* target = checked_expr(point, error);
     if (!function || !target) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(LMCAS::inverse_derivative_checked(
+    return expr_result_ok(LMCAS::inverse_derivative_checked(
         *function, variable, *target));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes inverse-function derivative using a symbol. @param value Borrowed function. @param variable Borrowed symbol. @param point Borrowed target point. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inverse_derivative_by_symbol(
     ExprObj* value, ExprObj* variable, ExprObj* point) noexcept try {
     ensure_lmmc_runtime();
@@ -232,7 +217,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inverse_derivative_by_sy
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves an inverse function into unordered branches. @param value Borrowed function. @param variable Borrowed variable name. @param target Borrowed target expression. @return Owning Result set or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inverse_function_by_name(
     ExprObj* value, const char* variable, ExprObj* target) noexcept try {
     ensure_lmmc_runtime();
@@ -247,7 +231,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inverse_function_by_name
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Solves an inverse function using a symbol. @param value Borrowed function. @param variable Borrowed symbol. @param target Borrowed target expression. @return Owning Result set or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inverse_function_by_symbol(
     ExprObj* value, ExprObj* variable, ExprObj* target) noexcept try {
     ensure_lmmc_runtime();
@@ -258,7 +241,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inverse_function_by_symb
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes asymptote components. @param value Borrowed function. @param variable Borrowed variable name. @return Owning Result Asymptotes or error. @ownership Input borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_asymptotes_by_name(
     ExprObj* value, const char* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -296,7 +278,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_asymptotes_by_name(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Classifies continuity at a point. @param value Borrowed function. @param variable Borrowed variable name. @param point Borrowed point. @return Owning Result text or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_continuity_at_by_name(
     ExprObj* value, const char* variable, ExprObj* point) noexcept try {
     ensure_lmmc_runtime();
@@ -316,7 +297,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_continuity_at_by_name(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Finds unordered inflection points. @param value Borrowed function. @param variable Borrowed variable name. @return Owning Result set or error. @ownership Input borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inflection_points_by_name(
     ExprObj* value, const char* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -330,7 +310,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inflection_points_by_nam
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes explicit-curve curvature. @param value Borrowed function. @param variable Borrowed variable name. @return Owning Result Expr or error. @ownership Input borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curvature_by_name(
     ExprObj* value, const char* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -338,11 +317,10 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curvature_by_name(
         return result_error(MathErrorCode::InvalidArgument, __func__, "calculus.curvature: empty variable");
     std::string error; const auto* function = checked_expr(value, error);
     if (!function) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(LMCAS::curvature_checked(*function, variable));
+    return expr_result_ok(LMCAS::curvature_checked(*function, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes parametric curvature. @param x Borrowed x component. @param y Borrowed y component. @param variable Borrowed parameter name. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curvature_parametric_by_name(
     ExprObj* x, ExprObj* y, const char* variable) noexcept try {
     ensure_lmmc_runtime();
@@ -351,12 +329,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curvature_parametric_by_
     std::string error; const auto* xv = checked_expr(x, error);
     const auto* yv = checked_expr(y, error);
     if (!xv || !yv) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(
+    return expr_result_ok(
         LMCAS::curvature_parametric_checked(*xv, *yv, variable));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes surface area about x axis. @param value Borrowed function. @param variable Borrowed variable name. @param lower Borrowed lower bound. @param upper Borrowed upper bound. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_surface_area_x_by_name(
     ExprObj* value, const char* variable, ExprObj* lower, ExprObj* upper) noexcept try {
     ensure_lmmc_runtime();
@@ -365,12 +342,11 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_surface_area_x_by_name(
     std::string error; const auto* f = checked_expr(value, error);
     const auto* a = checked_expr(lower, error); const auto* b = checked_expr(upper, error);
     if (!f || !a || !b) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(
+    return expr_result_ok(
         LMCAS::surface_area_revolution_x_checked(*f, variable, *a, *b));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes surface area about y axis. @param value Borrowed function. @param variable Borrowed variable name. @param lower Borrowed lower bound. @param upper Borrowed upper bound. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_surface_area_y_by_name(
     ExprObj* value, const char* variable, ExprObj* lower, ExprObj* upper) noexcept try {
     ensure_lmmc_runtime();
@@ -379,34 +355,31 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_surface_area_y_by_name(
     std::string error; const auto* f = checked_expr(value, error);
     const auto* a = checked_expr(lower, error); const auto* b = checked_expr(upper, error);
     if (!f || !a || !b) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(
+    return expr_result_ok(
         LMCAS::surface_area_revolution_y_checked(*f, variable, *a, *b));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes volume about y axis. @param value Borrowed curve. @param lower Borrowed lower bound. @param upper Borrowed upper bound. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_volume_y(
     ExprObj* value, ExprObj* lower, ExprObj* upper) noexcept try {
     ensure_lmmc_runtime();
     std::string error; const auto* f = checked_expr(value, error);
     const auto* a = checked_expr(lower, error); const auto* b = checked_expr(upper, error);
     if (!f || !a || !b) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(LMCAS::volume_of_revolution_y_checked(*f, *a, *b));
+    return expr_result_ok(LMCAS::volume_of_revolution_y_checked(*f, *a, *b));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes arc length in y representation. @param value Borrowed curve. @param lower Borrowed lower bound. @param upper Borrowed upper bound. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_arc_length_y(
     ExprObj* value, ExprObj* lower, ExprObj* upper) noexcept try {
     ensure_lmmc_runtime();
     std::string error; const auto* f = checked_expr(value, error);
     const auto* a = checked_expr(lower, error); const auto* b = checked_expr(upper, error);
     if (!f || !a || !b) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    return checked_expr_result(LMCAS::arc_length_y_checked(*f, *a, *b));
+    return expr_result_ok(LMCAS::arc_length_y_checked(*f, *a, *b));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes an iterated integral. @param value Borrowed integrand. @param variables Borrowed variable-name array. @param lowers Borrowed lower-bound array. @param uppers Borrowed upper-bound array. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_integrate_multiple_by_names(
     ExprObj* value, ArrayObj* variables, ArrayObj* lowers, ArrayObj* uppers) noexcept try {
     ensure_lmmc_runtime();
@@ -430,7 +403,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_integrate_multiple_by_na
     return c_abi_current_exception(__func__);
 }
 
-/** @brief Computes asymptotes using a symbol variable. @param value Borrowed function. @param variable Borrowed symbol. @return Owning Result Asymptotes or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_asymptotes_by_symbol(ExprObj* value, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -438,7 +410,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_asymptotes_by_symbol(Exp
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Classifies continuity using a symbol variable. @param value Borrowed function. @param variable Borrowed symbol. @param point Borrowed point. @return Owning Result text or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_continuity_at_by_symbol(ExprObj* value, ExprObj* variable, ExprObj* point) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -446,7 +417,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_continuity_at_by_symbol(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Finds inflection points using a symbol variable. @param value Borrowed function. @param variable Borrowed symbol. @return Owning Result set or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inflection_points_by_symbol(ExprObj* value, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -454,7 +424,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_inflection_points_by_sym
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes curvature using a symbol variable. @param value Borrowed function. @param variable Borrowed symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curvature_by_symbol(ExprObj* value, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -462,7 +431,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curvature_by_symbol(Expr
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes parametric curvature using a symbol. @param x Borrowed x component. @param y Borrowed y component. @param variable Borrowed symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curvature_parametric_by_symbol(ExprObj* x, ExprObj* y, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -470,7 +438,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_curvature_parametric_by_
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes x-axis surface area using a symbol. @param value Borrowed function. @param variable Borrowed symbol. @param lower Borrowed bound. @param upper Borrowed bound. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_surface_area_x_by_symbol(ExprObj* value, ExprObj* variable, ExprObj* lower, ExprObj* upper) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -478,7 +445,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_surface_area_x_by_symbol
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes y-axis surface area using a symbol. @param value Borrowed function. @param variable Borrowed symbol. @param lower Borrowed bound. @param upper Borrowed bound. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_surface_area_y_by_symbol(ExprObj* value, ExprObj* variable, ExprObj* lower, ExprObj* upper) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -486,7 +452,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_surface_area_y_by_symbol
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes an iterated integral using symbol variables. @param value Borrowed integrand. @param variables Borrowed symbol array. @param lowers Borrowed bounds. @param uppers Borrowed bounds. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_integrate_multiple_by_symbols(ExprObj* value, ArrayObj* variables, ArrayObj* lowers, ArrayObj* uppers) noexcept try {
     ensure_lmmc_runtime();
     std::string error; auto* names = math_internal::symbol_text_array(variables, error);
@@ -496,7 +461,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_calculus_integrate_multiple_by_sy
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Builds a Fourier series using a symbol. @param value Borrowed function. @param variable Borrowed symbol. @param period Borrowed period. @param terms Term count. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_fourier_by_symbol(ExprObj* value, ExprObj* variable, ExprObj* period, LmInt terms) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -504,7 +468,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_fourier_by_symbol(ExprObj*
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes convergence radius using a symbol. @param coefficients Borrowed coefficients. @param variable Borrowed symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_convergence_radius_by_symbol(ArrayObj* coefficients, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -512,7 +475,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_convergence_radius_by_symb
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes convergence classification using a symbol. @param value Borrowed term. @param variable Borrowed symbol. @return Owning Result ConvergenceInfo or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_convergence_test_by_symbol(ExprObj* value, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -520,7 +482,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_convergence_test_by_symbol
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes lim inf using a symbol. @param value Borrowed term. @param variable Borrowed symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_limit_inferior_by_symbol(ExprObj* value, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
@@ -528,7 +489,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_series_limit_inferior_by_symbol(E
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-/** @brief Computes lim sup using a symbol. @param value Borrowed term. @param variable Borrowed symbol. @return Owning Result Expr or error. @ownership Inputs borrowed; caller owns return. @threadsafe Current VM thread only. */
 extern "C" LM_API AdtObj* lmx_computer_algebra_series_limit_superior_by_symbol(ExprObj* value, ExprObj* variable) noexcept try {
     ensure_lmmc_runtime();
     std::string name, error; if (!checked_symbol_name(variable, name, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));

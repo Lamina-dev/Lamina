@@ -1,27 +1,10 @@
 #include "bridge/result.hpp"
 #include "bridge/conversions.hpp"
-#include "bridge/runtime_views.hpp"
-#include "bridge/unit_bridge.hpp"
-#include <cstdarg>
-#include "bridge/math_internal.hpp"
 #include "runtime/object/assumptions.hpp"
 #include "assumption_context.hpp"
 #include "query_interface.hpp"
 #include "solver.hpp"
-#include "inequality_solver.hpp"
-#include "parametric_solver.hpp"
-#include "transcendental_factor.hpp"
 #include "symbolic.hpp"
-#include "symbolic_matrix.hpp"
-#include "calculus_utils.hpp"
-#include "multiple_integral.hpp"
-#include "symbolic_complex.hpp"
-#include "matrix_decomposition.hpp"
-#include <array>
-#include "symbolic_ode.hpp"
-#include "symbolic_ode_engine.hpp"
-#include "symbolic_vector_geometry.hpp"
-#include "differential_geometry.hpp"
 
 using namespace lmx::bridge;
 
@@ -77,37 +60,34 @@ bool assumption_expr(
     return true;
 }
 
-} // namespace
+}
 
-extern "C" LM_API AssumptionsObj* lmx_computer_algebra_assumptions_empty() noexcept try {
+extern "C" LM_API AssumptionsObj* lmx_cas_assumptions_empty() noexcept try {
     ensure_lmmc_runtime();
     return new AssumptionsObj();
 } catch (...) {
     return nullptr;
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_push(AssumptionsObj* value) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_assumptions_push(AssumptionsObj* value) noexcept try {
     ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.push: null context");
-    auto* result = value->copy();
+    auto result = adopt_object(value->copy());
     result->context().push();
-    return assumptions_result(result);
+    return assumptions_result(result.release());
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_pop(AssumptionsObj* value) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_assumptions_pop(AssumptionsObj* value) noexcept try {
     ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.pop: null context");
-    auto* result = value->copy();
+    auto result = adopt_object(value->copy());
     auto popped = result->context().pop();
-    if (!popped) {
-        result->release();
-        return result_error(popped.error());
-    }
-    return assumptions_result(result);
+    if (!popped) return result_error(popped.error());
+    return assumptions_result(result.release());
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_domain(
+extern "C" LM_API AdtObj* lmx_cas_assumptions_with_domain(
     AssumptionsObj* value, const char* symbol, const char* domain) noexcept try {
     ensure_lmmc_runtime();
     if (!value || !symbol)
@@ -115,18 +95,15 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_domain(
     const auto checked_domain = assumption_domain(domain);
     if (!checked_domain)
         return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.with_domain: unknown domain");
-    auto* result = value->copy();
+    auto result = adopt_object(value->copy());
     const auto status =
         result->context().assume_domain_checked(symbol, *checked_domain);
-    if (!status) {
-        result->release();
-        return result_error(status.error());
-    }
-    return assumptions_result(result);
+    if (!status) return result_error(status.error());
+    return assumptions_result(result.release());
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_sign(
+extern "C" LM_API AdtObj* lmx_cas_assumptions_with_sign(
     AssumptionsObj* value, const char* symbol, const char* sign) noexcept try {
     ensure_lmmc_runtime();
     if (!value || !symbol)
@@ -134,18 +111,15 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_sign(
     const auto checked_sign = assumption_sign(sign);
     if (!checked_sign)
         return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.with_sign: unknown sign");
-    auto* result = value->copy();
+    auto result = adopt_object(value->copy());
     const auto status =
         result->context().assume_sign_checked(symbol, *checked_sign);
-    if (!status) {
-        result->release();
-        return result_error(status.error());
-    }
-    return assumptions_result(result);
+    if (!status) return result_error(status.error());
+    return assumptions_result(result.release());
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_relation(
+extern "C" LM_API AdtObj* lmx_cas_assumptions_with_relation(
     AssumptionsObj* value, ExprObj* relation) noexcept try {
     ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.with_relation: null context");
@@ -153,17 +127,14 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_relation(
     LMCAS::ExprPtr expression;
     if (!assumption_expr(relation, expression, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    auto* result = value->copy();
+    auto result = adopt_object(value->copy());
     const auto status = result->context().assume_checked(*expression);
-    if (!status) {
-        result->release();
-        return result_error(status.error());
-    }
-    return assumptions_result(result);
+    if (!status) return result_error(status.error());
+    return assumptions_result(result.release());
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_conditional(
+extern "C" LM_API AdtObj* lmx_cas_assumptions_with_conditional(
     AssumptionsObj* value, ExprObj* condition, ExprObj* conclusion) noexcept try {
     ensure_lmmc_runtime();
     if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.with_conditional: null context");
@@ -173,19 +144,16 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_with_conditional(
     if (!assumption_expr(condition, checked_condition, error) ||
         !assumption_expr(conclusion, checked_conclusion, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    auto* result = value->copy();
+    auto result = adopt_object(value->copy());
     const auto status = result->context().assume_conditional_checked(
         *checked_condition, *checked_conclusion);
-    if (!status) {
-        result->release();
-        return result_error(status.error());
-    }
-    return assumptions_result(result);
+    if (!status) return result_error(status.error());
+    return assumptions_result(result.release());
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_query(
+extern "C" LM_API AdtObj* lmx_cas_assumptions_query(
     AssumptionsObj* value, ExprObj* expression, const char* property) noexcept try {
     ensure_lmmc_runtime();
     if (!value || !property)
@@ -206,7 +174,6 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_query(
     if (name == "transcendental") return checked_truth(query.query_transcendental_checked(*checked));
     if (name == "finite") return checked_truth(query.query_finite_checked(*checked));
     if (name == "divergent") return checked_truth(query.query_divergent_checked(*checked));
-    if (name == "periodic") return checked_truth(query.query_periodic_checked(*checked));
     if (name == "positive_definite") return checked_truth(query.query_positive_definite_checked(*checked));
     if (name == "positive_semidefinite") return checked_truth(query.query_positive_semidefinite_checked(*checked));
     return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.query: unknown property");
@@ -214,16 +181,32 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_query(
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_period(
-    AssumptionsObj* value, ExprObj* expression) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_assumptions_query_periodic(
+    AssumptionsObj* value, ExprObj* expression, const char* variable) noexcept try {
     ensure_lmmc_runtime();
-    if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.period: null context");
+    if (!value || !variable)
+        return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.query_periodic: invalid argument");
     std::string error;
     LMCAS::ExprPtr checked;
     if (!assumption_expr(expression, checked, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
     const LMCAS::QueryInterface query(value->context());
-    const auto result = query.get_period_checked(*checked);
+    return checked_truth(query.query_periodic_checked(*checked, variable));
+} catch (...) {
+    return c_abi_current_exception(__func__);
+}
+
+extern "C" LM_API AdtObj* lmx_cas_assumptions_period(
+    AssumptionsObj* value, ExprObj* expression, const char* variable) noexcept try {
+    ensure_lmmc_runtime();
+    if (!value || !variable)
+        return result_error(MathErrorCode::InvalidArgument, __func__, "assumptions.period: invalid argument");
+    std::string error;
+    LMCAS::ExprPtr checked;
+    if (!assumption_expr(expression, checked, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    const LMCAS::QueryInterface query(value->context());
+    const auto result = query.get_period_checked(*checked, variable);
     if (!result) return result_error(result.error());
     if (!result.value())
         return result_error(MathErrorCode::Inconclusive, __func__, "assumptions.period: undetermined");
@@ -233,14 +216,14 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_period(
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
-extern "C" LM_API StringObj* lmx_computer_algebra_assumptions_serialize(
+extern "C" LM_API StringObj* lmx_cas_assumptions_serialize(
     AssumptionsObj* value) noexcept try {
     ensure_lmmc_runtime();
     return new StringObj(value ? value->context().serialize() : "");
 } catch (...) {
     return nullptr;
 }
-extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_parse(const char* source) noexcept try {
+extern "C" LM_API AdtObj* lmx_cas_assumptions_parse(const char* source) noexcept try {
     ensure_lmmc_runtime();
     const auto result =
         LMCAS::AssumptionContext::deserialize_checked(source ? source : "");
@@ -250,7 +233,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_assumptions_parse(const char* sou
     return c_abi_current_exception(__func__);
 }
 
-extern "C" LM_API AdtObj* lmx_computer_algebra_equation_solving_with_assumptions(
+extern "C" LM_API AdtObj* lmx_cas_solve_with_assumptions(
     AssumptionsObj* assumptions, ExprObj* equation, const char* variable) noexcept try {
     ensure_lmmc_runtime();
     if (!assumptions || !variable)

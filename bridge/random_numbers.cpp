@@ -114,9 +114,10 @@ extern "C" LM_API AdtObj* lmx_random_vector(RandomObj* value, const LmInt count,
 
 namespace {
 AdtObj* rng_real_result(
-    const char* name, RandomObj* value,
-    const std::function<lmmc_status_t(lmmc_rng_t*, double*)>& operation) {
-    if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::string(name) + ": null rng");
+    const char* operation_name, const char* name, RandomObj* value,
+    const std::function<lmmc_status_t(lmmc_rng_t*, double*)>& operation)
+{
+    if (!value) return result_error(MathErrorCode::InvalidArgument, operation_name, std::string(name) + ": null rng");
     double output = 0.0;
     const auto status = operation(value->handle(), &output);
     return lmmc_real_result(name, status, output);
@@ -136,7 +137,7 @@ extern "C" LM_API AdtObj* lmx_random_long_jump(RandomObj* value) noexcept try {
 extern "C" LM_API AdtObj* lmx_random_gamma(
     RandomObj* value, const double shape, const double scale) noexcept try {
     ensure_lmmc_runtime();
-    return rng_real_result("random.gamma", value, [=](auto* rng, auto* out) {
+    return rng_real_result(__func__, "random.gamma", value, [=](auto* rng, auto* out) {
         return lmmc_rng_gamma(rng, shape, scale, out);
     });
 } catch (...) {
@@ -145,7 +146,7 @@ extern "C" LM_API AdtObj* lmx_random_gamma(
 extern "C" LM_API AdtObj* lmx_random_beta(
     RandomObj* value, const double alpha, const double beta) noexcept try {
     ensure_lmmc_runtime();
-    return rng_real_result("random.beta", value, [=](auto* rng, auto* out) {
+    return rng_real_result(__func__, "random.beta", value, [=](auto* rng, auto* out) {
         return lmmc_rng_beta(rng, alpha, beta, out);
     });
 } catch (...) {
@@ -155,7 +156,7 @@ extern "C" LM_API AdtObj* lmx_random_chi_squared(
     RandomObj* value, const double degrees_of_freedom) noexcept try {
     ensure_lmmc_runtime();
     return rng_real_result(
-        "random.chi_squared", value, [=](auto* rng, auto* out) {
+        __func__, "random.chi_squared", value, [=](auto* rng, auto* out) {
             return lmmc_rng_chi_squared(rng, degrees_of_freedom, out);
         });
 } catch (...) {
@@ -164,7 +165,7 @@ extern "C" LM_API AdtObj* lmx_random_chi_squared(
 extern "C" LM_API AdtObj* lmx_random_fisher_f(
     RandomObj* value, const double first_df, const double second_df) noexcept try {
     ensure_lmmc_runtime();
-    return rng_real_result("random.fisher_f", value, [=](auto* rng, auto* out) {
+    return rng_real_result(__func__, "random.fisher_f", value, [=](auto* rng, auto* out) {
         return lmmc_rng_f(rng, first_df, second_df, out);
     });
 } catch (...) {
@@ -174,7 +175,7 @@ extern "C" LM_API AdtObj* lmx_random_student_t(
     RandomObj* value, const double degrees_of_freedom) noexcept try {
     ensure_lmmc_runtime();
     return rng_real_result(
-        "random.student_t", value, [=](auto* rng, auto* out) {
+        __func__, "random.student_t", value, [=](auto* rng, auto* out) {
             return lmmc_rng_student_t(rng, degrees_of_freedom, out);
         });
 } catch (...) {

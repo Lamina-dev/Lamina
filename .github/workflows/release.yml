@@ -9,66 +9,493 @@ on:
     branches: [ "master" ]
   workflow_dispatch:
 
+env:
+  RC_PARAMS: "seed=42"
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 
 
 jobs:
+  math-source-quality:
+    name: LMCAS and LMMC source quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Export Git-visible root and nested sources
+        working-directory: ${{ github.workspace }}
+        run: >-
+          python external/LMCAS/LMMC/cmake/check_package.py --project lmcas
+          --source-root . --snapshot-dir "$RUNNER_TEMP/math-source"
+      - name: Install locked quality tools
+        working-directory: ${{ runner.temp }}/math-source
+        run: python -m pip install --require-hashes -r external/LMCAS/cmake/quality-requirements.txt
+      - name: Configure all first-party source owners
+        working-directory: ${{ runner.temp }}/math-source
+        run: >-
+          cmake -S external/LMCAS -B build/math-source-quality -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug -DLMCAS_WARNINGS_AS_ERRORS=ON
+          -DBUILD_TESTING=ON -DLMCAS_BUILD_TESTS=ON
+          -DLMCAS_BUILD_LMMC_TESTS=ON
+          -DLMCAS_BUILD_BENCHMARKS=ON
+          -DLMMC_BUILD_EXAMPLES=ON -DLMCAS_ENABLE_QUALITY_GATES=ON
+      - name: Build source owners and installed consumers
+        working-directory: ${{ runner.temp }}/math-source
+        run: cmake --build build/math-source-quality --parallel 2
+      - name: Enforce both projects' quality and compiled architecture
+        working-directory: ${{ runner.temp }}/math-source
+        run: >-
+          cmake --build build/math-source-quality
+          --target lmcas_quality lmcas_source_structure lmcas_source_ownership lmcas_integer_boundaries lmcas_naming
+          lmmc_quality lmmc_source_structure lmmc_source_ownership lmmc_integer_boundaries lmmc_naming
+          lmcas_architecture
+      - name: Run mandatory quality CTests without label filters
+        working-directory: ${{ runner.temp }}/math-source
+        run: >-
+          ctest --test-dir build/math-source-quality --output-on-failure --no-tests=error --timeout 600
+          -R '^(lmcas|lmmc)_(quality|source_structure|source_ownership|integer_boundaries|naming|architecture)$'
+      - name: Reject negative quality fixtures
+        working-directory: ${{ runner.temp }}/math-source
+        run: >-
+          ctest --test-dir build/math-source-quality --output-on-failure --no-tests=error --timeout 600
+          -R '^(lmcas_architecture_negative_fixtures|lmmc_naming_negative_fixtures)$'
+
+  math-stack-linux:
+    name: Full math stack (${{ matrix.compiler }}, ${{ matrix.asm }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: GCC
+            cc: gcc
+            cxx: g++
+            asm: AUTO
+          - compiler: GCC
+            cc: gcc
+            cxx: g++
+            asm: GENERIC
+          - compiler: Clang
+            cc: clang
+            cxx: clang++
+            asm: AUTO
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Configure all math tests and benchmarks
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: >-
+          cmake -S external/LMCAS -B build/math-stack -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+          -DLMCAS_BUILD_TESTS=ON -DLMCAS_BUILD_LMMC_TESTS=ON
+          -DLMCAS_BUILD_BENCHMARKS=ON -DLMCAS_WARNINGS_AS_ERRORS=ON
+          -DLMCAS_LMMP_ASM=${{ matrix.asm }}
+      - name: Build all LMCAS LMMC GTest and benchmark targets
+        run: cmake --build build/math-stack --parallel 2
+      - name: Run all suites and benchmark smoke without label filters
+        run: ctest --test-dir build/math-stack --output-on-failure --no-tests=error --timeout 600
+
+  math-stack-mingw:
+    name: Full math stack MinGW ${{ matrix.build_type }}, LMMC shared=${{ matrix.shared }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+        shared: ["ON", "OFF"]
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: git
+          pacboy: toolchain:p cmake:p ninja:p
+      - name: Configure all math tests and benchmarks
+        run: >-
+          cmake -S external/LMCAS -B build/math-stack -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTING=ON
+          -DLMCAS_BUILD_TESTS=ON -DLMCAS_BUILD_LMMC_TESTS=ON
+          -DLMCAS_BUILD_BENCHMARKS=ON -DLMCAS_WARNINGS_AS_ERRORS=ON
+          -DLMCAS_LMMP_ASM=AUTO -DLMMC_BUILD_SHARED=${{ matrix.shared }}
+          -DCMAKE_INSTALL_LIBDIR=lib
+      - name: Build all LMCAS LMMC GTest and benchmark targets
+        run: cmake --build build/math-stack --parallel 2
+      - name: Run all suites and benchmark smoke without label filters
+        run: ctest --test-dir build/math-stack --output-on-failure --no-tests=error --timeout 600
+      - name: Check relocated MinGW math package
+        if: matrix.build_type == 'Release' && matrix.shared == 'ON'
+        run: >-
+          python external/LMCAS/LMMC/cmake/check_package.py --project lmcas
+          --build-dir build/math-stack
+          --work-dir "$RUNNER_TEMP/lmcas-mingw-package-check"
+          --config Release --parallel 2
+      - name: Check external shared cmocka runtime deployment
+        if: matrix.build_type == 'Debug' && matrix.shared == 'ON'
+        run: |
+          set -euo pipefail
+          temp_root="$(cygpath -m "$RUNNER_TEMP")"
+          cmocka_source="$temp_root/cmocka-review-src"
+          git clone https://gitlab.com/cmocka/cmocka.git "$cmocka_source"
+          git -C "$cmocka_source" checkout --detach a01cc69ee9536f90e57c61a198f2d1944d3d4313
+          for suffix in single multi; do
+            generator=Ninja
+            if [ "$suffix" = multi ]; then
+              generator="Ninja Multi-Config"
+            fi
+            cmocka_build="$temp_root/cmocka-review-$suffix"
+            prefix="$temp_root/cmocka-prefix-$suffix"
+            consumer_build="build/cmocka-review-$suffix"
+            cmake -S "$cmocka_source" -B "$cmocka_build" -G "$generator" \
+              -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$prefix" \
+              -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_SHARED_LIBS=ON \
+              -DUNIT_TESTING=OFF -DWITH_EXAMPLES=OFF -DWITH_CMOCKERY_SUPPORT=OFF \
+              -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=TRUE
+            cmake --build "$cmocka_build" --config Debug --parallel 2
+            cmake --install "$cmocka_build" --config Debug
+            cmake -S external/LMCAS/LMMC -B "$consumer_build" -G "$generator" \
+              -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DLMMC_BUILD_TESTS=ON \
+              -DLMMC_BUILD_EXAMPLES=OFF -DLMMC_BUILD_SHARED=ON \
+              -Dcmocka_DIR="$prefix/lib/cmake/cmocka"
+            cmake --build "$consumer_build" --config Debug \
+              --target lmmc_test_init lmmc_test_dense --parallel 2
+            ctest --test-dir "$consumer_build" -C Debug --output-on-failure \
+              --no-tests=error -R '^lmmc_test_(init|dense)$'
+            if [ "$suffix" = multi ]; then
+              cmake --build "$consumer_build" --config Release \
+                --target lmmc_test_init lmmc_test_dense --parallel 2
+              ctest --test-dir "$consumer_build" -C Release --output-on-failure \
+                --no-tests=error -R '^lmmc_test_(init|dense)$'
+            fi
+          done
+
+  math-stack-static-pic:
+    name: Release LMCAS shared, LMMC static + LMMP shared
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Configure static-PIC LMMC in the shared LMCAS stack
+        run: >-
+          cmake -S external/LMCAS -B build/math-static-pic -G Ninja
+          -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          -DLMCAS_BUILD_TESTS=ON -DLMCAS_BUILD_LMMC_TESTS=ON
+          -DLMCAS_BUILD_BENCHMARKS=ON -DLMCAS_WARNINGS_AS_ERRORS=ON
+          -DLMCAS_LMMP_ASM=GENERIC -DLMMC_BUILD_SHARED=OFF
+          -DCMAKE_INSTALL_LIBDIR=lib
+      - name: Build full Release stack including benchmarks
+        run: cmake --build build/math-static-pic --parallel 2
+      - name: Run all Release suites and benchmark smoke
+        run: ctest --test-dir build/math-static-pic --output-on-failure --no-tests=error --timeout 600
+      - name: Install relocate and exercise the shared LMCAS consumer
+        run: >-
+          python3 external/LMCAS/LMMC/cmake/check_package.py --project lmcas
+          --build-dir build/math-static-pic --work-dir "$RUNNER_TEMP/lmcas-static-pic-package-check"
+          --config Release --parallel 2
+
+  math-stack-coverage:
+    name: Math stack coverage (77% lines, 44% branches)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: external/LMCAS
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install coverage tool
+        run: python -m pip install gcovr==7.2
+      - name: Configure coverage separately from sanitizers
+        run: >-
+          cmake -S . -B build/coverage -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+          -DLMCAS_BUILD_TESTS=ON -DLMCAS_BUILD_LMMC_TESTS=ON
+          -DLMCAS_BUILD_BENCHMARKS=ON -DLMCAS_WARNINGS_AS_ERRORS=ON
+          -DLMCAS_ENABLE_COVERAGE=ON -DLMCAS_LMMP_ASM=GENERIC
+      - name: Build full instrumented stack
+        run: cmake --build build/coverage --parallel 2
+      - name: Run all suites and benchmark smoke
+        run: ctest --test-dir build/coverage --output-on-failure --no-tests=error --timeout 600
+      - name: Enforce line and branch coverage
+        if: always()
+        run: >-
+          python -m gcovr --config .gcovr.cfg --object-directory build/coverage
+          --fail-under-line 77 --fail-under-branch 44
+          --json-summary build/coverage/coverage-summary.json
+          --xml-pretty --xml build/coverage/coverage.xml
+          --html-details build/coverage/coverage.html
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: math-stack-coverage
+          path: |
+            external/LMCAS/build/coverage/coverage-summary.json
+            external/LMCAS/build/coverage/coverage.xml
+            external/LMCAS/build/coverage/coverage.html
+            external/LMCAS/build/coverage/coverage.*.html
+
   build-unix:
-    name: Build and test (${{ matrix.os }})
+    name: Build and test (${{ matrix.os }}, ${{ matrix.architecture }})
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            archive: linux-x64
+            archive: linux-x86_64
             build_type: Release
-            so_ext: .so
+            architecture: x86_64
+            cmake_platform_flags: ""
             lmmp_asm: AUTO
-          - os: macos-latest
-            archive: macos
-            build_type: Debug
-            so_ext: .dylib
+          - os: macos-15
+            archive: macos-arm64
+            build_type: Release
+            architecture: arm64
+            cmake_platform_flags: -DCMAKE_OSX_ARCHITECTURES=arm64
             lmmp_asm: AUTO
+          - os: macos-15-intel
+            archive: macos-x86_64
+            build_type: Release
+            architecture: x86_64
+            cmake_platform_flags: -DCMAKE_OSX_ARCHITECTURES=x86_64
+            lmmp_asm: GENERIC
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      - name: Assert native macOS architecture
+        if: runner.os == 'macOS'
+        run: test "$(uname -m)" = "${{ matrix.architecture }}"
+
       - name: Initialize pinned submodules
         run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
 
+      - name: Install arm64 architecture evidence tools
+        if: runner.os == 'macOS' && matrix.architecture == 'arm64'
+        run: |
+          brew install llvm
+          python3 -m pip install --require-hashes \
+            -r external/LMCAS/cmake/quality-requirements.txt
 
-      - name: Configure CMake
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }} -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }} -DLMCAS_LMMP_ASM=${{ matrix.lmmp_asm }}
-
-      - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }} --target lamina laminac_s lamina_runtime_s test_bridge_error_boundary test_compilation_pipeline test_runtime_values --parallel 4
-
-      - name: Test
-        run: ctest --test-dir build -C ${{ matrix.build_type }} --parallel 4 --output-on-failure --timeout 300
-
-      - name: Package
+      - name: Configure native macOS math stack
+        if: runner.os == 'macOS'
         shell: bash
         run: |
-          mkdir -p package/bin package/lib
-          cp "$(find build -maxdepth 3 -name "lamina" -type f | head -1)" package/bin/
-          find build -type f \( -name '*${{ matrix.so_ext }}' -o -name '*${{ matrix.so_ext }}.*' \) -exec cp {} package/bin/ \;
-          while IFS= read -r f; do
-            cp "$f" package/lib/
-          done < <(find build -type f \( -name "liblaminac.a" -o -name "liblamina_runtime.a" \))
+          set -euo pipefail
+          quality=OFF
+          nm_args=()
+          if [[ "${{ matrix.architecture }}" == "arm64" ]]; then
+            quality=ON
+            nm_args=(-DCMAKE_NM="$(brew --prefix llvm)/bin/llvm-nm")
+          fi
+          cmake -S external/LMCAS -B build/math-macos -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.architecture }}" \
+            -DCMAKE_INSTALL_LIBDIR=lib \
+            -DBUILD_TESTING=ON \
+            -DLMCAS_BUILD_TESTS=ON \
+            -DLMCAS_BUILD_LMMC_TESTS=ON \
+            -DLMCAS_BUILD_BENCHMARKS=ON \
+            -DLMCAS_WARNINGS_AS_ERRORS=ON \
+            "-DLMCAS_ENABLE_QUALITY_GATES=$quality" \
+            "-DLMCAS_LMMP_ASM=${{ matrix.lmmp_asm }}" \
+            "${nm_args[@]}"
+
+      - name: Build native macOS math stack
+        if: runner.os == 'macOS'
+        run: cmake --build build/math-macos --parallel 2
+
+      - name: Enforce arm64 quality and compiled architecture
+        if: runner.os == 'macOS' && matrix.architecture == 'arm64'
+        run: >-
+          cmake --build build/math-macos --parallel 2
+          --target lmcas_quality lmcas_source_structure lmcas_source_ownership
+          lmcas_integer_boundaries lmcas_naming lmcas_architecture
+          lmmc_quality lmmc_source_structure lmmc_source_ownership
+          lmmc_integer_boundaries lmmc_naming
+
+      - name: Run native macOS math tests
+        if: runner.os == 'macOS'
+        run: >-
+          ctest --test-dir build/math-macos --output-on-failure
+          --no-tests=error --timeout 600
+
+      - name: Reject arm64 negative quality fixtures
+        if: runner.os == 'macOS' && matrix.architecture == 'arm64'
+        run: >-
+          ctest --test-dir build/math-macos --output-on-failure
+          --no-tests=error --timeout 600
+          -R '^(lmcas_architecture_negative_fixtures|lmmc_naming_negative_fixtures)$'
+
+      - name: Configure standalone macOS package producers
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          common=(
+            -G Ninja
+            -DCMAKE_BUILD_TYPE=Release
+            "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.architecture }}"
+            -DCMAKE_INSTALL_LIBDIR=lib
+            -DCMAKE_OTOOL="$(xcrun --find otool)"
+            -DCMAKE_INSTALL_NAME_TOOL="$(xcrun --find install_name_tool)"
+          )
+          cmake -S external/LMCAS -B build/package-lmcas "${common[@]}" \
+            -DBUILD_TESTING=OFF \
+            -DLMCAS_BUILD_TESTS=OFF \
+            -DLMCAS_BUILD_LMMC_TESTS=OFF \
+            -DLMCAS_BUILD_BENCHMARKS=OFF \
+            -DLMCAS_WARNINGS_AS_ERRORS=ON \
+            "-DLMCAS_LMMP_ASM=${{ matrix.lmmp_asm }}"
+          cmake -S external/LMCAS/LMMC -B build/package-lmmc "${common[@]}" \
+            -DBUILD_TESTING=OFF \
+            -DLMMC_BUILD_TESTS=OFF \
+            -DLMMC_BUILD_EXAMPLES=OFF \
+            -DLMMC_BUILD_SHARED=ON \
+            -DLMMC_WARNINGS_AS_ERRORS=ON \
+            "-DLMMC_LMMP_ASM=${{ matrix.lmmp_asm }}"
+
+      - name: Verify relocated macOS packages
+        if: runner.os == 'macOS'
+        run: |
+          python3 external/LMCAS/LMMC/cmake/check_package.py --project lmcas \
+            --build-dir build/package-lmcas \
+            --work-dir "$RUNNER_TEMP/lmcas-package-${{ matrix.architecture }}" \
+            --config Release --parallel 2
+          python3 external/LMCAS/LMMC/cmake/check_package.py --project lmmc \
+            --build-dir build/package-lmmc \
+            --work-dir "$RUNNER_TEMP/lmmc-package-${{ matrix.architecture }}" \
+            --config Release --parallel 2
+
+      - name: Configure CMake
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON
+          -DLMX_WARNINGS_AS_ERRORS=ON
+          -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }}
+          -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }}
+          -DLMCAS_LMMP_ASM=${{ matrix.lmmp_asm }}
+          ${{ matrix.cmake_platform_flags }}
+
+      - name: Build
+        run: >-
+          cmake --build build --config ${{ matrix.build_type }}
+          --target lamina laminac_s lamina_runtime_s
+          test_bridge_error_boundary test_compilation_pipeline test_runtime_values
+          --parallel 4
+
+      - name: Test
+        run: >-
+          ctest --test-dir build -C ${{ matrix.build_type }} --parallel 4
+          --output-on-failure --no-tests=error --timeout 300
+
+      - name: Configure production package
+        run: >-
+          cmake -S . -B build-package -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=OFF
+          -DLMCAS_BUILD_TESTS=OFF -DLMCAS_BUILD_LMMC_TESTS=OFF
+          -DLMMC_BUILD_TESTS=OFF
+          -DLMX_WARNINGS_AS_ERRORS=ON
+          -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }}
+          -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }}
+          -DLMCAS_LMMP_ASM=${{ matrix.lmmp_asm }}
+          ${{ matrix.cmake_platform_flags }}
+
+      - name: Build production package
+        run: >-
+          cmake --build build-package --config ${{ matrix.build_type }}
+          --target lamina laminac_s lamina_runtime_s --parallel 4
+
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p package/bin package/lib package/include
+          cp build-package/lamina package/bin/
+          cp include/lmx.h package/include/
+          find build-package -type f \( -name '*.so' -o -name '*.so.*' \) -exec cp {} package/bin/ \;
+          find build-package -type f \( -name 'liblaminac.a' -o -name 'liblamina_runtime.a' \) -exec cp {} package/lib/ \;
+          tar -czf "lamina-${{ matrix.archive }}.tar.gz" -C package .
+
+      - name: Package relocatable macOS runtime
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p package/bin package/lib package/include
+          cp build-package/lamina package/bin/
+          cp include/lmx.h package/include/
+          for library in liblamina.dylib liblmcas.dylib liblmmc.dylib liblmmp.1.dylib; do
+            source_path="$(find build-package -name "$library" -print | sed -n '1p')"
+            test -n "$source_path"
+            cp -L "$source_path" "package/bin/$library"
+          done
+          find build-package -type f \( -name 'liblaminac.a' -o -name 'liblamina_runtime.a' \) -exec cp {} package/lib/ \;
+
+          for binary in package/bin/* package/lib/*; do
+            test "$(lipo -archs "$binary")" = "${{ matrix.architecture }}"
+          done
+          for binary in package/bin/*; do
+            otool -L "$binary" | awk 'NR > 1 { print $1 }' | while read -r dependency; do
+              case "$dependency" in
+                *liblamina*.dylib|*liblmcas*.dylib|*liblmmc*.dylib|*liblmmp*.dylib)
+                  case "$dependency" in
+                    @rpath/*) ;;
+                    *) echo "Non-relocatable first-party dependency: $dependency" >&2; exit 1 ;;
+                  esac
+                  ;;
+              esac
+            done
+          done
+          test "$(otool -D package/bin/liblamina.dylib | sed -n '2p')" = "@rpath/liblamina.dylib"
+          test "$(otool -D package/bin/liblmcas.dylib | sed -n '2p')" = "@rpath/liblmcas.dylib"
+          test "$(otool -D package/bin/liblmmc.dylib | sed -n '2p')" = "@rpath/liblmmc.dylib"
+          test "$(otool -D package/bin/liblmmp.1.dylib | sed -n '2p')" = "@rpath/liblmmp.1.dylib"
+          otool -l package/bin/lamina | awk '/cmd LC_RPATH/ { getline; getline; if ($2 == "@loader_path") found = 1 } END { exit !found }'
+          env -u DYLD_LIBRARY_PATH -u DYLD_FALLBACK_LIBRARY_PATH \
+            package/bin/lamina examples/fib.lm
+          tar -czf "lamina-${{ matrix.archive }}.tar.gz" -C package .
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: lamina-${{ matrix.archive }}
-          path: package/
+          path: lamina-${{ matrix.archive }}.tar.gz
+          if-no-files-found: error
 
   quality-gates:
     name: Root ${{ matrix.name }} and warnings (ubuntu-latest)
@@ -120,14 +547,8 @@ jobs:
         include:
           - name: ASan and UBSan
             preset: linux-asan-ubsan
-            asan_options: detect_leaks=1:strict_string_checks=1
-            ubsan_options: print_stacktrace=1:halt_on_error=1
-            tsan_options: ""
           - name: TSan
             preset: linux-tsan
-            asan_options: ""
-            ubsan_options: ""
-            tsan_options: halt_on_error=1:second_deadlock_stack=1
 
     steps:
       - uses: actions/checkout@v4
@@ -137,26 +558,33 @@ jobs:
       - name: Initialize pinned submodules
         run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
 
-      - name: Configure full math stack
+      - name: Configure full math stack with native test frameworks
         working-directory: external/LMCAS
-        run: cmake --preset ${{ matrix.preset }}
+        run: cmake --preset ${{ matrix.preset }} -DLMCAS_BUILD_BENCHMARKS=ON
 
-      - name: Build full math stack
+      - name: Build full math stack and benchmarks
         working-directory: external/LMCAS
-        run: cmake --build --preset ${{ matrix.preset }}
+        run: cmake --build --preset ${{ matrix.preset }} --parallel 2
 
-      - name: Run full LMCAS and LMMC test suites
+      - name: Run every LMCAS LMMC GTest and benchmark test
         working-directory: external/LMCAS
-        env:
-          ASAN_OPTIONS: ${{ matrix.asan_options }}
-          UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
-          TSAN_OPTIONS: ${{ matrix.tsan_options }}
-        run: ctest --preset ${{ matrix.preset }}
+        run: ctest --preset ${{ matrix.preset }} --parallel 1 --output-on-failure --no-tests=error --timeout 600
 
   installed-package:
-    name: Installed LMCAS package and standalone headers (ubuntu-latest)
+    needs: math-source-quality
+    name: Relocated unversioned ${{ matrix.project }} package exports and headers
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: lmcas
+            source: external/LMCAS
+            cmake_flags: -DLMCAS_BUILD_TESTS=OFF -DLMCAS_BUILD_LMMC_TESTS=OFF -DLMCAS_BUILD_BENCHMARKS=OFF -DLMCAS_WARNINGS_AS_ERRORS=ON -DLMCAS_LMMP_ASM=AUTO
+          - project: lmmc
+            source: external/LMCAS/LMMC
+            cmake_flags: -DLMMC_BUILD_TESTS=OFF -DLMMC_BUILD_EXAMPLES=OFF -DLMMC_BUILD_SHARED=ON -DLMMC_WARNINGS_AS_ERRORS=ON -DLMMC_LMMP_ASM=AUTO
 
     steps:
       - uses: actions/checkout@v4
@@ -166,20 +594,24 @@ jobs:
       - name: Initialize pinned submodules
         run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
 
-      - name: Build and install package
-        working-directory: external/LMCAS
-        run: |
-          cmake --preset package
-          cmake --build --preset package
+      - name: Export Git-visible root and nested package sources
+        run: >-
+          python3 external/LMCAS/LMMC/cmake/check_package.py --project ${{ matrix.project }}
+          --source-root . --snapshot-dir "$RUNNER_TEMP/math-package-source"
 
-      - name: Configure installed-package consumer
-        run: cmake -S external/LMCAS/tests/package_consumer -B build/package-consumer -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/external/LMCAS/build/package-install"
+      - name: Configure Release package
+        working-directory: ${{ runner.temp }}/math-package-source
+        run: >-
+          cmake -S ${{ matrix.source }} -B build/math-package -G Ninja
+          -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+          -DCMAKE_INSTALL_LIBDIR=lib ${{ matrix.cmake_flags }}
 
-      - name: Build standalone headers and consumer
-        run: cmake --build build/package-consumer --parallel 4
-
-      - name: Run installed-package consumer
-        run: LD_LIBRARY_PATH="$GITHUB_WORKSPACE/external/LMCAS/build/package-install/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ./build/package-consumer/lmcas_package_consumer
+      - name: Build install relocate and check pure installed consumers
+        working-directory: ${{ runner.temp }}/math-package-source
+        run: >-
+          python3 external/LMCAS/LMMC/cmake/check_package.py --project ${{ matrix.project }}
+          --build-dir build/math-package --work-dir "$RUNNER_TEMP/${{ matrix.project }}-package-check"
+          --config Release --parallel 2
 
   static-analysis:
     name: Clang-Tidy static analysis (ubuntu-latest)
@@ -204,6 +636,27 @@ jobs:
 
       - name: Run static analysis build
         run: cmake --build --preset static-analysis
+
+  math-stack-static-analysis:
+    name: LMCAS and LMMC clang-tidy
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install clang-tidy
+        run: sudo apt-get update && sudo apt-get install -y clang-tidy
+      - name: Configure math static analysis
+        run: >-
+          cmake -S external/LMCAS -B build/math-tidy -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=OFF
+          -DLMCAS_BUILD_TESTS=OFF -DLMCAS_BUILD_LMMC_TESTS=OFF
+          -DLMCAS_BUILD_BENCHMARKS=OFF
+          -DLMCAS_WARNINGS_AS_ERRORS=ON -DLMCAS_ENABLE_CLANG_TIDY=ON
+          -DLMMC_ENABLE_CLANG_TIDY=ON -DLMCAS_LMMP_ASM=GENERIC
+      - name: Analyze math production targets
+        run: cmake --build build/math-tidy --target lmcas --parallel 2
 
   build-windows:
     name: Build and test (windows-latest, MinGW)
@@ -230,7 +683,7 @@ jobs:
 
       - name: Configure CMake
         shell: msys2 {0}
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }} -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }} -DLMCAS_LMMP_ASM=AUTO
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=ON -DLMX_WARNINGS_AS_ERRORS=ON -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }} -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }} -DLMCAS_LMMP_ASM=AUTO
 
       - name: Build
         shell: msys2 {0}
@@ -240,16 +693,81 @@ jobs:
         shell: msys2 {0}
         run: ctest --test-dir build --parallel 4 --output-on-failure --timeout 300
 
+      - name: Configure production package
+        shell: msys2 {0}
+        run: >-
+          cmake -S . -B build-package -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DLMX_BUILD_STATIC=ON -DLMX_BUILD_TESTS=OFF
+          -DLMCAS_BUILD_TESTS=OFF -DLMCAS_BUILD_LMMC_TESTS=OFF
+          -DLMMC_BUILD_TESTS=OFF
+          -DLMX_WARNINGS_AS_ERRORS=ON
+          -DLMX_ENABLE_LTO=${{ startsWith(github.ref, 'refs/tags/v') && 'ON' || 'OFF' }}
+          -DLMX_FAST_BUILD=${{ startsWith(github.ref, 'refs/tags/v') && 'OFF' || 'ON' }}
+          -DLMCAS_LMMP_ASM=AUTO
+
+      - name: Build production package
+        shell: msys2 {0}
+        run: >-
+          cmake --build build-package
+          --target lamina laminac_s lamina_runtime_s --parallel 4
+
       - name: Package
         shell: msys2 {0}
         run: |
-          mkdir -p package/bin package/lib
-          cp build/lamina.exe package/bin/
-          find build -type f -name '*.dll' -exec cp {} package/bin/ \;
-          find build -type f \( -name 'liblaminac.a' -o -name 'liblamina_runtime.a' \) -exec cp {} package/lib/ \;
+          set -euo pipefail
+          mkdir -p package/bin package/lib package/include
+          cp build-package/lamina.exe package/bin/
+          cp include/lmx.h package/include/
+          find build-package -type f -name '*.dll' -exec cp {} package/bin/ \;
+          find build-package -type f \( -name 'liblaminac.a' -o -name 'liblamina_runtime.a' \) -exec cp {} package/lib/ \;
+
+      - name: Create release archive
+        shell: pwsh
+        run: Compress-Archive -Path package\* -DestinationPath lamina-windows-x64.zip
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: lamina-windows-x64
-          path: package/
+          path: lamina-windows-x64.zip
+          if-no-files-found: error
+
+  create-release:
+    name: Publish tagged release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - math-source-quality
+      - math-stack-linux
+      - math-stack-mingw
+      - math-stack-static-pic
+      - math-stack-coverage
+      - quality-gates
+      - math-stack-sanitizers
+      - installed-package
+      - static-analysis
+      - math-stack-static-analysis
+      - build-unix
+      - build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download platform archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: lamina-*
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-artifacts/lamina-linux-x86_64.tar.gz
+            release-artifacts/lamina-macos-arm64.tar.gz
+            release-artifacts/lamina-macos-x86_64.tar.gz
+            release-artifacts/lamina-windows-x64.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: true

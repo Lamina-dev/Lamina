@@ -9,10 +9,12 @@ using namespace lmx::bridge;
 
 namespace {
 AdtObj* interpolate_1d(
-    const int algorithm, VectorObj* xs, VectorObj* ys, VectorObj* query) {
+    const char* operation_name, const int algorithm,
+    VectorObj* xs, VectorObj* ys, VectorObj* query)
+{
     if (!xs || !ys || !query || xs->size() != ys->size() ||
         xs->size() < 2 || query->size() == 0)
-        return result_error(MathErrorCode::InvalidArgument, __func__, "interpolate: invalid input dimensions");
+        return result_error(MathErrorCode::InvalidArgument, operation_name, "interpolate: invalid input dimensions");
     std::vector<double> output(query->size());
     lmmc_status_t status = LMMC_STATUS_OK;
     if (algorithm == 0) {
@@ -54,17 +56,19 @@ AdtObj* interpolate_1d(
         lmmc_interp_akima_destroy(interpolant);
     }
     if (status != LMMC_STATUS_OK)
-        return result_error(status, "interpolate");
+        return result_error(status, operation_name);
     return result_ok(new VectorObj(std::move(output)), ValueKind::Vector);
 }
 
 AdtObj* interpolate_2d(
-    const bool bicubic, VectorObj* xs, VectorObj* ys, MatrixObj* values,
-    VectorObj* query_x, VectorObj* query_y) {
+    const char* operation_name, const bool bicubic,
+    VectorObj* xs, VectorObj* ys, MatrixObj* values,
+    VectorObj* query_x, VectorObj* query_y)
+{
     if (!xs || !ys || !values || !values->valid() || !query_x || !query_y ||
         values->rows() != xs->size() || values->cols() != ys->size() ||
         query_x->size() != query_y->size())
-        return result_error(MathErrorCode::InvalidArgument, __func__, "interpolate: invalid grid dimensions");
+        return result_error(MathErrorCode::InvalidArgument, operation_name, "interpolate: invalid grid dimensions");
     std::vector<double> output(query_x->size());
     lmmc_status_t status = LMMC_STATUS_OK;
     for (std::size_t i = 0; i < output.size() && status == LMMC_STATUS_OK; ++i) {
@@ -79,7 +83,7 @@ AdtObj* interpolate_2d(
                   query_y->data()[i], &output[i]);
     }
     if (status != LMMC_STATUS_OK)
-        return result_error(status, "interpolate");
+        return result_error(status, operation_name);
     return result_ok(new VectorObj(std::move(output)), ValueKind::Vector);
 }
 } // namespace
@@ -87,35 +91,35 @@ AdtObj* interpolate_2d(
 extern "C" LM_API AdtObj* lmx_interpolation_linear(
     VectorObj* x, VectorObj* y, VectorObj* query) noexcept try {
     ensure_lmmc_runtime();
-    return interpolate_1d(0, x, y, query);
+    return interpolate_1d(__func__, 0, x, y, query);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_interpolation_lagrange(
     VectorObj* x, VectorObj* y, VectorObj* query) noexcept try {
     ensure_lmmc_runtime();
-    return interpolate_1d(1, x, y, query);
+    return interpolate_1d(__func__, 1, x, y, query);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_interpolation_cubic_spline(
     VectorObj* x, VectorObj* y, VectorObj* query) noexcept try {
     ensure_lmmc_runtime();
-    return interpolate_1d(2, x, y, query);
+    return interpolate_1d(__func__, 2, x, y, query);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_interpolation_piecewise_cubic_hermite(
     VectorObj* x, VectorObj* y, VectorObj* query) noexcept try {
     ensure_lmmc_runtime();
-    return interpolate_1d(3, x, y, query);
+    return interpolate_1d(__func__, 3, x, y, query);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_interpolation_akima(
     VectorObj* x, VectorObj* y, VectorObj* query) noexcept try {
     ensure_lmmc_runtime();
-    return interpolate_1d(4, x, y, query);
+    return interpolate_1d(__func__, 4, x, y, query);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -123,7 +127,7 @@ extern "C" LM_API AdtObj* lmx_interpolation_bilinear(
     VectorObj* x, VectorObj* y, MatrixObj* values,
     VectorObj* query_x, VectorObj* query_y) noexcept try {
     ensure_lmmc_runtime();
-    return interpolate_2d(false, x, y, values, query_x, query_y);
+    return interpolate_2d(__func__, false, x, y, values, query_x, query_y);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -131,7 +135,7 @@ extern "C" LM_API AdtObj* lmx_interpolation_bicubic(
     VectorObj* x, VectorObj* y, MatrixObj* values,
     VectorObj* query_x, VectorObj* query_y) noexcept try {
     ensure_lmmc_runtime();
-    return interpolate_2d(true, x, y, values, query_x, query_y);
+    return interpolate_2d(__func__, true, x, y, values, query_x, query_y);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

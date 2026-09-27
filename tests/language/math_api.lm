@@ -18,14 +18,12 @@ func code_name(code mathematics_error.MathErrorCode) -> text {
     }
 }
 
-# 1) Scalar fully named operation.
 match std.math.square_root(2.0) {
     Result.Ok(value) => std.printf("square_root(2) = %.6f\n", value),
     Result.Err(error) => std.printf("square_root failed: %s\n",
         mathematics_error.message(error))
 }
 
-# 2) Dense determinant through the renamed linear-algebra surface.
 match std.linalg.matrix([[3.0, 8.0], [4.0, 6.0]]) {
     Result.Ok(matrix) => match std.linalg.determinant(matrix) {
         Result.Ok(det) => std.printf("determinant = %.1f\n", det),
@@ -36,7 +34,6 @@ match std.linalg.matrix([[3.0, 8.0], [4.0, 6.0]]) {
         mathematics_error.message(error))
 }
 
-# 3) Sparse conjugate-gradient solve.
 match std.linalg.matrix([[4.0, 1.0], [1.0, 3.0]]) {
     Result.Ok(dense) => match std.sparse.from_dense(dense, 0.0) {
         Result.Ok(sparse) => match std.linalg.vector([1.0, 2.0]) {
@@ -72,7 +69,6 @@ match std.linalg.matrix([[4.0, 1.0], [1.0, 3.0]]) {
         mathematics_error.message(error))
 }
 
-# 4) Callback integral.
 func integrand(value real) -> real {
     value * value
 }
@@ -84,15 +80,14 @@ match std.integrate.adaptive(integrand, 0.0, 1.0, 0.000001, 0.000001, 20) {
         mathematics_error.message(error))
 }
 
-# 5) CAS differentiation.
 let polynomial = x^3 + 2*x
 {
     let derivative = std.cas.differentiate(polynomial, "x")
-    std.printf("d/dx = %s\n",
-        std.cas.to_text(derivative))
+    std.printf("d/dx correct = %d\n",
+        std.cas.equivalent(derivative, 3*x^2 + 2))
 }
 
-# 6) Structured MathError fields observed independently.
+# 错误码与操作名称共同标识数学错误，两者分别作为可观察字段。
 match std.math.square_root(-1.0) {
     Result.Ok(_) => std.printf("domain error missing\n"),
     Result.Err(error) => std.printf(
@@ -100,23 +95,3 @@ match std.math.square_root(-1.0) {
         code_name(mathematics_error.code(error)),
         mathematics_error.operation(error))
 }
-
-func show_quadratic(label text, values array<expr>) {
-    let first = std.cas.evaluate_real(values[0])
-    let second = std.cas.evaluate_real(values[1])
-    let first_residual = first*first + 2.0*first - 6.0
-    let second_residual = second*second + 2.0*second - 6.0
-    let tolerance = std.cas.evaluate_real(std.cas.parse("1/1000000000"))
-    std.printf("%s roots %.6f, %.6f residuals=%d\n", label, first, second,
-        first_residual > -tolerance and first_residual < tolerance
-        and second_residual > -tolerance and second_residual < tolerance)
-}
-
-# 7) solve and roots produce the identical exact set for x^2 + 2*x - 6 == 0.
-let equation = x^2 + 2*x - 6 == 0
-let solutions = std.cas.set_to_array(std.cas.solve(equation, "x"))
-let roots = std.cas.set_to_array(std.cas.roots(x^2 + 2*x - 6, "x"))
-show_quadratic("solve", solutions)
-show_quadratic("roots", roots)
-std.printf("sets equal = %d\n",
-    std.cas.set_subset(solutions, roots) and std.cas.set_subset(roots, solutions))

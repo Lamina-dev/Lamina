@@ -20,13 +20,15 @@ let symbolic_length expr = 1<m>
 let promoted_identifier = symbolic_length + ordinary
 let promoted_call = symbolic_length + three_meters()
 
-std.printf("%s|%s|%s|%s|%s|%s|%s|%s|%d\n",
-    std.cas.to_text(length),
-    std.cas.to_text(meters),
-    std.cas.to_text(raw),
-    std.cas.to_text(display),
-    std.cas.to_text(base_points),
-    std.cas.to_text(stripped_unitless),
-    std.cas.to_text(promoted_identifier),
-    std.cas.to_text(promoted_call),
-    0)
+std.printf("%d|%d|%d|%d|%d|%d|%d|%d\n",
+    std.cas.equivalent(length, 2000<m> as expr)
+        and std.cas.equivalent(length as scalar, std.cas.parse("2")),
+    std.cas.equivalent(meters, 2000<m> as expr)
+        and std.cas.equivalent(meters as scalar, std.cas.parse("2000")),
+    std.cas.equivalent(raw, std.cas.parse("2000")),
+    std.cas.equivalent(display, std.cas.parse("2")),
+    std.cas.equivalent(base_points, 300<score> as expr)
+        and std.cas.equivalent(base_points as scalar, std.cas.parse("300")),
+    std.cas.equivalent(stripped_unitless, std.cas.parse("5")),
+    std.cas.equivalent(promoted_identifier, 2001<m> as expr),
+    std.cas.equivalent(promoted_call, 4<m> as expr))

@@ -9,15 +9,36 @@ Lamina 是一个静态强类型、表达式导向的数学 DSL / 脚本语言，
 
 ## 快速开始
 
-依赖：CMake ≥ 3.26、C++23 编译器（GCC 或 Clang，MSVC 不支持）。首次配置会自动通过
-FetchContent 拉取 `dyncall`（FFI）与 `LmCAS`（符号计算）。
+依赖：CMake ≥ 3.26、C++23 编译器（GCC、Clang 或 AppleClang；MSVC 不支持）。仓库使用递归
+submodule 提供 `dyncall`、LMCAS、LMMC 与 LMMP。
+
+支持 Windows x86_64、Linux x86_64，以及原生 macOS Apple Silicon (`arm64`) 和 Intel
+(`x86_64`)。通用 Release 构建：
 
 ```bash
+git submodule update --init --recursive
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-# 可按需开启汇编-DUSE_ASM=ON
-
 cmake --build build --parallel
 ```
+
+macOS 构建必须选择单一原生架构。Apple Silicon 使用 LMMP 的自动 ARM64 后端；Intel 使用
+通用 C 后端：
+
+```bash
+# Apple Silicon
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DLMCAS_LMMP_ASM=AUTO
+
+# Intel
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES=x86_64 -DLMCAS_LMMP_ASM=GENERIC
+```
+
+`LMX_ENABLE_LTO=ON` 在 Apple Release 构建中启用 ThinLTO；`strict-debug` preset 明确关闭
+LTO。发布归档为 `lamina-linux-x86_64.tar.gz`、`lamina-macos-arm64.tar.gz`、
+`lamina-macos-x86_64.tar.gz` 和 `lamina-windows-x64.zip`。每个归档包含 `bin/` 运行时、
+`lib/` 静态库与 `include/lmx.h` 公共 C ABI 头。macOS 可执行文件以 `@loader_path` 查找
+同目录动态库，LMCAS、LMMC 与 LMMP 使用 `@rpath` 安装名。
 
 产物：
 
@@ -62,24 +83,23 @@ LD_LIBRARY_PATH=. ../build/lamina snake.lm
   - 表达式：调用、数组字面量 `[a, b, c]`、下标 `a[i]`、`.` 成员访问（模块导出）、
     管道 `|>`（语法糖）、一元 `-` `!` `not`、二元 `+ - * / % ^ == != < <= > >= and or`。
   - 模块：`import a.b.c`（`.lm` 源模块）、模块内符号通过 `a.b` 访问。
-- **类型**：`int`（int64）、`bool`、`frac`（有理数，分子/分母）、`text`、`cptr`、`null`、
-  数组类型、函数类型、命名类型。运行时无浮点，小数与除法一律走有理数，无精度损失。
-- **运行时**：寄存器虚拟机（256 寄存器）、对象 `StringObj` / `ArrayObj` / `CodeModuleObj` /
-  `Fraction`、引用计数 GC、函数/递归、模块对象；FFI 基于 `dyncall`（含 C 变参，如 `printf`）。
-
+- **类型与数学值**：`int`、`bool`、`frac`、`real`、`complex`、`text`、`cptr`、`null`，
+  以及数组、元组、集合、区间、向量、矩阵、量纲数值、`Expr` 和代数数据类型。注册的语言测试覆盖
+  这些值的构造、运算、错误路径和跨模块调用。
+- **数学模块**：`std.math`、`std.linalg`、`std.stats`、`std.random`、`std.units` 与 CAS
+  模块提供数值计算、线性代数、统计、随机数、单位换算和符号计算接口；公开数学失败通过
+  `Result` / `MathError` 返回。
+- **运行时**：寄存器虚拟机、引用计数对象、函数/递归、模块对象、代数数据类型匹配，以及基于
+  `dyncall` 的 FFI（含 C 变参，如 `printf`）。
 
 ## 与 LSR 000 的差距（尚未实现）
 
-- `const` 编译期常量、`unit` 单位声明、`sym` 符号 / `Expr`、`use` 符号导入、
-  `while`、`for ... in ...` 循环与推导式。
-- 向量/矩阵 `vec[]` `mat[]`、`table`、`set{}`、`complex`、`Expr` 字面量与运算
-  （`ObjectKind::Vector/Matrix/Table/Expr` 已声明，运行体未实现）。
-- 量纲系统 `num<m>`、`as <unit>` 转换、量纲剥离 `as num / as scalar`（LSR-008）。
-- 广播运算符 `.* .+ .- ./ .^`、关系广播 `.== .< ...`、整除 `//`、转置 `'`、`\` 左除。
-- 可空类型 `T?`。
-- 集合运算 `in / not in / subset / xor / | & -`；数值塔提升 `Z⊂Q⊂R⊂C⊂Expr`。
-- `match` 模式匹配（LSR-005）、Lambda（LSR-006）、`===` 数学等价（LSR-007）。
-- `as` 转换 todo。
+- `const` 编译期常量、`while`、`for ... in ...` 循环与推导式。
+- `table`，以及广播运算符 `.* .+ .- ./ .^`、关系广播 `.== .< ...`、整除 `//`、
+  转置 `'` 和 `\` 左除。
+- 可空类型 `T?` 与 Lambda（LSR-006）。
+- `===` 数学等价运算符；当前等价判定通过 CAS API 提供。
+- 元组解构与完整的 LSR 标准库覆盖。
 
 ## 架构
 
@@ -113,11 +133,11 @@ MIR（compiler/mir/，定义见 docs/mir.md）
 
 ### 运行时
 
-- `Value`（`runtime/object/value.hpp`）：带 kind 标签的联合，覆盖
-  `Null / C_Ptr / Obj / Int / Bool / Fraction / C_VaList`。
-- `Object` 体系（`runtime/object/`）：引用计数对象，`Value::obj` 通过 `get()/release()` 维护引用。
-- `LaminaVM`（`runtime/vm.cpp`）：、
-  整数/分数运算指令、数组读写、函数创建与调用、模块加载、原生调用（`native_call`）。
+- `Value`（`runtime/object/value.hpp`）：带 kind 标签的值容器，承载标量、对象引用和
+  FFI 调用数据。
+- `Object` 体系（`runtime/object/`）：引用计数对象，覆盖字符串、数组、模块、代数数据类型、
+  数学容器和符号表达式包装。
+- `LaminaVM`（`runtime/vm.cpp`）：执行算术、容器、控制流、函数、模块和原生调用指令。
 
 ## 目录结构
 
@@ -136,8 +156,8 @@ runtime/          运行时
   opcode.hpp      指令集
   binary.cpp      字节码读写
   gc.cpp          引用计数 GC
-  object/         运行时对象：StringObj / ArrayObj / CodeModuleObj；分数 Fraction 为内嵌值类型
-modules/std/      标准库占位模块（LSR-004 尚未实现）
+  object/         运行时对象和值包装
+modules/std/      数学、线性代数、统计、随机数、单位与 CAS 标准模块
 examples/         示例：fib / 99 / bernoulli / pipe / sdl / snake
 docs/             设计文档：binary.md（字节码格式）、mir.md（MIR 定义）
 include/lmx.h     运行时 C ABI（发行包中的公开头）
@@ -161,18 +181,18 @@ main.cpp          lamina CLI
 
 | LSR     | 标题                 | 状态    | 实现进度                                                                                                                                                           |
 |---------|----------------------|---------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| LSR 000 | 核心语言规范（草案） | Draft   | **部分实现**，覆盖核心子集：变量/函数/控制流/模块/数组/整数与分数运算/FFI；向量矩阵、量纲、集合、`Expr` 等未实现（见上文"与 LSR 000 的差距"）                      |
-| LSR 001 | LSR 流程规范         | Applied | 不适用（流程文档，本仓库遵循其状态机约定）                                                                                                                         |
-| LSR 002 | 标准常量             | Draft   | 未实现（无 `std.constants` 导出）                                                                                                                                  |
-| LSR 003 | C 扩展与插件         | Draft   | **部分实现**：`static "lib"` 绑定 + `func f(...) -> t = "sym"` FFI 机制已具备（见 `examples/sdl.lm`、`snake.lm`）；扩展标准布局、打包约定与 `lmx.h` 头分发尚未落地 |
-| LSR 004 | 标准库               | Draft   | 未实现（`modules/std` 仅为占位，`std.math` / `std.linalg` / `std.stats` / `std.random` / `std.units` / `std.io` 模块均未建立）                                     |
-| LSR 005 | 模式匹配             | Draft   | 未实现（无 `match` 语法；`=>` token 已词法化但未使用）                                                                                                             |
-| LSR 006 | Lambda 与类型推导    | Draft   | 未实现（无 lambda；`->` 仅用于函数返回类型）                                                                                                                       |
-| LSR 007 | `===` 数学等价判定   | Draft   | 未实现（无 `Expr`，无 CAS 化简流程）                                                                                                                               |
-| LSR 008 | 量纲剥离             | Draft   | 未实现（量纲系统整体缺失，`as` 尚为 TODO）                                                                                                                         |
-| LSR 009 | 集合与多结果返回     | Draft   | 未实现                                                                                                                                                             |
-| LSR 010 | 虚数单位与复数       | Draft   | **部分实现**：`Expr` 使用不可遮蔽的大写 `I`，支持紧邻写法 `4I`；小写 `i` 是普通标识符。Runtime 已提供结构化 `complex` 值及基于 LMMC 的基础运算，复数函数覆盖仍待补齐       |
-| LSR 011 | 代数数据类型         | Draft   | 未实现                                                                                                                                                             |
-| LSR 012 | 元组类型             | Draft   | 部分实现，解构尚未实现                                                                                                                                             |
-| LSR 013 | 集合类型             | Draft   | 未实现                                                                                                                                                             |
+| LSR 000 | 核心语言规范（草案） | Draft   | **部分实现**：核心语言、模块、容器、数学值、量纲、集合、`Expr`、CAS 与 FFI 均有注册语言测试；剩余差距见上文 |
+| LSR 001 | LSR 流程规范         | Applied | 不适用（流程文档，本仓库遵循其状态机约定） |
+| LSR 002 | 标准常量             | Draft   | **部分实现**：数学与物理常量通过标准模块导出 |
+| LSR 003 | C 扩展与插件         | Draft   | **部分实现**：`static "lib"`、原生函数绑定和公开 `lmx.h` C ABI 已实现；完整插件打包约定仍在演进 |
+| LSR 004 | 标准库               | Draft   | **部分实现**：数学、线性代数、统计、随机数、单位和 CAS 模块已注册并由语言测试覆盖 |
+| LSR 005 | 模式匹配             | Draft   | **部分实现**：代数数据类型构造器、通配分支、穷尽性与不可达分支检查已实现 |
+| LSR 006 | Lambda 与类型推导    | Draft   | Lambda 尚未实现 |
+| LSR 007 | `===` 数学等价判定   | Draft   | `Expr` 与 CAS 等价 API 已实现；`===` 运算符尚未实现 |
+| LSR 008 | 量纲剥离             | Draft   | **部分实现**：量纲类型、单位声明、换算和剥离由正反语言测试覆盖 |
+| LSR 009 | 集合与多结果返回     | Draft   | **部分实现**：集合运算、类型推导及 `Result` 返回已实现 |
+| LSR 010 | 虚数单位与复数       | Draft   | **部分实现**：`Expr` 使用不可遮蔽的大写 `I`；runtime `complex` 值支持基础运算 |
+| LSR 011 | 代数数据类型         | Draft   | **部分实现**：泛型 ADT、构造器与模式匹配已实现 |
+| LSR 012 | 元组类型             | Draft   | **部分实现**：元组值和索引已实现；解构尚未实现 |
+| LSR 013 | 集合类型             | Draft   | **部分实现**：集合字面量、运算、推导和 CAS 结果转换已实现 |
 | LSR 015 | LMMP 接口            | Draft   | 不适用                                                                                                                                                             |

@@ -43,7 +43,7 @@ runtime::AdtObj* make_result_ok(std::vector<runtime::Value> fields) {
     return new runtime::AdtObj("Result", "Ok", std::move(fields));
 }
 
-} // namespace
+}
 
 MathErrorCode math_error_code(const LMCAS::CasErrc code) noexcept {
     switch (code) {
@@ -193,78 +193,4 @@ runtime::AdtObj* result_ok(runtime::Object* value,
     return make_result_ok(std::move(fields));
 }
 
-#if defined(LMX_BUILD_TESTS)
-namespace {
-
-runtime::AdtObj* allocation_failure_probe() noexcept try {
-    throw std::bad_alloc{};
-} catch (...) {
-    return c_abi_current_exception(__func__);
 }
-
-runtime::AdtObj* checked_failure_probe() noexcept try {
-    throw LMCAS::CasError{
-        LMCAS::CasErrc::DomainError,
-        "checked failure",
-        "checked.operation"};
-} catch (...) {
-    return c_abi_current_exception(__func__);
-}
-
-bool has_error(const runtime::AdtObj* result, const char* code,
-               const char* operation, const char* message) {
-    if (!result || result->type_name() != "Result" ||
-        result->constructor() != "Err") {
-        return false;
-    }
-    const auto* error_field = result->field(0);
-    const auto* error =
-        error_field && error_field->kind == runtime::ValueKind::Obj &&
-                error_field->obj &&
-                error_field->obj->get_kind() == runtime::ObjectKind::Adt
-            ? static_cast<const runtime::AdtObj*>(error_field->obj)
-            : nullptr;
-    if (!error || error->type_name() != "MathError") return false;
-    const auto* code_field = error->field(0);
-    const auto* code_value =
-        code_field && code_field->kind == runtime::ValueKind::Obj &&
-                code_field->obj &&
-                code_field->obj->get_kind() == runtime::ObjectKind::Adt
-            ? static_cast<const runtime::AdtObj*>(code_field->obj)
-            : nullptr;
-    const auto string_field = [error](const std::size_t index) {
-        const auto* field = error->field(index);
-        return field && field->kind == runtime::ValueKind::Obj &&
-                       field->obj &&
-                       field->obj->get_kind() == runtime::ObjectKind::String
-            ? static_cast<const runtime::StringObj*>(field->obj)
-            : nullptr;
-    };
-    const auto* operation_value = string_field(1);
-    const auto* message_value = string_field(2);
-    return code_value && code_value->constructor() == code &&
-           operation_value &&
-           std::string_view(operation_value->c_str()) == operation &&
-           message_value && std::string_view(message_value->c_str()) == message;
-}
-
-} // namespace
-
-extern "C" LM_API int lmx_test_c_abi_exception_boundaries() noexcept {
-    try {
-        auto allocation = adopt_object(allocation_failure_probe());
-        auto checked = adopt_object(checked_failure_probe());
-        return has_error(allocation.get(), "ResourceLimit",
-                         "allocation_failure_probe",
-                         "bridge allocation failed") &&
-                       has_error(checked.get(), "DomainError",
-                                 "checked.operation", "checked failure")
-            ? 0
-            : 1;
-    } catch (...) {
-        return 2;
-    }
-}
-#endif
-
-} // namespace lmx::bridge

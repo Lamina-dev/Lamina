@@ -38,17 +38,18 @@ lmmc_status_t ode_jacobian_adapter(
 }
 
 AdtObj* run_ode_solver(
-    const char* name, const OdeSolver solver,
+    const char* operation_name, const char* name, const OdeSolver solver,
     const lmx::runtime::FuncObj* rhs,
     const lmx::runtime::FuncObj* jacobian, VectorObj* initial,
     const double start, const double end, const double initial_step,
-    const double abs_tol, const double rel_tol, const LmInt max_steps) {
+    const double abs_tol, const double rel_tol, const LmInt max_steps)
+{
     if (!rhs || !initial || initial->size() == 0 || max_steps <= 0 ||
         !std::isfinite(start) || !std::isfinite(end) ||
         !std::isfinite(initial_step) || !std::isfinite(abs_tol) ||
         !std::isfinite(rel_tol) || initial_step <= 0.0 ||
         abs_tol < 0.0 || rel_tol < 0.0)
-        return result_error(MathErrorCode::InvalidArgument, __func__, std::string(name) + ": invalid argument");
+        return result_error(MathErrorCode::InvalidArgument, operation_name, std::string(name) + ": invalid argument");
     lmmc_ode_config_t config{};
     auto status = lmmc_ode_default_config(
         start, end, initial->size(), &config);
@@ -76,7 +77,7 @@ AdtObj* run_ode_solver(
                                std::numeric_limits<LmInt>::max()) ||
         result.num_rhs_evals > static_cast<std::size_t>(
                                   std::numeric_limits<LmInt>::max()))
-        return result_error(MathErrorCode::NumericalFailure, __func__, std::string(name) + ": count overflow");
+        return result_error(MathErrorCode::NumericalFailure, operation_name, std::string(name) + ": count overflow");
     std::vector<Value> fields;
     fields.emplace_back(take_object_value(
         make_owned_object<VectorObj>(std::move(state)), ValueKind::Vector));
@@ -100,7 +101,7 @@ extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_euler(
     const double abs_tol, const double rel_tol, const LmInt max_steps) noexcept try {
     ensure_lmmc_runtime();
     return run_ode_solver(
-        "ode.euler", lmmc_ode_euler_solve, rhs, nullptr, initial,
+        __func__, "ode.euler", lmmc_ode_euler_solve, rhs, nullptr, initial,
         start, end, step, abs_tol, rel_tol, max_steps);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -111,7 +112,7 @@ extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_runge_kutta_fourth
     const double abs_tol, const double rel_tol, const LmInt max_steps) noexcept try {
     ensure_lmmc_runtime();
     return run_ode_solver(
-        "ode.rk4", lmmc_ode_rk4_solve, rhs, nullptr, initial,
+        __func__, "ode.rk4", lmmc_ode_rk4_solve, rhs, nullptr, initial,
         start, end, step, abs_tol, rel_tol, max_steps);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -122,7 +123,7 @@ extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_runge_kutta_fourth
     const double abs_tol, const double rel_tol, const LmInt max_steps) noexcept try {
     ensure_lmmc_runtime();
     return run_ode_solver(
-        "ode.rk45", lmmc_ode_rk45_solve, rhs, nullptr, initial,
+        __func__, "ode.rk45", lmmc_ode_rk45_solve, rhs, nullptr, initial,
         start, end, step, abs_tol, rel_tol, max_steps);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -135,7 +136,7 @@ extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_##export_name( \
     const double abs_tol, const double rel_tol, const LmInt max_steps) noexcept try { \
     ensure_lmmc_runtime(); \
     return run_ode_solver( \
-        "ode." #export_name, solver_name, rhs, nullptr, initial, \
+        __func__, "ode." #export_name, solver_name, rhs, nullptr, initial, \
         start, end, step, abs_tol, rel_tol, max_steps); \
 } catch (...) { \
     return c_abi_current_exception(__func__); \
@@ -149,8 +150,8 @@ extern "C" LM_API AdtObj* lmx_ordinary_differential_equations_##export_name##_wi
     if (!jacobian) \
         return result_error(MathErrorCode::InvalidArgument, __func__, "ode." #export_name ": null Jacobian"); \
     return run_ode_solver( \
-        "ode." #export_name "_with_jacobian", solver_name, rhs, jacobian, \
-        initial, start, end, step, abs_tol, rel_tol, max_steps); \
+        __func__, "ode." #export_name "_with_jacobian", solver_name, rhs, \
+        jacobian, initial, start, end, step, abs_tol, rel_tol, max_steps); \
 } catch (...) { \
     return c_abi_current_exception(__func__); \
 }

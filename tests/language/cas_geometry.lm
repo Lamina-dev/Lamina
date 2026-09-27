@@ -1,0 +1,40 @@
+import std
+import std.mathematics_error
+import std.cas.geometry
+import std.cas.symbolic_matrix
+
+let zero = std.cas.parse("0")
+let one = std.cas.parse("1")
+let two = std.cas.parse("2")
+let three = std.cas.parse("3")
+
+{
+    let values = geometry.gradient(std.cas.parse("x^2+y^2"), ["x", "y"])
+    std.printf("%d,%d|", std.cas.equivalent(values[0], std.cas.parse("2*x")),
+        std.cas.equivalent(values[1], std.cas.parse("2*y")))
+}
+{
+    let value = geometry.vector_dot([one, two, three], [std.cas.parse("4"), std.cas.parse("5"), std.cas.parse("6")])
+    std.printf("%d|", std.cas.equivalent(value, std.cas.parse("32")))
+}
+{
+    let point = geometry.line_plane_intersection(
+    [zero, zero, zero], [one, one, one], [one, one, one], three
+)
+    std.printf("%d,%d,%d|", std.cas.equivalent(point[0], one),
+        std.cas.equivalent(point[1], one), std.cas.equivalent(point[2], one))
+}
+{
+    let metric = symbolic_matrix.from_rows([[one, zero], [zero, one]])
+    std.printf("%d|", std.cas.equivalent(symbolic_matrix.determinant(metric), one)
+        and std.cas.equivalent(symbolic_matrix.trace(metric), two))
+    std.printf("%d|", std.cas.equivalent(geometry.metric_inverse(metric), metric))
+}
+match std.cas.raw.geometry.vector_cross([one, two], [one, two]) {
+    Result.Ok(_) => std.printf("0"),
+    Result.Err(error) => match mathematics_error.code(error) {
+        mathematics_error.InvalidArgument =>
+            std.printf("%d", mathematics_error.operation(error) == "vector_cross"),
+        _ => std.printf("0")
+    }
+}

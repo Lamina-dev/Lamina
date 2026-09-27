@@ -249,7 +249,7 @@ int main() {
 
     const std::size_t tensor_dims[] = {2, 2, 2};
     lmmc_tensor_nd_t owning_tensor{};
-    if (!require(lmmc_tensor_create(3, tensor_dims, &owning_tensor) ==
+    if (!require(lmmc_tensor_nd_create(3, tensor_dims, &owning_tensor) ==
                      LMMC_STATUS_OK,
                  "tensor allocation must succeed")) return 1;
     for (std::size_t i = 0; i < 8; ++i) owning_tensor.data[i] = i + 1.0;
@@ -271,7 +271,7 @@ int main() {
                  "tensor rendering must include its view shape")) return 1;
 
     lmmc_tensor_nd_t equal_tensor{};
-    if (!require(lmmc_tensor_create(2, reshaped_dims, &equal_tensor) ==
+    if (!require(lmmc_tensor_nd_create(2, reshaped_dims, &equal_tensor) ==
                      LMMC_STATUS_OK,
                  "comparison tensor allocation must succeed")) return 1;
     for (std::size_t i = 0; i < 8; ++i) equal_tensor.data[i] = i + 1.0;

@@ -14,6 +14,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "LMX_BUILD_TESTS": "ON",
+        "LMCAS_BUILD_TESTS": "ON",
+        "LMCAS_BUILD_LMMC_TESTS": "ON",
         "LMX_ENABLE_LTO": "OFF",
         "LMX_FAST_BUILD": "ON",
         "LMCAS_LMMP_ASM": "AUTO"
@@ -94,7 +96,8 @@
       "name": "strict-debug",
       "configurePreset": "strict-debug",
       "output": { "outputOnFailure": true },
-      "execution": { "jobs": 4, "timeout": 300 }
+      "execution": { "jobs": 4, "timeout": 300 },
+      "environment": { "RC_PARAMS": "seed=42" }
     },
     {
       "name": "linux-asan-ubsan",
@@ -102,6 +105,7 @@
       "output": { "outputOnFailure": true },
       "execution": { "jobs": 4, "timeout": 300 },
       "environment": {
+        "RC_PARAMS": "seed=42",
         "ASAN_OPTIONS": "detect_leaks=1:strict_string_checks=1",
         "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
       }
@@ -112,6 +116,7 @@
       "output": { "outputOnFailure": true },
       "execution": { "jobs": 4, "timeout": 300 },
       "environment": {
+        "RC_PARAMS": "seed=42",
         "TSAN_OPTIONS": "halt_on_error=1:second_deadlock_stack=1"
       }
     }

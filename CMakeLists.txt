@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.26)
 project(Lamina LANGUAGES C CXX ASM)
 
-set(FETCHCONTENT_FULLY_DISCONNECTED ON)
 option(LMX_BUILD_TESTS "Build Lamina tests" OFF)
 option(LMX_ENABLE_LTO "Enable link-time optimization" ON)
 option(LMX_FAST_BUILD "Prefer faster compilation over maximum runtime optimization" OFF)
@@ -14,7 +13,7 @@ if(LMX_ENABLE_SANITIZERS AND LMX_ENABLE_TSAN)
         "LMX_ENABLE_SANITIZERS and LMX_ENABLE_TSAN are mutually exclusive")
 endif()
 if((LMX_ENABLE_SANITIZERS OR LMX_ENABLE_TSAN) AND
-   NOT (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC AND NOT WIN32))
+   NOT (CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$" AND NOT MSVC AND NOT WIN32))
     message(FATAL_ERROR
         "Lamina sanitizers require GCC or Clang on a non-Windows platform")
 endif()
@@ -56,7 +55,7 @@ function(lmx_apply_quality_gates target)
     endif()
 endfunction()
 
-if(LMX_BUILD_TESTS)
+if(LMX_BUILD_TESTS OR LMCAS_BUILD_TESTS OR LMCAS_BUILD_LMMC_TESTS OR LMMC_BUILD_TESTS)
     enable_testing()
 endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
@@ -154,15 +153,17 @@ add_subdirectory("${LMX_DYNCALL_BUILD_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external
 
 if(APPLE)
     set_target_properties(lamina PROPERTIES
-            INSTALL_RPATH "@loader_path"
+        SKIP_BUILD_RPATH TRUE
+        INSTALL_RPATH "@loader_path"
     )
+    target_link_options(lamina PRIVATE "-Wl,-rpath,@loader_path")
 elseif(UNIX)
     set_target_properties(lamina PROPERTIES
-            SKIP_BUILD_RPATH TRUE
-            INSTALL_RPATH "$ORIGIN"
+        SKIP_BUILD_RPATH TRUE
+        INSTALL_RPATH "$ORIGIN"
     )
     target_link_options(lamina PRIVATE "-Wl,-rpath,$ORIGIN")
-endif ()
+endif()
 
 message(STATUS "Your System is '${CMAKE_SYSTEM_NAME}'")
 add_library(lamina_shared SHARED
@@ -172,25 +173,27 @@ add_library(lamina_shared SHARED
         bridge/runtime_views.cpp
         bridge/unit_bridge.cpp
         bridge/mathematics_error.cpp
-        bridge/computer_algebra_expression.cpp
+        bridge/cas/expr.cpp
         bridge/computer_algebra_evaluation.cpp
-        bridge/computer_algebra_sets.cpp
-        bridge/computer_algebra_equation_solving.cpp
-        bridge/computer_algebra_equation_solving_systems.cpp
+        bridge/cas/sets.cpp
+        bridge/cas/solve.cpp
+        bridge/cas/systems.cpp
+        bridge/cas/ideals.cpp
+        bridge/cas/inequalities.cpp
         bridge/computer_algebra_calculus.cpp
         bridge/computer_algebra_integral_transforms.cpp
-        bridge/computer_algebra_algebra.cpp
+        bridge/cas/algebra.cpp
         bridge/computer_algebra_symbolic_matrix.cpp
         bridge/computer_algebra_matrix_analysis.cpp
         bridge/computer_algebra_series.cpp
         bridge/computer_algebra_complex_analysis.cpp
         bridge/computer_algebra_ordinary_differential_equations.cpp
         bridge/computer_algebra_geometry.cpp
-        bridge/mathematics.cpp
+        bridge/math.cpp
         bridge/complex_numbers.cpp
         bridge/special_functions.cpp
         bridge/units.cpp
-        bridge/statistics.cpp
+        bridge/stats.cpp
         bridge/random_numbers.cpp
         bridge/linear_algebra_vector.cpp
         bridge/linear_algebra_matrix.cpp
@@ -204,14 +207,14 @@ add_library(lamina_shared SHARED
         bridge/interpolation.cpp
         bridge/callback.cpp
         bridge/math_internal.cpp
-        bridge/computer_algebra_assumptions.cpp
-        bridge/computer_algebra_equation_solving_advanced.cpp
+        bridge/cas/assumptions.cpp
         bridge/lmmc_quadrature.cpp
     $<TARGET_OBJECTS:laminac>
     $<TARGET_OBJECTS:lamina_runtime>
         utils/utils.cpp
 )
-target_include_directories(lamina_shared PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(lamina_shared PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(lamina_shared PROPERTIES
     OUTPUT_NAME "lamina"
     PREFIX "lib"
@@ -223,14 +226,11 @@ target_link_libraries(lamina_shared PRIVATE
 
 set(_lmx_saved_build_testing "${BUILD_TESTING}")
 set(BUILD_TESTING OFF)
-if(NOT DEFINED LMCAS_BUILD_STANDALONE_TESTS)
-    set(LMCAS_BUILD_STANDALONE_TESTS OFF)
+if(NOT DEFINED LMCAS_BUILD_TESTS)
+    set(LMCAS_BUILD_TESTS OFF)
 endif()
 if(NOT DEFINED LMCAS_BUILD_LMMC_TESTS)
     set(LMCAS_BUILD_LMMC_TESTS OFF)
-endif()
-if(NOT DEFINED LMCAS_BUILD_GTEST_TESTS)
-    set(LMCAS_BUILD_GTEST_TESTS OFF)
 endif()
 set(LMCAS_WARNINGS_AS_ERRORS "${LMX_WARNINGS_AS_ERRORS}")
 set(LMMC_WARNINGS_AS_ERRORS "${LMX_WARNINGS_AS_ERRORS}")
@@ -250,6 +250,15 @@ if(NOT DEFINED LMMP_BUILD_EXAMPLES)
     set(LMMP_BUILD_EXAMPLES OFF)
 endif()
 add_subdirectory("${LMX_LMCAS_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/external/LMCAS" EXCLUDE_FROM_ALL)
+if(APPLE)
+    foreach(_lmx_dylib_target IN ITEMS lamina_shared lmcas lmmc liblmmp)
+        set_target_properties(${_lmx_dylib_target} PROPERTIES
+            MACOSX_RPATH ON
+            INSTALL_NAME_DIR "@rpath"
+            BUILD_WITH_INSTALL_NAME_DIR ON
+        )
+    endforeach()
+endif()
 set(BUILD_TESTING "${_lmx_saved_build_testing}")
 target_link_libraries(lamina_shared PRIVATE
     lmcas
@@ -258,9 +267,6 @@ target_link_libraries(lamina_shared PRIVATE
 
 target_compile_definitions(lamina_shared PRIVATE LMX_DLL)
 target_compile_definitions(lamina_shared PRIVATE LMX_BUILD)
-if(LMX_BUILD_TESTS)
-    target_compile_definitions(lamina_shared PRIVATE LMX_BUILD_TESTS)
-endif()
 if(LMX_BUILD_STATIC)
     add_library(laminac_s STATIC $<TARGET_OBJECTS:laminac>)
     add_library(lamina_runtime_s STATIC $<TARGET_OBJECTS:lamina_runtime>)
@@ -310,7 +316,7 @@ if(LMX_PGO STREQUAL "GENERATE")
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(LMX_PGO_COMPILE_FLAGS "-fprofile-generate" "-fprofile-dir=${LMX_PGO_DIR}")
         set(LMX_PGO_LINK_FLAGS   "-fprofile-generate" "-fprofile-dir=${LMX_PGO_DIR}")
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang)$")
         file(MAKE_DIRECTORY "${LMX_PGO_DIR}")
         set(LMX_PGO_COMPILE_FLAGS "-fprofile-instr-generate=${LMX_PGO_DIR}/default.profraw")
         set(LMX_PGO_LINK_FLAGS   "-fprofile-instr-generate=${LMX_PGO_DIR}/default.profraw")
@@ -320,7 +326,7 @@ elseif(LMX_PGO STREQUAL "USE")
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(LMX_PGO_COMPILE_FLAGS "-fprofile-use" "-fprofile-dir=${LMX_PGO_DIR}" "-Wno-missing-profile")
         set(LMX_PGO_LINK_FLAGS   "-fprofile-use" "-fprofile-dir=${LMX_PGO_DIR}")
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang)$")
         set(LMX_PGO_COMPILE_FLAGS "-fprofile-instr-use=${LMX_PGO_DIR}/default.profdata")
         set(LMX_PGO_LINK_FLAGS   "-fprofile-instr-use=${LMX_PGO_DIR}/default.profdata")
     endif()
@@ -340,11 +346,20 @@ endfunction()
 # (含 laminac / lamina_runtime 两个 OBJECT 库, 否则虚拟机与编译器得不到任何优化)
 set(LMX_PERF_FLAGS "")
 set(LMX_LINK_FLAGS "")
-if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang-cl
+if(APPLE)
+    message(STATUS "Use Apple Clang toolchain compiling")
+    set(LMX_PERF_FLAGS
+            -fvisibility=hidden
+            -funroll-loops -fomit-frame-pointer
+            -fno-math-errno
+            -fdata-sections -ffunction-sections
+    )
+    set(LMX_LINK_FLAGS -Wl,-dead_strip)
+elseif(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang-cl
     message(STATUS "Use Clang-Cl toolchain compiling")
     set(LMX_PERF_FLAGS /Oi)
     set(LMX_LINK_FLAGS /OPT:REF /OPT:ICF)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(STATUS "Use GNU toolchain compiling")
     set(LMX_PERF_FLAGS
             -fno-plt -fvisibility=hidden
@@ -359,16 +374,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             -fipa-pta
     )
     set(LMX_LINK_FLAGS -s -Wl,--gc-sections -Wl,-O3 -Wl,--as-needed)
-elseif (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    message(STATUS "Use Apple Clang toolchain compiling")
-    set(LMX_PERF_FLAGS
-            -fvisibility=hidden
-            -funroll-loops -fomit-frame-pointer
-            -fno-math-errno
-            -fdata-sections -ffunction-sections
-    )
-    set(LMX_LINK_FLAGS -Wl,-dead_strip)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(STATUS "Use Clang toolchain compiling")
     set(LMX_PERF_FLAGS
             -fno-plt -fvisibility=hidden
@@ -387,7 +393,7 @@ if(LMX_ENABLE_LTO)
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         list(APPEND LMX_PERF_FLAGS -flto)
         list(PREPEND LMX_LINK_FLAGS -flto)
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT APPLE)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang)$")
         list(APPEND LMX_PERF_FLAGS -flto=thin)
         list(PREPEND LMX_LINK_FLAGS -flto=thin)
     endif()
@@ -423,13 +429,21 @@ endif()
 
 # dyncall 用于所有 FFI 原生调用, 应用安全优化子集
 # (不启用 -ffast-math / -flto, 避免影响浮点调用约定与汇编例程)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang)$")
+    set(LMX_DYNCALL_FLAGS
+            -O3
+            -funroll-loops -fomit-frame-pointer
+            -fvisibility=hidden
+    )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang)$")
     set(LMX_DYNCALL_FLAGS
             -O3
             -funroll-loops -fomit-frame-pointer
             -fno-semantic-interposition
             -fvisibility=hidden
     )
+endif()
+if(LMX_DYNCALL_FLAGS)
     foreach(dc_tgt IN ITEMS dyncall_s dynload_s)
         if(TARGET ${dc_tgt})
             target_compile_options(${dc_tgt} PRIVATE ${LMX_DYNCALL_FLAGS})
