@@ -57,7 +57,7 @@ bool array_expressions(const ArrayObj* array,
                        std::string& error);
 bool array_strings(const ArrayObj* array, std::vector<std::string>& result,
                    std::string& error);
-bool expr_to_real(ExprObj* expr, double& result, std::string& error);
+LMCAS::Result<double> expr_to_real(ExprObj* expr, const char* operation);
 std::optional<LMCAS::NumberDomainSet> number_domain_for_name(
     const char* name);
 bool checked_complex(ComplexObj* value, lmmc_complex_t& result) noexcept;

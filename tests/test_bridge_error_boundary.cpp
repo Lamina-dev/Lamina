@@ -1,6 +1,7 @@
 #include "bridge/conversions.hpp"
 #include "bridge/mathematics_error.hpp"
 #include "runtime/object/StringObj.hpp"
+#include "runtime/object/expr_obj.hpp"
 #include "runtime/object/code_module.hpp"
 #include "runtime/object/random.hpp"
 #include "runtime/object/tensor.hpp"
@@ -10,6 +11,9 @@
 
 namespace lmx::bridge {
 
+extern "C" AdtObj* lmx_math_log2(ExprObj*) noexcept;
+extern "C" AdtObj* lmx_math_exp2(ExprObj*) noexcept;
+extern "C" AdtObj* lmx_math_hypot(ExprObj*, ExprObj*) noexcept;
 extern "C" AdtObj* lmx_cas_system_by_symbols(
     ArrayObj* equations, ArrayObj* variables) noexcept;
 extern "C" AdtObj* lmx_cas_polynomial_system_by_symbols(
@@ -43,6 +47,13 @@ extern "C" AdtObj* lmx_ordinary_differential_equations_euler(
     double step, double abs_tol, double rel_tol, LmInt max_steps) noexcept;
 
 namespace {
+bool has_real(const runtime::AdtObj* result, double expected) {
+    const auto* value = result && result->type_name() == "Result" &&
+                                result->constructor() == "Ok"
+                            ? result->field(0) : nullptr;
+    return value && value->kind == runtime::ValueKind::Real &&
+           value->real_val == expected;
+}
 
 runtime::AdtObj* allocation_failure_probe() noexcept try {
     throw std::bad_alloc{};
@@ -100,6 +111,35 @@ bool has_error(const runtime::AdtObj* result, const char* code,
            (!message ||
             (message_value &&
              std::string_view(message_value->c_str()) == message));
+}
+
+bool real_math_probe() {
+    auto eight = make_owned_object<ExprObj>(LMCAS::SymbolicExpr::number(8));
+    auto three = make_owned_object<ExprObj>(LMCAS::SymbolicExpr::number(3));
+    auto four = make_owned_object<ExprObj>(LMCAS::SymbolicExpr::number(4));
+    auto symbol = make_owned_object<ExprObj>(LMCAS::SymbolicExpr::variable("x"));
+    auto invalid = make_owned_object<ExprObj>(LMCAS::CasError{
+        LMCAS::CasErrc::ParseError, "bad expression", "parse_expr"});
+
+    auto log_value = adopt_object(lmx_math_log2(eight.get()));
+    auto exp_value = adopt_object(lmx_math_exp2(three.get()));
+    auto hypot_value = adopt_object(lmx_math_hypot(three.get(), four.get()));
+    auto log_unbound = adopt_object(lmx_math_log2(symbol.get()));
+    auto exp_unbound = adopt_object(lmx_math_exp2(symbol.get()));
+    auto hypot_unbound = adopt_object(lmx_math_hypot(three.get(), symbol.get()));
+    auto log_invalid = adopt_object(lmx_math_log2(invalid.get()));
+    auto exp_invalid = adopt_object(lmx_math_exp2(invalid.get()));
+    auto hypot_invalid = adopt_object(lmx_math_hypot(invalid.get(), four.get()));
+
+    return has_real(log_value.get(), 3.0) &&
+           has_real(exp_value.get(), 8.0) &&
+           has_real(hypot_value.get(), 5.0) &&
+           has_error(log_unbound.get(), "UnboundSymbol", "evaluate_numeric") &&
+           has_error(exp_unbound.get(), "UnboundSymbol", "evaluate_numeric") &&
+           has_error(hypot_unbound.get(), "UnboundSymbol", "evaluate_numeric") &&
+           has_error(log_invalid.get(), "InvalidArgument", "lmx_math_log2") &&
+           has_error(exp_invalid.get(), "InvalidArgument", "lmx_math_exp2") &&
+           has_error(hypot_invalid.get(), "InvalidArgument", "lmx_math_hypot");
 }
 
 } // namespace
@@ -194,7 +234,8 @@ extern "C" int lmx_test_c_abi_exception_boundaries() noexcept {
             lmx_cas_parametric_piecewise_by_symbols(
                 invalid_values.get(), valid_symbols.get(), valid_symbols.get()));
 
-        return has_error(allocation.get(), "ResourceLimit",
+        return real_math_probe() &&
+               has_error(allocation.get(), "ResourceLimit",
                          "allocation_failure_probe") &&
                        has_error(checked.get(), "DomainError",
                                  "checked.operation", "checked failure") &&
@@ -229,28 +270,28 @@ extern "C" int lmx_test_c_abi_exception_boundaries() noexcept {
                                  "lmx_cas_groebner_basis_by_symbols") &&
                        has_error(groebner_names_after_symbols.get(),
                                  "InvalidArgument",
-                                 "lmx_cas_groebner_basis_by_names") &&
+                                 "lmx_cas_groebner_basis_by_symbols") &&
                        has_error(reduced_symbol_first.get(), "InvalidArgument",
                                  "lmx_cas_reduced_groebner_basis_by_symbols") &&
                        has_error(reduced_names_after_symbols.get(),
                                  "InvalidArgument",
-                                 "lmx_cas_reduced_groebner_basis_by_names") &&
+                                 "lmx_cas_reduced_groebner_basis_by_symbols") &&
                        has_error(membership_symbol_first.get(), "InvalidArgument",
                                  "lmx_cas_ideal_membership_by_symbols") &&
                        has_error(membership_names_after_symbols.get(),
                                  "InvalidArgument",
-                                 "lmx_cas_ideal_membership_by_names") &&
+                                 "lmx_cas_ideal_membership_by_symbols") &&
                        has_error(elimination_symbol_first.get(), "InvalidArgument",
                                  "lmx_cas_elimination_ideal_by_symbols") &&
                        has_error(elimination_names_after_symbols.get(),
                                  "InvalidArgument",
-                                 "lmx_cas_elimination_ideal_by_names") &&
+                                 "lmx_cas_elimination_ideal_by_symbols") &&
                        has_error(polynomial_system_symbol_first.get(),
                                  "InvalidArgument",
                                  "lmx_cas_polynomial_system_by_symbols") &&
                        has_error(polynomial_system_names_after_symbols.get(),
                                  "InvalidArgument",
-                                 "lmx_cas_polynomial_system_by_names") &&
+                                 "lmx_cas_polynomial_system_by_symbols") &&
                        has_error(piecewise_unknown_first.get(), "InvalidArgument",
                                  "lmx_cas_parametric_piecewise_by_symbols") &&
                        has_error(piecewise_parameter_second.get(),
@@ -258,7 +299,7 @@ extern "C" int lmx_test_c_abi_exception_boundaries() noexcept {
                                  "lmx_cas_parametric_piecewise_by_symbols") &&
                        has_error(piecewise_names_after_symbols.get(),
                                  "InvalidArgument",
-                                 "lmx_cas_parametric_piecewise_by_names")
+                                 "lmx_cas_parametric_piecewise_by_symbols")
             ? 0
             : 1;
     } catch (...) {

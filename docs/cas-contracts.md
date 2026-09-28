@@ -55,6 +55,10 @@ This reference records the checked symbolic contracts that callers can rely on.
   value, even before normalization. Unknown integrality is not proof of a
   noninteger exponent; negative-base possibilities remain unresolved rather
   than being excluded by an invented positive-base requirement.
+- Real-domain projection preserves a proved violation of a real function's
+  argument restriction. When an explicit complex value occurs inside an
+  otherwise defined expression, projection checks the complex result:
+  unresolved real-valuedness is `Inconclusive` rather than a false empty set.
 - Periodicity queries require an explicit independent variable:
   `query_periodic_checked(expression, variable)` and
   `get_period_checked(expression, variable)`. The latter returns no minimum
@@ -92,6 +96,18 @@ This reference records the checked symbolic contracts that callers can rely on.
   A proved `EmptySolutions` becomes an empty vector only at
   `solve_finite_checked`; conditional or non-finite sets cannot be projected
   into an unconditional finite vector.
+- `solve_parametric_inequality_checked` returns exhaustive parameter-sign
+  branches for certified affine and repeated-root quadratic cases. Fixed exact
+  coefficients use the checked real-inequality solver; unresolved discriminants,
+  root ordering, or degree above two yield `Inconclusive`.
+- `factor_multivariate_checked` reconstructs its input exactly; `Complete`
+  certifies terminal irreducibility. An unproved factorization retains the
+  original product with `Inconclusive`; computation-budget exhaustion is
+  `ResourceLimit`.
+- Finite polynomial-system solving checks the reduced Gröbner basis for zero
+  dimension before enumerating points. Positive-dimensional or unresolved
+  parameter-degenerate systems yield `Inconclusive`; certified finite points
+  still obey denominator exclusions.
 
 ## Calculus, geometry, and matrices
 
@@ -122,6 +138,16 @@ This reference records the checked symbolic contracts that callers can rely on.
   Unsupported function derivatives now report `CasErrc::UnsupportedExpression`
   through checked differentiation instead of returning a false zero; the
   unchecked member throws `std::runtime_error`.
+- Fixed positive numerical bases other than one support
+  `d log(u,b)/dx = u'/(u ln b)` on the real logarithm domain; unsupported
+  bases report `UnsupportedExpression`.
+- Laurent classification recognizes `exp(1/(z-c)^m)` for positive integer
+  `m` as essential independently of truncation. Its reported negative-power
+  terms follow `1/(k!(z-c)^(mk))`; unresolved singularities stay
+  `Inconclusive`. Ratio convergence uses an exact limit comparison with one.
+- The canonical inverse Fourier pair `2/(1+omega^2)` and `exp(-abs(t))`
+  carries an exact forward round-trip certificate. The unilateral
+  `Z{n^3}=z(z^2+4z+1)/(z-1)^4` has ROC `|z|>1`.
 - Checked explicit curvature, parametric curvature, and inflection points
   propagate unsupported first or second derivatives as `UnsupportedExpression`
   with the entry-point operation name. Each derivative uses the caller's context
@@ -150,6 +176,28 @@ This reference records the checked symbolic contracts that callers can rely on.
   expressions, fractions, and unrepresentable nonzero underflow. Assumption and
   interval readers accept their legacy bare-decimal approximate syntax but
   serialize canonically. This is not a general AST serialization guarantee.
+- `serialize_expr` and `parse_serialized_expr` exchange a versioned semantic
+  encoding beginning with `LMCAS_EXPR/1\n`. Fields use decimal byte lengths
+  (`length:bytes,`), so symbol names can contain arbitrary bytes. The encoding
+  preserves exact integers and rationals, binary64 bit patterns (including
+  negative zero), operators, binders, sets, physical quantities, and matrix
+  values; a parsed expression reserializes to the same canonical value encoding.
+  Mathematical constants such as `pi()` have distinct node identity from a
+  same-named variable created with `SymbolicExpr::variable("pi")`. The ordinary
+  expression parser still interprets `pi` as the mathematical constant, while
+  the semantic decoder can reconstruct either kind. Unknown versions and
+  malformed fields return `ParseError`; context limits and cancellation apply
+  to both operations. Lamina exposes the same operations through
+  `std.cas.serialize_expr` and `std.cas.parse_serialized_expr`.
+- `evaluate_numeric` retains binary64 approximations. `ApproxReal::absolute_error`
+  bounds the true real value's distance from `value`; `+infinity` means no
+  finite bound has been certified. Binary64 literals and finite binary64
+  bindings have zero error. BigInt/Rational conversion, arithmetic, RootOf,
+  and function evaluation currently report `+infinity` even when the computed
+  double happens to be exact; no tolerance can be inferred from its magnitude.
+  A literal Infinity has its own `NumericStatus`; a finite mathematical
+  operation overflowing binary64 reports `NumericFailure`. Cancellation and
+  resource exhaustion remain `Cancelled` and `ResourceLimit`.
 - `ExprSet::expression()` and `elements()` expose const-pointee expressions.
   Construction isolates mutable input wrappers, and element order comes from
   the canonical finite-set representation. Copy a wrapper explicitly when a

@@ -1,0 +1,5 @@
+import std
+let lower = 2
+let upper = 1
+let bad expr = std.interval_closed(lower, upper)
+std.printf("%s\n", std.cas.to_text(bad))

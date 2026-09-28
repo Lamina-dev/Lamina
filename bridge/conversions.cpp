@@ -33,7 +33,9 @@ const LMCAS::ExprPtr* checked_expr(ExprObj* expr, std::string& error) {
         return nullptr;
     }
     if (!expr->ok()) {
-        error = expr->error();
+        const auto& failure = expr->error();
+        error = std::string(LMCAS::error_name(failure)) + ": " +
+                failure.operation + ": " + failure.message;
         return nullptr;
     }
     return &expr->expr();
@@ -140,16 +142,15 @@ bool array_strings(const ArrayObj* array, std::vector<std::string>& result,
     return true;
 }
 
-bool expr_to_real(ExprObj* expr, double& result, std::string& error) {
+LMCAS::Result<double> expr_to_real(ExprObj* expr, const char* operation) {
+    std::string error;
     const auto* value = checked_expr(expr, error);
-    if (!value) return false;
+    if (!value)
+        return LMCAS::Result<double>::failure(
+            LMCAS::CasErrc::InvalidArgument, std::move(error), operation);
     const auto evaluated = LMCAS::evalf(**value);
-    if (!evaluated) {
-        error = evaluated.error().message;
-        return false;
-    }
-    result = evaluated.value().value;
-    return true;
+    if (!evaluated) return LMCAS::Result<double>::failure(evaluated.error());
+    return evaluated.value().value;
 }
 
 std::optional<LMCAS::NumberDomainSet> number_domain_for_name(

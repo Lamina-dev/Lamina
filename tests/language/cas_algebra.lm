@@ -61,27 +61,12 @@ std.printf("%d|", equation_solving.ideal_membership(
         generators[1],
         std.cas.parse("2*y - 1")
     ]
-    let first_present = std.cas.equivalent(basis[0], expected[0])
-        or std.cas.equivalent(basis[1], expected[0])
-        or std.cas.equivalent(basis[2], expected[0])
-    let second_present = std.cas.equivalent(basis[0], expected[1])
-        or std.cas.equivalent(basis[1], expected[1])
-        or std.cas.equivalent(basis[2], expected[1])
-    let third_present = std.cas.equivalent(basis[0], expected[2])
-        or std.cas.equivalent(basis[1], expected[2])
-        or std.cas.equivalent(basis[2], expected[2])
-    let exact_cardinality = std.cas.set_subset(
-        basis, [basis[0], basis[1], basis[2]])
-        and std.cas.set_subset([basis[0], basis[1], basis[2]], basis)
-    let complete = first_present and second_present and third_present
-        and exact_cardinality
+    let complete = std.cas.set_subset(basis, expected)
+        and std.cas.set_subset(expected, basis)
     let generators_reduce =
         equation_solving.ideal_membership(generators[0], basis, ["x", "y"])
         and equation_solving.ideal_membership(generators[1], basis, ["x", "y"])
-    let new_generator_reconstructs =
-        std.cas.equivalent(expected[2], generators[0] - generators[1])
-    std.printf("%d|", complete and generators_reduce
-        and new_generator_reconstructs)
+    std.printf("%d|", complete and generators_reduce)
 }
 
 {

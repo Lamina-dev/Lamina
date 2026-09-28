@@ -88,22 +88,18 @@ extern "C" LM_API AdtObj* lmx_cas_groebner_basis_by_names(
 }
 
 extern "C" LM_API AdtObj* lmx_cas_groebner_basis_by_symbols(
-    ArrayObj* polynomials, ArrayObj* variables) noexcept {
-    const char* exception_operation = __func__;
-    try {
-        ensure_lmmc_runtime();
-        std::vector<std::string> names;
-        std::string error;
-        if (!math_internal::checked_symbol_names(variables, names, error))
-            return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-        exception_operation = "lmx_cas_groebner_basis_by_names";
-        std::vector<LMCAS::ExprPtr> expressions;
-        if (!array_expressions(polynomials, expressions, error))
-            return result_error(MathErrorCode::InvalidArgument, exception_operation, "solve.groebner_basis: " + error);
-        return groebner_basis_result(expressions, names, exception_operation);
-    } catch (...) {
-        return c_abi_current_exception(exception_operation);
-    }
+    ArrayObj* polynomials, ArrayObj* variables) noexcept try {
+    ensure_lmmc_runtime();
+    std::vector<std::string> names;
+    std::string error;
+    if (!math_internal::checked_symbol_names(variables, names, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    std::vector<LMCAS::ExprPtr> expressions;
+    if (!array_expressions(polynomials, expressions, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, "solve.groebner_basis: " + error);
+    return groebner_basis_result(expressions, names, __func__);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_cas_reduced_groebner_basis_by_names(
@@ -121,22 +117,18 @@ extern "C" LM_API AdtObj* lmx_cas_reduced_groebner_basis_by_names(
 }
 
 extern "C" LM_API AdtObj* lmx_cas_reduced_groebner_basis_by_symbols(
-    ArrayObj* polynomials, ArrayObj* variables) noexcept {
-    const char* exception_operation = __func__;
-    try {
-        ensure_lmmc_runtime();
-        std::vector<std::string> names;
-        std::string error;
-        if (!math_internal::checked_symbol_names(variables, names, error))
-            return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-        exception_operation = "lmx_cas_reduced_groebner_basis_by_names";
-        std::vector<LMCAS::ExprPtr> expressions;
-        if (!array_expressions(polynomials, expressions, error))
-            return result_error(MathErrorCode::InvalidArgument, exception_operation, "solve.reduced_groebner_basis: " + error);
-        return reduced_groebner_basis_result(expressions, names, exception_operation);
-    } catch (...) {
-        return c_abi_current_exception(exception_operation);
-    }
+    ArrayObj* polynomials, ArrayObj* variables) noexcept try {
+    ensure_lmmc_runtime();
+    std::vector<std::string> names;
+    std::string error;
+    if (!math_internal::checked_symbol_names(variables, names, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    std::vector<LMCAS::ExprPtr> expressions;
+    if (!array_expressions(polynomials, expressions, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, "solve.reduced_groebner_basis: " + error);
+    return reduced_groebner_basis_result(expressions, names, __func__);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_cas_ideal_membership_by_names(
@@ -155,23 +147,19 @@ extern "C" LM_API AdtObj* lmx_cas_ideal_membership_by_names(
 }
 
 extern "C" LM_API AdtObj* lmx_cas_ideal_membership_by_symbols(
-    ExprObj* polynomial, ArrayObj* basis, ArrayObj* variables) noexcept {
-    const char* exception_operation = __func__;
-    try {
-        ensure_lmmc_runtime();
-        std::vector<std::string> names;
-        std::string error;
-        if (!math_internal::checked_symbol_names(variables, names, error))
-            return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-        exception_operation = "lmx_cas_ideal_membership_by_names";
-        const auto* checked = checked_expr(polynomial, error);
-        std::vector<LMCAS::ExprPtr> basis_values;
-        if (!checked || !array_expressions(basis, basis_values, error))
-            return result_error(MathErrorCode::InvalidArgument, exception_operation, "solve.ideal_membership: " + error);
-        return ideal_membership_result(*checked, basis_values, names, exception_operation);
-    } catch (...) {
-        return c_abi_current_exception(exception_operation);
-    }
+    ExprObj* polynomial, ArrayObj* basis, ArrayObj* variables) noexcept try {
+    ensure_lmmc_runtime();
+    std::vector<std::string> names;
+    std::string error;
+    if (!math_internal::checked_symbol_names(variables, names, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    const auto* checked = checked_expr(polynomial, error);
+    std::vector<LMCAS::ExprPtr> basis_values;
+    if (!checked || !array_expressions(basis, basis_values, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, "solve.ideal_membership: " + error);
+    return ideal_membership_result(*checked, basis_values, names, __func__);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_cas_elimination_ideal_by_names(
@@ -193,24 +181,20 @@ extern "C" LM_API AdtObj* lmx_cas_elimination_ideal_by_names(
 }
 
 extern "C" LM_API AdtObj* lmx_cas_elimination_ideal_by_symbols(
-    ArrayObj* basis, ArrayObj* variables, LmInt count) noexcept {
-    const char* exception_operation = __func__;
-    try {
-        ensure_lmmc_runtime();
-        std::vector<std::string> names;
-        std::string error;
-        if (!math_internal::checked_symbol_names(variables, names, error))
-            return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-        exception_operation = "lmx_cas_elimination_ideal_by_names";
-        if (count < 0 || count > std::numeric_limits<int>::max())
-            return result_error(MathErrorCode::InvalidArgument, exception_operation, "solve.elimination_ideal: invalid elimination count");
-        std::vector<LMCAS::ExprPtr> expressions;
-        if (!array_expressions(basis, expressions, error) ||
-            static_cast<std::size_t>(count) > names.size())
-            return result_error(MathErrorCode::InvalidArgument, exception_operation, "solve.elimination_ideal: " + error);
-        return elimination_ideal_result(
-            expressions, names, static_cast<int>(count), exception_operation);
-    } catch (...) {
-        return c_abi_current_exception(exception_operation);
-    }
+    ArrayObj* basis, ArrayObj* variables, LmInt count) noexcept try {
+    ensure_lmmc_runtime();
+    std::vector<std::string> names;
+    std::string error;
+    if (!math_internal::checked_symbol_names(variables, names, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (count < 0 || count > std::numeric_limits<int>::max())
+        return result_error(MathErrorCode::InvalidArgument, __func__, "solve.elimination_ideal: invalid elimination count");
+    std::vector<LMCAS::ExprPtr> expressions;
+    if (!array_expressions(basis, expressions, error) ||
+        static_cast<std::size_t>(count) > names.size())
+        return result_error(MathErrorCode::InvalidArgument, __func__, "solve.elimination_ideal: " + error);
+    return elimination_ideal_result(
+        expressions, names, static_cast<int>(count), __func__);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

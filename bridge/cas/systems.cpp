@@ -111,22 +111,18 @@ extern "C" LM_API AdtObj* lmx_cas_polynomial_system_by_names(
 }
 
 extern "C" LM_API AdtObj* lmx_cas_polynomial_system_by_symbols(
-    ArrayObj* equations, ArrayObj* variables) noexcept {
-    const char* exception_operation = __func__;
-    try {
-        ensure_lmmc_runtime();
-        std::vector<std::string> names;
-        std::string error;
-        if (!math_internal::checked_symbol_names(variables, names, error))
-            return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-        exception_operation = "lmx_cas_polynomial_system_by_names";
-        std::vector<LMCAS::ExprPtr> expressions;
-        if (!array_expressions(equations, expressions, error))
-            return result_error(MathErrorCode::InvalidArgument, exception_operation, "solve.polynomial_system: " + error);
-        return polynomial_system_result(expressions, names, exception_operation);
-    } catch (...) {
-        return c_abi_current_exception(exception_operation);
-    }
+    ArrayObj* equations, ArrayObj* variables) noexcept try {
+    ensure_lmmc_runtime();
+    std::vector<std::string> names;
+    std::string error;
+    if (!math_internal::checked_symbol_names(variables, names, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    std::vector<LMCAS::ExprPtr> expressions;
+    if (!array_expressions(equations, expressions, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, "solve.polynomial_system: " + error);
+    return polynomial_system_result(expressions, names, __func__);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }
 extern "C" LM_API AdtObj* lmx_cas_parametric_system_by_names(
     ArrayObj* equations, ArrayObj* unknowns, ArrayObj* parameters) noexcept try {
@@ -177,22 +173,18 @@ extern "C" LM_API AdtObj* lmx_cas_parametric_piecewise_by_names(
 }
 
 extern "C" LM_API AdtObj* lmx_cas_parametric_piecewise_by_symbols(
-    ArrayObj* equations, ArrayObj* unknowns, ArrayObj* parameters) noexcept {
-    const char* exception_operation = __func__;
-    try {
-        ensure_lmmc_runtime();
-        std::vector<std::string> unknown_names, parameter_names;
-        std::string error;
-        if (!math_internal::checked_symbol_names(unknowns, unknown_names, error) ||
-            !math_internal::checked_symbol_names(parameters, parameter_names, error))
-            return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-        exception_operation = "lmx_cas_parametric_piecewise_by_names";
-        std::vector<LMCAS::ExprPtr> values;
-        if (!array_expressions(equations, values, error))
-            return result_error(MathErrorCode::InvalidArgument, exception_operation, "solve.parametric_piecewise: " + error);
-        return parametric_piecewise_result(
-            values, unknown_names, parameter_names, exception_operation);
-    } catch (...) {
-        return c_abi_current_exception(exception_operation);
-    }
+    ArrayObj* equations, ArrayObj* unknowns, ArrayObj* parameters) noexcept try {
+    ensure_lmmc_runtime();
+    std::vector<std::string> unknown_names, parameter_names;
+    std::string error;
+    if (!math_internal::checked_symbol_names(unknowns, unknown_names, error) ||
+        !math_internal::checked_symbol_names(parameters, parameter_names, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    std::vector<LMCAS::ExprPtr> values;
+    if (!array_expressions(equations, values, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, "solve.parametric_piecewise: " + error);
+    return parametric_piecewise_result(
+        values, unknown_names, parameter_names, __func__);
+} catch (...) {
+    return c_abi_current_exception(__func__);
 }

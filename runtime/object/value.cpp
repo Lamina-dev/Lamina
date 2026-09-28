@@ -96,6 +96,7 @@ bool Value::operator==(const Value &other) const noexcept {
     case ValueKind::Real: return real_val == other.real_val;
     case ValueKind::C_VaList: return false;
     case ValueKind::C_ValueRef: return false;
+    case ValueKind::C_TextObj: return false;
     }
     return false;
 }
@@ -155,6 +156,7 @@ std::size_t Value::hash() const noexcept {
         }
     case ValueKind::C_VaList:
     case ValueKind::C_ValueRef:
+    case ValueKind::C_TextObj:
         return 0;
     }
     return 0;
@@ -186,6 +188,7 @@ std::string Value::to_string() const noexcept {
     case ValueKind::Fraction: return frac_val.to_string();
     case ValueKind::C_VaList: return "VaList";
     case ValueKind::C_ValueRef: return "ValueRef";
+    case ValueKind::C_TextObj: return "TextObj";
     }
 
     return {};

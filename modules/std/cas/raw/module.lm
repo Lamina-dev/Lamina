@@ -11,10 +11,24 @@ import std.cas.raw.complex_analysis
 import std.cas.raw.ordinary_differential_equations
 import std.cas.raw.geometry
 
+type FiniteSolution = FiniteSolution(expr, int, array<expr>)
+type IntervalSolution = IntervalSolution(expr, expr, bool, bool, array<expr>)
+type ParametricSolution = ParametricSolution(expr, array<text>, array<expr>)
+type ConditionSet = ConditionSet(text, expr, array<expr>)
+type SolutionSet =
+    Empty
+    | Universal
+    | Finite(array<FiniteSolution>)
+    | Interval(array<IntervalSolution>)
+    | Conditional(ConditionSet)
+    | Parametric(array<ParametricSolution>)
+
 static "liblamina"
 
 func symbol(name text) -> Result<expr, mathematics_error.MathError> = "lmx_cas_symbol"
 func parse(source text) -> Result<expr, mathematics_error.MathError> = "lmx_cas_parse"
+func serialize_expr(value expr) -> Result<text, mathematics_error.MathError> = "lmx_cas_serialize_expr"
+func parse_serialized_expr(source text) -> Result<expr, mathematics_error.MathError> = "lmx_cas_parse_serialized_expr"
 func pi() -> Result<expr, mathematics_error.MathError> = "lmx_cas_pi"
 func euler_number() -> Result<expr, mathematics_error.MathError> = "lmx_cas_euler_number"
 func golden_ratio() -> Result<expr, mathematics_error.MathError> = "lmx_cas_golden_ratio"
@@ -129,5 +143,9 @@ func solve(equation expr, variable text) -> Result<set<expr>, mathematics_error.
 func solve(equation expr, variable expr) -> Result<set<expr>, mathematics_error.MathError> = "lmx_cas_solve_by_symbol"
 func roots(value expr, variable text) -> Result<set<expr>, mathematics_error.MathError> = "lmx_cas_roots_by_name"
 func roots(value expr, variable expr) -> Result<set<expr>, mathematics_error.MathError> = "lmx_cas_roots_by_symbol"
+func solve_set(equation expr, variable text) -> Result<SolutionSet, mathematics_error.MathError> = "lmx_cas_solve_set_by_name"
+func solve_set(equation expr, variable expr) -> Result<SolutionSet, mathematics_error.MathError> = "lmx_cas_solve_set_by_symbol"
+func roots_set(value expr, variable text) -> Result<SolutionSet, mathematics_error.MathError> = "lmx_cas_roots_set_by_name"
+func roots_set(value expr, variable expr) -> Result<SolutionSet, mathematics_error.MathError> = "lmx_cas_roots_set_by_symbol"
 func to_text(value expr) -> text = "lmx_computer_algebra_to_text"
 func set_to_array(values set<expr>) -> array<expr> = "lmx_cas_set_to_array"

@@ -27,6 +27,11 @@ with the corresponding `*_checked` methods. Propagate each `Result` error;
 conversion errors retain `InvalidArgument` or `UnboundSymbol`, and shape
 errors retain `DimensionMismatch`.
 
+`BigInt::is_prime()` is replaced by `is_prime_checked()`. Inspect its
+`Result<bool>` before reading the value: the machine-word path is decisive,
+while a large integer with no compositeness witness returns `Inconclusive`.
+Callers that require a proved prime must handle that error explicitly.
+
 `SymbolicExpr` no longer exposes the broad `Type` enum or the deprecated
 `get_type`, `get_operands`, `get_number_value`, and `get_identifier`
 introspection methods. Use concrete predicates or `expr_match` for matching,

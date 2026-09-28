@@ -43,6 +43,7 @@ add_executable(test_bridge_error_boundary
     test_bridge_error_boundary.cpp
     test_bridge_error_boundary_main.cpp
     ../bridge/mathematics_error.cpp
+    ../bridge/result.cpp
     $<TARGET_OBJECTS:lamina_runtime>
 )
 target_link_libraries(test_bridge_error_boundary PRIVATE
@@ -95,6 +96,7 @@ add_lamina_error_test(adt_unknown_field_type adt_unknown_field_type.lm "unknown 
 add_lamina_error_test(expr_bool_promotion expr_bool_promotion.lm "type mismatch")
 add_lamina_error_test(set_mixed_elements set_mixed_elements.lm "SetElementTypeMismatch")
 add_lamina_output_test(expr_direct_lowering expr_direct_lowering.lm "x + 3|x|f(x, 2)|g(2)|1|[0, x]|(0, 1)|4*(0 + 1*I)|3|2|2")
+add_lamina_error_test(expr_direct_invalid_interval expr_direct_invalid_interval.lm "InvalidArgument")
 add_lamina_error_test(expr_condition expr_condition.lm "must be bool type")
 add_lamina_error_test(expr_bool_logic expr_bool_logic.lm "binary operation cannot applied")
 add_lamina_error_test(implicit_multiplication_spaced implicit_multiplication_spaced.lm "ComplexLiteralSpacing")
@@ -125,6 +127,8 @@ add_lamina_output_test(math_linalg_advanced math_linalg_advanced.lm "6.0|9.0|9.0
 add_lamina_output_test(computer_algebra_sets_match_bindings computer_algebra_sets_match_bindings.lm "3|5|13.0|1|1|1,x,y|1|1|1|1,1,x|{1, 2}|[1, 2)")
 add_lamina_output_test(cas_analysis cas_analysis.lm "0.3333|0.3333|1,1|1|1|1|1|1|1")
 add_lamina_output_test(cas_solutions cas_solutions.lm "solve-x2m1:1|1|complete=1\nroots-x2m1:1|1|complete=1\nsolve-q:residuals=1|complete=1\nroots-q:residuals=1|complete=1\nsolve-neq:!InvalidArgument:LMCAS.solve_expr_set\nsolve-deg5:1|1|1|1|1|complete=1\nsolve-complex:1|1|complete=1\nroots-repeated:1|complete=1\nsolve-lambert:value=1|residuals=1|complete=1\n")
+add_lamina_output_test(cas_solution_sets cas_solution_sets.lm "1|1|1|1|1|1|1|1|1|1|1")
+add_lamina_output_test(cas_serialization cas_serialization.lm "1|1|1|1|1|1|1|1|1|1")
 add_lamina_output_test(math_constants_decompositions math_constants_decompositions.lm "9.80665|m*s^-2|EARTH_GRAVITY,ROOM_TEMPERATURE|0.0,1.0|2,2.0|2,3.0")
 add_lamina_output_test(math_api math_api.lm "square_root(2) = 1.414214\ndeterminant = -14.0\nsparse cg converged=1 x[0] ~= 0.090909\nintegral x^2 = 0.333333 (ok)\nd/dx correct = 1\nMathError{code=IndexOutOfBounds, operation=math.sqrt}\n")
 add_lamina_output_test(core_language core_language.lm "120,25,36|1,8,3|8,6|negative,zero,positive|ok|1,1,2,32")

@@ -15,6 +15,7 @@
 #include "runtime/object/literal.hpp"
 
 #include <result.hpp>
+#include "conditional_result.hpp"
 #include "transform_engine.hpp"
 
 #include <memory>
@@ -36,12 +37,12 @@ using runtime::ValueKind;
 // to the VM caller; every object parameter is a borrowed reference valid for
 // the duration of the call unless explicitly documented otherwise.
 
-[[noreturn]] ExprObj* expression_internal_error(std::string message);
 ExprObj* expr_from_result(const LMCAS::ExprResult& result);
 AdtObj* expr_result_ok(const LMCAS::ExprResult& result);
 AdtObj* expr_pointer_result(LMCAS::ExprPtr value,
                                 const char* operation);
 AdtObj* expression_set_literal_result(const LMCAS::ExprSetResult& result);
+AdtObj* solution_set_result(const LMCAS::SolveResult& result);
 AdtObj* transform_engine_result_value(const LMCAS::TransformEngineResult& result);
 
 template <typename Operation>

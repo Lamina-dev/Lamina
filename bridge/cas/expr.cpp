@@ -10,6 +10,31 @@ struct VaListEnd {
     va_list* args;
     ~VaListEnd() { va_end(*args); }
 };
+
+ExprObj* input_error(ExprObj* object, std::string message, const char* operation) {
+    if (object && !object->ok()) return new ExprObj(object->error());
+    return expr_from_result(invalid_expr_operation(message, operation));
+}
+
+ExprObj* boundary_error(const char* operation) noexcept {
+    try {
+        throw;
+    } catch (const LMCAS::CasError& error) {
+        try { return new ExprObj(error); } catch (...) { return nullptr; }
+    } catch (const std::bad_alloc&) {
+        return nullptr;
+    } catch (const std::exception& error) {
+        try {
+            return new ExprObj(LMCAS::CasError{
+                LMCAS::CasErrc::InternalInvariant, error.what(), operation});
+        } catch (...) { return nullptr; }
+    } catch (...) {
+        try {
+            return new ExprObj(LMCAS::CasError{
+                LMCAS::CasErrc::InternalInvariant, "unknown exception", operation});
+        } catch (...) { return nullptr; }
+    }
+}
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_symbol(
@@ -17,7 +42,7 @@ extern "C" LM_API ExprObj* lmx_cas_expr_symbol(
     ensure_lmmc_runtime();
     return expr_from_result(LMCAS::sym(name ? name : ""));
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API AdtObj* lmx_cas_symbol(const char* name) noexcept try {
@@ -30,6 +55,31 @@ extern "C" LM_API AdtObj* lmx_cas_symbol(const char* name) noexcept try {
 extern "C" LM_API AdtObj* lmx_cas_parse(const char* source) noexcept try {
     ensure_lmmc_runtime();
     return expr_result_ok(LMCAS::parse_expr(source ? source : ""));
+} catch (...) {
+    return c_abi_current_exception(__func__);
+}
+
+extern "C" LM_API AdtObj* lmx_cas_serialize_expr(ExprObj* value) noexcept try {
+    ensure_lmmc_runtime();
+    std::string error;
+    const auto* expression = checked_expr(value, error);
+    if (!expression)
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    LMCAS::ComputationContext context;
+    auto result = LMCAS::serialize_expr(*expression, context);
+    if (!result) return result_error(result.error());
+    return result_ok(new StringObj(std::move(result.value())), ValueKind::Obj);
+} catch (...) {
+    return c_abi_current_exception(__func__);
+}
+
+extern "C" LM_API AdtObj* lmx_cas_parse_serialized_expr(
+    const StringObj* source) noexcept try {
+    ensure_lmmc_runtime();
+    if (!source)
+        return result_error(MathErrorCode::InvalidArgument, __func__, "null serialized expression");
+    LMCAS::ComputationContext context;
+    return expr_result_ok(LMCAS::parse_serialized_expr(source->to_string(), context));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -59,29 +109,31 @@ extern "C" LM_API ExprObj* lmx_cas_expr_imaginary_unit() noexcept try {
     ensure_lmmc_runtime();
     return expr_from_result(LMCAS::imaginary_unit());
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_integer(const LmInt value) noexcept try {
     ensure_lmmc_runtime();
     return expr_from_result(LMCAS::integer(LMCAS::BigInt(value)));
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_rational(const LmInt numerator,
                                                const LmInt denominator) noexcept try {
     ensure_lmmc_runtime();
-    if (denominator == 0) return expression_internal_error("CasError(DivisionByZero: rational denominator is zero)");
+    if (denominator == 0) return expr_from_result(invalid_expr_operation(
+        "rational denominator is zero", __func__));
     return expr_from_result(LMCAS::rational(LMCAS::Rational(
         LMCAS::BigInt(numerator), LMCAS::BigInt(denominator))));
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_promote_value(const lmx::runtime::Value* value) noexcept try {
     ensure_lmmc_runtime();
-    if (!value) return expression_internal_error("CasError(InvalidArgument: null Lamina value)");
+    if (!value) return expr_from_result(invalid_expr_operation(
+        "null Lamina value", __func__));
     switch (value->kind) {
     case lmx::runtime::ValueKind::Int:
         return expr_from_result(LMCAS::integer(LMCAS::BigInt(value->int_val)));
@@ -94,7 +146,8 @@ extern "C" LM_API ExprObj* lmx_cas_expr_promote_value(const lmx::runtime::Value*
         std::string error;
         const auto* expression = checked_expr(
             reinterpret_cast<ExprObj*>(value->obj), error);
-        return expression ? new ExprObj(*expression) : expression_internal_error(std::move(error));
+        return expression ? new ExprObj(*expression) :
+            input_error(reinterpret_cast<ExprObj*>(value->obj), std::move(error), __func__);
     }
     case lmx::runtime::ValueKind::Complex: {
         const auto* complex = reinterpret_cast<const ComplexObj*>(value->obj);
@@ -114,7 +167,7 @@ extern "C" LM_API ExprObj* lmx_cas_expr_promote_value(const lmx::runtime::Value*
             "Lamina value cannot be promoted to Expr", "runtime.expr_value"));
     }
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_unary(const LmInt operation,
@@ -122,7 +175,7 @@ extern "C" LM_API ExprObj* lmx_cas_expr_unary(const LmInt operation,
     ensure_lmmc_runtime();
     std::string error;
     const auto* value = checked_expr(operand, error);
-    if (!value) return expression_internal_error(std::move(error));
+    if (!value) return input_error(operand, std::move(error), __func__);
     switch (operation) {
     case LMX_EXPRESSION_OPERATION_NEG:
         return expr_from_result(LMCAS::neg(*value));
@@ -133,7 +186,7 @@ extern "C" LM_API ExprObj* lmx_cas_expr_unary(const LmInt operation,
             "unknown unary Expr operation", "runtime.expr_unary"));
     }
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_binary(const LmInt operation,
@@ -141,9 +194,9 @@ extern "C" LM_API ExprObj* lmx_cas_expr_binary(const LmInt operation,
     ensure_lmmc_runtime();
     std::string error;
     const auto* left = checked_expr(lhs, error);
-    if (!left) return expression_internal_error(std::move(error));
+    if (!left) return input_error(lhs, std::move(error), __func__);
     const auto* right = checked_expr(rhs, error);
-    if (!right) return expression_internal_error(std::move(error));
+    if (!right) return input_error(rhs, std::move(error), __func__);
     switch (operation) {
     case LMX_EXPRESSION_OPERATION_ADD: return expr_from_result(LMCAS::add(*left, *right));
     case LMX_EXPRESSION_OPERATION_SUB: return expr_from_result(LMCAS::sub(*left, *right));
@@ -165,7 +218,7 @@ extern "C" LM_API ExprObj* lmx_cas_expr_binary(const LmInt operation,
             "unknown binary Expr operation", "runtime.expr_binary"));
     }
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_function(const char* name,
@@ -177,10 +230,10 @@ extern "C" LM_API ExprObj* lmx_cas_expr_function(const char* name,
     std::vector<LMCAS::ExprPtr> values;
     std::string error;
     const bool valid = collect_expr_arguments(args, count, values, error);
-    if (!valid) return expression_internal_error(std::move(error));
+    if (!valid) return expr_from_result(invalid_expr_operation(error, __func__));
     return expr_from_result(LMCAS::function(name ? name : "", std::move(values)));
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_set(const LmInt count, ...) noexcept try {
@@ -191,10 +244,10 @@ extern "C" LM_API ExprObj* lmx_cas_expr_set(const LmInt count, ...) noexcept try
     std::vector<LMCAS::ExprPtr> values;
     std::string error;
     const bool valid = collect_expr_arguments(args, count, values, error);
-    if (!valid) return expression_internal_error(std::move(error));
+    if (!valid) return expr_from_result(invalid_expr_operation(error, __func__));
     return expr_from_result(LMCAS::finite_set(std::move(values)));
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_interval(ExprObj* lower, ExprObj* upper,
@@ -203,13 +256,13 @@ extern "C" LM_API ExprObj* lmx_cas_expr_interval(ExprObj* lower, ExprObj* upper,
     ensure_lmmc_runtime();
     std::string error;
     const auto* lower_value = checked_expr(lower, error);
-    if (!lower_value) return expression_internal_error(std::move(error));
+    if (!lower_value) return input_error(lower, std::move(error), __func__);
     const auto* upper_value = checked_expr(upper, error);
-    if (!upper_value) return expression_internal_error(std::move(error));
+    if (!upper_value) return input_error(upper, std::move(error), __func__);
     return expr_from_result(LMCAS::interval(
         *lower_value, *upper_value, lower_closed, upper_closed));
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_attach_unit(
@@ -218,16 +271,16 @@ extern "C" LM_API ExprObj* lmx_cas_expr_attach_unit(
     ensure_lmmc_runtime();
     std::string error;
     const auto* expression = checked_expr(value, error);
-    if (!expression) return expression_internal_error(std::move(error));
+    if (!expression) return input_error(value, std::move(error), __func__);
     auto definition = resolved_unit_definition(
         dimension, scale_numerator, scale_denominator, error);
-    if (!definition) return expression_internal_error(std::move(error));
+    if (!definition) return expr_from_result(invalid_expr_operation(error, __func__));
     LMCAS::ComputationContext context;
     return expr_from_result(LMCAS::with_unit_definition(
         *expression, display_unit ? display_unit : "1",
         std::move(*definition), context));
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_convert_unit(
@@ -236,38 +289,38 @@ extern "C" LM_API ExprObj* lmx_cas_expr_convert_unit(
     ensure_lmmc_runtime();
     std::string error;
     const auto* expression = checked_expr(value, error);
-    if (!expression) return expression_internal_error(std::move(error));
+    if (!expression) return input_error(value, std::move(error), __func__);
     auto definition = resolved_unit_definition(
         dimension, scale_numerator, scale_denominator, error);
-    if (!definition) return expression_internal_error(std::move(error));
+    if (!definition) return expr_from_result(invalid_expr_operation(error, __func__));
     LMCAS::ComputationContext context;
     return expr_from_result(LMCAS::convert_to_unit_definition(
         *expression, display_unit ? display_unit : "1",
         std::move(*definition), context));
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_strip_base_value(ExprObj* value) noexcept try {
     ensure_lmmc_runtime();
     std::string error;
     const auto* expression = checked_expr(value, error);
-    if (!expression) return expression_internal_error(std::move(error));
+    if (!expression) return input_error(value, std::move(error), __func__);
     LMCAS::ComputationContext context;
     return expr_from_result(LMCAS::strip_to_base_value(
         *expression, context));
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }
 
 extern "C" LM_API ExprObj* lmx_cas_expr_strip_display_value(ExprObj* value) noexcept try {
     ensure_lmmc_runtime();
     std::string error;
     const auto* expression = checked_expr(value, error);
-    if (!expression) return expression_internal_error(std::move(error));
+    if (!expression) return input_error(value, std::move(error), __func__);
     LMCAS::ComputationContext context;
     return expr_from_result(LMCAS::strip_to_display_value(
         *expression, context));
 } catch (...) {
-    return nullptr;
+    return boundary_error(__func__);
 }

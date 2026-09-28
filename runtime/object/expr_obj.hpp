@@ -3,6 +3,7 @@
 #include "object.hpp"
 #include "expr.hpp"
 
+#include <optional>
 #include <string>
 #include <functional>
 #include <utility>
@@ -11,13 +12,12 @@ namespace lmx::runtime {
 
 class ExprObj : public Object {
     LMCAS::ExprPtr expr_;
-    std::string error_;
-
+    std::optional<LMCAS::CasError> error_;
 public:
     explicit ExprObj(LMCAS::ExprPtr expr) noexcept
         : Object(ObjectKind::Expr), expr_(std::move(expr)) {}
 
-    explicit ExprObj(std::string error) noexcept
+    explicit ExprObj(LMCAS::CasError error) noexcept
         : Object(ObjectKind::Expr), error_(std::move(error)) {}
 
     [[nodiscard]] bool ok() const noexcept {
@@ -28,17 +28,20 @@ public:
         return expr_;
     }
 
-    [[nodiscard]] const std::string& error() const noexcept {
-        return error_;
+    [[nodiscard]] const LMCAS::CasError& error() const noexcept {
+        return *error_;
     }
 
     [[nodiscard]] std::string to_string() const noexcept {
-        if (!ok()) return error_;
+        if (!ok()) return std::string(LMCAS::error_name(*error_)) + ": " +
+                          error_->operation + ": " + error_->message;
         return expr_->to_string();
     }
     [[nodiscard]] bool equals(const ExprObj& other) const noexcept {
         if (ok() != other.ok()) return false;
-        if (!ok()) return error_ == other.error_;
+        if (!ok()) return error_->code == other.error_->code &&
+                          error_->operation == other.error_->operation &&
+                          error_->message == other.error_->message;
         return expr_->compare(other.expr_) == 0;
     }
 

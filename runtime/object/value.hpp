@@ -12,7 +12,7 @@ namespace lmx::runtime {
 enum class ValueKind : uint8_t {
     Null, C_Ptr, Obj, Int, Bool, Fraction, Real, Expr, C_VaList,
     C_ValueRef, Tuple, Set, Interval, Complex, Vector, Matrix, Table, Random,
-    Quantity, Sparse, Tensor, Assumptions
+    Quantity, Sparse, Tensor, Assumptions, C_TextObj
 };
 
 LMX_INLINE constexpr bool is_object_value_kind(const ValueKind kind) noexcept {
@@ -268,6 +268,7 @@ LMX_INLINE Value &Value::operator=(const Value &other) noexcept {
         case ValueKind::Real: real_val = other.real_val; break;
         case ValueKind::C_VaList: c_ptr = nullptr; break;
         case ValueKind::C_ValueRef: c_ptr = nullptr; break;
+        case ValueKind::C_TextObj: c_ptr = nullptr; break;
         case ValueKind::Obj:
         case ValueKind::Expr:
         case ValueKind::Tuple:
@@ -318,6 +319,7 @@ LMX_INLINE Value &Value::operator=(Value &&other) noexcept {
     case ValueKind::Real: real_val = other.real_val; break;
     case ValueKind::C_VaList: c_ptr = nullptr; break;
     case ValueKind::C_ValueRef: c_ptr = nullptr; break;
+    case ValueKind::C_TextObj: c_ptr = nullptr; break;
     }
     if (is_object_value_kind(kind) || kind == ValueKind::C_Ptr ||
         kind == ValueKind::C_ValueRef) {

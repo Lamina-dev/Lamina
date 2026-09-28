@@ -10,13 +10,12 @@ using namespace lmx::bridge;
 
 extern "C" LM_API AdtObj* lmx_math_hypot(ExprObj* lhs, ExprObj* rhs) noexcept try {
     ensure_lmmc_runtime();
-    double x = 0.0;
-    double y = 0.0;
-    std::string error;
-    if (!expr_to_real(lhs, x, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
-    if (!expr_to_real(rhs, y, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    const auto x = expr_to_real(lhs, __func__);
+    if (!x) return result_error(x.error());
+    const auto y = expr_to_real(rhs, __func__);
+    if (!y) return result_error(y.error());
     lmmc_real_t out = 0.0;
-    const auto status = lmmc_hypot(x, y, &out);
+    const auto status = lmmc_hypot(x.value(), y.value(), &out);
     return lmmc_real_result("lmx_math_hypot", status, out);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -24,11 +23,10 @@ extern "C" LM_API AdtObj* lmx_math_hypot(ExprObj* lhs, ExprObj* rhs) noexcept tr
 
 extern "C" LM_API AdtObj* lmx_math_log2(ExprObj* expr) noexcept try {
     ensure_lmmc_runtime();
-    double x = 0.0;
-    std::string error;
-    if (!expr_to_real(expr, x, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    const auto x = expr_to_real(expr, __func__);
+    if (!x) return result_error(x.error());
     lmmc_real_t out = 0.0;
-    const auto status = lmmc_log2(x, &out);
+    const auto status = lmmc_log2(x.value(), &out);
     return lmmc_real_result("lmx_math_log2", status, out);
 } catch (...) {
     return c_abi_current_exception(__func__);
@@ -36,11 +34,10 @@ extern "C" LM_API AdtObj* lmx_math_log2(ExprObj* expr) noexcept try {
 
 extern "C" LM_API AdtObj* lmx_math_exp2(ExprObj* expr) noexcept try {
     ensure_lmmc_runtime();
-    double x = 0.0;
-    std::string error;
-    if (!expr_to_real(expr, x, error)) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    const auto x = expr_to_real(expr, __func__);
+    if (!x) return result_error(x.error());
     lmmc_real_t out = 0.0;
-    const auto status = lmmc_exp2(x, &out);
+    const auto status = lmmc_exp2(x.value(), &out);
     return lmmc_real_result("lmx_math_exp2", status, out);
 } catch (...) {
     return c_abi_current_exception(__func__);

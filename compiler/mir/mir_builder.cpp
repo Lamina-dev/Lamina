@@ -732,6 +732,8 @@ public:
         for (auto &ty: node->params->stmts | std::views::values) {
             params.push_back(native_value_kind(ty));
         }
+        if (node->symbol == "lmx_cas_parse_serialized_expr" && params.size() == 1)
+            params[0] = runtime::ValueKind::C_TextObj;
         const auto ret_ty = native_value_kind(node->return_type);
         emit(std::make_shared<MirNativeFuncDefine>(node->func_id, node->symbol, std::move(params), ret_ty));
     }
@@ -756,6 +758,8 @@ public:
                 for (const auto& param : native_type->params_ty) {
                     params.push_back(native_value_kind(param));
                 }
+                if (native_type->name == "lmx_cas_parse_serialized_expr" && params.size() == 1)
+                    params[0] = runtime::ValueKind::C_TextObj;
                 const auto ret_ty = native_value_kind(native_type->ret_ty);
                 const auto overload_name =
                     qualified_name + "\x1f" + native_type->name;

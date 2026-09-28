@@ -17,8 +17,6 @@ using runtime::MatrixObj;
 using runtime::ValueKind;
 using runtime::VectorObj;
 
-lmmc_vec_t vector_view(const VectorObj* value) noexcept;
-lmmc_mat_t matrix_view(const MatrixObj* value) noexcept;
 AdtObj* lmmc_vector_output(const char* name, lmmc_status_t status,
                            lmmc_vec_t& output);
 AdtObj* lmmc_matrix_output(const char* name, lmmc_status_t status,

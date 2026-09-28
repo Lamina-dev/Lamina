@@ -12,6 +12,7 @@
 #include "lmx.h"
 #include "../utils/utils.hpp"
 #include "object/code_module.hpp"
+#include "object/expr_obj.hpp"
 #include "object/StringObj.hpp"
 #include "object/value.hpp"
 
@@ -107,6 +108,10 @@ class LaminaVM {
             dcArgPointer(call_vm, const_cast<Value*>(v));
             break;
         }
+        case ValueKind::C_TextObj: {
+            dcArgPointer(call_vm, (DCpointer)v->obj);
+            break;
+        }
         }
     }
     LMX_INLINE static void native_arg(DCCallVM* call_vm, const Value* v) noexcept {
@@ -179,6 +184,13 @@ public:
                 dcMode(call_vm, DC_CALL_C_ELLIPSIS);
                 break;
             }
+            if (k == ValueKind::C_TextObj &&
+                (regs[LMX_VM_REG_COUNT - 1 - i].kind != ValueKind::Obj ||
+                 !regs[LMX_VM_REG_COUNT - 1 - i].obj ||
+                 regs[LMX_VM_REG_COUNT - 1 - i].obj->get_kind() != ObjectKind::String)) {
+                VM_ERROR(RuntimeErrorType::Runtime,
+                         std::string("expected text argument in ") + meta->name);
+            }
             native_arg(call_vm, k, &regs[LMX_VM_REG_COUNT - 1 - i]);
         }
         if (va_list_len > 0) {
@@ -203,7 +215,26 @@ public:
             case ValueKind::Int:    regs[0] = static_cast<LmInt>(dcCallLongLong(call_vm, (DCpointer) meta->addr)); break;
             case ValueKind::Bool:   regs[0] = static_cast<bool>(dcCallBool(call_vm, (DCpointer) meta->addr)); break;
             case ValueKind::Real:   regs[0] = dcCallDouble(call_vm, (DCpointer) meta->addr); break;
-            case ValueKind::Expr:
+            case ValueKind::Expr: {
+                auto* expr = static_cast<ExprObj*>(
+                    dcCallPointer(call_vm, (DCpointer)meta->addr));
+                if (!expr) {
+                    VM_ERROR(RuntimeErrorType::Runtime,
+                             std::string("ResourceLimit in ") + meta->name +
+                             ": expression allocation failed");
+                }
+                if (!expr->ok()) {
+                    std::unique_ptr<ExprObj> failure(expr);
+                    const auto& error = failure->error();
+                    VM_ERROR(RuntimeErrorType::Runtime,
+                             std::string(LMCAS::error_name(error)) + " in " +
+                             error.operation + ": " + error.message);
+                }
+                regs[0].~Value();
+                regs[0].kind = ValueKind::Expr;
+                regs[0].obj = expr;
+                break;
+            }
             case ValueKind::Tuple:
             case ValueKind::Set:
             case ValueKind::Interval:
@@ -223,6 +254,7 @@ public:
             case ValueKind::Fraction: dcCallVoid(call_vm, (DCpointer)meta->addr); break;
             case ValueKind::C_VaList:
             case ValueKind::C_ValueRef:
+            case ValueKind::C_TextObj:
                 break;
             }
         }

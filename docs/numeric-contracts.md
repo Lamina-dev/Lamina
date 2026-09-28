@@ -19,6 +19,10 @@ This reference records the numerical contracts shared by LMMC and CAS numeric ev
   binary64 values; a nonzero exact input must also remain nonzero after conversion.
   Overflow and underflow report `CasErrc::NumericFailure` with operation
   `Value::as_number_checked`.
+- `BigInt::is_prime_checked` returns a proved boolean result for machine-word
+  inputs. For larger integers, a compositeness witness yields `false`; passing
+  the tested witnesses yields `CasErrc::Inconclusive` rather than a primality
+  claim.
 
 ## Integration and ODE
 
@@ -28,6 +32,9 @@ This reference records the numerical contracts shared by LMMC and CAS numeric ev
   callback count. No rounded endpoint is sampled.
 - SDIRK stage checks use state-dimensional user tolerances and never commit a
   failed stage; local tolerances are not a global-error guarantee.
+- Characteristic quadratic roots retain distinct representable coefficients;
+  root multiplicity follows a zero discriminant. ODE basis terms therefore
+  preserve small nonintegral exponents and closely spaced roots.
 
 ## Statistics and sparse matrices
 
@@ -37,11 +44,35 @@ This reference records the numerical contracts shared by LMMC and CAS numeric ev
   numerical failure for genuine overflow.
 - Successful Beta samples are finite and lie in `[0,1]`, including rounded
   endpoints. Invalid arguments leave the RNG and output unchanged.
+- Chi-square sampling accepts every finite positive degree of freedom,
+  including values whose half-degree underflows; valid samples may round to
+  zero. Student-t and F sampling report numerical failure when a sampled
+  denominator vanishes or the result cannot be represented as finite.
+- Chi-square CDF and Student-t PDF/CDF retain positive subnormal degrees of
+  freedom when `df / 2` underflows. At the minimum positive binary64 df, a
+  positive chi-square argument has CDF 1, finite t arguments have CDF 0.5,
+  and the t density at zero is approximately `sqrt(df) / 2`.
+- Chi-square PDF uses the small-shape Gamma limit when `df / 2` underflows;
+  at `x = df = DBL_TRUE_MIN`, its density is 0.5. F CDF uses the small
+  numerator-shape Beta limit for finite positive `x`; equal minimum positive
+  numerator and denominator degrees yield probability 0.5.
 - Sparse builders and COO conversion merge duplicate coordinates, retain explicit
   zeros produced by duplicate-coordinate accumulation, and sort compressed indices.
   Borrowed CSR/CSC buffers must already be canonical and are never silently
   rewritten. Dense conversion, diagonal, norms, arithmetic, and solvers observe
   the same represented matrix.
+
+## Interpolation and linear algebra
+
+- Bilinear interpolation computes fractions across finite endpoint spans,
+  including spans whose subtraction overflows binary64. Lagrange interpolation
+  normalizes barycentric weights and values so representable tiny node spacing
+  and large constant ordinates remain evaluable.
+- Vector and matrix division by a finite nonzero scalar computes each quotient
+  directly and accepts representable results even when the scalar is subnormal.
+- A 2×2 determinant retains cancellation between individually overflowing
+  products when the resulting determinant fits binary64; singular finite
+  matrices yield zero.
 
 ## Optimization
 

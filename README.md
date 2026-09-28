@@ -9,8 +9,9 @@ Lamina 是一个静态强类型、表达式导向的数学 DSL / 脚本语言，
 
 ## 快速开始
 
-依赖：CMake ≥ 3.26、C++23 编译器（GCC、Clang 或 AppleClang；MSVC 不支持）。仓库使用递归
-submodule 提供 `dyncall`、LMCAS、LMMC 与 LMMP。
+依赖：CMake ≥ 3.26、C++23 编译器（GCC、Clang 或 AppleClang；Windows 使用 MinGW
+或 GNU-driver Clang，MSVC ABI 前端包括 clang-cl 不受支持）。仓库使用递归 submodule
+提供 `dyncall`、LMCAS、LMMC 与 LMMP。
 
 支持 Windows x86_64、Linux x86_64，以及原生 macOS Apple Silicon (`arm64`) 和 Intel
 (`x86_64`)。通用 Release 构建：

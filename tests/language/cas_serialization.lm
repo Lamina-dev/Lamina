@@ -1,0 +1,45 @@
+import std
+import std.cas.raw
+import std.mathematics_error
+
+sym x
+
+let expression = x^2 + 2*x + 1
+let encoded = std.cas.serialize_expr(expression)
+let restored = std.cas.parse_serialized_expr(encoded)
+let symbol_pi = std.cas.parse_serialized_expr("LMCAS_EXPR/1\n6:symbol,2:pi,")
+let constant_pi = std.cas.pi()
+let set_value = std.cas.finite_set([x, 1 as expr, 2 as expr])
+let interval_value = std.cas.interval(0 as expr, 1 as expr, true, false)
+let unusual = std.cas.symbol("a\tb")
+std.printf("%d|%d|%d|%d|%d|%d|",
+    std.cas.structurally_equal(expression, restored),
+    std.cas.serialize_expr(restored) == encoded,
+    std.cas.serialize_expr(symbol_pi) != std.cas.serialize_expr(constant_pi),
+    std.cas.serialize_expr(set_value) ==
+        std.cas.serialize_expr(std.cas.parse_serialized_expr(std.cas.serialize_expr(set_value))),
+    std.cas.structurally_equal(interval_value,
+        std.cas.parse_serialized_expr(std.cas.serialize_expr(interval_value))),
+    std.cas.serialize_expr(unusual) ==
+        std.cas.serialize_expr(std.cas.parse_serialized_expr(std.cas.serialize_expr(unusual))))
+
+let binary_name = "LMCAS_EXPR/1\n6:symbol,3:a\0b,"
+let binary_symbol = std.cas.parse_serialized_expr(binary_name)
+std.printf("%d|%d|",
+    std.cas.serialize_expr(binary_symbol) == binary_name,
+    std.cas.serialize_expr(binary_symbol) != std.cas.serialize_expr(std.cas.symbol("a")))
+
+match raw.parse_serialized_expr("LMCAS_EXPR/2") {
+    Result.Ok(_) => std.printf("0|"),
+    Result.Err(error) => match mathematics_error.code(error) {
+        mathematics_error.ParseError => std.printf("1|"),
+        _ => std.printf("0|")
+    }
+}
+match raw.parse_serialized_expr("LMCAS_EXPR/1\0") {
+    Result.Ok(_) => std.printf("0"),
+    Result.Err(error) => match mathematics_error.code(error) {
+        mathematics_error.ParseError => std.printf("1"),
+        _ => std.printf("0")
+    }
+}

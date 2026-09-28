@@ -59,9 +59,9 @@ if(LMX_BUILD_TESTS OR LMCAS_BUILD_TESTS OR LMCAS_BUILD_LMMC_TESTS OR LMMC_BUILD_
     enable_testing()
 endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-if (MSVC AND NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
-    message(FATAL_ERROR "MSVC is not supported, use clang-cl or other compilers in Windows")
-endif ()
+if(MSVC)
+    message(FATAL_ERROR "MSVC ABI compilers (including clang-cl) are unsupported; use Windows MinGW or GNU-driver Clang")
+endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)

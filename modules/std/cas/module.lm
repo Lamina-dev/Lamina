@@ -26,6 +26,20 @@ func parse(source text) -> expr {
     }
 }
 
+func serialize_expr(value expr) -> text {
+    match raw.serialize_expr(value) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func parse_serialized_expr(source text) -> expr {
+    match raw.parse_serialized_expr(source) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
 func pi() -> expr {
     match raw.pi() {
         Result.Ok(value) => value,
@@ -810,6 +824,34 @@ func roots(value expr, variable text) -> set<expr> {
 
 func roots(value expr, variable expr) -> set<expr> {
     match raw.roots(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_set(equation expr, variable text) -> raw.SolutionSet {
+    match raw.solve_set(equation, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func solve_set(equation expr, variable expr) -> raw.SolutionSet {
+    match raw.solve_set(equation, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func roots_set(value expr, variable text) -> raw.SolutionSet {
+    match raw.roots_set(value, variable) {
+        Result.Ok(value) => value,
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func roots_set(value expr, variable expr) -> raw.SolutionSet {
+    match raw.roots_set(value, variable) {
         Result.Ok(value) => value,
         Result.Err(error) => mathematics_error.raise(error)
     }

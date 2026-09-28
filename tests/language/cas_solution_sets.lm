@@ -1,0 +1,73 @@
+import std
+import std.cas.raw
+import std.mathematics_error
+
+sym x
+
+func two_roots(solution raw.SolutionSet) -> bool {
+    match solution {
+        raw.Finite(values) => match values[0] {
+            raw.FiniteSolution(first, first_order, _) => match values[1] {
+                raw.FiniteSolution(second, second_order, _) =>
+                    first_order == 1 and second_order == 1
+                    and not std.cas.equivalent(first, second)
+                    and ((std.cas.equivalent(first, -1 as expr)
+                        and std.cas.equivalent(second, 1 as expr))
+                        or (std.cas.equivalent(first, 1 as expr)
+                            and std.cas.equivalent(second, -1 as expr)))
+            }
+        },
+        _ => false
+    }
+}
+
+func repeated(solution raw.SolutionSet) -> bool {
+    match solution {
+        raw.Finite(values) => match values[0] {
+            raw.FiniteSolution(value, multiplicity, _) =>
+                multiplicity == 2 and std.cas.equivalent(value, 1 as expr)
+        },
+        _ => false
+    }
+}
+
+func universal(solution raw.SolutionSet) -> bool {
+    match solution {
+        raw.Universal => true,
+        _ => false
+    }
+}
+
+func empty(solution raw.SolutionSet) -> bool {
+    match solution {
+        raw.Empty => true,
+        _ => false
+    }
+}
+
+let zero expr = 0
+std.printf("%d|%d|%d|%d|",
+    two_roots(std.cas.solve_set(x^2 - 1 == 0, "x")),
+    two_roots(std.cas.solve_set(x^2 - 1 == 0, x)),
+    two_roots(std.cas.roots_set(x^2 - 1, "x")),
+    two_roots(std.cas.roots_set(x^2 - 1, x)))
+std.printf("%d|%d|%d|%d|",
+    repeated(std.cas.solve_set((x - 1)^2 == 0, "x")),
+    repeated(std.cas.roots_set((x - 1)^2, x)),
+    universal(std.cas.roots_set(zero*x, "x")),
+    empty(std.cas.solve_set(zero*x == 1, x)))
+match raw.roots_set(zero*x - 1, "x") {
+    Result.Ok(solution) => std.printf("%d|", empty(solution)),
+    Result.Err(_) => std.printf("0|")
+}
+let old_roots = std.cas.set_to_array(std.cas.solve(x^2 == 1, "x"))
+let expected = [-1 as expr, 1 as expr]
+std.printf("%d|", std.cas.set_subset(old_roots, expected)
+    and std.cas.set_subset(expected, old_roots))
+match raw.roots(zero*x, "x") {
+    Result.Ok(_) => std.printf("0"),
+    Result.Err(error) => match mathematics_error.code(error) {
+        mathematics_error.Inconclusive => std.printf("1"),
+        _ => std.printf("0")
+    }
+}

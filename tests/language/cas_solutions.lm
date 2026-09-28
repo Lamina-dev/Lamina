@@ -19,16 +19,18 @@ func show_exact(label text, count int, values set<expr>, expected array<expr>) {
     std.printf("complete=%d\n", complete)
 }
 
-func show_equivalent_pair(label text, values set<expr>, expected array<expr>) {
+func show_complex_pair(label text, values set<expr>) {
     let items = std.cas.set_to_array(values)
-    let first = std.cas.equivalent(items[0], expected[0])
-        or std.cas.equivalent(items[1], expected[0])
-    let second = std.cas.equivalent(items[0], expected[1])
-        or std.cas.equivalent(items[1], expected[1])
-    let exact_cardinality = std.cas.set_subset(items, [items[0], items[1]])
-        and std.cas.set_subset([items[0], items[1]], items)
-    std.printf("%s%d|%d|complete=%d\n", label, first, second,
-        first and second and exact_cardinality)
+    let imaginary = [std.cas.imaginary_part(items[0]),
+        std.cas.imaginary_part(items[1])]
+    let negative = std.cas.set_contains(imaginary, -1 as expr)
+    let positive = std.cas.set_contains(imaginary, 1 as expr)
+    let complete = std.cas.set_subset(items, [items[0], items[1]])
+        and std.cas.set_subset(imaginary, [-1 as expr, 1 as expr])
+        and std.cas.structurally_equal(std.cas.real_part(items[0]), 0 as expr)
+        and std.cas.structurally_equal(std.cas.real_part(items[1]), 0 as expr)
+    std.printf("%s%d|%d|complete=%d\n", label, negative, positive,
+        negative and positive and complete)
 }
 
 func show_error(label text, result Result<set<expr>, mathematics_error.MathError>) {
@@ -89,7 +91,7 @@ let quintic_roots = [
     std.cas.parse("RootOf(x^5-x-1, x, 4)")
 ]
 show_exact("solve-deg5:", 5, std.cas.solve(x^5 - x - 1 == 0, "x"), quintic_roots)
-show_equivalent_pair("solve-complex:", std.cas.solve(x^2 + 1 == 0, "x"), [-I, I])
+show_complex_pair("solve-complex:", std.cas.solve(x^2 + 1 == 0, "x"))
 # roots 采用集合语义，重根 1 对应唯一的精确值。
 show_exact("roots-repeated:", 1, std.cas.roots((x - 1)^2, "x"),
     [std.cas.parse("1")])

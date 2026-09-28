@@ -64,3 +64,59 @@ extern "C" LM_API AdtObj* lmx_cas_roots_by_symbol(ExprObj* expression, ExprObj* 
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
+
+extern "C" LM_API AdtObj* lmx_cas_solve_set_by_name(
+    ExprObj* equation, const char* variable) noexcept try {
+    ensure_lmmc_runtime();
+    std::string error;
+    const auto* value = checked_expr(equation, error);
+    if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (LMCAS::relation_op(*value) != LMCAS::RelationOp::EQ)
+        return result_error(MathErrorCode::InvalidArgument, __func__,
+                            "solve requires an equality relation");
+    return solution_set_result(LMCAS::solve_set(*value, variable ? variable : ""));
+} catch (...) {
+    return c_abi_current_exception(__func__);
+}
+
+extern "C" LM_API AdtObj* lmx_cas_roots_set_by_name(
+    ExprObj* expression, const char* variable) noexcept try {
+    ensure_lmmc_runtime();
+    std::string error;
+    const auto* value = checked_expr(expression, error);
+    if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    return solution_set_result(LMCAS::solve_set(*value, variable ? variable : ""));
+} catch (...) {
+    return c_abi_current_exception(__func__);
+}
+
+extern "C" LM_API AdtObj* lmx_cas_solve_set_by_symbol(
+    ExprObj* equation, ExprObj* variable) noexcept try {
+    ensure_lmmc_runtime();
+    std::string name;
+    std::string error;
+    if (!checked_symbol_name(variable, name, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    const auto* value = checked_expr(equation, error);
+    if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    if (LMCAS::relation_op(*value) != LMCAS::RelationOp::EQ)
+        return result_error(MathErrorCode::InvalidArgument, __func__,
+                            "solve requires an equality relation");
+    return solution_set_result(LMCAS::solve_set(*value, name));
+} catch (...) {
+    return c_abi_current_exception(__func__);
+}
+
+extern "C" LM_API AdtObj* lmx_cas_roots_set_by_symbol(
+    ExprObj* expression, ExprObj* variable) noexcept try {
+    ensure_lmmc_runtime();
+    std::string name;
+    std::string error;
+    if (!checked_symbol_name(variable, name, error))
+        return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    const auto* value = checked_expr(expression, error);
+    if (!value) return result_error(MathErrorCode::InvalidArgument, __func__, std::move(error));
+    return solution_set_result(LMCAS::solve_set(*value, name));
+} catch (...) {
+    return c_abi_current_exception(__func__);
+}
