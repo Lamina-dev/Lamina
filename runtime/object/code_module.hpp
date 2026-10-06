@@ -16,6 +16,7 @@ struct FuncObj {
     CodeModuleObj* mod;
     const uint8_t* addr;
     uint32_t bytecode_len;
+    uint16_t local_count;
     explicit FuncObj(CodeModuleObj* mod, const uint8_t* addr, uint32_t bytecode_len = 0) noexcept;
 };
 struct NativeFuncObj {
@@ -57,6 +58,7 @@ public:
     std::vector<TypeInfo> types;
     const uint8_t* code{};
     size_t code_len{};
+    uint16_t local_count{};
     std::vector<uint8_t> raw_data{};
     explicit CodeModuleObj(std::vector<uint8_t>&& data);
     ~CodeModuleObj() noexcept;

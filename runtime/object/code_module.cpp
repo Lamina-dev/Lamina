@@ -16,8 +16,23 @@
 
 using namespace lmx::runtime;
 
+namespace {
+uint16_t count_locals(const uint8_t* code, const size_t len) noexcept {
+    uint16_t count = 0;
+    for (size_t i = 0; i + 4 <= len; i += 4) {
+        if (code[i] == static_cast<uint8_t>(Opcode::LGet) ||
+            code[i] == static_cast<uint8_t>(Opcode::LSet)) {
+            const auto needed = static_cast<uint16_t>(code[i + 2]) + 1;
+            if (count < needed) count = needed;
+        }
+    }
+    return count;
+}
+}
+
 FuncObj::FuncObj(CodeModuleObj *mod, const uint8_t *addr, const uint32_t bytecode_len) noexcept
-   : mod(mod), addr(addr), bytecode_len(bytecode_len) {}
+   : mod(mod), addr(addr), bytecode_len(bytecode_len),
+     local_count(bytecode_len ? count_locals(addr, bytecode_len) : 256) {}
 
 NativeFuncObj::NativeFuncObj(
     const void *addr,
@@ -224,6 +239,7 @@ CodeModuleObj::CodeModuleObj(std::vector<uint8_t>&& data) : Object(ObjectKind::C
     ModuleLoader::load_native_decl(native_funcs, native_lib_handle, binary);
     ModuleLoader::load_imports(imports, binary);
     ModuleLoader::load_entry_code(code, code_len, binary);
+    local_count = count_locals(code, code_len);
 }
 
 std::string CodeModuleObj::to_string() const noexcept {

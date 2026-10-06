@@ -1,6 +1,7 @@
 
 #include "vm.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cstdlib>
@@ -26,21 +27,21 @@ LaminaVM::LaminaVM(const int argc, char **argv) noexcept :
     stack(new Value[LMX_VM_REG_COUNT * LMX_CALLSTACK_MAX_COUNT]),
     regs(stack),
     args(argv, argc),
-    call_vms{dcNewCallVM(4096)} {}
+    call_vm(dcNewCallVM(4096)) {}
 
 LaminaVM::~LaminaVM() noexcept {
     delete[] stack;
     for (const auto frames : free_frames) delete frames;
     delete cur_frame;
-    for (auto* call_vm : call_vms) dcFree(call_vm);
+    dcFree(call_vm);
 }
 
 Value &LaminaVM::get_reg(const uint8_t reg) const noexcept {
     return regs[reg];
 }
 
-Frame::Frame(Frame* last, CodeModuleObj* mod ,const uint8_t *ret_addr) noexcept
-    : last(last), mod(mod), ret_addr(ret_addr)
+Frame::Frame(Frame* last, CodeModuleObj* mod, const uint8_t *ret_addr, const size_t local_count) noexcept
+    : last(last), mod(mod), ret_addr(ret_addr), local_vars(local_count)
 {}
 
 Frame::~Frame() noexcept = default;
@@ -238,7 +239,7 @@ int LaminaVM::run(CodeModuleObj* prog) noexcept {
     const auto* previous_vm = active_vm;
     active_vm = this;
     regs = stack;
-    new_frame(this, prog, nullptr);
+    new_frame(this, prog, nullptr, prog->local_count);
     if (const char* debug = std::getenv("LMX_DEBUG_DUMP");
         debug && debug[0] != '\0' && debug[0] != '0') {
         std::cout << prog->disassemble() << std::endl;
@@ -281,12 +282,11 @@ std::expected<Value, std::string> LaminaVM::invoke(
     Frame* const outer_frame = cur_frame;
     Value* const outer_regs = regs;
     Value* const callback_regs = regs + LMX_VM_REG_COUNT;
-    new_frame(this, function.mod, nullptr);
+    new_frame(this, function.mod, nullptr, std::max<size_t>(function.local_count, arguments.size()));
     for (std::size_t i = 0; i < arguments.size(); ++i) {
         cur_frame->local_vars[i] = arguments[i];
     }
     regs = callback_regs;
-    ++invoke_depth;
     try {
         auto result = execute(function.addr, outer_frame);
         while (cur_frame != outer_frame) (void)pop_frame(this);
@@ -294,7 +294,6 @@ std::expected<Value, std::string> LaminaVM::invoke(
         for (std::size_t i = 0; i < LMX_VM_REG_COUNT; ++i) {
             callback_regs[i] = Value{};
         }
-        --invoke_depth;
         return result;
     } catch (const std::exception& error) {
         while (cur_frame != outer_frame) (void)pop_frame(this);
@@ -302,7 +301,6 @@ std::expected<Value, std::string> LaminaVM::invoke(
         for (std::size_t i = 0; i < LMX_VM_REG_COUNT; ++i) {
             callback_regs[i] = Value{};
         }
-        --invoke_depth;
         return std::unexpected(error.what());
     } catch (...) {
         while (cur_frame != outer_frame) (void)pop_frame(this);
@@ -310,7 +308,6 @@ std::expected<Value, std::string> LaminaVM::invoke(
         for (std::size_t i = 0; i < LMX_VM_REG_COUNT; ++i) {
             callback_regs[i] = Value{};
         }
-        --invoke_depth;
         return std::unexpected("unknown Lamina callback failure");
     }
 }
@@ -424,7 +421,7 @@ Value LaminaVM::execute(const uint8_t* ip, Frame* stop_frame) {
 
     VM_LABEL(CallFast) {
         const auto* func = &cur_frame->mod->funcs[read_u16(ip + 1)];
-        new_frame(this, func->mod, ip + 4);
+        new_frame(this, func->mod, ip + 4, std::max<size_t>(func->local_count, ip[3]));
         for (uint8_t i = 0; i < ip[3]; ++i) {
             cur_frame->local_vars[i] = regs[LMX_VM_REG_COUNT - 1 - i];
         }
@@ -563,7 +560,7 @@ Value LaminaVM::execute(const uint8_t* ip, Frame* stop_frame) {
     }
     VM_LABEL(Call) {
         const auto* func = static_cast<const FuncObj*>(regs[ip[1]].c_ptr);
-        new_frame(this, func->mod, ip + 4);
+        new_frame(this, func->mod, ip + 4, std::max<size_t>(func->local_count, ip[2]));
 
         for (uint8_t i = 0; i < ip[2]; ++i) {
             cur_frame->local_vars[i] = regs[LMX_VM_REG_COUNT - 1 - i];

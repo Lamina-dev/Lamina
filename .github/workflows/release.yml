@@ -26,10 +26,10 @@ jobs:
     name: LMCAS and LMMC source quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Export Git-visible root and nested sources
@@ -91,7 +91,7 @@ jobs:
             cxx: clang++
             asm: AUTO
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Configure all math tests and benchmarks
@@ -122,7 +122,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - uses: msys2/setup-msys2@v2
@@ -157,7 +157,7 @@ jobs:
           temp_root="$(cygpath -m "$RUNNER_TEMP")"
           cmocka_source="$temp_root/cmocka-review-src"
           git clone https://gitlab.com/cmocka/cmocka.git "$cmocka_source"
-          git -C "$cmocka_source" checkout --detach a01cc69ee9536f90e57c61a198f2d1944d3d4313
+          git -C "$cmocka_source" checkout --detach cmocka-2.0.2
           for suffix in single multi; do
             generator=Ninja
             if [ "$suffix" = multi ]; then
@@ -194,7 +194,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Configure static-PIC LMMC in the shared LMCAS stack
@@ -223,14 +223,14 @@ jobs:
       run:
         working-directory: external/LMCAS
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install coverage tool
-        run: python -m pip install gcovr==7.2
+        run: python -m pip install gcovr==8.6
       - name: Configure coverage separately from sanitizers
         run: >-
           cmake -S . -B build/coverage -G Ninja
@@ -252,7 +252,7 @@ jobs:
           --html-details build/coverage/coverage.html
       - name: Upload coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: math-stack-coverage
           path: |
@@ -290,7 +290,7 @@ jobs:
     timeout-minutes: 90
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -491,7 +491,7 @@ jobs:
           tar -czf "lamina-${{ matrix.archive }}.tar.gz" -C package .
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lamina-${{ matrix.archive }}
           path: lamina-${{ matrix.archive }}.tar.gz
@@ -517,7 +517,7 @@ jobs:
             tsan_options: halt_on_error=1:second_deadlock_stack=1
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -551,7 +551,7 @@ jobs:
             preset: linux-tsan
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -587,7 +587,7 @@ jobs:
             cmake_flags: -DLMMC_BUILD_TESTS=OFF -DLMMC_BUILD_EXAMPLES=OFF -DLMMC_BUILD_SHARED=ON -DLMMC_WARNINGS_AS_ERRORS=ON -DLMMC_LMMP_ASM=AUTO
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -619,7 +619,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -642,7 +642,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install clang-tidy
@@ -664,7 +664,7 @@ jobs:
     timeout-minutes: 40
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -727,7 +727,7 @@ jobs:
         run: Compress-Archive -Path package\* -DestinationPath lamina-windows-x64.zip
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lamina-windows-x64
           path: lamina-windows-x64.zip
@@ -755,7 +755,7 @@ jobs:
 
     steps:
       - name: Download platform archives
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: lamina-*
           path: release-artifacts

@@ -1,0 +1,39 @@
+import std
+
+func deep(n int) -> int {
+    let a0 = n
+    let a1 = a0 + 1
+    let a2 = a1 + 1
+    let a3 = a2 + 1
+    let a4 = a3 + 1
+    let a5 = a4 + 1
+    let a6 = a5 + 1
+    let a7 = a6 + 1
+    let a8 = a7 + 1
+    let a9 = a8 + 1
+    let a10 = a9 + 1
+    let a11 = a10 + 1
+    let a12 = a11 + 1
+    let a13 = a12 + 1
+    let a14 = a13 + 1
+    let a15 = a14 + 1
+    if n == 0 {
+        return a15
+    }
+    return deep(n - 1) + a15
+}
+
+func shallow(n int) -> int {
+    n + 1
+}
+
+func invoke(f func(int) -> int, n int) -> int {
+    f(n)
+}
+
+func echo(s text) -> text {
+    let saved = s
+    saved
+}
+
+std.printf("%lld|%lld|%lld|%lld|%s", deep(3), shallow(4), invoke(shallow, 8), deep(1), echo("local"))

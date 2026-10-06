@@ -26,8 +26,8 @@ struct Frame {
     Frame* last;
     CodeModuleObj* mod;
     const uint8_t* ret_addr;
-    Value local_vars[LMX_LOCAL_VAR_COUNT];
-    explicit Frame(Frame* last, CodeModuleObj* mod, const uint8_t* ret_addr) noexcept;
+    std::vector<Value> local_vars;
+    explicit Frame(Frame* last, CodeModuleObj* mod, const uint8_t* ret_addr, size_t local_count) noexcept;
     ~Frame() noexcept;
 };
 class LaminaVM {
@@ -39,9 +39,7 @@ class LaminaVM {
     LmGCAllocator allocator{};
 
     std::span<char*> args;
-    std::vector<DCCallVM*> call_vms;
-    std::size_t native_depth = 0;
-    std::size_t invoke_depth = 0;
+    DCCallVM* call_vm;
 
     Value execute(const uint8_t* start, Frame* stop_frame);
 
@@ -138,21 +136,22 @@ public:
     [[nodiscard]] static LaminaVM* current() noexcept;
     Value& get_reg(uint8_t reg) const noexcept;
 
-    friend LMX_INLINE void new_frame(LaminaVM* vm, CodeModuleObj* mod, const uint8_t *ret_addr) noexcept {
+    friend LMX_INLINE void new_frame(LaminaVM* vm, CodeModuleObj* mod, const uint8_t *ret_addr, size_t local_count) noexcept {
         if (vm->free_frames.empty()) {
-            vm->cur_frame = new Frame(vm->cur_frame, mod, ret_addr);
+            vm->cur_frame = new Frame(vm->cur_frame, mod, ret_addr, local_count);
         } else {
             const auto frame = vm->free_frames[vm->free_frames.size() - 1];
             vm->free_frames.pop_back();
             frame->last = vm->cur_frame;
             frame->mod = mod;
             frame->ret_addr = ret_addr;
+            frame->local_vars.resize(local_count);
             vm->cur_frame = frame;
         }
     }
     friend LMX_INLINE const uint8_t *pop_frame(LaminaVM* vm) noexcept {
         auto* cur_frame = vm->cur_frame;
-        for (auto& local : cur_frame->local_vars) local = Value{};
+        cur_frame->local_vars.clear();
         vm->free_frames.push_back(cur_frame);
         vm->cur_frame = cur_frame->last;
 
@@ -160,10 +159,6 @@ public:
     }
 
     LMX_INLINE void native_call(const uint16_t idx, const uint8_t argc) {
-        if (native_depth == call_vms.size()) {
-            call_vms.push_back(dcNewCallVM(4096));
-        }
-        auto* call_vm = call_vms[native_depth];
         if (!call_vm) {
             VM_ERROR(RuntimeErrorType::CanNotCalling,
                      "cannot allocate native call state");
@@ -200,12 +195,6 @@ public:
             }
         }
 
-        struct NativeDepthGuard {
-            std::size_t& depth;
-            ~NativeDepthGuard() noexcept { --depth; }
-        };
-        ++native_depth;
-        const NativeDepthGuard native_depth_guard{native_depth};
 
         if (meta->addr) {
             switch (meta->ret_ty) {

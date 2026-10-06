@@ -78,6 +78,7 @@ add_lamina_test(language_adt adt.lm)
 add_lamina_test(language_adt_module adt_module.lm)
 add_lamina_test(language_literal_payload literal_payload.lm)
 add_lamina_output_test(adt_runtime adt_runtime.lm "7 0 9 1 1 1 3")
+add_lamina_output_test(frame_locals frame_locals.lm "66|5|9|31|local")
 
 add_lamina_error_test(adt_uninferred adt_uninferred.lm "cannot infer ADT type arguments")
 add_lamina_error_test(adt_uninferred_expr adt_uninferred_expr.lm "cannot infer ADT type arguments")
