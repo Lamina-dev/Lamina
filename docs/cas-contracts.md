@@ -198,6 +198,15 @@ This reference records the checked symbolic contracts that callers can rely on.
   A literal Infinity has its own `NumericStatus`; a finite mathematical
   operation overflowing binary64 reports `NumericFailure`. Cancellation and
   resource exhaustion remain `Cancelled` and `ResourceLimit`.
+- `eval_complex` computes noninteger real and complex powers using the
+  principal logarithm: for nonzero `z`, `z^w = exp(w Log(z))`. Exact integer
+  exponents within `[-64, 64]` use repeated squaring. On the negative real
+  axis with a `+0` imaginary component the upper-side value applies, so
+  `(-8 + 0*I)^(1/3) = 1 + sqrt(3)*I`. A noninteger exact rational whose binary64
+  approximation rounds to an integer reports `UnsupportedExpression`.
+  Zero-base powers follow the LMMC convention: positive real exponent gives
+  zero; negative real exponent or a nonzero purely imaginary exponent gives
+  `DomainError`. Numerical overflow reports `NumericFailure`.
 - `ExprSet::expression()` and `elements()` expose const-pointee expressions.
   Construction isolates mutable input wrappers, and element order comes from
   the canonical finite-set representation. Copy a wrapper explicitly when a
