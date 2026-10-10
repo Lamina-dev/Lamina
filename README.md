@@ -141,6 +141,8 @@ MIR（compiler/mir/，定义见 docs/mir.md）
 - `LaminaVM`（`runtime/vm.cpp`）：执行算术、容器、控制流、函数、模块和原生调用指令。
 - 函数帧按字节码使用的局部槽和实参数量分配空间，退出时释放槽中的对象引用；FFI
   调用复用每个虚拟机的 `DCCallVM`。
+- 原生 `bool` 返回值按 C++ ABI 的低字节读取：`dyncall` 的 `DCbool` 是 `int`，
+  x86_64 上返回寄存器的高位可能保留其他数据。
 
 ## 目录结构
 

@@ -12,7 +12,9 @@ class SparseMatrixObj final : public Object {
     lmmc_sparse_mat_t matrix_{};
 
 public:
-    explicit SparseMatrixObj(lmmc_sparse_mat_t&& matrix) noexcept;
+    explicit SparseMatrixObj(lmmc_sparse_mat_t& matrix) noexcept;
+    explicit SparseMatrixObj(lmmc_sparse_mat_t&& matrix) noexcept
+        : SparseMatrixObj(matrix) {}
     ~SparseMatrixObj() noexcept;
 
     SparseMatrixObj(const SparseMatrixObj&) = delete;

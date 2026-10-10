@@ -11,7 +11,7 @@ void hash_combine(std::size_t& seed, const std::size_t value) noexcept {
 
 } // namespace
 
-SparseMatrixObj::SparseMatrixObj(lmmc_sparse_mat_t&& matrix) noexcept
+SparseMatrixObj::SparseMatrixObj(lmmc_sparse_mat_t& matrix) noexcept
     : Object(ObjectKind::Sparse), matrix_(matrix) {
     matrix = {};
 }

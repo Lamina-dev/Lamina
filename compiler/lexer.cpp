@@ -308,12 +308,11 @@ std::string Lexer::error(const std::vector<Token>& tokens, const size_t origin_l
             return line_con;
         }();
 
-        auto caret_line = [&]{
-            if (cols.empty()) return std::string{};
-            std::string str(cols.back() + 1, ' ');
-            for (const size_t col : cols) str[col - 1] = '^';
-            return str;
-        }();
+        std::string caret_line;
+        if (!cols.empty()) {
+            caret_line.assign(cols.back() + 1, ' ');
+            for (const size_t col : cols) caret_line[col - 1] = '^';
+        }
 
         k += std::format(
             "In line {}, file {}:\n>>> {}\n    {}\n",

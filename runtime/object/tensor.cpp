@@ -20,7 +20,7 @@ void hash_combine(std::size_t& seed, const std::size_t value) noexcept {
 
 } // namespace
 
-TensorObj::TensorObj(lmmc_tensor_nd_t&& tensor)
+TensorObj::TensorObj(lmmc_tensor_nd_t& tensor)
     : Object(ObjectKind::Tensor),
       storage_(new lmmc_tensor_nd_t(tensor), TensorDeleter{}),
       view_(tensor) {

@@ -253,7 +253,7 @@ int main() {
                      LMMC_STATUS_OK,
                  "tensor allocation must succeed")) return 1;
     for (std::size_t i = 0; i < 8; ++i) owning_tensor.data[i] = i + 1.0;
-    auto* tensor_object = new TensorObj(std::move(owning_tensor));
+    auto* tensor_object = new TensorObj(owning_tensor);
     lmmc_tensor_nd_t reshaped{};
     const std::size_t reshaped_dims[] = {4, 2};
     if (!require(lmmc_tensor_nd_reshape_view(
@@ -275,7 +275,7 @@ int main() {
                      LMMC_STATUS_OK,
                  "comparison tensor allocation must succeed")) return 1;
     for (std::size_t i = 0; i < 8; ++i) equal_tensor.data[i] = i + 1.0;
-    Value tensor_equal(new TensorObj(std::move(equal_tensor)), ValueKind::Tensor);
+    Value tensor_equal(new TensorObj(equal_tensor), ValueKind::Tensor);
     if (!require(tensor_view == tensor_equal,
                  "tensor equality must compare shape and logical values") ||
         !require(tensor_view.hash() == tensor_equal.hash(),

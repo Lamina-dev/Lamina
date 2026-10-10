@@ -301,6 +301,11 @@ jobs:
       - name: Initialize pinned submodules
         run: cmake -DROOT="$GITHUB_WORKSPACE" -P scripts/update_math_stack.cmake
 
+      - uses: actions/setup-python@v7
+        if: runner.os == 'macOS' && matrix.architecture == 'arm64'
+        with:
+          python-version: "3.13"
+
       - name: Install arm64 architecture evidence tools
         if: runner.os == 'macOS' && matrix.architecture == 'arm64'
         run: |
@@ -314,23 +319,27 @@ jobs:
         run: |
           set -euo pipefail
           quality=OFF
-          nm_args=()
+          args=(
+            -S external/LMCAS -B build/math-macos -G Ninja
+            -DCMAKE_BUILD_TYPE=Debug
+            "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.architecture }}"
+            -DCMAKE_INSTALL_LIBDIR=lib
+            -DCMAKE_OTOOL="$(xcrun --find otool)"
+            -DCMAKE_INSTALL_NAME_TOOL="$(xcrun --find install_name_tool)"
+            -DBUILD_TESTING=ON
+            -DLMCAS_BUILD_TESTS=ON
+            -DLMCAS_BUILD_LMMC_TESTS=ON
+            -DLMCAS_BUILD_BENCHMARKS=ON
+            -DLMMC_BUILD_EXAMPLES=ON
+            -DLMCAS_WARNINGS_AS_ERRORS=ON
+            "-DLMCAS_LMMP_ASM=${{ matrix.lmmp_asm }}"
+          )
           if [[ "${{ matrix.architecture }}" == "arm64" ]]; then
             quality=ON
-            nm_args=(-DCMAKE_NM="$(brew --prefix llvm)/bin/llvm-nm")
+            args+=("-DCMAKE_NM=$(brew --prefix llvm)/bin/llvm-nm")
           fi
-          cmake -S external/LMCAS -B build/math-macos -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.architecture }}" \
-            -DCMAKE_INSTALL_LIBDIR=lib \
-            -DBUILD_TESTING=ON \
-            -DLMCAS_BUILD_TESTS=ON \
-            -DLMCAS_BUILD_LMMC_TESTS=ON \
-            -DLMCAS_BUILD_BENCHMARKS=ON \
-            -DLMCAS_WARNINGS_AS_ERRORS=ON \
-            "-DLMCAS_ENABLE_QUALITY_GATES=$quality" \
-            "-DLMCAS_LMMP_ASM=${{ matrix.lmmp_asm }}" \
-            "${nm_args[@]}"
+          args+=("-DLMCAS_ENABLE_QUALITY_GATES=$quality")
+          cmake "${args[@]}"
 
       - name: Build native macOS math stack
         if: runner.os == 'macOS'
