@@ -15,7 +15,8 @@ class TensorObj final : public Object {
     lmmc_tensor_nd_t view_{};
 
 public:
-    explicit TensorObj(lmmc_tensor_nd_t&& tensor);
+    explicit TensorObj(lmmc_tensor_nd_t& tensor);
+    explicit TensorObj(lmmc_tensor_nd_t&& tensor) : TensorObj(tensor) {}
     TensorObj(std::shared_ptr<lmmc_tensor_nd_t> storage,
               const lmmc_tensor_nd_t& view) noexcept;
 

@@ -32,7 +32,6 @@ struct Frame {
 };
 class LaminaVM {
     std::vector<Frame*> free_frames;
-    Value* stack_storage;
     Value* stack;
     Value* regs;
     Frame* cur_frame{};
@@ -202,7 +201,8 @@ public:
             case ValueKind::C_Ptr:  regs[0] = dcCallPointer(call_vm, (DCpointer)meta->addr); break;
             case ValueKind::Obj:    regs[0] = static_cast<Object *>(dcCallPointer(call_vm, (DCpointer) meta->addr)); break;
             case ValueKind::Int:    regs[0] = static_cast<LmInt>(dcCallLongLong(call_vm, (DCpointer) meta->addr)); break;
-            case ValueKind::Bool:   regs[0] = static_cast<bool>(dcCallBool(call_vm, (DCpointer) meta->addr)); break;
+            // C++ bool returns in one byte; dyncall's DCbool reads an int.
+            case ValueKind::Bool:   regs[0] = static_cast<bool>(dcCallChar(call_vm, (DCpointer) meta->addr)); break;
             case ValueKind::Real:   regs[0] = dcCallDouble(call_vm, (DCpointer) meta->addr); break;
             case ValueKind::Expr: {
                 auto* expr = static_cast<ExprObj*>(

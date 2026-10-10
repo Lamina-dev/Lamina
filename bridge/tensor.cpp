@@ -44,7 +44,7 @@ AdtObj* tensor_output(
         lmmc_tensor_nd_destroy(&output);
         return result_error(status, name);
     }
-    return result_ok(new TensorObj(std::move(output)), ValueKind::Tensor);
+    return result_ok(new TensorObj(output), ValueKind::Tensor);
 }
 
 lmmc_tensor3_t tensor3_view(TensorObj* value) {
@@ -91,7 +91,7 @@ AdtObj* tensor3_binary(
         return result_error(status, name);
     }
     auto nd = tensor3_to_nd(output);
-    return result_ok(new TensorObj(std::move(nd)), ValueKind::Tensor);
+    return result_ok(new TensorObj(nd), ValueKind::Tensor);
 }
 
 AdtObj* tensor3_stat(
@@ -293,7 +293,7 @@ extern "C" LM_API AdtObj* lmx_tensor_scale(
         return result_error(status, "tensor.scale");
     }
     auto nd = tensor3_to_nd(output);
-    return result_ok(new TensorObj(std::move(nd)), ValueKind::Tensor);
+    return result_ok(new TensorObj(nd), ValueKind::Tensor);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

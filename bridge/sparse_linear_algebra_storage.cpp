@@ -20,7 +20,7 @@ AdtObj* sparse_output(
         lmmc_sparse_destroy(&output);
         return result_error(status, name);
     }
-    auto* result = new SparseMatrixObj(std::move(output));
+    auto* result = new SparseMatrixObj(output);
     if (!result->valid()) {
         result->release();
         return result_error(MathErrorCode::InvalidArgument, operation_name, std::string(name) + ": invalid CSR output");

@@ -56,5 +56,5 @@ StringObj &StringObj::operator+=(const StringObj &other) {
 }
 
 StringObj StringObj::operator+(const StringObj &other) const {
-    return StringObj(std::move(this->data + other.data));
+    return StringObj(this->data + other.data);
 }

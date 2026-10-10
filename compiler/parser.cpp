@@ -1034,7 +1034,7 @@ std::shared_ptr<Type> Parser::parse_type() noexcept {
                 throw_error(ErrorType::Parse, "array type requires exactly one element type", cur().line, cur().col);
                 return type_pool.array(type_pool.unknown());
             }
-            auto array_type = type_pool.array(std::move(args.front()));
+            auto array_type = type_pool.array(args.front());
             if (match(TokenType::QUESTION)) {
                 advance();
                 return type_pool.nullable(std::move(array_type));
