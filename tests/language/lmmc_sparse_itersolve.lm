@@ -1,14 +1,15 @@
 import std
 import std.linalg
 import std.sparse
+import std.mathematics_error
 
 func apply_system(x vector) -> vector {
     match linalg.matrix([[4.0, 1.0], [1.0, 3.0]]) {
         Result.Ok(matrix) => match linalg.matrix_vector_product(matrix, x) {
             Result.Ok(value) => value,
-            Result.Err(_) => x
+            Result.Err(error) => mathematics_error.raise(error)
         },
-        Result.Err(_) => x
+        Result.Err(error) => mathematics_error.raise(error)
     }
 }
 
@@ -16,9 +17,9 @@ func apply_rectangular_system(x vector) -> vector {
     match linalg.matrix([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]) {
         Result.Ok(matrix) => match linalg.matrix_vector_product(matrix, x) {
             Result.Ok(value) => value,
-            Result.Err(_) => x
+            Result.Err(error) => mathematics_error.raise(error)
         },
-        Result.Err(_) => x
+        Result.Err(error) => mathematics_error.raise(error)
     }
 }
 
@@ -26,9 +27,29 @@ func apply_rectangular_transpose(x vector) -> vector {
     match linalg.matrix([[1.0, 0.0, 1.0], [0.0, 1.0, 1.0]]) {
         Result.Ok(matrix) => match linalg.matrix_vector_product(matrix, x) {
             Result.Ok(value) => value,
-            Result.Err(_) => x
+            Result.Err(error) => mathematics_error.raise(error)
         },
-        Result.Err(_) => x
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func apply_inconsistent_system(x vector) -> vector {
+    match linalg.matrix([[1.0], [1.0]]) {
+        Result.Ok(matrix) => match linalg.matrix_vector_product(matrix, x) {
+            Result.Ok(value) => value,
+            Result.Err(error) => mathematics_error.raise(error)
+        },
+        Result.Err(error) => mathematics_error.raise(error)
+    }
+}
+
+func apply_inconsistent_transpose(x vector) -> vector {
+    match linalg.matrix([[1.0, 1.0]]) {
+        Result.Ok(matrix) => match linalg.matrix_vector_product(matrix, x) {
+            Result.Ok(value) => value,
+            Result.Err(error) => mathematics_error.raise(error)
+        },
+        Result.Err(error) => mathematics_error.raise(error)
     }
 }
 
@@ -65,7 +86,8 @@ match linalg.matrix([[4.0, 1.0], [1.0, 3.0]]) {
                         Result.Ok(result) => match sparse.solution(result) {
                             Result.Ok(solution) => match linalg.element_at(solution, 0) {
                                 Result.Ok(first) => match linalg.element_at(solution, 1) {
-                                    Result.Ok(second) => std.printf("%.3f,%.3f", first, second),
+                                    Result.Ok(second) => std.printf("%d,%.3f,%.3f",
+                                        sparse.converged(result), first, second),
                                     Result.Err(_) => std.printf("err")
                                 },
                                 Result.Err(_) => std.printf("err")
@@ -101,6 +123,26 @@ match linalg.vector([1.0, 2.0, 3.0]) {
                     Result.Err(_) => std.printf("err")
                 },
                 Result.Err(_) => std.printf("err")
+            },
+            Result.Err(_) => std.printf("err")
+        },
+        Result.Err(_) => std.printf("err")
+    },
+    Result.Err(_) => std.printf("err")
+}
+
+std.printf("|")
+match linalg.vector([1.0, 0.0]) {
+    Result.Ok(rhs) => match sparse.default_options(1) {
+        Result.Ok(options) => match sparse.lsqr_operator(
+            apply_inconsistent_system, apply_inconsistent_transpose, rhs, 1, options) {
+            Result.Ok(result) => match result {
+                sparse.IterativeResult(solution, did_converge, iterations, _, residual) =>
+                    match linalg.element_at(solution, 0) {
+                        Result.Ok(first) => std.printf("%d,%d,%.3f,%.3f",
+                            did_converge, iterations, first, residual),
+                        Result.Err(_) => std.printf("err")
+                    }
             },
             Result.Err(_) => std.printf("err")
         },

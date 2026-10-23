@@ -219,7 +219,7 @@ extern "C" LM_API AdtObj* lmx_random_shuffle(
     ensure_lmmc_runtime();
     if (!value || !input)
         return result_error(MathErrorCode::InvalidArgument, __func__, "random.shuffle: invalid argument");
-    auto data = input->data();
+    std::vector<double> data(input->data().begin(), input->data().end());
     const auto status = lmmc_rng_shuffle(
         value->handle(), data.data(), data.size(), sizeof(double));
     if (status != LMMC_STATUS_OK)

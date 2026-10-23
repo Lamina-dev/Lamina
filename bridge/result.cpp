@@ -1,4 +1,5 @@
 #include "bridge/result.hpp"
+#include "runtime/object/tuple.hpp"
 
 #include <limits>
 #include <utility>
@@ -139,14 +140,20 @@ AdtObj* solution_set_result(const LMCAS::SolveResult& result) {
         "SolutionSet", "Parametric", std::move(fields)), ValueKind::Obj);
 }
 
-AdtObj* transform_engine_result_value(const LMCAS::TransformEngineResult& result) {
+AdtObj* transform_engine_result(const LMCAS::TransformEngineResult& result) {
     if (!result) return result_error(result.error());
     if (!result.value().value.expression) {
         return result_error(MathErrorCode::UnsupportedExpression, "transform",
                             "transform produced no expression");
     }
-    return result_ok(
-        new ExprObj(result.value().value.expression), ValueKind::Expr);
+    const auto& value = result.value().value;
+    auto fields = std::make_unique<Value[]>(3);
+    fields[0] = expr_value(value.expression);
+    fields[1] = expr_array(value.conditions);
+    fields[2] = expr_array(value.roc);
+    auto tuple = make_owned_object<runtime::TupleObj>(fields.get(), 3);
+    fields.release();
+    return result_ok(tuple.release(), ValueKind::Tuple);
 }
 
 }

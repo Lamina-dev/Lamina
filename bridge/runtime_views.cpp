@@ -2,8 +2,28 @@
 
 #include <utility>
 #include <memory>
+#include <cstdint>
+#include <limits>
 
 namespace lmx::bridge {
+
+bool lmmc_vector_owner(const lmmc_vec_t& value) noexcept {
+    if (value.owns_data != 1 || !value.data || value.size == 0 ||
+        value.size > std::numeric_limits<std::size_t>::max() / sizeof(double))
+        return false;
+    return reinterpret_cast<std::uintptr_t>(value.data) <=
+           std::numeric_limits<std::uintptr_t>::max() -
+               value.size * sizeof(double);
+}
+
+bool lmmc_matrix_owner(const lmmc_mat_t& value) noexcept {
+    if (value.owns_data != 1 || value.rows == 0 || value.cols == 0 ||
+        value.stride != value.cols ||
+        value.rows > std::numeric_limits<std::size_t>::max() / value.cols)
+        return false;
+    return lmmc_vector_owner(
+        {value.rows * value.cols, value.data, value.owns_data});
+}
 
 lmmc_vec_t vector_view(VectorObj* value) noexcept {
     return {value ? value->size() : 0,
@@ -24,8 +44,10 @@ AdtObj* lmmc_vector_output(const char* name, const lmmc_status_t status,
     if (status != LMMC_STATUS_OK) {
         return result_error(status, name ? name : "LMMC");
     }
-    std::vector<double> data(output.data, output.data + output.size);
-    return result_ok(new VectorObj(std::move(data)), ValueKind::Vector);
+    if (!lmmc_vector_owner(output))
+        return result_error(MathErrorCode::InvalidArgument,
+                            name ? name : "LMMC", "invalid vector owner");
+    return result_ok(new VectorObj(output), ValueKind::Vector);
 }
 
 AdtObj* lmmc_matrix_output(const char* name, const lmmc_status_t status,
@@ -36,26 +58,11 @@ AdtObj* lmmc_matrix_output(const char* name, const lmmc_status_t status,
     if (status != LMMC_STATUS_OK) {
         return result_error(status, name ? name : "LMMC");
     }
-    std::vector<double> data;
-    data.reserve(output.rows * output.cols);
-    for (std::size_t row = 0; row < output.rows; ++row) {
-        data.insert(data.end(), output.data + row * output.stride,
-                    output.data + row * output.stride + output.cols);
-    }
-    const auto rows = output.rows;
-    const auto cols = output.cols;
-    return result_ok(new MatrixObj(rows, cols, std::move(data)),
-                     ValueKind::Matrix);
+    if (!lmmc_matrix_owner(output))
+        return result_error(MathErrorCode::InvalidArgument,
+                            name ? name : "LMMC", "invalid matrix owner");
+    return result_ok(new MatrixObj(output), ValueKind::Matrix);
 }
 
-MatrixObj* copy_lmmc_matrix(const lmmc_mat_t& matrix) {
-    std::vector<double> data;
-    data.reserve(matrix.rows * matrix.cols);
-    for (std::size_t row = 0; row < matrix.rows; ++row) {
-        data.insert(data.end(), matrix.data + row * matrix.stride,
-                    matrix.data + row * matrix.stride + matrix.cols);
-    }
-    return new MatrixObj(matrix.rows, matrix.cols, std::move(data));
-}
 
 } // namespace lmx::bridge

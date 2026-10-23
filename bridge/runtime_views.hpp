@@ -21,7 +21,8 @@ AdtObj* lmmc_vector_output(const char* name, lmmc_status_t status,
                            lmmc_vec_t& output);
 AdtObj* lmmc_matrix_output(const char* name, lmmc_status_t status,
                            lmmc_mat_t& output);
-MatrixObj* copy_lmmc_matrix(const lmmc_mat_t& matrix);
+bool lmmc_vector_owner(const lmmc_vec_t& value) noexcept;
+bool lmmc_matrix_owner(const lmmc_mat_t& value) noexcept;
 lmmc_vec_t vector_view(VectorObj* value) noexcept;
 lmmc_mat_t matrix_view(MatrixObj* value) noexcept;
 template <typename Operation>

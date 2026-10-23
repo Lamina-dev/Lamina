@@ -1,18 +1,29 @@
 import std.mathematics_error
 import std
 
+func valid_estimate(estimate real) -> bool {
+    estimate >= 0.0 and estimate <= 1.0
+}
+
 
 let zero = 0 as expr
 let one = std.cas.parse("1")
 
 {
     let value = std.cas.integrate_simpson(std.cas.parse("x^2"), "x", zero, one, 100)
-    std.printf("%.4f|", value)
+    std.printf("%.4f,%d|", value.1, valid_estimate(value.2))
 }
 
 {
     let value = std.cas.integrate_gaussian(std.cas.parse("x^2"), "x", zero, one, 3)
-    std.printf("%.4f|", value)
+    std.printf("%.4f,%d|", value.1, valid_estimate(value.2))
+}
+
+{
+    let value = std.cas.integrate_adaptive(
+        std.cas.parse("x^2"), "x", zero, one,
+        std.cas.evaluate_real(std.cas.parse("1/10000000000")), 20)
+    std.printf("%.4f,%d|", value.1, valid_estimate(value.2))
 }
 
 {
@@ -26,8 +37,13 @@ std.printf("%d|", std.cas.equivalent(std.cas.laplacian(
 std.printf("%d|", std.cas.equivalent(std.cas.divergence(
     [std.cas.parse("x^2"), std.cas.parse("y^2")], ["x", "y"]),
     std.cas.parse("2*x + 2*y")))
-std.printf("%d|", std.cas.equivalent(std.cas.simplify(
-    std.cas.laplace(one, "t", "s")), std.cas.simplify(std.cas.parse("1/s"))))
+{
+    let value = std.cas.laplace(one, "t", "s")
+    std.printf("%d,%d|",
+        std.cas.equivalent(std.cas.simplify(value.1),
+            std.cas.simplify(std.cas.parse("1/s"))),
+        std.cas.equivalent(value.3[0], std.cas.parse("s > 0")))
+}
 std.printf("%d|", std.cas.equivalent(std.cas.residue(
     std.cas.parse("1/z"), "z", zero, 1), one))
 sym k

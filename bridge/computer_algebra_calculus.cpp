@@ -7,7 +7,20 @@
 #include "numerical_integration.hpp"
 #include "vector_calculus.hpp"
 #include "symbolic_geometry.hpp"
+#include "runtime/object/tuple.hpp"
 using namespace lmx::bridge;
+
+namespace {
+AdtObj* quadrature_result(const LMCAS::Result<LMCAS::QuadratureEstimate>& result) {
+    if (!result) return result_error(result.error());
+    auto fields = std::make_unique<Value[]>(2);
+    fields[0] = result.value().value;
+    fields[1] = result.value().estimated_error;
+    auto tuple = make_owned_object<lmx::runtime::TupleObj>(fields.get(), 2);
+    fields.release();
+    return result_ok(tuple.release(), ValueKind::Tuple);
+}
+}
 
 extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_simpson_by_name(ExprObj* expression,
                                                   const char* variable,
@@ -28,8 +41,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_simpson_by_name(ExprObj
     const auto result = LMCAS::quadrature_simpson_numeric(
         *value, variable ? variable : "", *lower_value, *upper_value,
         static_cast<int>(intervals));
-    if (!result) return result_error(result.error());
-    return result_ok(result.value().value);
+    return quadrature_result(result);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -53,8 +65,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_gaussian_by_name(ExprOb
     const auto result = LMCAS::quadrature_gaussian_numeric(
         *value, variable ? variable : "", *lower_value, *upper_value,
         static_cast<int>(points));
-    if (!result) return result_error(result.error());
-    return result_ok(result.value().value);
+    return quadrature_result(result);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
@@ -79,8 +90,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_adaptive_by_name(ExprOb
     const auto result = LMCAS::adaptive_simpson_numeric(
         *value, variable ? variable : "", *lower_value, *upper_value,
         tolerance, static_cast<int>(max_depth));
-    if (!result) return result_error(result.error());
-    return result_ok(result.value().value);
+    return quadrature_result(result);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

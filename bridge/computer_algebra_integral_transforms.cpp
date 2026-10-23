@@ -19,7 +19,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_laplace_by_na
     if (!value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integral_transforms_laplace_by_names",
                             std::move(error));
-    return transform_engine_result_value(LMCAS::laplace_transform_checked(
+    return transform_engine_result(LMCAS::laplace_transform_checked(
         *value, time_variable ? time_variable : "",
         frequency_variable ? frequency_variable : ""));
 } catch (...) {
@@ -35,7 +35,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_inverse_lapla
     if (!value)
         return result_error(MathErrorCode::InvalidArgument,
                             "lmx_computer_algebra_integral_transforms_inverse_laplace_by_names", std::move(error));
-    return transform_engine_result_value(LMCAS::inverse_laplace_checked(
+    return transform_engine_result(LMCAS::inverse_laplace_checked(
         *value, frequency_variable ? frequency_variable : "",
         time_variable ? time_variable : ""));
 } catch (...) {
@@ -51,7 +51,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_fourier_by_na
     if (!value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integral_transforms_fourier_by_names",
                             std::move(error));
-    return transform_engine_result_value(LMCAS::fourier_transform_checked(
+    return transform_engine_result(LMCAS::fourier_transform_checked(
         *value, time_variable ? time_variable : "",
         frequency_variable ? frequency_variable : ""));
 } catch (...) {
@@ -67,7 +67,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_inverse_fouri
     if (!value)
         return result_error(MathErrorCode::InvalidArgument,
                             "lmx_computer_algebra_integral_transforms_inverse_fourier_by_names", std::move(error));
-    return transform_engine_result_value(LMCAS::inverse_fourier_transform_checked(
+    return transform_engine_result(LMCAS::inverse_fourier_transform_checked(
         *value, frequency_variable ? frequency_variable : "",
         time_variable ? time_variable : ""));
 } catch (...) {
@@ -83,7 +83,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_z_transform_b
     if (!value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integral_transforms_z_transform_by_names",
                             std::move(error));
-    return transform_engine_result_value(LMCAS::z_transform_checked(
+    return transform_engine_result(LMCAS::z_transform_checked(
         *value, index_variable ? index_variable : "",
         frequency_variable ? frequency_variable : ""));
 } catch (...) {
@@ -99,7 +99,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integral_transforms_convolve_by_n
     if (!left || !right)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integral_transforms_convolve_by_name",
                             std::move(error));
-    return transform_engine_result_value(LMCAS::convolve_checked(
+    return transform_engine_result(LMCAS::convolve_checked(
         *left, *right, variable ? variable : ""));
 } catch (...) {
     return c_abi_current_exception(__func__);

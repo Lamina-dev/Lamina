@@ -6,6 +6,7 @@
 #include "bridge/math_internal.hpp"
 #include "symbolic_ode_engine.hpp"
 #include "symbolic_ode.hpp"
+#include "expr.hpp"
 #include <array>
 
 using namespace lmx::bridge;
@@ -291,8 +292,7 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_ordinary_differential_equations_s
     if (!result)
         return result_error(MathErrorCode::Inconclusive, __func__, 
             "CasError(Inconclusive in ordinary_differential_equations.solve_first_order_linear)");
-    result = result->simplify();
-    return result_ok(new ExprObj(std::move(result)), ValueKind::Expr);
+    return expr_result_ok(LMCAS::simplify(result));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

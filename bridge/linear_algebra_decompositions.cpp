@@ -15,7 +15,10 @@ using lmx::bridge::linear_algebra::copied_matrix;
 namespace lmx::bridge::linear_algebra {
 
 MatrixObj* copied_matrix(MatrixObj* input) {
-    return input ? new MatrixObj(input->rows(), input->cols(), input->data())
+    return input ? new MatrixObj(
+                       input->rows(), input->cols(),
+                       std::vector<double>(
+                           input->data().begin(), input->data().end()))
                  : nullptr;
 }
 
@@ -211,6 +214,17 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_eigendecomposition(MatrixObj* value
         return result_error(status, "linalg.eig");
     }
     const auto count = output.real_parts.size;
+    if (!lmmc_vector_owner(output.real_parts) ||
+        !lmmc_vector_owner(output.imag_parts) ||
+        !lmmc_matrix_owner(output.vectors_real) ||
+        !lmmc_matrix_owner(output.vectors_imag) ||
+        count != value->rows() || output.imag_parts.size != count ||
+        output.vectors_real.rows != count ||
+        output.vectors_real.cols != count ||
+        output.vectors_imag.rows != count ||
+        output.vectors_imag.cols != count)
+        return result_error(MathErrorCode::InvalidArgument, "linalg.eig",
+                            "invalid eigen output owner");
     std::vector<std::size_t> order(count);
     std::iota(order.begin(), order.end(), 0);
     std::stable_sort(order.begin(), order.end(), [&](const auto lhs, const auto rhs) {
@@ -218,31 +232,31 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_eigendecomposition(MatrixObj* value
             return output.real_parts.data[lhs] < output.real_parts.data[rhs];
         return output.imag_parts.data[lhs] < output.imag_parts.data[rhs];
     });
-    std::vector<double> real_data(count);
-    std::vector<double> imag_data(count);
-    std::vector<double> real_vector_data(count * count);
-    std::vector<double> imag_vector_data(count * count);
-    for (std::size_t column = 0; column < count; ++column) {
-        const auto source = order[column];
-        real_data[column] = output.real_parts.data[source];
-        imag_data[column] = output.imag_parts.data[source];
-        for (std::size_t row = 0; row < count; ++row) {
-            real_vector_data[row * count + column] =
-                output.vectors_real.data[row * output.vectors_real.stride + source];
-            imag_vector_data[row * count + column] =
-                output.vectors_imag.data[row * output.vectors_imag.stride + source];
+    for (std::size_t start = 0; start < count; ++start) {
+        auto column = start;
+        while (order[column] != start) {
+            const auto source = order[column];
+            std::swap(output.real_parts.data[column],
+                      output.real_parts.data[source]);
+            std::swap(output.imag_parts.data[column],
+                      output.imag_parts.data[source]);
+            for (std::size_t row = 0; row < count; ++row) {
+                std::swap(output.vectors_real.data[row * count + column],
+                          output.vectors_real.data[row * count + source]);
+                std::swap(output.vectors_imag.data[row * count + column],
+                          output.vectors_imag.data[row * count + source]);
+            }
+            order[column] = column;
+            column = source;
         }
+        order[column] = column;
     }
     auto real_values =
-        make_owned_object<MatrixObj>(1, count, std::move(real_data));
+        make_owned_object<MatrixObj>(1, count, output.real_parts);
     auto imag_values =
-        make_owned_object<MatrixObj>(1, count, std::move(imag_data));
-    auto real_vectors =
-        make_owned_object<MatrixObj>(
-            count, count, std::move(real_vector_data));
-    auto imag_vectors =
-        make_owned_object<MatrixObj>(
-            count, count, std::move(imag_vector_data));
+        make_owned_object<MatrixObj>(1, count, output.imag_parts);
+    auto real_vectors = make_owned_object<MatrixObj>(output.vectors_real);
+    auto imag_vectors = make_owned_object<MatrixObj>(output.vectors_imag);
     std::vector<Value> fields;
     fields.emplace_back(
         take_object_value(std::move(real_values), ValueKind::Matrix));
@@ -273,13 +287,20 @@ extern "C" LM_API AdtObj* lmx_linear_algebra_singular_value_decomposition(Matrix
     if (status != LMMC_STATUS_OK) {
         return result_error(status, "linalg.svd");
     }
-    auto u = adopt_object(copy_lmmc_matrix(output.U));
+    if (!lmmc_matrix_owner(output.U) || !lmmc_matrix_owner(output.Vt) ||
+        !lmmc_vector_owner(output.sigma) ||
+        output.sigma.size >
+            std::numeric_limits<std::size_t>::max() / output.sigma.size /
+                sizeof(double))
+        return result_error(MathErrorCode::InvalidArgument, "linalg.svd",
+                            "invalid SVD output owner");
+    auto u = make_owned_object<MatrixObj>(output.U);
     std::vector<double> sigma(output.sigma.size * output.sigma.size, 0.0);
     for (std::size_t i = 0; i < output.sigma.size; ++i)
         sigma[i * output.sigma.size + i] = output.sigma.data[i];
     auto s = make_owned_object<MatrixObj>(
         output.sigma.size, output.sigma.size, std::move(sigma));
-    auto vt = adopt_object(copy_lmmc_matrix(output.Vt));
+    auto vt = make_owned_object<MatrixObj>(output.Vt);
     std::vector<Value> fields;
     fields.emplace_back(take_object_value(std::move(u), ValueKind::Matrix));
     fields.emplace_back(take_object_value(std::move(s), ValueKind::Matrix));

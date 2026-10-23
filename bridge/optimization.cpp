@@ -80,7 +80,7 @@ AdtObj* run_optimizer(
     config.max_iter = static_cast<std::size_t>(max_iterations);
     OptimizeCallbacks callbacks(
         function, jacobian, objective, gradient, initial->size());
-    auto solution = initial->data();
+    std::vector<double> solution(initial->data().begin(), initial->data().end());
     lmmc_vec_t x{solution.size(), solution.data(), 0};
     lmmc_optimize_result_t result{};
     if (algorithm == 0)

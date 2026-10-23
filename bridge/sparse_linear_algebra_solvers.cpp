@@ -251,31 +251,8 @@ AdtObj* run_iterative_solver(
                 sparse, &b, precond, &config, &x, &result);
             break;
         case IterativeAlgorithm::MinimumResidual:
-            for (int attempt = 0; attempt < 8; ++attempt) {
-                status = lmmc_minres_solve(
-                    sparse, &b, precond, &config, &x, &result);
-                if (status != LMMC_STATUS_OK) break;
-                if (forward_operation) {
-                    std::vector<double> applied(rhs_size);
-                    lmmc_vec_t applied_view{
-                        rhs_size, applied.data(), 0};
-                    status = iterative_forward_adapter(
-                        &x, &applied_view, &callbacks);
-                    if (status != LMMC_STATUS_OK) break;
-                    double residual_squared = 0.0;
-                    for (std::size_t index = 0; index < rhs_size; ++index) {
-                        const double residual =
-                            applied[index] - rhs->data()[index];
-                        residual_squared += residual * residual;
-                    }
-                    result.final_residual_norm = std::sqrt(residual_squared);
-                    result.converged =
-                        result.final_residual_norm <=
-                            config.abs_tol +
-                                config.rel_tol * result.initial_residual_norm;
-                }
-                if (result.converged) break;
-            }
+            status = lmmc_minres_solve(
+                sparse, &b, precond, &config, &x, &result);
             break;
         case IterativeAlgorithm::LeastSquaresOrthogonalTriangular:
             status = lmmc_lsqr_solve(

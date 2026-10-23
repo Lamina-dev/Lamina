@@ -44,6 +44,13 @@ add_executable(test_bridge_error_boundary
     test_bridge_error_boundary_main.cpp
     ../bridge/mathematics_error.cpp
     ../bridge/result.cpp
+    ../bridge/conversions.cpp
+    ../bridge/runtime_views.cpp
+    ../bridge/linear_algebra_decompositions.cpp
+    ../bridge/callback.cpp
+    ../bridge/math_internal.cpp
+    ../bridge/computer_algebra_calculus.cpp
+    ../bridge/computer_algebra_integral_transforms.cpp
     $<TARGET_OBJECTS:lamina_runtime>
 )
 target_link_libraries(test_bridge_error_boundary PRIVATE
@@ -123,10 +130,10 @@ add_lamina_output_test(cas_ode_geometry cas_ode_geometry.lm "1|1|1|1|1|1|separab
 add_lamina_output_test(lmmc_random_default lmmc_random_default.lm "1")
 add_lamina_output_test(lmmc_sparse_remaining lmmc_sparse_remaining.lm "2,4.0,2.0:3.0,9.0")
 add_lamina_output_test(math_scalar_distributions math_scalar_distributions.lm "3.142|0.0|3.0|3.0|0.500|0.375|0.368|err")
-add_lamina_output_test(math_errors math_errors.lm "domain:DomainError:evaluate_numeric|matrix:DimensionMismatch:matrix_mul|parse:ParseError:LMCAS.parse_expr|callback:CallbackFailure:integrate.adaptive|curvature:UnsupportedExpression:curvature|")
+add_lamina_output_test(math_errors math_errors.lm "domain:DomainError:evaluate_numeric|matrix:DimensionMismatch:matrix_mul|parse:ParseError:LMCAS.parse_expr|callback:CallbackFailure:integrate.adaptive|curvature:UnsupportedExpression|")
 add_lamina_output_test(math_linalg_advanced math_linalg_advanced.lm "6.0|9.0|9.0|10.0|10.0|2|0.6,0.4|30.0|1.0|3.0")
 add_lamina_output_test(computer_algebra_sets_match_bindings computer_algebra_sets_match_bindings.lm "3|5|13.0|1|1|1,x,y|1|1|1|1,1,x|{1, 2}|[1, 2)")
-add_lamina_output_test(cas_analysis cas_analysis.lm "0.3333|0.3333|1,1|1|1|1|1|1|1")
+add_lamina_output_test(cas_analysis cas_analysis.lm "0.3333,1|0.3333,1|0.3333,1|1,1|1|1|1,1|1|1|1")
 add_lamina_output_test(cas_solutions cas_solutions.lm "solve-x2m1:1|1|complete=1\nroots-x2m1:1|1|complete=1\nsolve-q:residuals=1|complete=1\nroots-q:residuals=1|complete=1\nsolve-neq:!InvalidArgument:LMCAS.solve_expr_set\nsolve-deg5:1|1|1|1|1|complete=1\nsolve-complex:1|1|complete=1\nroots-repeated:1|complete=1\nsolve-lambert:value=1|residuals=1|complete=1\n")
 add_lamina_output_test(cas_solution_sets cas_solution_sets.lm "1|1|1|1|1|1|1|1|1|1|1")
 add_lamina_output_test(cas_serialization cas_serialization.lm "1|1|1|1|1|1|1|1|1|1")
@@ -171,9 +178,9 @@ add_lamina_output_test(callback_quadrature callback_quadrature.lm "0.333333|ok|e
 add_lamina_error_test(callback_wrong_signature callback_wrong_signature.lm "type mismatch arg")
 add_lamina_output_test(lmmc_special_fft lmmc_special_fft.lm "24.000|0.000|1.000,0.000|1.000,2.000,3.000,4.000")
 add_lamina_output_test(lmmc_linalg_decomp lmmc_linalg_decomp.lm "0.100,0.600|0.100,0.600|4.000,3.000|2.000,3.000|2x2,0.500")
-add_lamina_output_test(lmmc_sparse_itersolve lmmc_sparse_itersolve.lm "0.091,0.636|0.091,0.636|0.091,0.636|1,1.000,2.000")
+add_lamina_output_test(lmmc_sparse_itersolve lmmc_sparse_itersolve.lm "0.091,0.636|0.091,0.636|1,0.091,0.636|1,1.000,2.000|1,1,0.500,0.707")
 add_lamina_output_test(lmmc_tensor_interpolate lmmc_tensor_interpolate.lm "36|4x2:8|8|6|2.200")
-add_lamina_output_test(lmmc_callback_algorithms lmmc_callback_algorithms.lm "1.4141|1.4142|2.71828|3.0000")
+add_lamina_output_test(lmmc_callback_algorithms lmmc_callback_algorithms.lm "1.4141|1.4142|2.71828|1.0|3.0000|0.0")
 add_lamina_output_test(lmmc_stats_random lmmc_stats_random.lm "120|120|20|1,1,1,1,1|1,1,1,1,1")
 add_lamina_output_test(computer_algebra_assumptions_solve computer_algebra_assumptions_solve.lm "U|P|U|1|2,1|(x > -1 and x < 1)")
 add_lamina_output_test(computer_algebra_algebra_matrix computer_algebra_algebra_matrix.lm "1|1|1|1|1|1,1,1,1,1")

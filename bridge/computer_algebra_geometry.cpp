@@ -7,6 +7,7 @@
 #include "symbolic_vector_geometry.hpp"
 #include "vector_calculus.hpp"
 #include "differential_geometry.hpp"
+#include "expr.hpp"
 
 using namespace lmx::bridge;
 
@@ -366,10 +367,10 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_geometry_vector_dot(
     if (!array_expressions(lhs, left, error) ||
         !array_expressions(rhs, right, error))
         return result_error(MathErrorCode::InvalidArgument, __func__, "geometry.vector_dot: " + error);
-    const auto result = LMCAS::vector_dot_checked(left, right);
+    LMCAS::ComputationContext context;
+    const auto result = LMCAS::vector_dot_checked(left, right, context);
     if (!result) return result_error(result.error());
-    return result_ok(
-        new ExprObj(result.value()->simplify()), ValueKind::Expr);
+    return expr_result_ok(LMCAS::simplify(result.value(), context));
 } catch (...) {
     return c_abi_current_exception(__func__);
 }
