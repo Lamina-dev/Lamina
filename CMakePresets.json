@@ -10,7 +10,7 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "binaryDir": "${sourceDir}/build/strict-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "LMX_BUILD_TESTS": "ON",
@@ -18,6 +18,9 @@
         "LMCAS_BUILD_LMMC_TESTS": "ON",
         "LMX_ENABLE_LTO": "OFF",
         "LMX_FAST_BUILD": "ON",
+        "LMX_ENABLE_SANITIZERS": "OFF",
+        "LMX_ENABLE_TSAN": "OFF",
+        "LMX_ENABLE_CLANG_TIDY": "OFF",
         "LMCAS_LMMP_ASM": "AUTO"
       }
     },
@@ -73,22 +76,22 @@
     {
       "name": "strict-debug",
       "configurePreset": "strict-debug",
-      "jobs": 4
+      "jobs": 2
     },
     {
       "name": "linux-asan-ubsan",
       "configurePreset": "linux-asan-ubsan",
-      "jobs": 4
+      "jobs": 2
     },
     {
       "name": "linux-tsan",
       "configurePreset": "linux-tsan",
-      "jobs": 4
+      "jobs": 2
     },
     {
       "name": "static-analysis",
       "configurePreset": "static-analysis",
-      "jobs": 4
+      "jobs": 2
     }
   ],
   "testPresets": [
@@ -96,14 +99,14 @@
       "name": "strict-debug",
       "configurePreset": "strict-debug",
       "output": { "outputOnFailure": true },
-      "execution": { "jobs": 4, "timeout": 300 },
+      "execution": { "jobs": 2, "timeout": 300 },
       "environment": { "RC_PARAMS": "seed=42" }
     },
     {
       "name": "linux-asan-ubsan",
       "configurePreset": "linux-asan-ubsan",
       "output": { "outputOnFailure": true },
-      "execution": { "jobs": 4, "timeout": 300 },
+      "execution": { "jobs": 2, "timeout": 300 },
       "environment": {
         "RC_PARAMS": "seed=42",
         "ASAN_OPTIONS": "detect_leaks=1:strict_string_checks=1",
@@ -114,7 +117,7 @@
       "name": "linux-tsan",
       "configurePreset": "linux-tsan",
       "output": { "outputOnFailure": true },
-      "execution": { "jobs": 4, "timeout": 300 },
+      "execution": { "jobs": 2, "timeout": 300 },
       "environment": {
         "RC_PARAMS": "seed=42",
         "TSAN_OPTIONS": "halt_on_error=1:second_deadlock_stack=1"

@@ -9,29 +9,34 @@ Lamina 是一个静态强类型、表达式导向的数学 DSL / 脚本语言，
 
 ## 快速开始
 
-依赖：CMake ≥ 3.26、C++23 编译器（GCC、Clang 或 AppleClang；Windows 使用 MinGW
+依赖：CMake ≥ 3.26、Ninja、C++23 编译器（GCC、Clang 或 AppleClang；Windows 使用 MinGW
 或 GNU-driver Clang，MSVC ABI 前端包括 clang-cl 不受支持）。仓库使用递归 submodule
 提供 `dyncall`、LMCAS、LMMC 与 LMMP。
 
 支持 Windows x86_64、Linux x86_64，以及原生 macOS Apple Silicon (`arm64`) 和 Intel
-(`x86_64`)。通用 Release 构建：
+(`x86_64`)。日常开发使用 Ninja 预设：
 
 ```bash
 git submodule update --init --recursive
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
+cmake --preset strict-debug
+cmake --build --preset strict-debug --target lamina
 ```
+
+根工程的开发预设共用 `build/strict-debug`，默认并发为 2；CAS、MC 与 LMMP
+随根目标增量构建。首次配置后，源码迭代直接运行构建命令；按需选择
+`--target lmcas`、`--target lmmc` 或具体测试目标。各预设串行复用同一构建树，
+切换消毒器等编译选项时重新配置，Ninja 会重建受影响的目标。
 
 macOS 构建必须选择单一原生架构。Apple Silicon 使用 LMMP 的自动 ARM64 后端；Intel 使用
 通用 C 后端：
 
 ```bash
 # Apple Silicon
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+cmake -S . -B build/strict-debug -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_OSX_ARCHITECTURES=arm64 -DLMCAS_LMMP_ASM=AUTO
 
 # Intel
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+cmake -S . -B build/strict-debug -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_OSX_ARCHITECTURES=x86_64 -DLMCAS_LMMP_ASM=GENERIC
 ```
 
@@ -53,10 +58,10 @@ LTO。发布归档为 `lamina-linux-x86_64.tar.gz`、`lamina-macos-arm64.tar.gz`
 运行：
 
 ```bash
-./build/lamina examples/fib.lm          # 斐波那契
-./build/lamina examples/bernoulli.lm    # 伯努利数（分数精确计算）
-./build/lamina examples/99.lm           # 99 乘法表
-./build/lamina test.lm                  # 数组/函数/模块 import 冒烟测试
+./build/strict-debug/lamina examples/fib.lm          # 斐波那契
+./build/strict-debug/lamina examples/bernoulli.lm    # 伯努利数（分数精确计算）
+./build/strict-debug/lamina examples/99.lm           # 99 乘法表
+./build/strict-debug/lamina test.lm                  # 数组/函数/模块 import 冒烟测试
 ```
 
 图形示例需要额外依赖（SDL3 与本地扩展库）：
@@ -64,8 +69,8 @@ LTO。发布归档为 `lamina-linux-x86_64.tar.gz`、`lamina-macos-arm64.tar.gz`
 ```bash
 cd examples
 gcc -shared -fPIC snake_sdl.c -o snake_sdl
-LD_LIBRARY_PATH=. ../build/lamina sdl.lm
-LD_LIBRARY_PATH=. ../build/lamina snake.lm
+LD_LIBRARY_PATH=. ../build/strict-debug/lamina sdl.lm
+LD_LIBRARY_PATH=. ../build/strict-debug/lamina snake.lm
 ```
 
 ## 当前功能快照（已实现）
