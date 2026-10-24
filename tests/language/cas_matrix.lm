@@ -46,9 +46,8 @@ std.printf("%d|", std.cas.equivalent(symbolic_matrix.trace(identity), two))
 std.printf("%lld|", symbolic_matrix.rank(identity))
 std.printf("%d|", std.cas.equivalent(symbolic_matrix.exponential(zero_matrix), identity))
 # 输入为 1×1 矩阵，其迹等于唯一元素 log(2)。
-std.printf("%d|", near(symbolic_matrix.trace(
-    symbolic_matrix.natural_logarithm(scalar_two)),
-    std.cas.parse("approx(0.6931471805599453)")))
+std.printf("%d|", std.cas.equivalent(symbolic_matrix.trace(
+    symbolic_matrix.natural_logarithm(scalar_two)), std.cas.parse("ln(2)")))
 std.printf("%d|", std.cas.equivalent(symbolic_matrix.kronecker(scalar_two, diagonal),
     symbolic_matrix.from_rows([[std.cas.parse("4"), zero], [zero, std.cas.parse("6")]])))
 std.printf("%d|", std.cas.equivalent(std.cas.simplify(

@@ -10,10 +10,18 @@ let limit = std.cas.limit((x^2 - 1) / (x - 1), "x", 1 as expr, "")
 let series = std.cas.series(std.cas.cosine(x), "x", 0 as expr, 6)
 let trig = std.cas.sine(std.cas.pi() / 2)
 let complex_value = std.cas.evaluate_complex(1 + 2 * I)
+let decimal = std.cas.parse("approx(0.1)")
+let decimal_integral = std.cas.integrate(decimal * x, "x")
+let decimal_cancelled = std.cas.parse("approx(0.1)+approx(0.2)-approx(0.3)")
 
 std.printf("%d|%d|%d|%d|",
-    std.cas.equivalent(parsed, x^2 + 2*x + 1),
-    std.cas.equivalent(std.cas.differentiate(integral, "x"), x),
+    std.cas.equivalent(parsed, x^2 + 2*x + 1)
+        and std.cas.equivalent(decimal_cancelled, 0 as expr)
+        and std.cas.equivalent(decimal, std.cas.parse("1/10")),
+    std.cas.equivalent(std.cas.differentiate(integral, "x"), x)
+        and std.cas.equivalent(decimal_integral, x^2/20)
+        and std.cas.evaluate_real(std.cas.substitute(decimal_integral, x => 2))
+            == std.cas.evaluate_real(std.cas.parse("1/5")),
     std.cas.equivalent(limit, 2 as expr),
     std.cas.equivalent(series, 1 - x^2/2 + x^4/24 - x^6/720))
 

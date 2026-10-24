@@ -1,6 +1,6 @@
 static "liblamina"
 
-func printf(fmt text, ...) -> int = "printf"
+func printf(fmt text, ...) -> int = "lmx_printf"
 
 func fib(n int) -> int {
     if n <= 1 {
