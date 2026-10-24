@@ -25,7 +25,37 @@ This reference records the checked symbolic contracts that callers can rely on.
   rewriting followed by the Core proof. Recursive rewrite traversal, candidate
   append operations, and proof/profile stages consume the step budget; active
   visitor depth and candidate-tree growth have independent limits. Exhaustion
-  reports `CasErrc::ResourceLimit` from `LMCAS.equivalent_core`.
+  reports `CasErrc::ResourceLimit` from `LMCAS.equivalent`.
+
+`SymbolicExpr::is_zero/is_one` compare numeric literals strictly, including
+binary64 equality with `0.0` or `1.0`. Exact algebraic zero certificates use
+BigInt/Rational values and retain the source expression's exactness.
+
+`equivalent(lhs, rhs, context, options = {})` is the public equivalence entry
+point. Structural equality succeeds after cancellation and size/depth checks.
+For distinct expressions, a binary64 source yields `Inconclusive`; residual
+checking yields `UnprovedResidual`. Provenance is checked before normalization
+and at proof intermediates, preserving the distinction between rounded numeric
+cancellation and an exact identity. `EqvProfile::Core` keeps its bounded scope.
+
+## Resource accounting
+
+`ResourceLimits::max_ast_nodes` bounds the reference-expanded size of each
+checked input or candidate AST and the aggregate size of an output forest.
+Every reference to a shared subtree contributes its full size. Sequential
+operations share cumulative `max_steps`; successful AST size checks preserve
+the node allowance for the next candidate.
+
+Shape measurements cache node count and height within one rewrite budget.
+Weak ownership releases discarded candidates promptly; every cache hit still
+checks cancellation, active depth, and current limits. Shape queries and cache
+clearing consume `ResourceLimits::max_steps`; `EqvBudget::max_rewrite_steps`
+accounts for rewrite traversal, candidate appends, and proof stages. A visitor
+result root occupies its current rewrite frame when checking candidate height.
+
+These limits cover the checked transforms, proofs, and output forests described
+here. The ordinary `parse_expr(..., context)` currently checks input bytes.
+Subsequent checked transforms account for the parsed AST.
 
 ## Assumptions and inference
 
@@ -83,6 +113,20 @@ This reference records the checked symbolic contracts that callers can rely on.
   approximate cubic roots; disabling `return_rootof` makes the whole solve
   `Inconclusive` when any root cannot be represented. `max_roots` limits numeric
   candidate searches, not complete exact sets or integer families.
+- Polynomial solvers classify normalized exact rational coefficients before
+  numeric projection. Binary64 overflow or underflow selects symbolic solving;
+  failures from non-exact numeric computations retain their original `CasError`.
+- The real mixed solver preserves symbolic logarithmic preimages for
+  `±exp(x) + c = 0` with a numeric literal offset. Numeric projection supports
+  ordering and interval checks; inexact-source results remain `Inconclusive`.
+  Numerical root refinement keeps the original absolute-residual tolerance.
+  Numeric, resource, and cancellation failures propagate through constant
+  equation classification as well as sampled refinement.
+- Container-returning `Solver::solve_linear_system` and
+  `SymbolicExpr::solve_system` project unconditional solutions. An unresolved
+  pivot or unsupported solve yields their established empty-container sentinel;
+  computation failures retain their original `CasError`. Checked algorithms
+  keep undecidability in their typed error channel.
 - Real trigonometric inversion returns complete integer families, not samples
   from a search interval. Generated binders avoid names in the expression and
   all visible assumption scopes. Conditional solution predicates preserve
@@ -124,6 +168,26 @@ This reference records the checked symbolic contracts that callers can rely on.
   Same-sign divergent contributions produce signed infinity; incompatible
   divergences produce `DomainError`. Unproved domain, primitive, or convergence
   obligations retain the complete original integral and bounds.
+- `Integrator::integrate_checked` accepts a closed candidate through an exact
+  certificate for `derivative(candidate) - original_integrand`. Constants,
+  linear combinations, Piecewise branches, built-in/custom strategies, and table
+  entries share this condition. Rejected candidates continue fallback, including
+  lower-priority entries with the same pattern and affine substitutions.
+  Cyclic integration eliminates its private placeholders before certification.
+  Unresolved results retain the original integral obligation.
+- Formal residual proofs support the finite rational, radical, trigonometric,
+  hyperbolic, and exponential relations required by the supported integration
+  families. Absolute-value and real-logarithm rules consume real-domain facts.
+  These certificates concern the original common domain; definite integration
+  separately proves interval domains, singularities, and boundary limits.
+- Integration execution uses the caller's context throughout ODE primitives
+  and geometry's definite integrals. `SymbolicExpr::make_integral` constructs
+  an unevaluated obligation; evaluation uses the checked `Integrator` entries.
+- Exact first-order ODE construction recognizes matching partial derivatives
+  through residual certificates. Integrating factors reuse algebraic forms of
+  certified antiderivatives before constructing and integrating the potential.
+- Constant-coefficient ODEs with a zero leading term retain the first-order
+  basis `C*exp((-c/b)*x)` after finite coefficient-normalization checks.
 - Ordinary eigenvectors are bases of distinct eigenspaces, not positional
   partners of an eigenvalue list. Successful Jordan decomposition certifies
   `rank(P) == n` and `AP == PJ`; unsupported generalized chains return
@@ -135,9 +199,9 @@ This reference records the checked symbolic contracts that callers can rely on.
   satisfy the necessary second-derivative condition, not a concavity-change
   certificate or a general completeness guarantee.
 - `atan2(y, x)` differentiation applies the chain rule to both arguments.
-  Unsupported function derivatives now report `CasErrc::UnsupportedExpression`
-  through checked differentiation instead of returning a false zero; the
-  unchecked member throws `std::runtime_error`.
+  Unsupported function derivatives return `CasErrc::UnsupportedExpression`
+  through `differentiate(..., context)`. Checked transform boundaries preserve
+  the original `CasError` code, message, and operation.
 - Fixed positive numerical bases other than one support
   `d log(u,b)/dx = u'/(u ln b)` on the real logarithm domain; unsupported
   bases report `UnsupportedExpression`.
@@ -150,11 +214,11 @@ This reference records the checked symbolic contracts that callers can rely on.
   `Z{n^3}=z(z^2+4z+1)/(z-1)^4` has ROC `|z|>1`.
 - Checked explicit curvature, parametric curvature, and inflection points
   propagate unsupported first or second derivatives as `UnsupportedExpression`
-  with the entry-point operation name. Each derivative uses the caller's context
+  with the original failing operation. Each derivative uses the caller's context
   for cancellation and step-budget checks.
 - Checked gradient, divergence, curl, Laplacian, directional derivative,
   Jacobian, and Hessian preserve `UnsupportedExpression` for unsupported
-  derivatives, including second derivatives, with the entry-point operation.
+  derivatives, including second derivatives, preserving the failing operation.
   The later Hessian stage of checked extrema uses the same classification.
   Strict differentiation in integrals, extrema's first-derivative precheck,
   and Lagrange multipliers retains its `Inconclusive` contract.
@@ -167,6 +231,25 @@ This reference records the checked symbolic contracts that callers can rely on.
 - `integrate_multiple_checked` checks cancellation before work and before
   returning, and charges each integration step to the shared context, including
   constant definite-integral shortcuts.
+
+## Quadrature estimates and transform metadata
+
+`quadrature_simpson_numeric`, `quadrature_gaussian_numeric`, and
+`adaptive_simpson_numeric` return `Result<QuadratureEstimate>`. The payload holds
+`value` and `estimated_error`. The error is an absolute estimate obtained from
+step refinement or adjacent-order rules; `ApproxReal::absolute_error` continues
+to carry the certified numeric-evaluation bound. Reversed bounds negate the
+value while preserving the nonnegative estimate. Equal finite bounds return
+zero value and zero estimate before reserving integrand-sampling work.
+
+Lamina's three `std.cas.integrate_*` operations return `(real, real)` in
+value/estimated-error order. Their raw forms wrap the same tuple in `Result`.
+The six integral-transform operations return
+`(expr, array<expr>, array<expr>)` in expression/conditions/ROC order, including
+the `integral_transforms` submodule and raw forms. Empty condition arrays carry
+the corresponding empty obligation set. Retain both arrays when using the
+expression: parameter conditions and the convergence domain delimit the
+transform's validity under its computation-context assumptions.
 
 ## Expression values
 

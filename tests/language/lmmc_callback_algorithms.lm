@@ -54,12 +54,18 @@ match nonlinear.newton_with_derivative(root_function, root_derivative, 1.0, 0.00
 
 match linalg.vector([1.0]) {
     Result.Ok(initial) => match ode.runge_kutta_fourth_fifth_order(exponential_rhs, initial, 0.0, 1.0, 0.1, 0.001, 0.001, 1000) {
-        Result.Ok(result) => match ode.final_state(result) {
-            Result.Ok(state) => match linalg.element_at(state, 0) {
-                Result.Ok(value) => std.printf("%.5f|", value),
+        Result.Ok(result) => {
+            match ode.final_state(result) {
+                Result.Ok(state) => match linalg.element_at(state, 0) {
+                    Result.Ok(value) => std.printf("%.5f|", value),
+                    Result.Err(_) => std.printf("err|")
+                },
                 Result.Err(_) => std.printf("err|")
-            },
-            Result.Err(_) => std.printf("err|")
+            }
+            match linalg.element_at(initial, 0) {
+                Result.Ok(value) => std.printf("%.1f|", value),
+                Result.Err(_) => std.printf("err|")
+            }
         },
         Result.Err(_) => std.printf("err|")
     },
@@ -68,12 +74,18 @@ match linalg.vector([1.0]) {
 
 match linalg.vector([0.0]) {
     Result.Ok(initial) => match optimize.limited_memory_broyden_fletcher_goldfarb_shanno(objective, gradient, initial, 0.001, 0.001, 100) {
-        Result.Ok(result) => match optimize.solution(result) {
-            Result.Ok(solution) => match linalg.element_at(solution, 0) {
-                Result.Ok(value) => std.printf("%.4f", value),
+        Result.Ok(result) => {
+            match optimize.solution(result) {
+                Result.Ok(solution) => match linalg.element_at(solution, 0) {
+                    Result.Ok(value) => std.printf("%.4f", value),
+                    Result.Err(_) => std.printf("err")
+                },
                 Result.Err(_) => std.printf("err")
-            },
-            Result.Err(_) => std.printf("err")
+            }
+            match linalg.element_at(initial, 0) {
+                Result.Ok(value) => std.printf("|%.1f", value),
+                Result.Err(_) => std.printf("|err")
+            }
         },
         Result.Err(error) => std.printf("%s", mathematics_error.message(error))
     },

@@ -26,6 +26,11 @@ This reference records the numerical contracts shared by LMMC and CAS numeric ev
 
 ## Integration and ODE
 
+- CAS quadrature returns `QuadratureEstimate {value, estimated_error}`.
+  Its absolute error estimate comes from rule refinement; numeric evaluation
+  retains `ApproxReal`'s certified bounds. Lamina exposes the pair as a tuple.
+  Symbolic transforms expose expression/conditions/ROC tuples so callers retain
+  the parameter and convergence constraints when consuming their expressions.
 - Tanh-sinh convergence compares only completed quadrature layers. Exhausting
   the callback budget in an incomplete layer returns `CONVERGENCE_FAILED`,
   the last completed estimate (or zero), positive-infinite error, and the actual
@@ -73,6 +78,47 @@ This reference records the numerical contracts shared by LMMC and CAS numeric ev
 - A 2×2 determinant retains cancellation between individually overflowing
   products when the resulting determinant fits binary64; singular finite
   matrices yield zero.
+- LU pivots, LU/QR back substitution, and triangular solves classify an exactly
+  zero active diagonal as singular. Finite nonzero diagonals use ordinary
+  division; nonfinite active data or arithmetic results report numerical failure.
+  Unit triangular solves read only their active off-diagonal entries. Numerical
+  rank, SVD, Cholesky, and preconditioner construction retain their own policies.
+- LSQR and MINRES validate finite nonnegative tolerances and a positive iteration
+  limit before calling operators or changing the solution. Their finite stopping
+  threshold is `T = abs_tol + rel_tol * ||b||₂`; initial, final, and diagnostic
+  norms describe the true residual `b - Ax`. Iteration counts record completed
+  solution updates, including the last update supplied by an exhausted basis.
+- LSQR also accepts least-squares stationarity, measured as
+  `||Aᵀ(r / ||r||₂)||₂ / anorm <= rel_tol`, with the bidiagonal Frobenius estimate
+  of `anorm`. Normalizing the residual preserves this check at tiny scales.
+  A converged least-squares result can therefore have a nonzero residual.
+- MINRES uses symmetric positive-definite preconditioning: identity or finite
+  strictly positive Jacobi inverse diagonals. Nonpositive Jacobi entries report
+  `NOT_POSITIVE_DEFINITE`; ILU preconditioners report `INVALID_ARGUMENT`.
+  Its convergence test is `||b - Ax||₂ <= T`. Each update needs an additional
+  forward application for that norm; LSQR stationarity also needs a transpose
+  application. Callback failures propagate unchanged, retaining the most recent
+  successfully measured norm; normal basis exhaustion can return
+  `OK` with `converged = 0`.
+
+## Dense output ownership
+
+- Allocating `lmmc_std_linalg_*` entrypoints take descriptors initialized with
+  every field zero. Success commits an independent owner; failure preserves the
+  original fields. Existing owners, borrowed views, dirty-empty descriptors, and
+  output/input descriptor aliases report `INVALID_ARGUMENT`. Destroy an owned
+  result before reusing its descriptor as an allocating output.
+- Eigen and SVD tables transfer their component owners. C eigenvalue tables use
+  `n×1` columns; Lamina eigenvalues retain `1×n` rows and stable sorting with
+  matching eigenvector columns. SVD transfers U/Vt and constructs the required
+  diagonal matrix from sigma.
+- Lamina dense vector/matrix objects own either their original C++ vector or an
+  adopted MC buffer. Adoption clears the source descriptor and preserves the
+  buffer pointer. Element access uses borrowed spans; equality, hashing, and
+  rendering depend on elements and shape. Callback assignment reuses equal-size
+  storage and constructs resized replacements before releasing the old owner.
+  Factorization work, optimizer initial values, ODE state, and shuffle outputs
+  retain independent copies so computations preserve their inputs.
 
 ## Optimization
 

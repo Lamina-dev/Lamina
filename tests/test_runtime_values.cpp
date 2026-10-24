@@ -9,6 +9,7 @@
 #include "../runtime/object/tensor.hpp"
 #include "../runtime/object/assumptions.hpp"
 #include "lmmc/init.h"
+#include "lmmc/dense_storage.h"
 #include "../runtime/object/value.hpp"
 
 #include <exception>
@@ -18,6 +19,8 @@
 #include <iostream>
 #include <vector>
 #include <memory>
+#include <algorithm>
+#include <type_traits>
 
 using lmx::runtime::LiteralObj;
 using lmx::runtime::ComplexObj;
@@ -75,8 +78,120 @@ struct LmmcGuard {
     }
 };
 
+bool dense_owner_values() {
+    static_assert(!std::is_copy_constructible_v<VectorObj>);
+    static_assert(!std::is_move_constructible_v<VectorObj>);
+    static_assert(!std::is_copy_constructible_v<MatrixObj>);
+    static_assert(!std::is_move_constructible_v<MatrixObj>);
+    lmmc_vec_t vector{};
+    if (lmmc_vec_create(3, &vector) != LMMC_STATUS_OK) return false;
+    vector.data[0] = 1.0;
+    vector.data[1] = 2.0;
+    vector.data[2] = 3.0;
+    const auto* vector_data = vector.data;
+    VectorObj owned_vector(vector);
+    const VectorObj copied_vector({1.0, 2.0, 3.0});
+    if (!require(vector.size == 0 && vector.data == nullptr &&
+                     vector.owns_data == 0 &&
+                     owned_vector.data().data() == vector_data,
+                 "vector construction must consume the original MC owner") ||
+        !require(owned_vector.equals(copied_vector) &&
+                     copied_vector.equals(owned_vector) &&
+                     owned_vector.hash() == copied_vector.hash() &&
+                     owned_vector.to_string() == copied_vector.to_string(),
+                 "vector semantics must not depend on storage ownership"))
+        return false;
+    const double same_size[] = {4.0, 5.0, 6.0};
+    owned_vector.assign(same_size);
+    if (!require(owned_vector.data().data() == vector_data &&
+                     std::ranges::equal(owned_vector.data(), same_size),
+                 "same-size vector assignment must reuse its MC buffer"))
+        return false;
+    const double resized[] = {7.0, 8.0};
+    owned_vector.assign(resized);
+    if (!require(owned_vector.size() == 2 &&
+                     std::ranges::equal(owned_vector.data(), resized),
+                 "resized vector assignment must replace its MC storage"))
+        return false;
+    owned_vector.assign({});
+    if (!require(owned_vector.size() == 0,
+                 "vector assignment must support an empty callback argument"))
+        return false;
+    VectorObj vector_storage({1.0});
+    vector_storage.assign(same_size);
+    const auto* vector_storage_data = vector_storage.data().data();
+    vector_storage.assign(same_size);
+    if (!require(vector_storage.data().data() == vector_storage_data &&
+                     std::ranges::equal(vector_storage.data(), same_size),
+                 "vector-backed assignment must resize and reuse storage"))
+        return false;
+
+    lmmc_mat_t matrix{};
+    if (lmmc_mat_create(2, 2, &matrix) != LMMC_STATUS_OK) return false;
+    for (std::size_t i = 0; i < 4; ++i) matrix.data[i] = double(i + 1);
+    const auto* matrix_data = matrix.data;
+    MatrixObj owned_matrix(matrix);
+    const MatrixObj copied_matrix(2, 2, {1.0, 2.0, 3.0, 4.0});
+    if (!require(matrix.rows == 0 && matrix.cols == 0 && matrix.stride == 0 &&
+                     matrix.data == nullptr && matrix.owns_data == 0 &&
+                     owned_matrix.data().data() == matrix_data &&
+                     owned_matrix.valid(),
+                 "matrix construction must consume the original MC owner") ||
+        !require(owned_matrix.equals(copied_matrix) &&
+                     copied_matrix.equals(owned_matrix) &&
+                     owned_matrix.hash() == copied_matrix.hash() &&
+                     owned_matrix.to_string() == copied_matrix.to_string(),
+                 "matrix semantics must not depend on storage ownership"))
+        return false;
+
+    lmmc_vec_t row{};
+    if (lmmc_vec_create(3, &row) != LMMC_STATUS_OK) return false;
+    row.data[0] = 4.0;
+    row.data[1] = 5.0;
+    row.data[2] = 6.0;
+    const auto* row_data = row.data;
+    const MatrixObj owned_row(1, 3, row);
+    const MatrixObj copied_row(1, 3, {4.0, 5.0, 6.0});
+    const MatrixObj overflowing(std::numeric_limits<std::size_t>::max(), 2,
+                                std::vector<double>{});
+    return require(owned_row.data().data() == row_data &&
+                       row.size == 0 && row.data == nullptr &&
+                       row.owns_data == 0 && owned_row.valid(),
+                   "eigenvalue rows must adopt and clear the MC vector") &&
+           require(owned_row.equals(copied_row) &&
+                       owned_row.hash() == copied_row.hash() &&
+                       owned_row.to_string() == copied_row.to_string(),
+                   "adopted eigenvalue rows must retain matrix semantics") &&
+           require(!overflowing.valid(),
+                   "matrix validity must reject overflowing shapes");
+}
+
+bool dense_owner_lifecycle() {
+    lmmc_vec_t vector{};
+    lmmc_mat_t matrix{};
+    if (lmmc_vec_create(2, &vector) != LMMC_STATUS_OK) return false;
+    if (lmmc_mat_create(1, 2, &matrix) != LMMC_STATUS_OK) {
+        lmmc_vec_destroy(&vector);
+        return false;
+    }
+    vector.data[0] = 7.0;
+    matrix.data[1] = 9.0;
+    auto owned_vector = std::make_unique<VectorObj>(vector);
+    auto owned_matrix = std::make_unique<MatrixObj>(matrix);
+    const bool deinitialized = lmmc_deinit() == LMMC_STATUS_OK;
+    const bool retained = owned_vector->data()[0] == 7.0 &&
+                          owned_matrix->data()[1] == 9.0;
+    owned_vector.reset();
+    const bool initialized = lmmc_init() == LMMC_STATUS_OK;
+    const bool retained_matrix = owned_matrix->data()[1] == 9.0;
+    owned_matrix.reset();
+    return require(deinitialized && initialized && retained && retained_matrix,
+                   "dense owners must survive deinit and free across reinit");
+}
+
 int main() {
     const LmmcGuard lmmc_guard;
+    if (!dense_owner_values() || !dense_owner_lifecycle()) return 1;
     const Value left_fraction(2, 4);
     const Value right_fraction(1, 2);
     if (!require(left_fraction == right_fraction,

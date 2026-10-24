@@ -60,7 +60,7 @@ AdtObj* run_ode_solver(
     config.max_steps = static_cast<std::size_t>(max_steps);
     config.jacobian = jacobian ? ode_jacobian_adapter : nullptr;
     OdeCallbacks callbacks(rhs, jacobian, initial->size());
-    auto state = initial->data();
+    std::vector<double> state(initial->data().begin(), initial->data().end());
     lmmc_ode_result_t result{};
     status = solver(
         ode_rhs_adapter, &callbacks, state.size(), start, end,

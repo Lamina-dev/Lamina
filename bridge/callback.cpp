@@ -29,7 +29,7 @@ std::expected<Value, std::string> invoke(
     return vm->invoke(*context.function, arguments);
 }
 
-bool finite_vector(const std::vector<double>& values) noexcept {
+bool finite_vector(const std::span<const double> values) noexcept {
     return std::ranges::all_of(values, [](const double value) {
         return std::isfinite(value);
     });
@@ -58,9 +58,7 @@ const VectorObj* checked_vector(CallbackContext& context, const Value& value,
 
 void load_argument(VectorObj& argument, const double* data,
                    const std::size_t size) {
-    auto& destination = argument.data();
-    if (destination.size() != size) destination.resize(size);
-    std::copy_n(data, size, destination.begin());
+    argument.assign({data, size});
 }
 
 } // namespace

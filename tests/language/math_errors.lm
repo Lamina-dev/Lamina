@@ -62,5 +62,6 @@ match integrate.adaptive(
 
 match std.cas.raw.calculus.curvature(std.cas.parse("floor(x)"), "x") {
     Result.Ok(_) => std.printf("curvature:unexpected\n"),
-    Result.Err(error) => observe("curvature", error)
+    Result.Err(error) => std.printf("curvature:%s|",
+        code_name(mathematics_error.code(error)))
 }

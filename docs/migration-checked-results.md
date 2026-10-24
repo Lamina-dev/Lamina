@@ -4,12 +4,19 @@ LMCAS computation APIs use the `LMCAS` namespace and treat `LMCAS::Result<T>` an
 
 ## Replace unchecked calls
 
-Prefer the checked entry point whenever both forms exist:
+Use the checked entry points and share a context across multi-step work:
 
 | Previous call pattern | Checked call pattern |
 | --- | --- |
+| `expr->simplify()` / `expr->expand()` | `simplify(expr, context)` / `expand(expr, context)` |
+| `expr->differentiate(variable)` | `differentiate(expr, variable, context)` |
+| `expr->substitute(variable, value)` | `substitute(expr, variable, value, context)` |
+| `AssumptionContext::simplify` | Attach assumptions to the context, then call `simplify(expr, context)` |
 | `Integrator::integrate(expr, variable)` | `Integrator::integrate_checked(expr, variable, context)` |
 | `Integrator::integrate_def(...)` | `Integrator::integrate_def_checked(..., context)` |
+| `SymbolicExpr::integrate` / `SymbolicExpr::integral` | `Integrator::integrate_checked(*expression, variable, context)` |
+| `equivalent_core(...)` | `equivalent(lhs, rhs, context, options)` |
+| `numerical_integrate_numeric(...)` | `quadrature_simpson_numeric(...)` |
 | `IntervalUnion::from_intervals(...)` | `IntervalUnion::from_intervals_checked(..., context)` |
 | `ExprSet::set_union`, `intersection`, `difference`, `symmetric_difference` | `expr_set_union`, `expr_set_intersection`, `expr_set_difference`, `expr_set_symmetric_difference` |
 | assumption mutation/query helpers | the corresponding `*_checked` member |
@@ -40,13 +47,42 @@ public transformations for expression traversal, `is_number` plus
 `symbol_name(expression)` for a borrowed `optional<string_view>`. Recompile
 C++ consumers after migrating these source-level API changes.
 
-The overload without an explicit context remains suitable for a single bounded operation. Multi-step work should share one context so cancellation and resource accounting cover the complete computation.
+The expression-transform overloads without an explicit context create one context
+at the outer boundary. Multi-step work shares an explicit context so cancellation
+and cumulative step accounting cover the complete computation. Binding lists use
+sequential substitution under the same budget, including cancellation checks for
+an empty list.
+
+`max_ast_nodes` bounds reference-expanded AST or output-forest size for each
+checked candidate. Reusing a context preserves that allowance; `max_steps`
+records cumulative work. The retired cumulative node-reservation counter and
+member transform entry points have been removed.
+
+Integration execution takes an explicit context through
+`Integrator::integrate_checked` or `integrate_def_checked`.
+`SymbolicExpr::make_integral` constructs the original unevaluated obligation.
+Successful checked integration returns `SymbolicExpr`, carrying either a certified
+closed primitive or that obligation. This replaces the unused CAS
+`ClosedFormIntegral`, `UnevaluatedIntegral`, `IntegralOutcome`, and `IntegralResult`
+types; the language's numerical `std.integrate.IntegralResult` remains distinct.
+
+Custom generators derive from `IntegrationStrategy`, implement its protected
+`try_integrate_raw`, and register with `add_strategy`. The integrator certifies each
+candidate's derivative against the original integrand before accepting a closed
+result. Rejected table entries and recursive candidates continue fallback.
+`RationalDecompositionStrategy` provides the former partial-fraction capabilities.
+
+Real-variable families such as `abs(x)` use explicit domain facts: attach an
+`AssumptionContext` containing `assume_domain_checked("x", Domain::Real)` with
+`context.set_assumptions(...)`. Unresolved domain facts retain the original
+integral obligation.
 
 ```cpp
-LMCAS::ComputationContext context({
-    .max_steps = 100000,
-    .max_recursion_depth = 256,
-});
+LMCAS::ResourceLimits limits;
+limits.max_steps = 100000;
+limits.max_recursion_depth = 256;
+LMCAS::ComputationContext context(limits);
+LMCAS::Integrator integrator;
 auto result = integrator.integrate_checked(expression, "x", context);
 if (!result) {
     return handle(result.error().code,
@@ -57,6 +93,24 @@ use(result.value());
 ```
 
 `ComputationContext` is thread-confined. Create one context per operation or per request; do not share it across worker threads. A cancelled or exhausted context returns `CasErrc::Cancelled` or `CasErrc::ResourceLimit` instead of throwing.
+
+## Consume complete numerical and transform results
+
+All Simpson, Gaussian, and adaptive quadrature overloads now return
+`Result<QuadratureEstimate>`. Read `.value().value` for the integral estimate and
+`.value().estimated_error` for its absolute error estimate after checking success.
+The former quadrature `ApproxReal::absolute_error` field becomes
+`QuadratureEstimate::estimated_error`; numeric evaluation keeps `ApproxReal`
+and its certified-bound semantics.
+
+Lamina's three `std.cas.integrate_*` families return `(value, estimated_error)`.
+Replace scalar uses with `.1` and retain `.2` where the estimate is needed.
+Laplace, inverse Laplace, Fourier, inverse Fourier, Z, and convolution return
+`(expression, conditions, roc)`: the expression is `.1`, and `.2`/`.3` are
+expression arrays. Root, `integral_transforms`, and raw modules share this order;
+unwrap raw `Result` values first. Preserve the constraints alongside projected
+expressions. `evaluate_real` and `evaluate_complex` remain explicit scalar
+projections.
 
 ## Error classification
 
@@ -186,11 +240,18 @@ Use the checked presets from the repository root:
 
 ```text
 cmake --preset strict-debug
-cmake --build --preset strict-debug
-ctest --preset strict-debug
+cmake --build --preset strict-debug --target lamina test_bridge_error_boundary test_runtime_values test_expr_math
+ctest --preset strict-debug -R "^(bridge_error_boundary$|runtime_values$|test_expr_math[.])"
 ```
 
-Linux sanitizer presets are `linux-asan-ubsan` and `linux-tsan`. Standalone math-stack presets are in `external/LMCAS/CMakePresets.json`; framework versions, offline setup, test selection, and package commands are documented in [LMCAS development and tests](../external/LMCAS/README.md#开发与测试) and [LMMC development tests](../external/LMCAS/LMMC/README.md#development-tests).
+All root development presets share the Ninja tree `build/strict-debug`, with
+parallelism 2. Rebuild selected targets directly during source iteration.
+Linux sanitizer presets are `linux-asan-ubsan` and `linux-tsan`.
+Standalone presets live in `external/LMCAS/CMakePresets.json` and
+`external/LMCAS/LMMC/CMakePresets.json`; embedded libraries reuse the parent tree.
+Framework versions, offline setup, test selection, and package commands are in
+[LMCAS development and tests](../external/LMCAS/README.md#开发与测试) and
+[LMMC development tests](../external/LMCAS/LMMC/README.md#development-tests).
 
 Source-quality and package jobs export a Git-visible source tree, including the required LMMC tooling, then configure and build the exported tree.
 For a local POSIX-shell check:

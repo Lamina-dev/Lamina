@@ -3,6 +3,7 @@
 #include "bridge/runtime_views.hpp"
 #include "bridge/unit_bridge.hpp"
 #include "limit_result.hpp"
+#include "integrator.hpp"
 #include <cstdarg>
 
 using namespace lmx::bridge;
@@ -233,8 +234,13 @@ extern "C" LM_API AdtObj* lmx_computer_algebra_integrate_by_name(ExprObj* expr,
     if (!value)
         return result_error(MathErrorCode::InvalidArgument, "lmx_computer_algebra_integrate_by_name",
                             std::move(error));
+    LMCAS::ComputationContext context;
+    LMCAS::Integrator integrator;
+    auto integrated = integrator.integrate_checked(
+        **value, variable ? variable : "", context);
+    if (!integrated) { return result_error(integrated.error()); }
     return expr_pointer_result(
-        (*value)->integrate(variable ? variable : ""), "lmx_computer_algebra_integrate_by_name");
+        std::make_shared<LMCAS::SymbolicExpr>(std::move(integrated.value())), __func__);
 } catch (...) {
     return c_abi_current_exception(__func__);
 }

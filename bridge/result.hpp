@@ -43,7 +43,7 @@ AdtObj* expr_pointer_result(LMCAS::ExprPtr value,
                                 const char* operation);
 AdtObj* expression_set_literal_result(const LMCAS::ExprSetResult& result);
 AdtObj* solution_set_result(const LMCAS::SolveResult& result);
-AdtObj* transform_engine_result_value(const LMCAS::TransformEngineResult& result);
+AdtObj* transform_engine_result(const LMCAS::TransformEngineResult& result);
 
 template <typename Operation>
 AdtObj* unary_expression_result(ExprObj* expr, const char* operation_name,
